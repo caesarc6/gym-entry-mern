@@ -245,7 +245,6 @@ const ProductCard = ({ entry }) => {
               <Input
                 placeholder="Description"
                 name="description"
-                type="number"
                 value={updatedEntry.description}
                 onChange={(e) =>
                   setUpdatedEntry({

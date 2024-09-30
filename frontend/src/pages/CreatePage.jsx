@@ -68,24 +68,6 @@ const CreatePage = () => {
               }
               w="full"
             />
-            {/* <Editable defaultValue="Workout Split" w="full">
-              <EditablePreview
-                name="Entry"
-                type={newEntry.description}
-                value={newEntry.description}
-                onChange={(e) =>
-                  setNewEntry({ ...newEntry, description: e.target.value })
-                }
-                height={32}
-                className="max-w-screen-xl"
-                w="full"
-              />
-              <EditableTextarea
-                height={32}
-                className="max-w-screen-xl"
-                w="full"
-              />
-            </Editable> */}
             <Textarea
               name="description"
               value={newEntry.description}
@@ -93,7 +75,7 @@ const CreatePage = () => {
                 setNewEntry({ ...newEntry, description: e.target.value })
               }
               placeholder="Workout Split"
-              size="sm"
+              size="full"
             />
 
             <Input
