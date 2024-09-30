@@ -69,12 +69,12 @@ const CreatePage = () => {
               w="full"
             />
             <Textarea
+              placeholder="Workout Split"
               name="description"
               value={newEntry.description}
               onChange={(e) =>
                 setNewEntry({ ...newEntry, description: e.target.value })
               }
-              placeholder="Workout Split"
               size="full"
             />
 

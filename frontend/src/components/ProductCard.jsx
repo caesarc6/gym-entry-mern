@@ -15,6 +15,7 @@ import {
   ModalHeader,
   ModalOverlay,
   Text,
+  Textarea,
   useColorModeValue,
   useDisclosure,
   useToast,
@@ -242,8 +243,8 @@ const ProductCard = ({ entry }) => {
                   setUpdatedEntry({ ...updatedEntry, name: e.target.value })
                 }
               />
-              <Input
-                placeholder="Description"
+              <Textarea
+                placeholder="Workout Split"
                 name="description"
                 value={updatedEntry.description}
                 onChange={(e) =>
