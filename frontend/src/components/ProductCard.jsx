@@ -171,7 +171,7 @@ const ProductCard = ({ entry }) => {
         <Heading as={"h2"} size={"lg"} color={textColor}>
           {updatedEntry.name}
         </Heading>
-        <Text color={textColor}>Price: ${updatedEntry.price}</Text>
+        <Text color={textColor}>Description: ${updatedEntry.description}</Text>
         <Text color={textColor}>Likes: {updatedEntry.likes}</Text>
         <HStack spacing={2}>
           <IconButton
@@ -206,7 +206,7 @@ const ProductCard = ({ entry }) => {
             <Box
               style={{
                 width: "inherit",
-                dispaly: "inline-flex",
+                display: "inline-flex",
                 justifyContent: "space-between",
               }}
               key={index}
@@ -242,14 +242,14 @@ const ProductCard = ({ entry }) => {
                 }
               />
               <Input
-                placeholder="Price"
-                name="price"
+                placeholder="Description"
+                name="description"
                 type="number"
-                value={updatedEntry.price}
+                value={updatedEntry.description}
                 onChange={(e) =>
                   setUpdatedEntry({
                     ...updatedEntry,
-                    price: e.target.value,
+                    description: e.target.value,
                   })
                 }
               />
@@ -270,7 +270,7 @@ const ProductCard = ({ entry }) => {
             <Button
               colorScheme="blue"
               mr={3}
-              onClick={() => handleUpdatedEntry(entry._id, updatedEntry)}
+              onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
             >
               Update
             </Button>

@@ -6,8 +6,8 @@ const entrySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    price: {
-      type: Number,
+    description: {
+      type: String,
       required: true,
     },
     // image can be defaulted to a string if not provided

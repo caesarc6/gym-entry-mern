@@ -5,7 +5,7 @@ export const useProductStore = create((set) => ({
   entrys: [],
   setEntrys: (entrys) => set({ entrys }),
   createEntry: async (newEntry) => {
-    if (!newEntry.name || !newEntry.price) {
+    if (!newEntry.name || !newEntry.description) {
       return { success: false, message: "Please fill in all fields." };
     }
 
@@ -26,9 +26,16 @@ export const useProductStore = create((set) => ({
     return { success: true, message: "Product created successfully" };
   },
   fetchEntrys: async () => {
-    const res = await fetch("/api/entrys");
-    const data = await res.json();
-    set({ entrys: data.data });
+    try {
+      const res = await fetch("/api/entrys");
+      if (!res.ok) {
+        throw new Error(`Error: ${res.status} ${res.statusText}`);
+      }
+      const data = await res.json();
+      set({ entrys: data.data });
+    } catch (error) {
+      console.error("Failed to fetch entries:", error);
+    }
   },
   deleteEntry: async (pid) => {
     const res = await fetch(`/api/entrys/${pid}`, {

@@ -4,6 +4,7 @@ import {
   Container,
   Heading,
   Input,
+  Textarea,
   useColorModeValue,
   useToast,
   VStack,
@@ -14,7 +15,7 @@ import { useProductStore } from "../store/product";
 const CreatePage = () => {
   const [newEntry, setNewEntry] = useState({
     name: "",
-    price: "",
+    description: "",
     image: "",
   });
   const toast = useToast();
@@ -40,7 +41,7 @@ const CreatePage = () => {
         isClosable: true,
       });
     }
-    setNewEntry({ name: "", price: "", image: "" });
+    setNewEntry({ name: "", description: "", image: "" });
   };
 
   return (
@@ -57,7 +58,7 @@ const CreatePage = () => {
           rounded={"lg"}
           shadow={"md"}
         >
-          <VStack spacing={4}>
+          <VStack spacing={4} w="full">
             <Input
               placeholder="Product Name"
               name="name"
@@ -65,16 +66,35 @@ const CreatePage = () => {
               onChange={(e) =>
                 setNewEntry({ ...newEntry, name: e.target.value })
               }
+              w="full"
             />
-            <Input
-              placeholder="Price"
-              name="price"
-              type="number"
-              value={newEntry.price}
+            {/* <Editable defaultValue="Workout Split" w="full">
+              <EditablePreview
+                name="Entry"
+                type={newEntry.description}
+                value={newEntry.description}
+                onChange={(e) =>
+                  setNewEntry({ ...newEntry, description: e.target.value })
+                }
+                height={32}
+                className="max-w-screen-xl"
+                w="full"
+              />
+              <EditableTextarea
+                height={32}
+                className="max-w-screen-xl"
+                w="full"
+              />
+            </Editable> */}
+            <Textarea
+              value={newEntry.description}
               onChange={(e) =>
-                setNewEntry({ ...newEntry, price: e.target.value })
+                setNewEntry({ ...newEntry, description: e.target.value })
               }
+              placeholder="Workout Split"
+              size="sm"
             />
+
             <Input
               placeholder="Image URL"
               name="image"
@@ -82,8 +102,8 @@ const CreatePage = () => {
               onChange={(e) =>
                 setNewEntry({ ...newEntry, image: e.target.value })
               }
+              w="full"
             />
-
             <Button colorScheme="blue" onClick={handleAddEntry} w="full">
               Add Product
             </Button>
