@@ -22,6 +22,7 @@ import {
 } from "@chakra-ui/react";
 import { useProductStore } from "../store/product";
 import { useState } from "react";
+import PropTypes from "prop-types";
 
 const ProductCard = ({ entry }) => {
   const [updatedEntry, setUpdatedEntry] = useState(entry);
@@ -171,7 +172,7 @@ const ProductCard = ({ entry }) => {
         <Heading as={"h2"} size={"lg"} color={textColor}>
           {updatedEntry.name}
         </Heading>
-        <Text color={textColor}>Description: ${updatedEntry.description}</Text>
+        <Text color={textColor}>Description: {updatedEntry.description}</Text>
         <Text color={textColor}>Likes: {updatedEntry.likes}</Text>
         <HStack spacing={2}>
           <IconButton
@@ -234,7 +235,7 @@ const ProductCard = ({ entry }) => {
           <ModalBody>
             <VStack spacing={4}>
               <Input
-                placeholder="Product Name"
+                placeholder="Entry Name"
                 name="name"
                 value={updatedEntry.name}
                 onChange={(e) =>
@@ -414,5 +415,20 @@ const ProductCard = ({ entry }) => {
 //     </Box>
 //   );
 // };
+ProductCard.propTypes = {
+  entry: PropTypes.shape({
+    _id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    description: PropTypes.string.isRequired,
+    image: PropTypes.string.isRequired,
+    likes: PropTypes.number.isRequired,
+    comments: PropTypes.arrayOf(
+      PropTypes.shape({
+        text: PropTypes.string.isRequired,
+        createdAt: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+  }).isRequired,
+};
 
 export default ProductCard;

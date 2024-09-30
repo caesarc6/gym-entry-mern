@@ -48,7 +48,7 @@ const CreatePage = () => {
     <Container maxW={"container.sm"}>
       <VStack spacing={8}>
         <Heading as={"h1"} size={"2xl"} textAlign={"center"} mb={8}>
-          Create New Product
+          Create New Entry
         </Heading>
 
         <Box
@@ -87,6 +87,7 @@ const CreatePage = () => {
               />
             </Editable> */}
             <Textarea
+              name="description"
               value={newEntry.description}
               onChange={(e) =>
                 setNewEntry({ ...newEntry, description: e.target.value })
@@ -105,7 +106,7 @@ const CreatePage = () => {
               w="full"
             />
             <Button colorScheme="blue" onClick={handleAddEntry} w="full">
-              Add Product
+              Add Entry
             </Button>
           </VStack>
         </Box>
