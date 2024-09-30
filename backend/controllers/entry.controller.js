@@ -18,7 +18,7 @@ export const getEntrys = async (req, res) => {
 export const createEntry = async (req, res) => {
   const entry = req.body; // user will send this data
 
-  if (!entry.name || !entry.price) {
+  if (!entry.name || !entry.description) {
     return res
       .status(400)
       .json({ success: false, message: "Please provide all fields" });
