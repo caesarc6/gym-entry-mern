@@ -60,7 +60,7 @@ const CreatePage = () => {
         >
           <VStack spacing={4} w="full">
             <Input
-              placeholder="Product Name"
+              placeholder="Workout Name"
               name="name"
               value={newEntry.name}
               onChange={(e) =>
