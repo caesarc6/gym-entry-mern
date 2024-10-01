@@ -184,7 +184,9 @@ const ProductCard = ({ entry }) => {
           {updatedEntry.name}
         </Heading>
         <Text color={textColor} fontFamily="Arial, sans-serif">
-          Description:{" "}
+          Workout 🏋🏽{" "}
+        </Text>
+        <Box>
           <Box
             as="pre"
             style={{
@@ -195,7 +197,7 @@ const ProductCard = ({ entry }) => {
           >
             {updatedEntry.description}
           </Box>
-        </Text>
+        </Box>
         <Text color={textColor} fontFamily="Arial, sans-serif">
           Likes: {updatedEntry.likes}
         </Text>
@@ -227,17 +229,25 @@ const ProductCard = ({ entry }) => {
             Comment
           </Button>
         </HStack>
-        <VStack style={{ width: "360px" }} spacing={2} align="start">
+        <VStack
+          style={{
+            maxWidth: "360px",
+            width: "-webkit-fill-available",
+            padding: "0px 1em 0px 1em",
+          }}
+          spacing={2}
+          align="start"
+        >
           {updatedEntry.comments.map((comment, index) => (
             <Box
               style={{
-                width: "inherit",
+                width: "100%",
                 display: "inline-flex",
                 justifyContent: "space-between",
               }}
               key={index}
               p={2}
-              bg={"gray.600"}
+              bg={"gray.100"}
               rounded="md"
             >
               <Text
