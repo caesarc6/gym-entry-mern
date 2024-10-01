@@ -20,6 +20,7 @@ import {
   useDisclosure,
   useToast,
   VStack,
+  useColorMode,
 } from "@chakra-ui/react";
 import { useProductStore } from "../store/product";
 import { useState } from "react";
@@ -30,6 +31,7 @@ const ProductCard = ({ entry }) => {
   const [comment, setComment] = useState("");
   const textColor = useColorModeValue("gray.600", "gray.200");
   const bg = useColorModeValue("white", "gray.800");
+  const { colorMode } = useColorMode();
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
     useProductStore();
 
@@ -247,7 +249,7 @@ const ProductCard = ({ entry }) => {
               }}
               key={index}
               p={2}
-              bg={"gray.100"}
+              bg={colorMode === "dark" ? "gray.700" : "gray.100"}
               rounded="md"
             >
               <Text
@@ -258,7 +260,7 @@ const ProductCard = ({ entry }) => {
                 {comment.text}
               </Text>
               <Text
-                color={textColor}
+                color={colorMode === "dark" ? "gray.300" : "black"}
                 fontSize="sm"
                 fontFamily="Arial, sans-serif"
               >
