@@ -10,7 +10,7 @@ const HomePage = () => {
   useEffect(() => {
     fetchEntrys();
   }, [fetchEntrys]);
-  console.log("entrys", entrys);
+  // console.log("entrys", entrys);
 
   return (
     <Container maxW="container.xl" py={12}>
@@ -34,7 +34,7 @@ const HomePage = () => {
           spacing={10}
           w={"full"}
         >
-          {entrys.map((entry) => (
+          {[...entrys].reverse().map((entry) => (
             <ProductCard key={entry._id} entry={entry} />
           ))}
         </SimpleGrid>
@@ -46,14 +46,14 @@ const HomePage = () => {
             fontWeight="bold"
             color="gray.500"
           >
-            No products found 😢{" "}
+            No entries found 😢{" "}
             <Link to={"/create"}>
               <Text
                 as="span"
                 color="blue.500"
                 _hover={{ textDecoration: "underline" }}
               >
-                Create a product
+                Create an entry
               </Text>
             </Link>
           </Text>

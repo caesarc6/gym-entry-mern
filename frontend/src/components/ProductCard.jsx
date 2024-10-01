@@ -35,6 +35,11 @@ const ProductCard = ({ entry }) => {
 
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isDeleteOpen,
+    onOpen: onDeleteOpen,
+    onClose: onDeleteClose,
+  } = useDisclosure();
 
   const handleDeleteEntry = async (pid) => {
     const { success, message } = await deleteEntry(pid);
@@ -169,12 +174,31 @@ const ProductCard = ({ entry }) => {
         w="full"
         objectFit="cover"
       />
-      <VStack spacing={4}>
-        <Heading as={"h2"} size={"lg"} color={textColor}>
+      <VStack className="px-8" spacing={4} p="8px 8px 8px 8px">
+        <Heading
+          as={"h2"}
+          size={"lg"}
+          color={textColor}
+          fontFamily="Arial, sans-serif"
+        >
           {updatedEntry.name}
         </Heading>
-        <Text color={textColor}>Description: {updatedEntry.description}</Text>
-        <Text color={textColor}>Likes: {updatedEntry.likes}</Text>
+        <Text color={textColor} fontFamily="Arial, sans-serif">
+          Description:{" "}
+          <Box
+            as="pre"
+            style={{
+              width: "100%",
+              whiteSpace: "pre-wrap",
+              fontFamily: "Arial, sans-serif",
+            }}
+          >
+            {updatedEntry.description}
+          </Box>
+        </Text>
+        <Text color={textColor} fontFamily="Arial, sans-serif">
+          Likes: {updatedEntry.likes}
+        </Text>
         <HStack spacing={2}>
           <IconButton
             colorScheme="purple"
@@ -184,7 +208,7 @@ const ProductCard = ({ entry }) => {
           <IconButton icon={<EditIcon />} onClick={onOpen} colorScheme="blue" />
           <IconButton
             icon={<DeleteIcon />}
-            onClick={() => handleDeleteEntry(entry._id)}
+            onClick={onDeleteOpen}
             colorScheme="red"
           />
         </HStack>
@@ -213,15 +237,21 @@ const ProductCard = ({ entry }) => {
               }}
               key={index}
               p={2}
-              // grey bg no not use colorModeValue
               bg={"gray.600"}
               rounded="md"
             >
-              {/* display text element next to each other with space in between */}
-              <Text className="" color={textColor}>
+              <Text
+                className=""
+                color={textColor}
+                fontFamily="Arial, sans-serif"
+              >
                 {comment.text}
               </Text>
-              <Text color={textColor} fontSize="sm">
+              <Text
+                color={textColor}
+                fontSize="sm"
+                fontFamily="Arial, sans-serif"
+              >
                 {formatDate(comment.createdAt)}
               </Text>
             </Box>
@@ -231,7 +261,7 @@ const ProductCard = ({ entry }) => {
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>Update Entry</ModalHeader>
+          <ModalHeader fontFamily="Arial, sans-serif">Update Entry</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <VStack spacing={4}>
@@ -242,6 +272,7 @@ const ProductCard = ({ entry }) => {
                 onChange={(e) =>
                   setUpdatedEntry({ ...updatedEntry, name: e.target.value })
                 }
+                fontFamily="Arial, sans-serif"
               />
               <Textarea
                 placeholder="Workout Split"
@@ -253,6 +284,7 @@ const ProductCard = ({ entry }) => {
                     description: e.target.value,
                   })
                 }
+                fontFamily="Arial, sans-serif"
               />
               <Input
                 placeholder="Image URL"
@@ -264,6 +296,7 @@ const ProductCard = ({ entry }) => {
                     image: e.target.value,
                   })
                 }
+                fontFamily="Arial, sans-serif"
               />
             </VStack>
           </ModalBody>
@@ -272,10 +305,36 @@ const ProductCard = ({ entry }) => {
               colorScheme="blue"
               mr={3}
               onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
+              fontFamily="Arial, sans-serif"
             >
               Update
             </Button>
-            <Button variant="ghost" onClick={onClose}>
+            <Button
+              variant="ghost"
+              onClick={onClose}
+              fontFamily="Arial, sans-serif"
+            >
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Confirm Delete</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text>Are you sure you want to delete this entry?</Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              colorScheme="red"
+              onClick={() => handleDeleteEntry(entry._id)}
+            >
+              Delete
+            </Button>
+            <Button variant="ghost" onClick={onDeleteClose}>
               Cancel
             </Button>
           </ModalFooter>

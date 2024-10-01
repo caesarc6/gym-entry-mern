@@ -25,7 +25,7 @@ const CreatePage = () => {
   const handleAddEntry = async () => {
     const { success, message } = await createEntry(newEntry);
     // console.log("Success:", success);
-    console.log("Message:", message);
+    // console.log("Message:", message);
     if (!success) {
       toast({
         title: "Error",
@@ -75,7 +75,7 @@ const CreatePage = () => {
               onChange={(e) =>
                 setNewEntry({ ...newEntry, description: e.target.value })
               }
-              size="full"
+              w="full"
             />
 
             <Input
