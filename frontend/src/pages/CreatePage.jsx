@@ -69,6 +69,7 @@ const CreatePage = () => {
               w="full"
             />
             <Textarea
+              style={{ height: "185px" }}
               placeholder="Workout Split"
               name="description"
               value={newEntry.description}

@@ -203,13 +203,26 @@ const ProductCard = ({ entry }) => {
         <Text color={textColor} fontFamily="Arial, sans-serif">
           Likes: {updatedEntry.likes}
         </Text>
-        <HStack spacing={2}>
+        <HStack
+          // spacing={3}
+          style={{
+            display: "flex",
+            padding: "0px 12px 0px 12px",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
           <IconButton
             colorScheme="purple"
             icon={<StarIcon />}
             onClick={() => handleLikeEntry(entry._id)}
           />
-          <IconButton icon={<EditIcon />} onClick={onOpen} colorScheme="blue" />
+          <IconButton
+            style={{ width: "300px", height: "65px" }}
+            icon={<EditIcon />}
+            onClick={onOpen}
+            colorScheme="blue"
+          />
           <IconButton
             icon={<DeleteIcon />}
             onClick={onDeleteOpen}
@@ -288,6 +301,7 @@ const ProductCard = ({ entry }) => {
               />
               <Textarea
                 placeholder="Workout Split"
+                style={{ height: "185px" }}
                 name="description"
                 value={updatedEntry.description}
                 onChange={(e) =>
