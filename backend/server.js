@@ -12,7 +12,7 @@ app.use(cors());
 // Allow specific origin(s)
 app.use(
   cors({
-    origin: "https://gym-track-frontend.vercel.app/",
+    origin: "https://gym-tracker-brown.vercel.app/",
   })
 );
 
