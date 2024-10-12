@@ -6,6 +6,16 @@ import { connectDB } from "./config/db.js";
 
 import entryRoutes from "./routes/entry.route.js";
 
+const cors = require("cors");
+// Allow all origins
+app.use(cors());
+// Allow specific origin(s)
+app.use(
+  cors({
+    origin: "https://yourdeployedsite.com",
+  })
+);
+
 dotenv.config();
 
 const app = express();
