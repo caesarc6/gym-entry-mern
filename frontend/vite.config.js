@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        https: "https://gym-tracker-brown.vercel.app/",
+        target: "https://gym-tracker-brown.vercel.app/",
         // target: "http://localhost:5001",
         changeOrigin: true,
         secure: false,
