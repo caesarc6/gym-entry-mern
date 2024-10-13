@@ -6,9 +6,11 @@ import { connectDB } from "./config/db.js";
 
 import entryRoutes from "./routes/entry.route.js";
 
+connectDB();
+
 const cors = require("cors");
 // Allow all origins
-app.use(cors());
+// app.use(cors());
 // Allow specific origin(s)
 app.use(
   cors({
@@ -23,6 +25,11 @@ const PORT = process.env.PORT || 5000;
 
 const __dirname = path.resolve();
 app.use(express.json()); // allows to use json data in the body
+
+// Routes
+app.get("/", (req, res) => {
+  res.send("Server deployed and running on vercel.");
+});
 
 app.use("/api/entrys", entryRoutes);
 
@@ -41,6 +48,6 @@ if (process.env.NODE_ENV === "production") {
 // console.log(process.env.MONGO_URI);
 
 app.listen(PORT, () => {
-  connectDB();
+  // connectDB();
   console.log("Server https://localhost:" + PORT);
 });
