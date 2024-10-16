@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api": {
+      "/api/entrys/": {
         target: "https://gym-tracker-brown.vercel.app/",
         // target: "http://localhost:5001",
         changeOrigin: true,
