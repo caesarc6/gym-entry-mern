@@ -32,7 +32,7 @@ app.get("/", (req, res) => {
   res.send("Server deployed and running on vercel.");
 });
 
-app.use("https://gym-tracker-brown.vercel.app/api/entrys", entryRoutes);
+app.use("/api/entrys", entryRoutes);
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));

@@ -14,7 +14,7 @@ export const useProductStore = create((set) => ({
         "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
     }
 
-    const res = await fetch("/api/entrys", {
+    const res = await fetch("https://gym-tracker-brown.vercel.app/api/entrys", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
