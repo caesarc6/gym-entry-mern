@@ -4,6 +4,7 @@ import { create } from "zustand";
 export const useProductStore = create((set) => ({
   entrys: [],
   setEntrys: (entrys) => set({ entrys }),
+
   createEntry: async (newEntry) => {
     if (!newEntry.name || !newEntry.description) {
       return { success: false, message: "Please fill in all fields." };
@@ -25,11 +26,10 @@ export const useProductStore = create((set) => ({
     set((state) => ({ entrys: [...state.entrys, data.data] }));
     return { success: true, message: "Entry created successfully" };
   },
+
   fetchEntrys: async () => {
     try {
-      const res = await fetch(
-        "https://gym-track-frontend.vercel.app/api/entrys"
-      );
+      const res = await fetch("https://gym-track-brown.vercel.app/api/entrys");
       if (!res.ok) {
         throw new Error(`Error: ${res.status} ${res.statusText}`);
       }
@@ -39,6 +39,7 @@ export const useProductStore = create((set) => ({
       console.error("Failed to fetch entries:", error);
     }
   },
+
   deleteEntry: async (pid) => {
     const res = await fetch(`/api/entrys/${pid}`, {
       method: "DELETE",
@@ -51,6 +52,7 @@ export const useProductStore = create((set) => ({
     }));
     return { success: true, message: data.message };
   },
+
   updateEntry: async (pid, updatedEntry) => {
     const res = await fetch(`/api/entrys/${pid}`, {
       method: "PUT",
