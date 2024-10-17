@@ -29,7 +29,9 @@ export const useProductStore = create((set) => ({
 
   fetchEntrys: async () => {
     try {
-      const res = await fetch("https://gym-track-brown.vercel.app/api/entrys");
+      const res = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/entrys"
+      );
       if (!res.ok) {
         throw new Error(`Error: ${res.status} ${res.statusText}`);
       }
