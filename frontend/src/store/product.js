@@ -15,7 +15,7 @@ export const useProductStore = create((set) => ({
         "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
     }
 
-    const res = await fetch("/api/entrys", {
+    const res = await fetch("https://gym-tracker-brown.vercel.app/api/entrys", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -43,9 +43,12 @@ export const useProductStore = create((set) => ({
   },
 
   deleteEntry: async (pid) => {
-    const res = await fetch(`/api/entrys/${pid}`, {
-      method: "DELETE",
-    });
+    const res = await fetch(
+      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
+      {
+        method: "DELETE",
+      }
+    );
     const data = await res.json();
     if (!data.success) return { success: false, message: data.message };
 
@@ -56,13 +59,16 @@ export const useProductStore = create((set) => ({
   },
 
   updateEntry: async (pid, updatedEntry) => {
-    const res = await fetch(`/api/entrys/${pid}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(updatedEntry),
-    });
+    const res = await fetch(
+      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedEntry),
+      }
+    );
     const data = await res.json();
     if (!data.success) return { success: false, message: data.message };
     // UPdates the UI immediately without needing to fetch all products again or a refresh
@@ -77,12 +83,15 @@ export const useProductStore = create((set) => ({
 
   // Like a product
   likeEntry: async (pid) => {
-    const res = await fetch(`/api/entrys/${pid}/like`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const res = await fetch(
+      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}/like`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
     const data = await res.json();
     if (!data.success) return { success: false, message: data.message };
     // Updates the 'like' UI immediately without needing to fetch all products again or a refresh
@@ -96,13 +105,16 @@ export const useProductStore = create((set) => ({
   },
 
   commentEntry: async (pid, comment) => {
-    const res = await fetch(`/api/entrys/${pid}/comment`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ comment }),
-    });
+    const res = await fetch(
+      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}/comment`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ comment }),
+      }
+    );
     const data = await res.json();
     if (!data.success) return { success: false, message: data.message };
     // Updates the 'comment' UI immediately without needing to fetch all products again or a refresh
