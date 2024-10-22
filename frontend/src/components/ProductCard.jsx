@@ -30,7 +30,7 @@ const ProductCard = ({ entry }) => {
   const [updatedEntry, setUpdatedEntry] = useState(entry);
   const [comment, setComment] = useState("");
   const textColor = useColorModeValue("gray.200", "gray.200");
-  const textColorOne = useColorModeValue("gray.200", "gray.100");
+  const textColorOne = useColorModeValue("gray.200", "gray.200");
   const bg = useColorModeValue("white", "gray.800");
   const { colorMode } = useColorMode();
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
