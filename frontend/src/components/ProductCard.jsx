@@ -212,12 +212,12 @@ const ProductCard = ({ entry }) => {
           color={textColorOne}
           fontFamily="Arial, sans-serif"
         >
-          {formatDateTitle(updatedEntry.createdAt)} -{" "}
+          {formatDateTitle(updatedEntry.createdAt)} 1{" "}
           {formatDateTitleTime(updatedEntry.createdAt)}
         </Text>
         <Text
           // colorScheme="gray"
-          color={textColorOne}
+          color={textColor}
           fontFamily="Arial, sans-serif"
         >
           {formatDateTitle(updatedEntry.createdAt)} -{" "}
