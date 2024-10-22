@@ -30,7 +30,7 @@ const ProductCard = ({ entry }) => {
   const [updatedEntry, setUpdatedEntry] = useState(entry);
   const [comment, setComment] = useState("");
   const textColor = useColorModeValue("gray.200", "gray.200");
-  const textColorOne = useColorModeValue("gray.600", "gray.200");
+  const textColorOne = useColorModeValue("zinc.600", "gray.200");
   const bg = useColorModeValue("white", "gray.800");
   const { colorMode } = useColorMode();
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
@@ -215,6 +215,15 @@ const ProductCard = ({ entry }) => {
           {formatDateTitle(updatedEntry.createdAt)} -{" "}
           {formatDateTitleTime(updatedEntry.createdAt)}
         </Text>
+        <Text
+          // colorScheme="gray"
+          color={textColorOne}
+          fontFamily="Arial, sans-serif"
+        >
+          {formatDateTitle(updatedEntry.createdAt)} -{" "}
+          {formatDateTitleTime(updatedEntry.createdAt)}
+        </Text>
+
         <Text
           colorScheme="gray"
           // color={textColor}
