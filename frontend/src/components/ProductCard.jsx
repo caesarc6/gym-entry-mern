@@ -217,7 +217,7 @@ const ProductCard = ({ entry }) => {
         </Text>
         <Text
           colorScheme="gray"
-          color={textColor}
+          // color={textColor}
           fontFamily="Arial, sans-serif"
         >
           Workout 🏋🏽{" "}
