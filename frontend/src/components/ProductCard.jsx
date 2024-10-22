@@ -25,6 +25,7 @@ import {
 import { useProductStore } from "../store/product";
 import { useState } from "react";
 import PropTypes from "prop-types";
+import Moment from "react-moment";
 
 const ProductCard = ({ entry }) => {
   const [updatedEntry, setUpdatedEntry] = useState(entry);
@@ -183,7 +184,7 @@ const ProductCard = ({ entry }) => {
           color={textColor}
           fontFamily="Arial, sans-serif"
         >
-          {updatedEntry.createdAt} - {updatedEntry.name}
+          <Moment date={updatedEntry.createdAt} /> - {updatedEntry.name}
         </Heading>
         <Text color={textColor} fontFamily="Arial, sans-serif">
           Workout 🏋🏽{" "}
