@@ -194,8 +194,18 @@ const ProductCard = ({ entry }) => {
           color={textColor}
           fontFamily="Arial, sans-serif"
         >
-          {formatDateTitle(updatedEntry.createdAt)} - {updatedEntry.name}
+          {updatedEntry.name}
         </Heading>
+        <Box
+          as="pre"
+          style={{
+            width: "100%",
+            whiteSpace: "pre-wrap",
+            fontFamily: "Arial, sans-serif",
+          }}
+        >
+          {formatDateTitle(updatedEntry.createdAt)}
+        </Box>
         <Text color={textColor} fontFamily="Arial, sans-serif">
           Workout 🏋🏽{" "}
         </Text>
