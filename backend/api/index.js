@@ -51,6 +51,6 @@ if (process.env.NODE_ENV === "production") {
 
 app.listen(PORT, () => {
   // connectDB();
-  console.log("Server https://localhost:" + PORT);
+  console.log("Server http://localhost:" + PORT);
 });
 // module.exports = app;
