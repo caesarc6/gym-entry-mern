@@ -25,8 +25,6 @@ import {
 import { useProductStore } from "../store/product";
 import { useState } from "react";
 import PropTypes from "prop-types";
-import Moment from "react-moment";
-import { m } from "framer-motion";
 
 const ProductCard = ({ entry }) => {
   const [updatedEntry, setUpdatedEntry] = useState(entry);
@@ -185,12 +183,8 @@ const ProductCard = ({ entry }) => {
           color={textColor}
           fontFamily="Arial, sans-serif"
         >
-          {/* {updatedEntry.createdAt.toUTCString()} -{" "} */}
-          {/* use moment to format the updatedEntry.createdAt variable into readable format */}
-          <Moment format="D MMM YYYY">{updateEntry.createdAt}</Moment>
-          {/* {moment().format("MMM Do YY").toString()} -{" "} */}
-          <Moment format="MMM"> {updatedEntry.createdAt} </Moment> -{" "}
-          {updatedEntry.createdAt} - {updatedEntry.name}
+          {formatDate(updatedEntry.createdAt)} - {updatedEntry.createdAt} -{" "}
+          {updatedEntry.name}
         </Heading>
         <Text color={textColor} fontFamily="Arial, sans-serif">
           Workout 🏋🏽{" "}
