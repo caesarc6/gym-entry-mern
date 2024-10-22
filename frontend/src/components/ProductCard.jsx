@@ -171,6 +171,16 @@ const ProductCard = ({ entry }) => {
     return date.toLocaleString("en-US", options);
   };
 
+  const formatDateTitleTime = (dateString) => {
+    const date = new Date(dateString);
+    const options = {
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true,
+    };
+    return date.toLocaleString("en-US", options);
+  };
+
   return (
     <Box
       shadow="lg"
@@ -197,7 +207,8 @@ const ProductCard = ({ entry }) => {
           {updatedEntry.name}
         </Heading>
         <Text color={textColor} fontFamily="Arial, sans-serif">
-          {formatDateTitle(updatedEntry.createdAt)}
+          {formatDateTitle(updatedEntry.createdAt)} -{" "}
+          {formatDateTitleTime(updatedEntry.createdAt)}
         </Text>
         <Text color={textColor} fontFamily="Arial, sans-serif">
           Workout 🏋🏽{" "}
