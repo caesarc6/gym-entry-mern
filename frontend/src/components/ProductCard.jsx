@@ -160,6 +160,17 @@ const ProductCard = ({ entry }) => {
     return date.toLocaleString("en-US", options);
   };
 
+  // create a function to format the date into a string and abbreviate the month
+  const formatDateTitle = (dateString) => {
+    const date = new Date(dateString);
+    const options = {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    };
+    return date.toLocaleString("en-US", options);
+  };
+
   return (
     <Box
       shadow="lg"
@@ -183,7 +194,7 @@ const ProductCard = ({ entry }) => {
           color={textColor}
           fontFamily="Arial, sans-serif"
         >
-          {formatDate(updatedEntry.createdAt)} - {updatedEntry.name}
+          {formatDateTitle(updatedEntry.createdAt)} - {updatedEntry.name}
         </Heading>
         <Text color={textColor} fontFamily="Arial, sans-serif">
           Workout 🏋🏽{" "}
