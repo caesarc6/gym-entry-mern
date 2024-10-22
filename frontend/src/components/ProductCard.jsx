@@ -208,14 +208,18 @@ const ProductCard = ({ entry }) => {
           {updatedEntry.name}
         </Heading>
         <Text
-          colorScheme="gray"
+          // colorScheme="gray"
           color={textColor}
           fontFamily="Arial, sans-serif"
         >
           {formatDateTitle(updatedEntry.createdAt)} -{" "}
           {formatDateTitleTime(updatedEntry.createdAt)}
         </Text>
-        <Text color={textColor} fontFamily="Arial, sans-serif">
+        <Text
+          colorScheme="gray"
+          color={textColor}
+          fontFamily="Arial, sans-serif"
+        >
           Workout 🏋🏽{" "}
         </Text>
         <Box>
