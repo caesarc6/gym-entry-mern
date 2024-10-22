@@ -218,7 +218,7 @@ const ProductCard = ({ entry }) => {
         </Text>
         <Text
           // colorScheme="gray"
-          color={textColor}
+          color={textColorTwo}
           fontFamily="Arial, sans-serif"
         >
           {formatDateTitle(updatedEntry.createdAt)} -{" "}
