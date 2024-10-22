@@ -183,8 +183,7 @@ const ProductCard = ({ entry }) => {
           color={textColor}
           fontFamily="Arial, sans-serif"
         >
-          {formatDate(updatedEntry.createdAt)} - {updatedEntry.createdAt} -{" "}
-          {updatedEntry.name}
+          {formatDate(updatedEntry.createdAt)} - {updatedEntry.name}
         </Heading>
         <Text color={textColor} fontFamily="Arial, sans-serif">
           Workout 🏋🏽{" "}
