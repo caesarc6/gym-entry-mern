@@ -185,7 +185,7 @@ const ProductCard = ({ entry }) => {
           fontFamily="Arial, sans-serif"
         >
           {/* {updatedEntry.createdAt.toUTCString()} -{" "} */}
-          <Moment format="MMM DD"> {updatedEntry.createdAt} </Moment> -{" "}
+          <Moment format="MMM"> {updatedEntry.createdAt} </Moment> -{" "}
           {updatedEntry.name}
         </Heading>
         <Text color={textColor} fontFamily="Arial, sans-serif">
