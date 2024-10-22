@@ -25,7 +25,7 @@ import {
 import { useProductStore } from "../store/product";
 import { useState } from "react";
 import PropTypes from "prop-types";
-import Moment from "react-moment";
+// import Moment from "react-moment";
 
 const ProductCard = ({ entry }) => {
   const [updatedEntry, setUpdatedEntry] = useState(entry);
