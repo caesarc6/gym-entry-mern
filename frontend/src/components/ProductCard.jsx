@@ -208,7 +208,6 @@ const ProductCard = ({ entry }) => {
           {updatedEntry.name} - {formatDateTitle(updatedEntry.createdAt)}
         </Heading>
         <Text
-          p="8px 8px 8px 8px"
           // colorScheme="gray"
           color={textColorOne}
           fontFamily="Arial, sans-serif"
