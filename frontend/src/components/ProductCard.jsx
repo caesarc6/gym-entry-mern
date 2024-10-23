@@ -177,6 +177,7 @@ const ProductCard = ({ entry }) => {
       hour: "numeric",
       minute: "numeric",
       hour12: true,
+      year: "numeric",
     };
     return date.toLocaleString("en-US", options);
   };
