@@ -202,7 +202,7 @@ const ProductCard = ({ entry }) => {
         <Heading
           as={"h2"}
           size={"lg"}
-          color={textColor}
+          // color={textColor}
           fontFamily="Arial, sans-serif"
         >
           {updatedEntry.name} - {formatDateTitle(updatedEntry.createdAt)}
