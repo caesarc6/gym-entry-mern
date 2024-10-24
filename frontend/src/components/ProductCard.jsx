@@ -29,7 +29,7 @@ import PropTypes from "prop-types";
 const ProductCard = ({ entry }) => {
   const [updatedEntry, setUpdatedEntry] = useState(entry);
   const [comment, setComment] = useState("");
-  const textColorTitle = useColorModeValue("gray.700", "gray.500");
+  const textColorTitle = useColorModeValue("gray.600", "gray.500");
   const textColor = useColorModeValue("gray.200", "gray.200");
   const textColorDesc = useColorModeValue("gray.700", "gray.400");
   const textColorOne = useColorModeValue("gray.300", "gray.700");
