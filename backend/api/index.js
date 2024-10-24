@@ -19,7 +19,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "https://gym-track-frontend.vercel.app",
+    origin: ["https://gym-track-frontend.vercel.app", "http://localhost:5173"],
   })
 );
 
@@ -51,6 +51,5 @@ if (process.env.NODE_ENV === "production") {
 
 app.listen(PORT, () => {
   // connectDB();
-  console.log("Server http://localhost:" + PORT);
+  console.log("Server https://localhost:" + PORT);
 });
-// module.exports = app;

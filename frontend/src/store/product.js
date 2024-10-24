@@ -1,6 +1,9 @@
 import { create } from "zustand";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
+// change fetch URL in dev mode to http://localhost:5173/api/entrys
+// Production URL is https://gym-tracker-brown.vercel.app/api/entrys/
+
 export const useProductStore = create((set) => ({
   entrys: [],
   setEntrys: (entrys) => set({ entrys }),
@@ -30,7 +33,7 @@ export const useProductStore = create((set) => ({
   fetchEntrys: async () => {
     try {
       const res = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/entrys"
+        "https://gym-tracker-brown.vercel.app/api/entrys//api/entrys"
       );
       if (!res.ok) {
         throw new Error(`Error: ${res.status} ${res.statusText}`);
