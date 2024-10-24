@@ -26,7 +26,7 @@ const Navbar = () => {
           fontWeight="bold"
           textTransform={"uppercase"}
           textAlign={"center"}
-          bgGradient="linear(to-r, red.400, green.500, purple.600)"
+          bgGradient="linear(to-r, yellow.400, blue.500, red.500)"
           bgClip={"text"}
         >
           <Link to={"/"}>Gym Buddy </Link>
