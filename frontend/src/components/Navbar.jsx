@@ -23,13 +23,13 @@ const Navbar = () => {
       >
         <Text
           fontSize={{ base: "22", md: "28" }}
-          fontWeight="bold"
+          // fontWeight="bold"
           textTransform={"uppercase"}
           textAlign={"center"}
-          bgGradient="linear(to-r, yellow.400, blue.500, red.500)"
+          bgGradient={"linear(to-r, blue.300, gray.400)"}
           bgClip={"text"}
         >
-          <Link to={"/"}>Gym Buddy </Link>
+          <Link to={"/"}>Ethereal Gains </Link>
         </Text>
         <HStack spacing={2} alignItems={"center"}>
           <Link to={"/create"}>

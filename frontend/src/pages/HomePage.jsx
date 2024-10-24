@@ -16,13 +16,14 @@ const HomePage = () => {
     <Container maxW="container.xl" py={12}>
       <VStack spacing={8}>
         <Text
-          fontSize={"30"}
+          fontSize={"22"}
           fontWeight={"bold"}
-          bgGradient={"linear(to-r, blue.600, gray.600)"}
+          bgGradient={"linear(to-r, blue.200, gray.400)"}
+          // bgGradient="linear(to-r, red.600, red.400, yellow.300)"
           bgClip={"text"}
           textAlign={"center"}
         >
-          Current Entries 🚀
+          Workout Entries
         </Text>
 
         <SimpleGrid

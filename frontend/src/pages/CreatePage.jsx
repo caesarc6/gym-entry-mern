@@ -47,7 +47,7 @@ const CreatePage = () => {
   return (
     <Container maxW={"container.sm"}>
       <VStack spacing={8}>
-        <Heading as={"h1"} size={"2xl"} textAlign={"center"} mb={8}>
+        <Heading p={3} as={"h1"} size={"2xl"} textAlign={"center"} mb={8}>
           Create New Entry
         </Heading>
 
@@ -60,7 +60,7 @@ const CreatePage = () => {
         >
           <VStack spacing={4} w="full">
             <Input
-              placeholder="Workout Name"
+              placeholder="Name*"
               name="name"
               value={newEntry.name}
               onChange={(e) =>
@@ -70,7 +70,8 @@ const CreatePage = () => {
             />
             <Textarea
               style={{ height: "185px" }}
-              placeholder="Workout Split"
+              placeholder="Workout description... *
+Eg. DumbBell Curls 6lbs: 3 sets of 10 reps"
               name="description"
               value={newEntry.description}
               onChange={(e) =>
@@ -80,7 +81,7 @@ const CreatePage = () => {
             />
 
             <Input
-              placeholder="Image URL"
+              placeholder="Image URL (optional)"
               name="image"
               value={newEntry.image}
               onChange={(e) =>

@@ -29,8 +29,10 @@ import PropTypes from "prop-types";
 const ProductCard = ({ entry }) => {
   const [updatedEntry, setUpdatedEntry] = useState(entry);
   const [comment, setComment] = useState("");
+  const textColorTitle = useColorModeValue("gray.700", "gray.500");
   const textColor = useColorModeValue("gray.200", "gray.200");
-  const textColorOne = useColorModeValue("gray.200", "gray.700");
+  const textColorDesc = useColorModeValue("gray.700", "gray.400");
+  const textColorOne = useColorModeValue("gray.300", "gray.700");
   const bg = useColorModeValue("white", "gray.800");
   const { colorMode } = useColorMode();
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
@@ -204,7 +206,7 @@ const ProductCard = ({ entry }) => {
         <Heading
           as={"h2"}
           size={"lg"}
-          // color={textColor}
+          color={textColorTitle}
           fontFamily="Arial, sans-serif"
         >
           {updatedEntry.name}
@@ -227,11 +229,12 @@ const ProductCard = ({ entry }) => {
               whiteSpace: "pre-wrap",
               fontFamily: "Arial, sans-serif",
             }}
+            color={textColorDesc}
           >
             {updatedEntry.description}
           </Box>
         </Box>
-        <Text color={textColor} fontFamily="Arial, sans-serif">
+        <Text color={textColorOne} fontFamily="Arial, sans-serif">
           Likes: {updatedEntry.likes}
         </Text>
         <HStack
@@ -244,20 +247,22 @@ const ProductCard = ({ entry }) => {
           }}
         >
           <IconButton
-            colorScheme="purple"
-            icon={<StarIcon />}
             onClick={() => handleLikeEntry(entry._id)}
+            icon={<StarIcon />}
+            colorScheme="purple"
+            style={{ width: "40px", height: "33px" }}
           />
           <IconButton
-            style={{ width: "300px", height: "65px" }}
-            icon={<EditIcon />}
             onClick={onOpen}
+            icon={<EditIcon />}
             colorScheme="blue"
+            style={{ width: "300px", height: "65px" }}
           />
           <IconButton
-            icon={<DeleteIcon />}
             onClick={onDeleteOpen}
+            icon={<DeleteIcon />}
             colorScheme="red"
+            style={{ width: "40px", height: "29px" }}
           />
         </HStack>
         <HStack spacing={2}>
