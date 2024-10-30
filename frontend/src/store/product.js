@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { auth } from "../firebase";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
 // change fetch URL in dev mode to http://localhost:5173/api/entrys
@@ -7,6 +8,42 @@ import { create } from "zustand";
 export const useProductStore = create((set) => ({
   entrys: [],
   setEntrys: (entrys) => set({ entrys }),
+
+  posts: [],
+  setPosts: (posts) => set({ posts }),
+
+  // write a createPosts with verifyIdToken
+  createPost: async (newPost) => {
+    console.log("New Post:", newPost);
+    const token = await auth.currentUser.getIdToken();
+    if (!newPost.name || !newPost.description) {
+      return { success: false, message: "Please fill in all fields." };
+    }
+
+    if (!newPost.image) {
+      newPost.image =
+        "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
+    }
+
+    const res = await fetch("http://localhost:5001/api/posts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(newPost),
+    });
+    if (!res.ok) {
+      const errorData = await res.json();
+      console.error("Error creating post:", errorData);
+      throw new Error(errorData.error || "Failed to create post");
+    }
+    console.log("New Post:", newPost);
+    const data = await res.json();
+    set((state) => ({ posts: [...state.posts, data.data] }));
+    console.log("New Post:", newPost);
+    return { success: true, message: "Post created successfully" };
+  },
 
   createEntry: async (newEntry) => {
     if (!newEntry.name || !newEntry.description) {
@@ -30,20 +67,35 @@ export const useProductStore = create((set) => ({
     return { success: true, message: "Entry created successfully" };
   },
 
-  fetchEntrys: async () => {
-    try {
-      const res = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/entrys"
-      );
-      if (!res.ok) {
-        throw new Error(`Error: ${res.status} ${res.statusText}`);
-      }
-      const data = await res.json();
-      set({ entrys: data.data });
-    } catch (error) {
-      console.error("Failed to fetch entries:", error);
-    }
-  },
+  // fetchEntrys: async () => {
+  //   try {
+  //     const user = auth.currentUser;
+  //     if (!user) {
+  //       throw new Error("User not authenticated");
+  //     }
+
+  //     const token = await auth.currentUser.getIdToken();
+  //     const uid = user.uid;
+
+  //     const res = await fetch(`http://localhost:5001/api/posts/${uid}`, {
+  //       method: "GET",
+  //       // headers: {
+  //       //   "Content-Type": "application/json",
+  //       //   Authorization: `Bearer ${token}`,
+  //       // },
+  //     });
+
+  //     if (!res.ok) {
+  //       throw new Error(`Error: ${res.status} ${res.statusText}`);
+  //     }
+
+  //     const data = await res.json();
+  //     console.log("Data:", data);
+  //     set({ entrys: data.data });
+  //   } catch (error) {
+  //     console.error("Failed to fetch entries:", error);
+  //   }
+  // },
 
   deleteEntry: async (pid) => {
     const res = await fetch(
@@ -130,3 +182,13 @@ export const useProductStore = create((set) => ({
     return { success: true, message: "Comment added!" };
   },
 }));
+
+// Add an authentication state listener to ensure the user is authenticated
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    console.log("User authenticated:", user.uid);
+    // Call fetchEntrys function here if needed
+  } else {
+    console.error("User not authenticated");
+  }
+});

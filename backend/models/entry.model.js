@@ -6,6 +6,10 @@ const entrySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    uid: {
+      type: String,
+      required: true,
+    },
     description: {
       type: String,
       required: true,

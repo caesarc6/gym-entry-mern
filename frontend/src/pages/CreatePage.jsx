@@ -11,21 +11,33 @@ import {
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { useProductStore } from "../store/product";
+import { auth } from "../firebase";
+import { set } from "mongoose";
 
 const CreatePage = () => {
   const [newEntry, setNewEntry] = useState({
-    name: "",
+    title: "",
     description: "",
     image: "",
   });
+
+  const [newPost, setNewPost] = useState({
+    title: "",
+    description: "",
+    image: "",
+    uid: "",
+  });
+
   const toast = useToast();
 
-  const { createEntry } = useProductStore();
+  const { createPost } = useProductStore();
 
   const handleAddEntry = async () => {
-    const { success, message } = await createEntry(newEntry);
-    // console.log("Success:", success);
-    // console.log("Message:", message);
+    // get current user from auth
+    const currentUser = { uid: auth.currentUser.uid };
+    const currUser = currentUser.uid;
+    const postWithUID = { ...newPost, uid: currUser };
+    const { success, message } = await createPost(postWithUID);
     if (!success) {
       toast({
         title: "Error",
@@ -41,7 +53,7 @@ const CreatePage = () => {
         isClosable: true,
       });
     }
-    setNewEntry({ name: "", description: "", image: "" });
+    setNewPost({ name: "", description: "", image: "", uid: "" });
   };
 
   return (
@@ -61,11 +73,9 @@ const CreatePage = () => {
           <VStack spacing={4} w="full">
             <Input
               placeholder="Name*"
-              name="name"
-              value={newEntry.name}
-              onChange={(e) =>
-                setNewEntry({ ...newEntry, name: e.target.value })
-              }
+              name="title"
+              value={newPost.name}
+              onChange={(e) => setNewPost({ ...newPost, name: e.target.value })}
               w="full"
             />
             <Textarea
@@ -73,9 +83,9 @@ const CreatePage = () => {
               placeholder="Workout description... *
 Eg. DumbBell Curls 6lbs: 3 sets of 10 reps"
               name="description"
-              value={newEntry.description}
+              value={newPost.description}
               onChange={(e) =>
-                setNewEntry({ ...newEntry, description: e.target.value })
+                setNewPost({ ...newPost, description: e.target.value })
               }
               w="full"
             />
@@ -83,9 +93,9 @@ Eg. DumbBell Curls 6lbs: 3 sets of 10 reps"
             <Input
               placeholder="Image URL (optional)"
               name="image"
-              value={newEntry.image}
+              value={newPost.image}
               onChange={(e) =>
-                setNewEntry({ ...newEntry, image: e.target.value })
+                setNewPost({ ...newPost, image: e.target.value })
               }
               w="full"
             />

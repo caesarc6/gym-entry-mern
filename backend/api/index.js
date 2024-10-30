@@ -2,20 +2,31 @@ import express from "express";
 import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
+import { connectAuth } from "../config/auth.js";
 import { connectDB } from "../config/db.js";
-
+import { admin } from "../firebase.js";
+import { verifyIdToken } from "../middleware/auth.js";
 import entryRoutes from "../routes/entry.route.js";
+import userRoutes from "../routes/user.route.js";
+
+import mongoose from "mongoose";
+import User from "../models/user.model.js";
 
 connectDB();
 
 dotenv.config();
-// Allow all origins
-// app.use(cors());
-// Allow specific origin(s)
+
+// connectAuth();
+
+//
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+verifyIdToken;
 
 const app = express();
-
-// connectDB();
 
 app.use(
   cors({
@@ -23,13 +34,31 @@ app.use(
   })
 );
 
-const PORT = process.env.PORT || 5000;
-
 const __dirname = path.resolve();
 app.use(express.json()); // allows to use json data in the body
 
+// write a middleware to check if the user is authenticated and create a user in the database if it doesn't exist
+app.post("/api/protected", verifyIdToken, async (req, res) => {
+  const { uid, name, email, picture } = req.user;
+
+  let user = await User.findOne({ uid });
+
+  if (!user) {
+    user = new User({
+      uid,
+      name,
+      email,
+      picture,
+    });
+    await user.save();
+  }
+  res.send(user);
+  console.log("API INDEX - User:", user);
+});
 // Routes
+
 app.use("/api/entrys", entryRoutes);
+app.use("/api/", userRoutes);
 
 app.get("/", (req, res) => {
   res.send("Server deployed and running on vercel.");
@@ -48,7 +77,7 @@ if (process.env.NODE_ENV === "production") {
  } */
 
 // console.log(process.env.MONGO_URI);
-
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   // connectDB();
   console.log("Server https://localhost:" + PORT);
