@@ -9,13 +9,36 @@ import { signInWithPopup } from "firebase/auth";
 
 const HomePage = () => {
   // const { fetchEntrys, entrys } = useProductStore();
+  const [isSignedIn, setIsSignedIn] = useState(false);
   const [uid, setUid] = useState(null);
   const [posts, setPosts] = useState([]);
   const [entries, setEntries] = useState([]);
 
-  // useEffect(() => {
-  //   fetchEntrys();
-  // }, [fetchEntrys]);
+  const handleSignOut = () => {
+    setIsSignedIn(false);
+  };
+  // Function to fetch entries (dummy function for illustration)
+  const fetchEntries = async () => {
+    try {
+      const response = await fetch("/api/entrys"); // Adjust the endpoint as needed
+      if (!response.ok) {
+        throw new Error("Failed to fetch entries");
+      }
+      const data = await response.json();
+      setEntries(data);
+    } catch (error) {
+      console.error("Error fetching entries:", error);
+    }
+  };
+
+  // Update entries when user signs out
+  useEffect(() => {
+    if (!isSignedIn) {
+      // fetchEntries();
+      // clear feed
+      setEntries([]);
+    }
+  }, [isSignedIn]);
 
   // console.log("entrys", entrys);
 
@@ -271,15 +294,53 @@ const HomePage = () => {
     }
   };
 
+  // handle signout
+  const handleSignOutUser = async () => {
+    try {
+      await auth.signOut();
+      console.log("Signed out");
+      setUid(null);
+      setIsSignedIn(false);
+      setEntries([]);
+      // set uid to null
+
+      // set isSignedIn to false
+      // handleSignOut();
+      // fetch entries and update state
+      // change button to sign in
+      // setIsSignedIn(false);
+      // fetchEntries();
+    } catch (error) {
+      console.error("Error during sign-out:", error);
+    }
+  };
+
   return (
     <Container maxW="container.xl" py={12}>
       <div className="w-screen h-screen flex justify-center items-center">
-        <button
-          onClick={handleGoogleSignIn}
-          className="p-3 bg-gray-400 rounded-md"
-        >
-          Sign In with Google
-        </button>
+        {/*   if user is signed in show handleSignOut   */}
+        {isSignedIn ? (
+          <button
+            onClick={() => {
+              handleSignOutUser();
+              setUid(null); // Update uid when user signs out
+              fetchEntries([]);
+            }}
+            className="p-3 bg-red-400 rounded-md"
+          >
+            Sign Out
+          </button>
+        ) : (
+          <button
+            onClick={async () => {
+              await handleGoogleSignIn();
+              setIsSignedIn(true); // Update isSignedIn when user signs in
+            }}
+            className="p-3 bg-gray-400 rounded-md"
+          >
+            Sign In with Google
+          </button>
+        )}
         {"     ...    "}
         {"     ...    "}
         <button
