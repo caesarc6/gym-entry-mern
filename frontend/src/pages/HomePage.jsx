@@ -8,15 +8,12 @@ import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
 
 const HomePage = () => {
-  // const { fetchEntrys, entrys } = useProductStore();
+  const { fetchEntrys, entrys, clearEntrys } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [uid, setUid] = useState(null);
   const [posts, setPosts] = useState([]);
   const [entries, setEntries] = useState([]);
 
-  const handleSignOut = () => {
-    setIsSignedIn(false);
-  };
   // Function to fetch entries (dummy function for illustration)
   const fetchEntries = async () => {
     try {
@@ -40,74 +37,21 @@ const HomePage = () => {
     }
   }, [isSignedIn]);
 
-  // console.log("entrys", entrys);
-
-  // useEffect(() => {
-  //   const fetchProtectedData = async () => {
-  //     try {
-  //       const token = await auth.currentUser.getIdToken();
-  //       const response = await fetch("http://localhost:5001/api/protected", {
-  //         method: "POST",
-  //         headers: {
-  //           "Content-Type": "application/json",
-  //           Authorization: `Bearer ${token}`,
-  //         },
-  //       });
-  //       if (!response.ok) {
-  //         throw new Error(await response.text());
-  //       }
-
-  //       const userData = await response.json();
-  //       console.log("User Data:", userData);
-  //     } catch (error) {
-  //       console.error("Error fetching protected data:", error);
-  //     }
-  //   };
-
-  //   fetchProtectedData();
-  // });
-
-  // const [uid, setUid] = useState(null);
-
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        if (!user) {
-          console.log("User authenticated:", user.uid);
-          return;
-        }
+        console.log("User authenticated:", user.uid);
         setUid(user.uid);
-        // try {
-        //   const token = await user.getIdToken();
-        //   console.log("uid", user.uid);
-        //   const response = await fetch(
-        //     `http://localhost:5001/api/posts/${user.uid}`,
-        //     {
-        //       method: "GET",
-        //       headers: {
-        //         "Content-Type": "application/json",
-        //         Authorization: `Bearer ${token}`,
-        //       },
-        //     }
-        //   );
-
-        //   const data = await response.json();
-        //   console.log("Data:", data);
-        //   if (data.success) {
-        //     setEntries(data.data);
-        //   } else {
-        //     console.error("Failed to fetch posts:", data.message);
-        //   }
-        // } catch (error) {
-        //   console.error("Error fetching posts:", error);
-        // }
+        // fetchEntrys();
       } else {
         console.error("User not authenticated");
+        setUid(null);
+        clearEntrys();
       }
     });
 
     return () => unsubscribe();
-  }, [uid]);
+  }, [fetchEntrys, clearEntrys]);
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -294,6 +238,15 @@ const HomePage = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      console.log("User signed out");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
   // handle signout
   const handleSignOutUser = async () => {
     try {
@@ -323,8 +276,9 @@ const HomePage = () => {
           <button
             onClick={() => {
               handleSignOutUser();
+              handleSignOut();
               setUid(null); // Update uid when user signs out
-              fetchEntries([]);
+              fetchEntries();
             }}
             className="p-3 bg-red-400 rounded-md"
           >

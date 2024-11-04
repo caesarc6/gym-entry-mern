@@ -181,6 +181,8 @@ export const useProductStore = create((set) => ({
 
     return { success: true, message: "Comment added!" };
   },
+
+  clearEntrys: () => set({ entrys: [] }),
 }));
 
 // Add an authentication state listener to ensure the user is authenticated
