@@ -1,4 +1,4 @@
-import { Container, SimpleGrid, Text, VStack } from "@chakra-ui/react";
+import { Container, SimpleGrid, Text, VStack, Button } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
@@ -169,30 +169,30 @@ const HomePage = () => {
     }
   };
 
-  const getUser = async () => {
-    try {
-      const user = auth.currentUser;
-      const uid = user.uid;
-      const token = await user.getIdToken();
-      const response = await fetch(`http://localhost:5001/api/getUser/${uid}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const result = await response.json();
-      if (result.success) {
-        setEntries(result.data);
-      }
-      console.log("User:", result);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-    }
-  };
+  // const getUser = async () => {
+  //   try {
+  //     const user = auth.currentUser;
+  //     const uid = user.uid;
+  //     const token = await user.getIdToken();
+  //     const response = await fetch(`http://localhost:5001/api/getUser/${uid}`, {
+  //       method: "GET",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //     });
+  //     if (!response.ok) {
+  //       throw new Error(await response.text());
+  //     }
+  //     const result = await response.json();
+  //     if (result.success) {
+  //       setEntries(result.data);
+  //     }
+  //     console.log("User:", result);
+  //   } catch (error) {
+  //     console.error("Error fetching user:", error);
+  //   }
+  // };
 
   const handleGoogleSignIn = async () => {
     try {
@@ -269,11 +269,11 @@ const HomePage = () => {
   };
 
   return (
-    <Container maxW="container.xl" py={12}>
+    <Container maxW="container.xl" className="text-center" py={12}>
       <div className="w-screen h-screen flex justify-center items-center">
         {/*   if user is signed in show handleSignOut   */}
         {isSignedIn ? (
-          <button
+          <Button
             onClick={() => {
               handleSignOutUser();
               handleSignOut();
@@ -283,9 +283,9 @@ const HomePage = () => {
             className="p-3 bg-red-400 rounded-md"
           >
             Sign Out
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
             onClick={async () => {
               await handleGoogleSignIn();
               setIsSignedIn(true); // Update isSignedIn when user signs in
@@ -293,11 +293,11 @@ const HomePage = () => {
             className="p-3 bg-gray-400 rounded-md"
           >
             Sign In with Google
-          </button>
+          </Button>
         )}
-        {"     ...    "}
-        {"     ...    "}
-        <button
+        {/* {"     ...    "} */}
+        {/* {"     ...    "} */}
+        {/* <button
           onClick={searchPostsByUID}
           className="p-3 bg-blue-400 rounded-md ml-4"
           // disabled={!uid}
@@ -322,7 +322,7 @@ const HomePage = () => {
           // disabled={!uid}
         >
           getCurrentUser
-        </button>
+        </button> */}
       </div>
 
       <VStack spacing={8}>
