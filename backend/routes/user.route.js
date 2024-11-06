@@ -7,6 +7,7 @@ import {
   getUsers,
   getCurrentUser,
   getUser,
+  getUserProfile,
 } from "../controllers/user.controller.js";
 import { verifyIdToken } from "../middleware/auth.js"; // Middleware to verify Firebase ID token
 import { get } from "mongoose";
@@ -19,5 +20,6 @@ router.get("/posts/:uid", getPostsByUID);
 router.get("/getUsers", verifyIdToken, getUsers);
 router.get("/getCurrentUser", verifyIdToken, getCurrentUser);
 router.get("/getUser/:uid", getUser);
+router.get("/getUserProfile/:uid", verifyIdToken, getUserProfile);
 
 export default router;

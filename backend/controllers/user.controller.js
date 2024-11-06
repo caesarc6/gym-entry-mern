@@ -98,4 +98,16 @@ export const getUser = async (req, res) => {
   }
 };
 
+// get user profile (User info and posts)
+export const getUserProfile = async (req, res) => {
+  const { uid } = req.params;
+
+  try {
+    const user = await User.findOne({ uid }).select("name email picture");
+    const posts = await Entry.find({ uid });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve user profile" });
+  }
+};
+
 export default router;

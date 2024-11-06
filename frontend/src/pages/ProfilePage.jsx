@@ -7,11 +7,13 @@ import ProductCard from "../components/ProductCard";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
 
+import { Stack, Badge, Box, HStack, Icon, Image } from "@chakra-ui/react";
+import { HiStar } from "react-icons/hi";
+
 const HomePage = () => {
   const { fetchEntrys, entrys, clearEntrys } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [uid, setUid] = useState(null);
-  const [posts, setPosts] = useState([]);
   const [entries, setEntries] = useState([]);
 
   // Function to fetch entries (dummy function for illustration)
@@ -96,104 +98,6 @@ const HomePage = () => {
   }, [uid]);
 
   // save token in local storage b/c sending token requests takes alot of time and is slow
-
-  const searchPostsByUID = async () => {
-    try {
-      // getCurrentUser
-      const user = auth.currentUser;
-      const token = await user.getIdToken();
-      const uid = user.uid;
-      // const token = await auth.currentUser.getIdToken();
-      const response = await fetch(`http://localhost:5001/api/posts/${uid}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      const result = await response.json();
-      console.log("Search result:", result);
-      setPosts(result);
-    } catch (error) {
-      console.error("Error searching posts by UID:", error);
-    }
-  };
-
-  const getAllUID = async () => {
-    try {
-      const token = await auth.currentUser.getIdToken(); //
-      const response = await fetch("http://localhost:5001/api/getUsers", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const result = await response.json();
-      // map through the result and get the UID
-      const users = result.data.map((user) => ({
-        name: user.name,
-        uid: user.uid,
-      }));
-      console.log("All UIDs:", users);
-    } catch (error) {
-      console.error("Error fetching all UID:", error);
-    }
-  };
-
-  const getCurrentUser = async () => {
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const response = await fetch("http://localhost:5001/api/getCurrentUser", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const result = await response.json();
-      console.log("Current User:", result);
-      return result;
-    } catch (error) {
-      console.error("Error fetching current user:", error);
-    }
-  };
-
-  // const getUser = async () => {
-  //   try {
-  //     const user = auth.currentUser;
-  //     const uid = user.uid;
-  //     const token = await user.getIdToken();
-  //     const response = await fetch(`http://localhost:5001/api/getUser/${uid}`, {
-  //       method: "GET",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //     });
-  //     if (!response.ok) {
-  //       throw new Error(await response.text());
-  //     }
-  //     const result = await response.json();
-  //     if (result.success) {
-  //       setEntries(result.data);
-  //     }
-  //     console.log("User:", result);
-  //   } catch (error) {
-  //     console.error("Error fetching user:", error);
-  //   }
-  // };
-
   const handleGoogleSignIn = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -268,14 +172,106 @@ const HomePage = () => {
     }
   };
 
+  const data = {
+    imageUrl: "https://bit.ly/2Z4KKcF",
+    imageAlt: "Rear view of modern home with pool",
+    beds: 3,
+    title: "Modern home in city center in the heart of historic Los Angeles",
+    formattedPrice: "$435",
+    reviewCount: 34,
+    rating: 4.5,
+  };
+
   return (
     <Container maxW="container.xl" className="text-center" py={12}>
+      {/* <div
+        className="w-screen h-screen flex justify-center items-center"
+        style={{ justifyItems: "center" }}
+      > */}
+      <SimpleGrid
+        columns={{
+          base: 1,
+          md: 1,
+          lg: 1,
+        }}
+        spacing={10}
+        w={"full"}
+        style={{ placeItems: "center" }}
+      >
+        <Stack
+          direction="row"
+          maxW="md"
+          borderWidth="1px"
+          className="content-center flex-wrap flex-row"
+          style={{ justifyContent: "center", borderRadius: "70px" }}
+        >
+          {/* <Image maxW="sm" src={data.imageUrl} alt={data.imageAlt} /> */}
+          <Image
+            src="https://bit.ly/naruto-sage"
+            boxSize="150px"
+            borderRadius="full"
+            fit="cover"
+            alt="Naruto Uzumaki"
+            style={{ placeSelf: "center", padding: "10px 10px" }}
+          />
+
+          <Box
+            p="4"
+            spaceY="0"
+            style={{ display: "block", alignContent: "center" }}
+          >
+            <HStack direction="row">
+              <VStack>
+                <HStack>
+                  <VStack>
+                    <Text fontSize="xl" fontWeight="bold">
+                      Strength
+                    </Text>
+                    <Badge colorPalette="teal" variant="solid">
+                      Goal
+                    </Badge>
+                  </VStack>
+                  <VStack>
+                    <Text fontSize="xl" fontWeight="bold">
+                      6
+                    </Text>
+                    <Badge colorPalette="teal" variant="solid">
+                      Posts
+                    </Badge>
+                  </VStack>
+                  <VStack>
+                    <Text fontSize="xl" fontWeight="bold">
+                      Blink
+                    </Text>
+                    <Badge colorPalette="teal" variant="solid">
+                      Gym
+                    </Badge>
+                  </VStack>
+                </HStack>
+                <HStack gap="1" fontWeight="medium">
+                  <Text>
+                    My goal is to become stronger. I want to be able to run 5km
+                    under a certain time!
+                  </Text>
+                </HStack>
+              </VStack>
+            </HStack>
+            {/* <Text fontWeight="medium" color="fg">
+              {data.title}
+            </Text>
+            <HStack color="fg.muted">
+              {data.formattedPrice} • {data.beds} beds
+            </HStack> */}
+          </Box>
+        </Stack>
+      </SimpleGrid>
+      {/* </div> */}
       <div
         className="w-screen h-screen flex justify-center items-center"
         style={{ textAlign: "center" }}
       >
         {/*   if user is signed in show handleSignOut   */}
-        {isSignedIn ? (
+        {/* {isSignedIn ? (
           <Button
             onClick={() => {
               handleSignOutUser();
@@ -297,37 +293,8 @@ const HomePage = () => {
           >
             Sign In with Google
           </Button>
-        )}
-        {/* {"     ...    "} */}
-        {/* {"     ...    "} */}
-        {/* <button
-          onClick={searchPostsByUID}
-          className="p-3 bg-blue-400 rounded-md ml-4"
-          // disabled={!uid}
-        >
-          Search Posts by UID
-        </button>
-
-        {"     ...    "}
-        {"     ...    "}
-        <button
-          onClick={getAllUID}
-          className="p-3 bg-blue-400 rounded-md ml-4"
-          // disabled={!uid}
-        >
-          get all UID's
-        </button>
-        {"     ...    "}
-        {"     ...    "}
-        <button
-          onClick={getCurrentUser}
-          className="p-3 bg-blue-400 rounded-md ml-4"
-          // disabled={!uid}
-        >
-          getCurrentUser
-        </button> */}
+        )} */}
       </div>
-
       <VStack spacing={8}>
         <Text
           fontSize={"22"}
