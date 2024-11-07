@@ -183,7 +183,15 @@ const HomePage = () => {
   };
 
   return (
-    <Container maxW="container.xl" className="text-center" py={12}>
+    <Container
+      maxW="container.xl"
+      className="text-center"
+      py={12}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {/* <div
         className="w-screen h-screen flex justify-center items-center"
         style={{ justifyItems: "center" }}
@@ -194,16 +202,44 @@ const HomePage = () => {
           md: 1,
           lg: 1,
         }}
+        spacing={1}
+        w={"sm"}
+        style={{
+          placeItems: "center",
+          backgroundImage: "url(https://picsum.photos/380/200)",
+          justifyContent: "center",
+          alignSelf: "center",
+          height: "200px",
+          //   backgroundSize: "cover",
+          inlineSize: "-webkit-fill-available",
+        }}
+      ></SimpleGrid>
+      <SimpleGrid
+        columns={{
+          base: 1,
+          md: 1,
+          lg: 1,
+        }}
         spacing={10}
-        w={"full"}
-        style={{ placeItems: "center" }}
+        w={"sm"}
+        style={{
+          placeItems: "center",
+          justifyContent: "center",
+          alignSelf: "center",
+          position: "absolute",
+          borderRadius: "42px",
+          backgroundColor: "#32323285",
+          backdropFilter: "blur(4px)",
+        }}
       >
         <Stack
           direction="row"
-          maxW="md"
+          w={"sm"}
+          //   maxW="sm"
           borderWidth="1px"
+          gap="0"
           className="content-center flex-wrap flex-row"
-          style={{ justifyContent: "center", borderRadius: "70px" }}
+          style={{ justifyContent: "center", borderRadius: "39px" }}
         >
           {/* <Image maxW="sm" src={data.imageUrl} alt={data.imageAlt} /> */}
           <Image
@@ -249,9 +285,11 @@ const HomePage = () => {
                   </VStack>
                 </HStack>
                 <HStack gap="1" fontWeight="medium">
-                  <Text>
+                  <Text maxWidth="600px">
                     My goal is to become stronger. I want to be able to run 5km
-                    under a certain time!
+                    under a certain time! Lorem ipsum dolor sit amet consectetur
+                    adipisicing elit. Asperiores quis optio maxime laboriosam
+                    sed ut atque voluptates!
                   </Text>
                 </HStack>
               </VStack>
