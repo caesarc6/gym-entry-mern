@@ -10,6 +10,7 @@ import { signInWithPopup } from "firebase/auth";
 const HomePage = () => {
   const { fetchEntrys, entrys, clearEntrys } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
   const [uid, setUid] = useState(null);
   const [posts, setPosts] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -37,39 +38,34 @@ const HomePage = () => {
     }
   }, [isSignedIn]);
 
+  // Add this useEffect to handle initial auth state
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        console.log("User authenticated:", user.uid);
+        setIsSignedIn(true);
         setUid(user.uid);
-        // fetchEntrys();
       } else {
-        console.error("User not authenticated");
+        setIsSignedIn(false);
         setUid(null);
+        setEntries([]);
         clearEntrys();
       }
+      setIsLoading(false); // Set loading to false once we know the auth state
     });
 
-    return () => unsubscribe();
-  }, [fetchEntrys, clearEntrys]);
+    return () => unsubscribe(); // Cleanup subscription
+  }, [clearEntrys]);
 
+  // Your existing useEffect for fetching posts
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        if (!uid) {
-          console.error("UID is not set");
-          return;
-        }
+        if (!uid) return;
+
         const user = auth.currentUser;
-        if (!user) {
-          console.error("User not authenticated");
-          return;
-        }
+        if (!user) return;
+
         const token = await user.getIdToken();
-        // const uids = "1";
-        // const token = await user.getIdToken();
-        // const uid = user.uid;
-        console.log("uid from fetch posts", uid);
         const response = await fetch(`http://localhost:5001/api/posts/${uid}`, {
           method: "GET",
           headers: {
@@ -79,11 +75,8 @@ const HomePage = () => {
         });
 
         const data = await response.json();
-        console.log("Data11:", data);
         if (data.success) {
           setEntries(data.data);
-        } else {
-          console.error("Failed to fetch posts:", data.message);
         }
       } catch (error) {
         console.error("Error fetching posts:", error);
@@ -270,37 +263,9 @@ const HomePage = () => {
 
   return (
     <Container maxW="container.xl" className="text-center" py={12}>
-      <div
-        className="w-screen h-screen flex justify-center items-center"
-        style={{ textAlign: "center" }}
-      >
-        {/*   if user is signed in show handleSignOut   */}
-        {isSignedIn ? (
-          <Button
-            onClick={() => {
-              handleSignOutUser();
-              handleSignOut();
-              setUid(null); // Update uid when user signs out
-              fetchEntries();
-            }}
-            className="p-3 bg-red-400 rounded-md"
-          >
-            Sign Out
-          </Button>
-        ) : (
-          <Button
-            onClick={async () => {
-              await handleGoogleSignIn();
-              setIsSignedIn(true); // Update isSignedIn when user signs in
-            }}
-            className="p-3 bg-gray-400 rounded-md"
-          >
-            Sign In with Google
-          </Button>
-        )}
-        {/* {"     ...    "} */}
-        {/* {"     ...    "} */}
-        {/* <button
+      {/* {"     ...    "} */}
+      {/* {"     ...    "} */}
+      {/* <button
           onClick={searchPostsByUID}
           className="p-3 bg-blue-400 rounded-md ml-4"
           // disabled={!uid}
@@ -326,6 +291,36 @@ const HomePage = () => {
         >
           getCurrentUser
         </button> */}
+
+      <div
+        className="w-screen h-screen flex justify-center items-center"
+        style={{ textAlign: "center" }}
+      >
+        {isLoading ? (
+          <Button isLoading>Loading...</Button>
+        ) : isSignedIn ? (
+          <Button
+            onClick={() => {
+              handleSignOutUser();
+              handleSignOut();
+              setUid(null);
+              fetchEntries();
+            }}
+            className="p-3 bg-red-400 rounded-md"
+          >
+            Sign Out
+          </Button>
+        ) : (
+          <Button
+            onClick={async () => {
+              await handleGoogleSignIn();
+              setIsSignedIn(true);
+            }}
+            className="p-3 bg-gray-400 rounded-md"
+          >
+            Sign In with Google
+          </Button>
+        )}
       </div>
 
       <VStack spacing={8}>

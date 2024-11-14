@@ -12,7 +12,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  picture: String,
+  profileImage: String,
+  bio: String,
+  goal: String,
+  gymName: String,
 });
 
 const User = mongoose.model("User", userSchema);

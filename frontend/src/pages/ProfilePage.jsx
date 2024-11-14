@@ -10,27 +10,20 @@ import { signInWithPopup } from "firebase/auth";
 import { Stack, Badge, Box, HStack, Icon, Image } from "@chakra-ui/react";
 import { HiStar } from "react-icons/hi";
 
-const HomePage = () => {
+const ProfilePage = () => {
   const { fetchEntrys, entrys, clearEntrys } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [uid, setUid] = useState(null);
   const [entries, setEntries] = useState([]);
+  const [userProfile, setUserProfile] = useState({
+    name: "",
+    goal: "",
+    gymName: "",
+    postsCount: 0,
+    profileImage: "",
+    bio: "",
+  });
 
-  // Function to fetch entries (dummy function for illustration)
-  const fetchEntries = async () => {
-    try {
-      const response = await fetch("/api/entrys"); // Adjust the endpoint as needed
-      if (!response.ok) {
-        throw new Error("Failed to fetch entries");
-      }
-      const data = await response.json();
-      setEntries(data);
-    } catch (error) {
-      console.error("Error fetching entries:", error);
-    }
-  };
-
-  // Update entries when user signs out
   useEffect(() => {
     if (!isSignedIn) {
       // fetchEntries();
@@ -39,22 +32,99 @@ const HomePage = () => {
     }
   }, [isSignedIn]);
 
+  // Auth state listener
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         console.log("User authenticated:", user.uid);
+        setIsSignedIn(true);
         setUid(user.uid);
-        // fetchEntrys();
+        fetchUserProfile(user);
       } else {
         console.error("User not authenticated");
         setUid(null);
         clearEntrys();
+        setUserProfile({
+          name: "",
+          goal: "",
+          gymName: "",
+          postsCount: 0,
+          profileImage: "",
+          bio: "",
+        });
       }
     });
 
     return () => unsubscribe();
-  }, [fetchEntrys, clearEntrys]);
+  }, [clearEntrys]);
 
+  // Update user profile when entries change
+  useEffect(() => {
+    if (uid && auth.currentUser) {
+      fetchUserProfile(); // Remove parameters
+    }
+  }, [entries, uid]);
+
+  // Function to fetch user profile
+  const fetchUserProfile = async () => {
+    const token = await auth.currentUser.getIdToken();
+    try {
+      // if (!token) {
+      //   console.error("No authenticated token found");
+      //   return;
+      // }
+
+      // const token = await user.getIdToken();
+      const response = await fetch(
+        `http://localhost:5001/api/getUserProfile/${uid}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user profile: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("User profile data:", data);
+
+      if (data.success) {
+        setUserProfile({
+          name: data.uid || "Anonymous",
+          goal: data.data.goal || "Not set",
+          gymName: data.data.gymName || "Not specified",
+          postsCount: entries.length,
+          profileImage: data.data.profileImage || "https://bit.ly/naruto-sage",
+          bio: data.data.bio || "No bio available",
+        });
+      } else {
+        console.error("Failed to fetch user profile:", data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
+  // Fetch user profile when UID changes
+  useEffect(() => {
+    fetchUserProfile();
+  }, [uid]);
+
+  // Update user profile when entries change
+  useEffect(() => {
+    if (uid && auth.currentUser) {
+      auth.currentUser.getIdToken().then((token) => {
+        fetchUserProfile(token, uid);
+      });
+    }
+  }, [entries, uid]);
+
+  // Fetch posts effect
   useEffect(() => {
     const fetchPosts = async () => {
       try {
@@ -68,10 +138,6 @@ const HomePage = () => {
           return;
         }
         const token = await user.getIdToken();
-        // const uids = "1";
-        // const token = await user.getIdToken();
-        // const uid = user.uid;
-        console.log("uid from fetch posts", uid);
         const response = await fetch(`http://localhost:5001/api/posts/${uid}`, {
           method: "GET",
           headers: {
@@ -81,7 +147,7 @@ const HomePage = () => {
         });
 
         const data = await response.json();
-        console.log("Data11:", data);
+        console.log("Posts data:", data);
         if (data.success) {
           setEntries(data.data);
         } else {
@@ -97,91 +163,6 @@ const HomePage = () => {
     }
   }, [uid]);
 
-  // save token in local storage b/c sending token requests takes alot of time and is slow
-  const handleGoogleSignIn = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      // console.log(result);
-      const token = await result.user.getIdToken();
-
-      const response = await fetch("http://localhost:5001/api/protected", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const userData = await response.json();
-      console.log("User Data:", userData.uid);
-      // console.log("User Data:", userData);
-      try {
-        const token = await auth.currentUser.getIdToken();
-        const response = await fetch(
-          "http://localhost:5001/api/getCurrentUser",
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-        const resultOne = await response.json();
-        console.log("Logged in as:", resultOne);
-      } catch (error) {
-        console.error("Error fetching all UID:", error);
-      }
-    } catch (error) {
-      console.error("Error during sign-in:", error);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await auth.signOut();
-      console.log("User signed out");
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
-
-  // handle signout
-  const handleSignOutUser = async () => {
-    try {
-      await auth.signOut();
-      console.log("Signed out");
-      setUid(null);
-      setIsSignedIn(false);
-      setEntries([]);
-      // set uid to null
-
-      // set isSignedIn to false
-      // handleSignOut();
-      // fetch entries and update state
-      // change button to sign in
-      // setIsSignedIn(false);
-      // fetchEntries();
-    } catch (error) {
-      console.error("Error during sign-out:", error);
-    }
-  };
-
-  const data = {
-    imageUrl: "https://bit.ly/2Z4KKcF",
-    imageAlt: "Rear view of modern home with pool",
-    beds: 3,
-    title: "Modern home in city center in the heart of historic Los Angeles",
-    formattedPrice: "$435",
-    reviewCount: 34,
-    rating: 4.5,
-  };
-
   return (
     <Container
       maxW="container.xl"
@@ -192,10 +173,6 @@ const HomePage = () => {
         flexDirection: "column",
       }}
     >
-      {/* <div
-        className="w-screen h-screen flex justify-center items-center"
-        style={{ justifyItems: "center" }}
-      > */}
       <SimpleGrid
         columns={{
           base: 1,
@@ -210,7 +187,6 @@ const HomePage = () => {
           justifyContent: "center",
           alignSelf: "center",
           height: "200px",
-          //   backgroundSize: "cover",
           inlineSize: "-webkit-fill-available",
         }}
       ></SimpleGrid>
@@ -235,110 +211,69 @@ const HomePage = () => {
         <Stack
           direction="row"
           w={"sm"}
-          //   maxW="sm"
           borderWidth="1px"
           gap="0"
           className="content-center flex-wrap flex-row"
           style={{ justifyContent: "center", borderRadius: "39px" }}
         >
-          {/* <Image maxW="sm" src={data.imageUrl} alt={data.imageAlt} /> */}
           <Image
-            src="https://bit.ly/naruto-sage"
+            src={userProfile.profileImage}
             boxSize="150px"
             borderRadius="full"
             fit="cover"
-            alt="Naruto Uzumaki"
+            alt={userProfile.name}
             style={{ placeSelf: "center", padding: "10px 10px" }}
           />
 
           <Box
             p="4"
-            spaceY="0"
+            spacey="0"
             style={{ display: "block", alignContent: "center" }}
           >
             <HStack direction="row">
               <VStack>
                 <HStack>
                   <VStack>
-                    <Text fontSize="xl" fontWeight="bold">
-                      Strength
+                    <Text fontSize="xl" fontWeight="bold" color="white">
+                      {userProfile.name}
                     </Text>
-                    <Badge colorPalette="teal" variant="solid">
-                      Goal
+                    <Badge colorScheme="teal" variant="solid">
+                      {userProfile.goal}
                     </Badge>
                   </VStack>
                   <VStack>
-                    <Text fontSize="xl" fontWeight="bold">
-                      6
+                    <Text fontSize="xl" fontWeight="bold" color="white">
+                      {userProfile.postsCount}
                     </Text>
-                    <Badge colorPalette="teal" variant="solid">
+                    <Badge colorScheme="teal" variant="solid">
                       Posts
                     </Badge>
                   </VStack>
                   <VStack>
-                    <Text fontSize="xl" fontWeight="bold">
-                      Blink
+                    <Text fontSize="xl" fontWeight="bold" color="white">
+                      {userProfile.gymName}
                     </Text>
-                    <Badge colorPalette="teal" variant="solid">
+                    <Badge colorScheme="teal" variant="solid">
                       Gym
                     </Badge>
                   </VStack>
                 </HStack>
                 <HStack gap="1" fontWeight="medium">
-                  <Text maxWidth="600px">
-                    My goal is to become stronger. I want to be able to run 5km
-                    under a certain time! Lorem ipsum dolor sit amet consectetur
-                    adipisicing elit. Asperiores quis optio maxime laboriosam
-                    sed ut atque voluptates!
+                  <Text maxWidth="600px" color="white">
+                    {userProfile.bio}
                   </Text>
                 </HStack>
               </VStack>
             </HStack>
-            {/* <Text fontWeight="medium" color="fg">
-              {data.title}
-            </Text>
-            <HStack color="fg.muted">
-              {data.formattedPrice} • {data.beds} beds
-            </HStack> */}
           </Box>
         </Stack>
       </SimpleGrid>
-      {/* </div> */}
-      <div
-        className="w-screen h-screen flex justify-center items-center"
-        style={{ textAlign: "center" }}
-      >
-        {/*   if user is signed in show handleSignOut   */}
-        {/* {isSignedIn ? (
-          <Button
-            onClick={() => {
-              handleSignOutUser();
-              handleSignOut();
-              setUid(null); // Update uid when user signs out
-              fetchEntries();
-            }}
-            className="p-3 bg-red-400 rounded-md"
-          >
-            Sign Out
-          </Button>
-        ) : (
-          <Button
-            onClick={async () => {
-              await handleGoogleSignIn();
-              setIsSignedIn(true); // Update isSignedIn when user signs in
-            }}
-            className="p-3 bg-gray-400 rounded-md"
-          >
-            Sign In with Google
-          </Button>
-        )} */}
-      </div>
-      <VStack spacing={8}>
+
+      <VStack spacing={8} mt={48}>
         <Text
           fontSize={"22"}
           fontWeight={"bold"}
           bgGradient={"linear(to-r, blue.200, gray.400)"}
-          // bgGradient="linear(to-r, red.600, red.400, yellow.300)"
           bgClip={"text"}
           textAlign={"center"}
         >
@@ -383,4 +318,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage;
+export default ProfilePage;
