@@ -5,7 +5,7 @@ import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
 
 import { auth, googleProvider } from "../firebase";
-import { signInWithPopup } from "firebase/auth";
+import { getAuth, signInWithPopup } from "firebase/auth";
 
 import { Stack, Badge, Box, HStack, Icon, Image } from "@chakra-ui/react";
 import { HiStar } from "react-icons/hi";
@@ -39,7 +39,9 @@ const ProfilePage = () => {
         console.log("User authenticated:", user.uid);
         setIsSignedIn(true);
         setUid(user.uid);
+        // fetchUserProfile(user);
         fetchUserProfile(user);
+        console.log("User:", user.accessToken, user.uid);
       } else {
         console.error("User not authenticated");
         setUid(null);
@@ -59,20 +61,39 @@ const ProfilePage = () => {
   }, [clearEntrys]);
 
   // Update user profile when entries change
-  useEffect(() => {
-    if (uid && auth.currentUser) {
-      fetchUserProfile(); // Remove parameters
-    }
-  }, [entries, uid]);
+  // useEffect(() => {
+  //   if (uid && auth.currentUser) {
+  //     fetchUserProfile(); // Remove parameters
+  //   }
+  // }, [entries, uid]);
 
   // Function to fetch user profile
-  const fetchUserProfile = async () => {
-    const token = await auth.currentUser.getIdToken();
+  const fetchUserProfile = async (user) => {
+    // const auth = getAuth();
+    // const user = auth.currentUser;
+    // const token = user ? await user.getIdToken() : null;
+    const token = await user.accessToken;
+    const uid = await user.uid;
+    // if (user) {
+    //   user
+    //     .getIdToken()
+    //     .then((idToken) => {
+    //       // Send token to your backend via HTTPS
+    //       // console.log("ID Token:", idToken);
+    //       console.log("token:", token);
+    //     })
+    //     .catch((error) => {
+    //       // Handle error
+    //       console.error("Error getting ID token:", error);
+    //     });
+    // } else {
+    //   // No user is signed in.
+    // }
     try {
-      // if (!token) {
-      //   console.error("No authenticated token found");
-      //   return;
-      // }
+      if (!token) {
+        console.error("No authenticated token found");
+        return;
+      }
 
       // const token = await user.getIdToken();
       const response = await fetch(
@@ -95,12 +116,14 @@ const ProfilePage = () => {
 
       if (data.success) {
         setUserProfile({
-          name: data.uid || "Anonymous",
-          goal: data.data.goal || "Not set",
+          name: data.data.name || "Anonymous",
+          goal: data.goal || "Not set",
           gymName: data.data.gymName || "Not specified",
           postsCount: entries.length,
-          profileImage: data.data.profileImage || "https://bit.ly/naruto-sage",
           bio: data.data.bio || "No bio available",
+          profileImage:
+            data.data.profileImage ||
+            "https://johnjayathletics.com/images/logos/site/site.png",
         });
       } else {
         console.error("Failed to fetch user profile:", data.message);
@@ -111,18 +134,18 @@ const ProfilePage = () => {
   };
 
   // Fetch user profile when UID changes
-  useEffect(() => {
-    fetchUserProfile();
-  }, [uid]);
+  // useEffect(() => {
+  //   fetchUserProfile();
+  // }, [uid]);
 
   // Update user profile when entries change
-  useEffect(() => {
-    if (uid && auth.currentUser) {
-      auth.currentUser.getIdToken().then((token) => {
-        fetchUserProfile(token, uid);
-      });
-    }
-  }, [entries, uid]);
+  // useEffect(() => {
+  //   if (uid && auth.currentUser) {
+  //     auth.currentUser.getIdToken().then((token) => {
+  //       fetchUserProfile(token, uid);
+  //     });
+  //   }
+  // }, [entries, uid]);
 
   // Fetch posts effect
   useEffect(() => {
@@ -217,7 +240,7 @@ const ProfilePage = () => {
           style={{ justifyContent: "center", borderRadius: "39px" }}
         >
           <Image
-            src={userProfile.profileImage}
+            src={userProfile.profileImage || "https://bit.ly/naruto-sage"}
             boxSize="150px"
             borderRadius="full"
             fit="cover"
@@ -269,7 +292,7 @@ const ProfilePage = () => {
         </Stack>
       </SimpleGrid>
 
-      <VStack spacing={8} mt={48}>
+      <VStack spacing={8} mt={10}>
         <Text
           fontSize={"22"}
           fontWeight={"bold"}

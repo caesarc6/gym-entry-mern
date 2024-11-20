@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
-
+import ProfilePage from "./ProfilePage";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
 
@@ -15,28 +15,14 @@ const HomePage = () => {
   const [posts, setPosts] = useState([]);
   const [entries, setEntries] = useState([]);
 
-  // Function to fetch entries (dummy function for illustration)
-  const fetchEntries = async () => {
-    try {
-      const response = await fetch("/api/entrys"); // Adjust the endpoint as needed
-      if (!response.ok) {
-        throw new Error("Failed to fetch entries");
-      }
-      const data = await response.json();
-      setEntries(data);
-    } catch (error) {
-      console.error("Error fetching entries:", error);
-    }
-  };
-
   // Update entries when user signs out
-  useEffect(() => {
-    if (!isSignedIn) {
-      // fetchEntries();
-      // clear feed
-      setEntries([]);
-    }
-  }, [isSignedIn]);
+  // useEffect(() => {
+  //   if (!isSignedIn) {
+  //     // fetchEntries();
+  //     // clear feed
+  //     setEntries([]);
+  //   }
+  // }, [isSignedIn]);
 
   // Add this useEffect to handle initial auth state
   useEffect(() => {
@@ -87,6 +73,20 @@ const HomePage = () => {
       fetchPosts();
     }
   }, [uid]);
+
+  // Function to fetch entries (dummy function for illustration)
+  // const fetchEntries = async () => {
+  //   try {
+  //     const response = await fetch("/api/entrys"); // Adjust the endpoint as needed
+  //     if (!response.ok) {
+  //       throw new Error("Failed to fetch entries");
+  //     }
+  //     const data = await response.json();
+  //     setEntries(data);
+  //   } catch (error) {
+  //     console.error("Error fetching entries:", error);
+  //   }
+  // };
 
   // save token in local storage b/c sending token requests takes alot of time and is slow
 
@@ -190,7 +190,7 @@ const HomePage = () => {
   const handleGoogleSignIn = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      // console.log(result);
+      console.log(result);
       const token = await result.user.getIdToken();
 
       const response = await fetch("http://localhost:5001/api/protected", {
@@ -227,7 +227,9 @@ const HomePage = () => {
         console.error("Error fetching all UID:", error);
       }
     } catch (error) {
+      // clear feed and user sign in state to sign out
       console.error("Error during sign-in:", error);
+      handleSignOutUser();
     }
   };
 
@@ -293,7 +295,7 @@ const HomePage = () => {
         </button> */}
 
       <div
-        className="w-screen h-screen flex justify-center items-center"
+        className=" flex justify-center items-center"
         style={{ textAlign: "center" }}
       >
         {isLoading ? (
@@ -302,9 +304,9 @@ const HomePage = () => {
           <Button
             onClick={() => {
               handleSignOutUser();
-              handleSignOut();
+              // handleSignOut();
               setUid(null);
-              fetchEntries();
+              // fetchEntries();
             }}
             className="p-3 bg-red-400 rounded-md"
           >
@@ -321,6 +323,15 @@ const HomePage = () => {
             Sign In with Google
           </Button>
         )}
+      </div>
+
+      <div
+        className="flex justify-center items-center"
+        style={{ textAlign: "center" }}
+      >
+        <Button className="p-3  rounded-md">
+          <Link to={"/profile"}>Profile</Link>
+        </Button>
       </div>
 
       <VStack spacing={8}>
@@ -366,6 +377,30 @@ const HomePage = () => {
                 Create an entry
               </Text>
             </Link>
+            <div
+              className=" flex justify-center items-center"
+              style={{ textAlign: "center" }}
+            >
+              {isLoading ? (
+                <Button isLoading>Loading...</Button>
+              ) : isSignedIn ? (
+                <div>
+                  <div>signed in</div>
+                </div>
+              ) : (
+                <div>
+                  Sign up or login here
+                  <div>
+                    <div>
+                      <Link> yerrrrr </Link>
+                    </div>
+                    <div>
+                      <button>hi</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </Text>
         )}
       </VStack>

@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  username: { type: String, required: true, unique: true },
   profileImage: String,
   bio: String,
   goal: String,

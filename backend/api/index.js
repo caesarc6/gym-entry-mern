@@ -40,7 +40,11 @@ app.use(express.json()); // allows to use json data in the body
 // write a middleware to check if the user is authenticated and create a user in the database if it doesn't exist
 app.post("/api/protected", verifyIdToken, async (req, res) => {
   const { uid, name, email, picture } = req.user;
+  // const { username } = req.body; // Get the username from the request body
 
+  // if (!username) {
+  //   return res.status(400).json({ error: "Username is required" });
+  // }
   let user = await User.findOne({ uid });
 
   if (!user) {
@@ -49,6 +53,10 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
       name,
       email,
       picture,
+      profileImage: null, // Additional field initialized with null
+      bio: null, // Additional field initialized with null
+      goal: null, // Additional field initialized with null
+      gymName: null, // Additional field initialized with null
     });
     await user.save();
   }

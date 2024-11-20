@@ -107,6 +107,8 @@ export const getUserProfile = async (req, res) => {
       "name email profileImage bio goal gymName"
     );
     const postsLength = await Entry.find({ uid });
+    const postsCount = postsLength.length;
+    res.status(200).json({ success: true, data: user, postsCount });
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve user profile" });
   }
