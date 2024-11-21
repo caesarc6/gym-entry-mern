@@ -294,47 +294,149 @@ const HomePage = () => {
           getCurrentUser
         </button> */}
 
-      <div
-        className=" flex justify-center items-center"
-        style={{ textAlign: "center" }}
-      >
-        {isLoading ? (
-          <Button isLoading>Loading...</Button>
-        ) : isSignedIn ? (
-          <Button
-            onClick={() => {
-              handleSignOutUser();
-              // handleSignOut();
-              setUid(null);
-              // fetchEntries();
-            }}
-            className="p-3 bg-red-400 rounded-md"
-          >
-            Sign Out
-          </Button>
-        ) : (
-          <Button
-            onClick={async () => {
-              await handleGoogleSignIn();
-              setIsSignedIn(true);
-            }}
-            className="p-3 bg-gray-400 rounded-md"
-          >
-            Sign In with Google
-          </Button>
-        )}
-      </div>
+      {isSignedIn ? (
+        <>
+          <VStack spacing={8}>
+            <Text
+              fontSize={"22"}
+              fontWeight={"bold"}
+              bgGradient={"linear(to-r, blue.200, gray.400)"}
+              // bgGradient="linear(to-r, red.600, red.400, yellow.300)"
+              bgClip={"text"}
+              textAlign={"center"}
+            >
+              Workout Entries
+            </Text>
+            <div>
+              <div
+                className="gap-9 flex flex-col justify-center"
+                style={{ textAlign: "center" }}
+              >
+                <Button className="p-3  rounded-md">
+                  <Link className="py-[10px] px-[8px]" to={"/profile"}>
+                    Profile
+                  </Link>
+                </Button>
 
-      <div
-        className="flex justify-center items-center"
-        style={{ textAlign: "center" }}
-      >
-        <Button className="p-3  rounded-md">
-          <Link to={"/profile"}>Profile</Link>
-        </Button>
-      </div>
+                <Button
+                  onClick={() => {
+                    handleSignOutUser();
+                    // handleSignOut();
+                    setUid(null);
+                    // fetchEntries();
+                  }}
+                  className="p-3 bg-red-400 rounded-md"
+                >
+                  Sign Out
+                </Button>
+              </div>
+            </div>
 
-      <VStack spacing={8}>
+            <SimpleGrid
+              columns={{
+                base: 1,
+                md: 2,
+                lg: 3,
+              }}
+              spacing={10}
+              w={"full"}
+            >
+              {[...entries].reverse().map((entry) => (
+                <ProductCard key={entry._id} entry={entry} />
+              ))}
+            </SimpleGrid>
+
+            <div>
+              {entries.length === 0 && (
+                <Text
+                  fontSize="xl"
+                  textAlign={"center"}
+                  fontWeight="bold"
+                  color="gray.500"
+                >
+                  No entries found 😢{" "}
+                  <Link to={"/create"}>
+                    <Text
+                      as="span"
+                      color="blue.500"
+                      _hover={{ textDecoration: "underline" }}
+                    >
+                      Create an entry
+                    </Text>
+                  </Link>
+                  <div
+                    className=" flex justify-center items-center"
+                    style={{ textAlign: "center" }}
+                  ></div>
+                </Text>
+              )}
+            </div>
+          </VStack>
+          {/* </div> */}
+        </>
+      ) : (
+        <>
+          {/* Hero */}
+          <div className="relative overflow-hidden py-24 lg:py-32">
+            {/* Gradients */}
+            <div
+              aria-hidden="true"
+              className="flex absolute -top-96 start-1/2 transform -translate-x-1/2"
+            >
+              <div className="bg-gradient-to-r from-background/50 to-background blur-3xl w-[25rem] h-[44rem] rotate-[-60deg] transform -translate-x-[10rem]" />
+              <div className="bg-gradient-to-tl blur-3xl w-[90rem] h-[50rem] rounded-full origin-top-left -rotate-12 -translate-x-[15rem] from-primary-foreground via-primary-foreground to-background" />
+            </div>
+            {/* End Gradients */}
+            <div className="relative z-10">
+              <div className="container py-10 lg:py-16">
+                <div className="max-w-2xl text-center mx-auto">
+                  <p className="">All your workouts. In one place.</p>
+                  {/* Title */}
+                  <div className="mt-5 max-w-2xl">
+                    <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
+                      Track you progress. Simply.
+                    </h1>
+                  </div>
+                  {/* End Title */}
+                  <div className="mt-5 max-w-3xl">
+                    <p className="text-xl text-muted-foreground">
+                      Keep track of your workouts and progress with ease. Sign
+                      up now to get started.
+                    </p>
+                  </div>
+                  {/* Buttons */}
+                  <div className="mt-8 gap-3 flex justify-center">
+                    <Button size={"lg"}>
+                      {" "}
+                      <Link to={"/signup"}>
+                        <Text as="span" color="neutral.400">
+                          Sign Up
+                        </Text>
+                        {/* or sign in */}
+                      </Link>
+                    </Button>
+                    <Button
+                      size={"lg"}
+                      variant={"outline"}
+                      onClick={async () => {
+                        await handleGoogleSignIn();
+                        setIsSignedIn(true);
+                      }}
+                      className="p-3  rounded-md"
+                    >
+                      Login
+                    </Button>
+                  </div>
+                  {/* End Buttons */}
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* End Hero */}
+        </>
+      )}
+
+      {/* <VStack spacing={8}>
         <Text
           fontSize={"22"}
           fontWeight={"bold"}
@@ -360,50 +462,38 @@ const HomePage = () => {
           ))}
         </SimpleGrid>
 
-        {entries.length === 0 && (
-          <Text
-            fontSize="xl"
-            textAlign={"center"}
-            fontWeight="bold"
-            color="gray.500"
-          >
-            No entries found 😢{" "}
-            <Link to={"/create"}>
+        {isLoading ? (
+          <Button isLoading>Loading...</Button>
+        ) : isSignedIn ? (
+          <div>
+            {entries.length === 0 && (
               <Text
-                as="span"
-                color="blue.500"
-                _hover={{ textDecoration: "underline" }}
+                fontSize="xl"
+                textAlign={"center"}
+                fontWeight="bold"
+                color="gray.500"
               >
-                Create an entry
+                No entries found 😢{" "}
+                <Link to={"/create"}>
+                  <Text
+                    as="span"
+                    color="blue.500"
+                    _hover={{ textDecoration: "underline" }}
+                  >
+                    Create an entry
+                  </Text>
+                </Link>
+                <div
+                  className=" flex justify-center items-center"
+                  style={{ textAlign: "center" }}
+                ></div>
               </Text>
-            </Link>
-            <div
-              className=" flex justify-center items-center"
-              style={{ textAlign: "center" }}
-            >
-              {isLoading ? (
-                <Button isLoading>Loading...</Button>
-              ) : isSignedIn ? (
-                <div>
-                  <div>signed in</div>
-                </div>
-              ) : (
-                <div>
-                  Sign up or login here
-                  <div>
-                    <div>
-                      <Link> yerrrrr </Link>
-                    </div>
-                    <div>
-                      <button>hi</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Text>
+            )}
+          </div>
+        ) : (
+          <span></span>
         )}
-      </VStack>
+      </VStack> */}
     </Container>
   );
 };

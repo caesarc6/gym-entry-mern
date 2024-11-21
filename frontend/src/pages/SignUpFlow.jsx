@@ -18,6 +18,7 @@ const SignUpFlow = () => {
   const [username, setUsername] = useState("");
   const [step, setStep] = useState("username"); // State to control the current step
   // const { colorMode, toggleColorMode } = useColorMode();
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
   const handleUsernameSubmit = (e) => {
     e.preventDefault();
@@ -59,7 +60,7 @@ const SignUpFlow = () => {
       className="relative w-screen h-screen mx-auto bg-white  flex items-center justify-center overflow-hidden top-[11px]"
     >
       <Container
-        className="top-[170px] flex items-center justify-center overflow-hidden"
+        className="top-[150px] flex items-center justify-center overflow-hidden"
         style={{ position: "absolute" }}
       >
         <VStack spacing={4} align="stretch" style={{ height: "51px" }}>
