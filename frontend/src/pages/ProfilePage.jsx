@@ -119,7 +119,7 @@ const ProfilePage = () => {
           name: data.data.name || "Anonymous",
           goal: data.goal || "Not set",
           gymName: data.data.gymName || "Not specified",
-          postsCount: entries.length,
+          postsCount: data.postsCount,
           bio: data.data.bio || "No bio available",
           profileImage:
             data.data.profileImage ||

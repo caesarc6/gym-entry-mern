@@ -1,24 +1,14 @@
-import { useState } from "react";
-import {
-  Box,
-  Button,
-  Container,
-  Heading,
-  Input,
-  Textarea,
-  useColorModeValue,
-  useToast,
-  VStack,
-} from "@chakra-ui/react";
-
-import { auth, googleProvider } from "../firebase"; // Adjust the import according to your project structure
-import "../index.css";
+import React, { useState } from "react";
+import { useColorMode } from "@chakra-ui/react";
+import { auth, googleProvider } from "../firebase.js"; // Adjust the import according to your project structure
+import PhotoUpload from "../components/PhotoUpload.jsx"; // Adjust the import according to your project structure
+import { signInWithPopup } from "firebase/auth";
 
 const SignUpFlow = () => {
   const [username, setUsername] = useState("");
   const [step, setStep] = useState("username"); // State to control the current step
-  // const { colorMode, toggleColorMode } = useColorMode();
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const { colorMode, toggleColorMode } = useColorMode(); // Use the useColorMode hook
+  const [profileImage, setProfileImage] = useState("");
 
   const handleUsernameSubmit = (e) => {
     e.preventDefault();
@@ -31,7 +21,7 @@ const SignUpFlow = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      const result = await auth.signInWithPopup(googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
       const token = await result.user.getIdToken();
 
       const response = await fetch("http://localhost:5001/api/protected", {
@@ -40,7 +30,7 @@ const SignUpFlow = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ username }), // Include the username in the request body
+        body: JSON.stringify({ username, profileImage }), // Include the username and profileImage in the request body
       });
 
       if (!response.ok) {
@@ -55,24 +45,10 @@ const SignUpFlow = () => {
   };
 
   return (
-    <Box
-      bg={useColorModeValue("gray.100", "gray.900")}
-      className="relative w-screen h-screen mx-auto bg-white  flex items-center justify-center overflow-hidden top-[11px]"
-    >
-      <Container
-        className="top-[150px] flex items-center justify-center overflow-hidden"
-        style={{ position: "absolute" }}
-      >
-        <VStack spacing={4} align="stretch" style={{ height: "51px" }}>
-          <Heading as="h1" size="2xl">
-            Sign Up
-          </Heading>
-        </VStack>
-      </Container>{" "}
-      {/* Set background to white */}
+    <div className="relative w-screen h-screen mx-auto bg-white flex items-center justify-center overflow-hidden">
       {/* Username Input */}
       <div
-        className={`transform transition-all duration-900 ease-in-out absolute w-full max-w-md px-6
+        className={`transform transition-all duration-500 ease-in-out absolute w-full max-w-md
           ${
             step === "username"
               ? "translate-x-0 opacity-100"
@@ -80,8 +56,8 @@ const SignUpFlow = () => {
           }
         `}
       >
-        <div className="bg-white p-8 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center">
             Choose your username
           </h2>
           <form onSubmit={handleUsernameSubmit}>
@@ -89,24 +65,25 @@ const SignUpFlow = () => {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-50 px-4 py-3 rounded-lg border border-gray-200 text-neutral-600  font-bold focus:ring-1 focus:ring-green-300 focus:border-green-300 mb-4"
+              className="w-full bg-slate-50 dark:bg-gray-700 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
               placeholder="Enter username"
               autoFocus
               required
             />
             <button
               type="submit"
-              className="w-full bg-blue-700 text-white rounded-lg px-4 py-3 font-medium hover:bg-blue-400 
-                         transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-800 focus:ring-offset-2"
+              className="w-full bg-blue-600 text-white rounded-lg px-4 py-3 font-medium hover:bg-blue-700 
+                         transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Continue
             </button>
           </form>
         </div>
       </div>
+
       {/* Google Sign-in */}
       <div
-        className={`transform transition-all duration-900 ease-in-out absolute w-full max-w-md px-6
+        className={`transform transition-all duration-500 ease-in-out absolute w-full max-w-md
           ${
             step === "google"
               ? "translate-x-0 opacity-100"
@@ -114,17 +91,19 @@ const SignUpFlow = () => {
           }
         `}
       >
-        <div className="bg-white p-8 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold text-neutral-800 mb-2 text-center">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center">
             Welcome, {username}!
           </h2>
-          <p className="text-center text-neutral-700 mb-6">
+          <p className="text-center text-gray-600 dark:text-gray-400 mb-6">
             Complete your signup with Google
           </p>
+          <PhotoUpload onUpload={setProfileImage} />{" "}
+          {/* Use the PhotoUpload component */}
           <button
             onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 
-                       rounded-lg px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 
+            className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 
+                       rounded-lg px-4 py-3 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-600 
                        transition-colors duration-200 focus:outline-none focus:ring-2 
                        focus:ring-blue-500 focus:ring-offset-2"
           >
@@ -150,7 +129,7 @@ const SignUpFlow = () => {
           </button>
         </div>
       </div>
-    </Box>
+    </div>
   );
 };
 
