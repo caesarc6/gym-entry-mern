@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useColorMode } from "@chakra-ui/react";
 import { auth, googleProvider } from "../firebase.js"; // Adjust the import according to your project structure
-import PhotoUpload from "../components/PhotoUpload.jsx"; // Adjust the import according to your project structure
 import { signInWithPopup } from "firebase/auth";
+import PhotoUpload from "../components/PhotoUpload.jsx"; // Adjust the import according to your project structure
+import ProfilePictureUpload from "./ProfilePictureUpload.jsx";
 
 const SignUpFlow = () => {
   const [username, setUsername] = useState("");
@@ -32,6 +33,26 @@ const SignUpFlow = () => {
         },
         body: JSON.stringify({ username, profileImage }), // Include the username and profileImage in the request body
       });
+
+      // Log full response details for debugging
+      console.log("Response status:", response.status);
+      console.log(
+        "Response headers:",
+        Object.fromEntries(response.headers.entries())
+      );
+
+      // Try to get response text before parsing
+      const responseText = await response.text();
+      console.log("Raw response:", responseText);
+
+      try {
+        // Attempt to parse as JSON
+        const userData = JSON.parse(responseText);
+        console.log("User Data:", userData);
+      } catch (parseError) {
+        console.error("Failed to parse JSON:", parseError);
+        console.error("Received non-JSON response:", responseText);
+      }
 
       if (!response.ok) {
         throw new Error(await response.text());
@@ -78,6 +99,8 @@ const SignUpFlow = () => {
               Continue
             </button>
           </form>
+          <h2>Update Profile Picture</h2>
+          <ProfilePictureUpload />
         </div>
       </div>
 

@@ -183,6 +183,41 @@ export const useProductStore = create((set) => ({
   },
 
   clearEntrys: () => set({ entrys: [] }),
+
+  // handle upload image
+  handleFileUpload: async (file) => {
+    try {
+      // Get Firebase auth token
+      const token = await auth.currentUser.getIdToken();
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("profilePicture", file);
+
+      // Send to backend
+      const res = await fetch(
+        "http://localhost:5001/api/upload/profile-picture",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+          body: formData,
+        }
+      );
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("Error creating post:", errorData);
+        throw new Error(errorData.error || "Failed to create post");
+      }
+
+      // Update UI with new image URL
+      setProfilePictureUrl(res.data.url);
+    } catch (error) {
+      console.error("Upload failed", error);
+    }
+  },
 }));
 
 // Add an authentication state listener to ensure the user is authenticated

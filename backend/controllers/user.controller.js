@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
-
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import User from "../models/user.model.js";
+import { createClient } from "@supabase/supabase-js";
+import multer from "multer";
+import path from "path";
 
 import express from "express";
 // import User from "../models/user.model.js";
@@ -8,6 +11,64 @@ import Entry from "../models/entry.model.js";
 import { verifyIdToken } from "../middleware/auth.js"; // Middleware to verify Firebase ID token
 
 const router = express.Router();
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_ANON_KEY,
+  {
+    // Add additional configuration options if needed
+    auth: {
+      persistSession: false,
+    },
+  }
+);
+
+export const checkSupabaseConnection = async () => {
+  try {
+    // Check basic connection
+    console.log("Supabase URL:", process.env.VITE_SUPABASE_URL);
+    console.log(
+      "Supabase Anon Key:",
+      process.env.VITE_SUPABASE_ANON_KEY ? "Present" : "Missing"
+    );
+
+    // List buckets with detailed logging
+    const { data, error } = await supabase.storage.listBuckets();
+    if (error) {
+      console.error("Bucket Listing Error:", {
+        code: error.code,
+        message: error.message,
+        details: error,
+      });
+      return false;
+    }
+
+    console.log(
+      "Available Buckets:",
+      data.map((bucket) => bucket.name)
+    );
+
+    // Try to get a specific bucket
+    const bucketName = "user_profiles"; // Replace with your actual bucket name
+    const { data: bucketData, error: bucketError } =
+      await supabase.storage.getBucket(bucketName);
+
+    if (bucketError) {
+      console.error(`Error accessing bucket ${bucketName}:`, {
+        code: bucketError.code,
+        message: bucketError.message,
+      });
+      return false;
+    }
+
+    console.log(`Bucket ${bucketName} details:`, bucketData);
+
+    return true;
+  } catch (err) {
+    console.error("Comprehensive Supabase Connection Check Failed:", err);
+    return false;
+  }
+};
 
 // Create a new user
 export const createUser = async (req, res) => {
@@ -113,5 +174,297 @@ export const getUserProfile = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve user profile" });
   }
 };
+
+// Multer configuration
+const upload = multer({
+  // In-memory storage
+  storage: multer.memoryStorage(),
+
+  // File size and type limits
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    console.log("Received file details:", {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+    });
+
+    // Allow only image files
+    const allowedFileTypes = /jpeg|jpg|png|gif|webp/i;
+    const extname = allowedFileTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = allowedFileTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error("Error: Images only!"));
+    }
+  },
+});
+
+// Supabase client
+// const supabase = createClient(
+//   process.env.VITE_SUPABASE_URL,
+//   process.env.VITE_SUPABASE_ANON_KEY
+// );
+
+// Middleware to handle file upload errors
+const handleFileUpload = (req, res, next) => {
+  console.log("Request body:", req.body);
+  console.log("Request files:", req.files);
+
+  upload.single("profilePicture")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      // Multer error (e.g., file too large)
+      return res.status(400).json({
+        error: "File upload error",
+        details: err.message,
+      });
+    } else if (err) {
+      // Other errors (e.g., file type)
+      return res.status(400).json({
+        error: err.message,
+      });
+    }
+
+    // If no errors, proceed to next middleware
+    next();
+  });
+};
+
+export const uploadProfilePic = [
+  // First, use the file upload middleware
+  handleFileUpload,
+
+  // Then the actual upload logic
+  async (req, res) => {
+    // List all buckets to confirm names
+    const isConnected = await checkSupabaseConnection();
+    if (!isConnected) {
+      return res.status(500).json({ error: "Supabase connection failed" });
+    }
+
+    if (error) {
+      console.error("Full error object:", error);
+      console.error("Error type:", typeof error);
+      console.error("Error stringified:", JSON.stringify(error, null, 2));
+    }
+
+    // const { data, error } = await supabase.storage.listBuckets().select("*");
+    // console.log("Raw response:", { data, error });
+    // if (error) console.error("Error listing buckets:", error);
+    // else console.log("Available buckets:", data);
+    try {
+      // Validate file upload
+      if (!req.file) {
+        return res.status(400).json({
+          error: "No file uploaded",
+          details: {
+            file: req.file,
+            body: req.body,
+          },
+        });
+      }
+
+      // Ensure user is authenticated
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Find user in MongoDB
+      const user = await User.findOne({ uid: req.user.uid });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Generate a unique filename
+      const fileName = `profile_${user.uid}_${Date.now()}${path.extname(
+        req.file.originalname
+      )}`;
+      const filePath = `profiles/${fileName}`;
+
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from("post_images")
+        .upload(filePath, req.file.buffer, {
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (error) {
+        console.error("Supabase upload error:", error);
+        return res.status(500).json({ error: "Failed to upload image" });
+      }
+
+      // Get public URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("user_profiles").getPublicUrl(filePath);
+
+      // Update user document with new profile image URL
+      const updatedUser = await User.findByIdAndUpdate(
+        user._id,
+        {
+          profilePicture: {
+            url: publicUrl,
+            storagePath: filePath,
+          },
+        },
+        { new: true }
+      );
+
+      res.json({
+        url: publicUrl,
+        path: filePath,
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+];
+
+// post profile picture
+// export const uploadProfilePic = async (req, res) => {
+//   try {
+//     // Validate file upload
+//     if (!req.file) {
+//       return res.status(400).json({ error: "No file uploaded" });
+//     }
+
+//     // Ensure user is authenticated
+//     if (!req.user) {
+//       return res.status(401).json({ error: "Unauthorized" });
+//     }
+
+//     // Find user in MongoDB
+//     const user = await User.findOne({ uid: req.user.uid });
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     // Generate a unique filename
+//     const fileName = `profile_${user.uid}_${Date.now()}${path.extname(
+//       req.file.originalname
+//     )}`;
+//     const filePath = `profiles/${fileName}`;
+
+//     // Upload to Supabase storage
+//     const { data, error } = await supabase.storage
+//       .from("user-profiles") // Replace with your actual bucket name
+//       .upload(filePath, req.file.buffer, {
+//         cacheControl: "3600",
+//         upsert: true,
+//       });
+
+//     if (error) {
+//       console.error("Supabase upload error:", error);
+//       return res.status(500).json({ error: "Failed to upload image" });
+//     }
+
+//     // Get public URL
+//     const {
+//       data: { publicUrl },
+//     } = supabase.storage.from("user-profiles").getPublicUrl(filePath);
+
+//     // Update user document with new profile image URL
+//     const updatedUser = await User.findByIdAndUpdate(
+//       user._id,
+//       {
+//         profilePicture: {
+//           url: publicUrl,
+//           storagePath: filePath,
+//         },
+//       },
+//       { new: true } // Return the updated document
+//     );
+
+//     res.json({
+//       url: publicUrl,
+//       path: filePath,
+//       user: updatedUser,
+//     });
+//   } catch (error) {
+//     console.error("Upload error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+//   try {
+//     // Ensure Firebase admin is initialized elsewhere in your app
+//     const storage = getStorage();
+
+//     if (!req.file) {
+//       return res.status(400).json({ error: "No file uploaded" });
+//     }
+
+//     // Validate user authentication
+//     if (!req.user) {
+//       return res.status(401).json({ error: "Unauthorized" });
+//     }
+
+//     // Find user in MongoDB
+//     const user = await User.findOne({ uid: req.user.uid });
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     // Create a storage reference
+//     const storageRef = ref(
+//       storage,
+//       `profilePictures/${user.uid}/${Date.now()}_${req.file.originalname}`
+//     );
+
+//     // Upload file to Firebase Storage
+//     const snapshot = await uploadBytes(storageRef, req.file.buffer);
+
+//     // Get download URL
+//     const downloadURL = await getDownloadURL(snapshot.ref);
+
+//     // Update user document
+//     await User.findByIdAndUpdate(user._id, {
+//       profilePicture: {
+//         url: downloadURL,
+//         storagePath: snapshot.ref.fullPath,
+//       },
+//     });
+
+//     res.json({ url: downloadURL, path: snapshot.ref.fullPath });
+//   } catch (error) {
+//     console.error("Upload error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// try {
+//   // const firebaseUser = await verifyIdToken(req.headers.authorization);
+//   const firebaseUser = req.user;
+//   //find mongoDB user
+//   const user = await User.findOne({ uid: firebaseUser.uid });
+
+//   // use Supabase storage service to upload image
+//   const { path, url } = await storageService.uploadProfilePic(
+//     req.file, // Mutler or similar middleware handles file
+//     user._id, // MongoDB User ID
+//     firebaseUser.uid //  Firebase UID
+//   );
+
+//   // Update user document with new profile image URL
+//   await User.findByIdAndUpdate(user._id, {
+//     profilePicture: {
+//       url: url,
+//       storagePath: path,
+//     },
+//   });
+
+//   res.json({ url, path });
+// } catch (error) {
+//   res.status(500).json({ error: error.message });
+// }
+// };
 
 export default router;
