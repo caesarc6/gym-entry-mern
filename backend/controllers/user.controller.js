@@ -9,19 +9,15 @@ import express from "express";
 // import User from "../models/user.model.js";
 import Entry from "../models/entry.model.js";
 import { verifyIdToken } from "../middleware/auth.js"; // Middleware to verify Firebase ID token
+import dotenv from "dotenv";
+dotenv.config().parsed;
 
 const router = express.Router();
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_ANON_KEY,
-  {
-    // Add additional configuration options if needed
-    auth: {
-      persistSession: false,
-    },
-  }
-);
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export const checkSupabaseConnection = async () => {
   try {
@@ -176,34 +172,34 @@ export const getUserProfile = async (req, res) => {
 };
 
 // Multer configuration
-const upload = multer({
-  // In-memory storage
-  storage: multer.memoryStorage(),
+// const upload = multer({
+//   // In-memory storage
+//   storage: multer.memoryStorage(),
 
-  // File size and type limits
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    console.log("Received file details:", {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-    });
+//   // File size and type limits
+//   limits: {
+//     fileSize: 5 * 1024 * 1024, // 5MB limit
+//   },
+//   fileFilter: (req, file, cb) => {
+//     console.log("Received file details:", {
+//       originalname: file.originalname,
+//       mimetype: file.mimetype,
+//     });
 
-    // Allow only image files
-    const allowedFileTypes = /jpeg|jpg|png|gif|webp/i;
-    const extname = allowedFileTypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
-    const mimetype = allowedFileTypes.test(file.mimetype);
+//     // Allow only image files
+//     const allowedFileTypes = /jpeg|jpg|png|gif|webp/i;
+//     const extname = allowedFileTypes.test(
+//       path.extname(file.originalname).toLowerCase()
+//     );
+//     const mimetype = allowedFileTypes.test(file.mimetype);
 
-    if (extname && mimetype) {
-      return cb(null, true);
-    } else {
-      cb(new Error("Error: Images only!"));
-    }
-  },
-});
+//     if (extname && mimetype) {
+//       return cb(null, true);
+//     } else {
+//       cb(new Error("Error: Images only!"));
+//     }
+//   },
+// });
 
 // Supabase client
 // const supabase = createClient(
@@ -211,84 +207,82 @@ const upload = multer({
 //   process.env.VITE_SUPABASE_ANON_KEY
 // );
 
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
 // Middleware to handle file upload errors
 const handleFileUpload = (req, res, next) => {
-  console.log("Request body:", req.body);
-  console.log("Request files:", req.files);
-
   upload.single("profilePicture")(req, res, (err) => {
     if (err instanceof multer.MulterError) {
-      // Multer error (e.g., file too large)
       return res.status(400).json({
         error: "File upload error",
         details: err.message,
       });
     } else if (err) {
-      // Other errors (e.g., file type)
       return res.status(400).json({
         error: err.message,
       });
     }
 
-    // If no errors, proceed to next middleware
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    console.log("Request body:", req.body);
+    console.log("Request file:", req.file);
+
     next();
   });
 };
+
+// console.log("Request body:", req.body);
+// console.log("Request files:", req.files);
+//   if (!req.file) {
+//     return res.status(400).json({ error: "No file uploaded" });
+//   }
+//   upload.single("profilePicture")(req, res, (err) => {
+//     if (err instanceof multer.MulterError) {
+//       // Multer error (e.g., file too large)
+//       return res.status(400).json({
+//         error: "File upload error",
+//         details: err.message,
+//       });
+//     } else if (err) {
+//       // Other errors (e.g., file type)
+//       return res.status(400).json({
+//         error: err.message,
+//       });
+//     }
+
+//     if (!req.file) {
+//       return res.status(400).json({ error: "No file uploaded" });
+//     }
+//     // If no errors, proceed to next middleware
+//     next();
+//   });
+// };
 
 export const uploadProfilePic = [
   // First, use the file upload middleware
   handleFileUpload,
 
-  // Then the actual upload logic
   async (req, res) => {
-    // List all buckets to confirm names
-    const isConnected = await checkSupabaseConnection();
-    if (!isConnected) {
-      return res.status(500).json({ error: "Supabase connection failed" });
-    }
-
-    if (error) {
-      console.error("Full error object:", error);
-      console.error("Error type:", typeof error);
-      console.error("Error stringified:", JSON.stringify(error, null, 2));
-    }
-
-    // const { data, error } = await supabase.storage.listBuckets().select("*");
-    // console.log("Raw response:", { data, error });
-    // if (error) console.error("Error listing buckets:", error);
-    // else console.log("Available buckets:", data);
     try {
-      // Validate file upload
-      if (!req.file) {
-        return res.status(400).json({
-          error: "No file uploaded",
-          details: {
-            file: req.file,
-            body: req.body,
-          },
-        });
+      // const isConnected = await checkSupabaseConnection();
+      console.log(import.meta.env.VITE_SUPABASE_URL); // "123"
+      console.log(import.meta.env.VITE_SUPABASE_ANON_KEY); // undefined
+      if (!isConnected) {
+        return res.status(500).json({ error: "Supabase connection failed" });
       }
 
-      // Ensure user is authenticated
-      if (!req.user) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
-      // Find user in MongoDB
-      const user = await User.findOne({ uid: req.user.uid });
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // Generate a unique filename
+      const user = req.user; // Assuming user is set in req by authentication middleware
       const fileName = `profile_${user.uid}_${Date.now()}${path.extname(
         req.file.originalname
       )}`;
       const filePath = `profiles/${fileName}`;
 
-      // Upload to Supabase storage
       const { data, error } = await supabase.storage
-        .from("post_images")
+        .from("user_profiles")
         .upload(filePath, req.file.buffer, {
           cacheControl: "3600",
           upsert: true,
@@ -299,12 +293,10 @@ export const uploadProfilePic = [
         return res.status(500).json({ error: "Failed to upload image" });
       }
 
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("user_profiles").getPublicUrl(filePath);
+      const { publicUrl } = supabase.storage
+        .from("user_profiles")
+        .getPublicUrl(filePath);
 
-      // Update user document with new profile image URL
       const updatedUser = await User.findByIdAndUpdate(
         user._id,
         {
@@ -327,6 +319,95 @@ export const uploadProfilePic = [
     }
   },
 ];
+
+// Then the actual upload logic
+//   async (req, res) => {
+//     // List all buckets to confirm names
+//     const isConnected = await checkSupabaseConnection();
+//     if (!isConnected) {
+//       return res.status(500).json({ error: "Supabase connection failed" });
+//     }
+
+//     if (error) {
+//       console.error("Full error object:", error);
+//       console.error("Error type:", typeof error);
+//       console.error("Error stringified:", JSON.stringify(error, null, 2));
+//     }
+
+//     // const { data, error } = await supabase.storage.listBuckets().select("*");
+//     // console.log("Raw response:", { data, error });
+//     // if (error) console.error("Error listing buckets:", error);
+//     // else console.log("Available buckets:", data);
+//     try {
+//       // Validate file upload
+//       if (!req.file) {
+//         return res.status(400).json({
+//           error: "No file uploaded",
+//           details: {
+//             file: req.file,
+//             body: req.body,
+//           },
+//         });
+//       }
+
+//       // Ensure user is authenticated
+//       if (!req.user) {
+//         return res.status(401).json({ error: "Unauthorized" });
+//       }
+
+//       // Find user in MongoDB
+//       const user = await User.findOne({ uid: req.user.uid });
+//       if (!user) {
+//         return res.status(404).json({ error: "User not found" });
+//       }
+
+//       // Generate a unique filename
+//       const fileName = `profile_${user.uid}_${Date.now()}${path.extname(
+//         req.file.originalname
+//       )}`;
+//       const filePath = `profiles/${fileName}`;
+
+//       // Upload to Supabase storage
+//       const { data, error } = await supabase.storage
+//         .from("post_images")
+//         .upload(filePath, req.file.buffer, {
+//           cacheControl: "3600",
+//           upsert: true,
+//         });
+
+//       if (error) {
+//         console.error("Supabase upload error:", error);
+//         return res.status(500).json({ error: "Failed to upload image" });
+//       }
+
+//       // Get public URL
+//       const {
+//         data: { publicUrl },
+//       } = supabase.storage.from("user_profiles").getPublicUrl(filePath);
+
+//       // Update user document with new profile image URL
+//       const updatedUser = await User.findByIdAndUpdate(
+//         user._id,
+//         {
+//           profilePicture: {
+//             url: publicUrl,
+//             storagePath: filePath,
+//           },
+//         },
+//         { new: true }
+//       );
+
+//       res.json({
+//         url: publicUrl,
+//         path: filePath,
+//         user: updatedUser,
+//       });
+//     } catch (error) {
+//       console.error("Upload error:", error);
+//       res.status(500).json({ error: error.message });
+//     }
+//   },
+// ];
 
 // post profile picture
 // export const uploadProfilePic = async (req, res) => {

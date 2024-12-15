@@ -1,14 +1,19 @@
+import { Container, SimpleGrid, Text, VStack, Button } from "@chakra-ui/react";
 import { useState } from "react";
 import axios from "axios";
 // import { auth } from "../firebase";
 import { getAuth } from "firebase/auth";
 // import { createClient } from "@supabase/supabase-js";
-import path from "path";
+// import path from "path";
+// import multer from "multer";
+// import path from "path";
+import { createClient } from "@supabase/supabase-js";
+// import User from "../models/user.model.js";
 
-// const supabase = createClient(
-//   process.env.VITE_SUPABASE_URL,
-//   process.env.VITE_SUPABASE_ANON_KEY
-// );
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function ProfilePictureUpload() {
   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
@@ -63,7 +68,7 @@ function ProfilePictureUpload() {
   };
 
   return (
-    <div>
+    <>
       <input
         type="file"
         onChange={(e) => {
@@ -73,6 +78,7 @@ function ProfilePictureUpload() {
           }
         }}
         accept="image/*"
+        className="mb-4 mt-4 p-2 border border-gray-600 rounded w-full max-w-sm text-center cursor-pointer hover:bg-slate-700 hover:text-white transition-colors duration-300 ease-in-out text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-slate-700 focus:ring-opacity-50 "
       />
       {error && <p style={{ color: "red" }}>{error}</p>}
       {profilePictureUrl && (
@@ -82,7 +88,7 @@ function ProfilePictureUpload() {
           style={{ width: "100px", height: "100px", borderRadius: "50%" }}
         />
       )}
-    </div>
+    </>
   );
 }
 //   // State to manage the profile picture URL

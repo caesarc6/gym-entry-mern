@@ -196,7 +196,7 @@ export const useProductStore = create((set) => ({
 
       // Send to backend
       const res = await fetch(
-        "http://localhost:5001/api/upload/profile-picture",
+        "http://localhost:5001/api/upload/uploadProfilePic",
         {
           method: "POST",
           headers: {
