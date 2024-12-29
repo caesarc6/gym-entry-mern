@@ -13,10 +13,11 @@ const userSchema = new mongoose.Schema({
     unique: true,
   },
   username: { type: String, required: true, unique: true },
-  profileImage: String,
+  picture: String,
   bio: String,
   goal: String,
   gymName: String,
+  url: String,
 });
 
 const User = mongoose.model("User", userSchema);

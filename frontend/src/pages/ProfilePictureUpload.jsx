@@ -1,19 +1,234 @@
 import { Container, SimpleGrid, Text, VStack, Button } from "@chakra-ui/react";
-import { useState } from "react";
-import axios from "axios";
+// import { useState } from "react";
+// import axios from "axios";
 // import { auth } from "../firebase";
-import { getAuth } from "firebase/auth";
-// import { createClient } from "@supabase/supabase-js";
-// import path from "path";
+// import { getAuth } from "firebase/auth";
+import path from "path";
 // import multer from "multer";
-// import path from "path";
 import { createClient } from "@supabase/supabase-js";
 // import User from "../models/user.model.js";
+// import cors from "cors";
+import { auth, googleProvider } from "../firebase";
+import { signInWithPopup } from "firebase/auth";
+// const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+// const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// async function checkSupabaseConnection() {
+//   try {
+//     const supabase = createClient(
+//       import.meta.env.VITE_SUPABASE_URL,
+//       import.meta.env.VITE_SUPABASE_ANON_KEY
+//     );
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+//     // Check basic connection
+//     // console.log("Supabase URL:", process.env.VITE_SUPABASE_URL);
+//     // console.log(
+//     //   "Supabase Anon Key:",
+//     //   process.env.VITE_SUPABASE_ANON_KEY ? "Present" : "Missing"
+//     // );
+
+//     // List buckets with detailed logging
+//     const { data, error } = await supabase.storage.listBuckets();
+//     if (error) {
+//       console.error("Bucket Listing Error:", {
+//         code: error.code,
+//         message: error.message,
+//         details: error,
+//       });
+//       return false;
+//     }
+//     console.log(
+//       "Available Buckets:",
+//       data.map((bucket) => bucket.name)
+//     );
+
+//     console.error("Bucket Listing Error:", {
+//       code: error.code,
+//       message: error.message,
+//       details: error,
+//     });
+
+//     // Try to get a specific bucket
+//     // const bucketName = "user_profiles"; // Replace with your actual bucket name
+//     // const { data: bucketData, error: bucketError } =
+//     //   await supabase.storage.getBucket(bucketName);
+
+//     // if (bucketError) {
+//     //   console.error(`Error accessing bucket ${bucketName}:`, {
+//     //     code: bucketError.code,
+//     //     message: bucketError.message,
+//     //   });
+//     //   return false;
+//     // }
+
+//     // console.log(`Bucket ${bucketName} details:`, bucketData);
+
+//     return true;
+//   } catch (err) {
+//     console.error("Comprehensive Supabase Connection Check Failed:", err);
+//     return false;
+//   }
+// }
+
+// function ProfilePictureUpload() {
+//   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
+//   const [error, setError] = useState(null);
+
+//   const handleFileUpload = async (file) => {
+//     try {
+//       // Get current Firebase user
+//       const auth = getAuth();
+//       const currentUser = auth.currentUser;
+
+//       if (!currentUser) {
+//         throw new Error("User not authenticated");
+//       }
+
+//       // Get Firebase auth token
+//       const token = await currentUser.getIdToken();
+
+//       // Create FormData for file upload
+//       const formData = new FormData();
+//       formData.append("profilePicture", file, file.name);
+
+//       // Debug: Log the file details
+//       console.log("File to upload:", {
+//         name: file.name,
+//         type: file.type,
+//         size: file.size,
+//       });
+
+//       // List all buckets to confirm names
+//       const { data, error } = await supabase.storage.listBuckets();
+//       if (error) console.error("Error listing buckets:", error);
+//       else console.log("Available buckets:", data);
+
+//       // Send to backend
+//       const res = await axios.post(
+//         "http://localhost:5001/api/upload/uploadProfilePic",
+//         formData,
+//         {
+//           headers: {
+//             Authorization: `Bearer ${token}`,
+//             "Content-Type": "multipart/form-data",
+//           },
+//         }
+//       );
+
+//       // Update state with new image URL
+//       setProfilePictureUrl(res.data.url);
+//       setError(null);
+//     } catch (error) {
+//       console.error("Upload failed", error.response?.data || error);
+//       setError(error.response?.data?.error || "Upload failed");
+//     }
+//   };
+
+//   return (
+//     <>
+//       <button
+//         type="file"
+//         onClick={async (e) => {
+//           // click to trigger checkSupabaseConnection
+//           const result = await checkSupabaseConnection();
+//           if (result) {
+//             console.log("Supabase connection successful: ", result);
+//           } else {
+//             console.error("Supabase connection failed");
+//           }
+//         }}
+//         className="mb-4 mt-4 p-2 border border-gray-600 rounded w-full max-w-sm text-center cursor-pointer hover:bg-slate-700 hover:text-white transition-colors duration-300 ease-in-out text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-slate-700 focus:ring-opacity-50 "
+//       />
+//       <input
+//         type="file"
+//         onChange={(e) => {
+//           const file = e.target.files[0];
+//           if (file) {
+//             handleFileUpload(file);
+//           }
+//         }}
+//         accept="image/*"
+//         className="mb-4 mt-4 p-2 border border-gray-600 rounded w-full max-w-sm text-center cursor-pointer hover:bg-slate-700 hover:text-white transition-colors duration-300 ease-in-out text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-slate-700 focus:ring-opacity-50 "
+//       />
+//       {error && <p style={{ color: "red" }}>{error}</p>}
+//       {profilePictureUrl && (
+//         <img
+//           src={profilePictureUrl}
+//           alt="Profile"
+//           style={{ width: "100px", height: "100px", borderRadius: "50%" }}
+//         />
+//       )}
+//     </>
+//   );
+// }
+// //   // State to manage the profile picture URL
+// //   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
+
+// //   const handleFileUpload = async (file) => {
+// //     try {
+// //       // Get Firebase auth token
+// //       const token = await auth.currentUser.getIdToken();
+
+// //       // Create FormData for file upload
+// //       // const formData = new FormData();
+// //       const formData = file;
+// //       // formData.append("profilePicture", file);
+
+// //       // Send to backend
+// //       // const res = await fetch(
+// //       //   "http://localhost:5001/api/upload/uploadProfilePic",
+// //       //   {
+// //       //     method: "POST",
+// //       //     headers: {
+// //       //       "Content-Type": "multipart/form-data",
+// //       //       Authorization: `Bearer ${token}`,
+// //       //     },
+// //       //     body: JSON.stringify(formData),
+// //       //   }
+// //       // );
+
+// //       const res = await axios.post(
+// //         "http://localhost:5001/api/upload/uploadProfilePic",
+// //         formData,
+// //         {
+// //           headers: {
+// //             Authorization: token,
+// //             "Content-Type": "multipart/form-data",
+// //           },
+// //         }
+// //       );
+
+// //       // Update state with new image URL
+// //       setProfilePictureUrl(res.data.url);
+// //     } catch (error) {
+// //       console.error("Upload failed", error);
+// //     }
+// //   };
+
+// //   return (
+// //     <div>
+// //       <input
+// //         type="file"
+// //         onChange={(e) => handleFileUpload(e.target.files[0])}
+// //         accept="image/*"
+// //       />
+// //       {profilePictureUrl && (
+// //         <img
+// //           src={profilePictureUrl}
+// //           alt="Profile"
+// //           style={{ width: "100px", height: "100px", borderRadius: "50%" }}
+// //         />
+// //       )}
+// //     </div>
+// //   );
+// // }
+
+// export default ProfilePictureUpload;
+
+import { useState } from "react";
+import { getAuth } from "firebase/auth";
+import axios from "axios";
 
 function ProfilePictureUpload() {
   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
@@ -22,15 +237,14 @@ function ProfilePictureUpload() {
   const handleFileUpload = async (file) => {
     try {
       // Get current Firebase user
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
+      const result = await signInWithPopup(auth, googleProvider);
+      const token = await result.user.getIdToken();
 
-      if (!currentUser) {
-        throw new Error("User not authenticated");
-      }
+      // const auth = getAuth();
+      // const currentUser = auth.currentUser;
 
       // Get Firebase auth token
-      const token = await currentUser.getIdToken();
+      // const token = await currentUser.getIdToken();
 
       // Create FormData for file upload
       const formData = new FormData();
@@ -42,26 +256,33 @@ function ProfilePictureUpload() {
         type: file.type,
         size: file.size,
       });
-      // List all buckets to confirm names
-      // const { data, error } = await supabase.storage.listBuckets();
-      // if (error) console.error("Error listing buckets:", error);
-      // else console.log("Available buckets:", data);
+      console.log("mytoken:", token);
       // Send to backend
-      const res = await axios.post(
+      const res = await fetch(
         "http://localhost:5001/api/upload/uploadProfilePic",
-        formData,
         {
+          method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
+            // "Content-Type": "multipart/form-data",
           },
+          body: formData,
         }
       );
 
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("Error response from server:", errorData);
+        throw new Error(errorData.message || "Upload failed");
+      }
+
+      const data = await res.json();
+      console.log("data:", data);
       // Update state with new image URL
-      setProfilePictureUrl(res.data.url);
+      setProfilePictureUrl(data.url);
       setError(null);
     } catch (error) {
+      // console.error("Upload failed", error.response?.data || error);
       console.error("Upload failed", error.response?.data || error);
       setError(error.response?.data?.error || "Upload failed");
     }
@@ -80,77 +301,12 @@ function ProfilePictureUpload() {
         accept="image/*"
         className="mb-4 mt-4 p-2 border border-gray-600 rounded w-full max-w-sm text-center cursor-pointer hover:bg-slate-700 hover:text-white transition-colors duration-300 ease-in-out text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-slate-700 focus:ring-opacity-50 "
       />
-      {error && <p style={{ color: "red" }}>{error}</p>}
       {profilePictureUrl && (
-        <img
-          src={profilePictureUrl}
-          alt="Profile"
-          style={{ width: "100px", height: "100px", borderRadius: "50%" }}
-        />
+        <img src={profilePictureUrl} alt="Profile" className="mt-4" />
       )}
+      {error && <p className="text-red-500 mt-4">{error}</p>}
     </>
   );
 }
-//   // State to manage the profile picture URL
-//   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
-
-//   const handleFileUpload = async (file) => {
-//     try {
-//       // Get Firebase auth token
-//       const token = await auth.currentUser.getIdToken();
-
-//       // Create FormData for file upload
-//       // const formData = new FormData();
-//       const formData = file;
-//       // formData.append("profilePicture", file);
-
-//       // Send to backend
-//       // const res = await fetch(
-//       //   "http://localhost:5001/api/upload/uploadProfilePic",
-//       //   {
-//       //     method: "POST",
-//       //     headers: {
-//       //       "Content-Type": "multipart/form-data",
-//       //       Authorization: `Bearer ${token}`,
-//       //     },
-//       //     body: JSON.stringify(formData),
-//       //   }
-//       // );
-
-//       const res = await axios.post(
-//         "http://localhost:5001/api/upload/uploadProfilePic",
-//         formData,
-//         {
-//           headers: {
-//             Authorization: token,
-//             "Content-Type": "multipart/form-data",
-//           },
-//         }
-//       );
-
-//       // Update state with new image URL
-//       setProfilePictureUrl(res.data.url);
-//     } catch (error) {
-//       console.error("Upload failed", error);
-//     }
-//   };
-
-//   return (
-//     <div>
-//       <input
-//         type="file"
-//         onChange={(e) => handleFileUpload(e.target.files[0])}
-//         accept="image/*"
-//       />
-//       {profilePictureUrl && (
-//         <img
-//           src={profilePictureUrl}
-//           alt="Profile"
-//           style={{ width: "100px", height: "100px", borderRadius: "50%" }}
-//         />
-//       )}
-//     </div>
-//   );
-// }
 
 export default ProfilePictureUpload;

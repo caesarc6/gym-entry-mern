@@ -39,6 +39,7 @@ export const useProductStore = create((set) => ({
       throw new Error(errorData.error || "Failed to create post");
     }
     console.log("New Post:", newPost);
+    console.log("Response:", res);
     const data = await res.json();
     set((state) => ({ posts: [...state.posts, data.data] }));
     console.log("New Post:", newPost);

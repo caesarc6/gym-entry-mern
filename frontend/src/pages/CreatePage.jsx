@@ -35,6 +35,7 @@ const CreatePage = () => {
   const handleAddEntry = async () => {
     // get current user from auth
     const currentUser = { uid: auth.currentUser.uid };
+    // console.log("Current User:", auth.currentUser.uid);
     const currUser = currentUser.uid;
     const postWithUID = { ...newPost, uid: currUser };
     const { success, message } = await createPost(postWithUID);

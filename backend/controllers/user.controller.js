@@ -3,39 +3,62 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import User from "../models/user.model.js";
 import { createClient } from "@supabase/supabase-js";
 import multer from "multer";
-import path from "path";
-
 import express from "express";
 // import User from "../models/user.model.js";
 import Entry from "../models/entry.model.js";
 import { verifyIdToken } from "../middleware/auth.js"; // Middleware to verify Firebase ID token
 import dotenv from "dotenv";
-dotenv.config().parsed;
+import path from "path";
+import cors from "cors";
+import { supabase } from "../supabase/supabase.js";
+dotenv.config();
 
 const router = express.Router();
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// const supabase = createClient(
+//   process.env.VITE_SUPABASE_URL,
+//   process.env.VITE_SUPABASE_ANON_KEY
+// );
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// const testEnvVariables = () => {
+//   console.log("Supabase URL:", process.env.VITE_SUPABASE_URL);
+//   console.log(
+//     "Supabase Anon Key:",
+//     process.env.VITE_SUPABASE_ANON_KEY ? "Present" : "Missing"
+//   );
+//   console.log("Mongo URI:", process.env.MONGO_URI);
+//   console.log("Port:", process.env.PORT);
+// };
+
+// // Call the test function
+// testEnvVariables();
 
 export const checkSupabaseConnection = async () => {
   try {
-    // Check basic connection
-    console.log("Supabase URL:", process.env.VITE_SUPABASE_URL);
-    console.log(
-      "Supabase Anon Key:",
-      process.env.VITE_SUPABASE_ANON_KEY ? "Present" : "Missing"
+    const supabase = createClient(
+      process.env.VITE_SUPABASE_URL,
+      process.env.VITE_SUPABASE_ANON_KEY
     );
+
+    // Check basic connection
+    // console.log("Supabase URL:", process.env.VITE_SUPABASE_URL);
+    // console.log(
+    //   "Supabase Anon Key:",
+    //   process.env.VITE_SUPABASE_ANON_KEY ? "Present" : "Missing"
+    // );
 
     // List buckets with detailed logging
     const { data, error } = await supabase.storage.listBuckets();
     if (error) {
-      console.error("Bucket Listing Error:", {
-        code: error.code,
-        message: error.message,
-        details: error,
-      });
+      console.error(
+        "Bucket Listing Error:",
+        error
+        //    {
+        //   code: error.code,
+        //   message: error.message,
+        //   details: error,
+        // }
+      );
       return false;
     }
 
@@ -87,7 +110,7 @@ export const createUser = async (req, res) => {
 // Create a new entry
 export const createPost = async (req, res) => {
   const entry = req.body; // user will send this data
-  // console.log("Entry:", entry);
+  // console.log("req:", req);
   if (!entry.name || !entry.description) {
     return res
       .status(400)
@@ -161,7 +184,7 @@ export const getUserProfile = async (req, res) => {
 
   try {
     const user = await User.findOne({ uid }).select(
-      "name email profileImage bio goal gymName"
+      "name email picture bio goal gymName"
     );
     const postsLength = await Entry.find({ uid });
     const postsCount = postsLength.length;
@@ -268,9 +291,9 @@ export const uploadProfilePic = [
 
   async (req, res) => {
     try {
-      // const isConnected = await checkSupabaseConnection();
-      console.log(import.meta.env.VITE_SUPABASE_URL); // "123"
-      console.log(import.meta.env.VITE_SUPABASE_ANON_KEY); // undefined
+      const isConnected = await checkSupabaseConnection();
+      console.log(process.env.VITE_SUPABASE_URL); // "123"
+      console.log(process.env.VITE_SUPABASE_ANON_KEY); // undefined
       if (!isConnected) {
         return res.status(500).json({ error: "Supabase connection failed" });
       }
@@ -281,7 +304,7 @@ export const uploadProfilePic = [
       )}`;
       const filePath = `profiles/${fileName}`;
 
-      const { data, error } = await supabase.storage
+      const { data: file, error } = await supabase.storage
         .from("user_profiles")
         .upload(filePath, req.file.buffer, {
           cacheControl: "3600",
@@ -307,7 +330,7 @@ export const uploadProfilePic = [
         },
         { new: true }
       );
-
+      console.log("Updated user:", updatedUser);
       res.json({
         url: publicUrl,
         path: filePath,

@@ -5,6 +5,7 @@ import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 import Navbar from "./components/Navbar";
 import SignUpFlow from "./pages/SignUpFlow";
+import ModifyProfile from "./pages/ModifyProfile";
 import "./index.css";
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/create" element={<CreatePage />} />
+        <Route path="/editProfile" element={<ModifyProfile />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/signup" element={<SignUpFlow />} />
       </Routes>
