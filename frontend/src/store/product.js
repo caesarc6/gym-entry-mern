@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { auth } from "../firebase";
+import axios from "axios";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
 // change fetch URL in dev mode to http://localhost:5173/api/entrys
@@ -11,6 +12,47 @@ export const useProductStore = create((set) => ({
 
   posts: [],
   setPosts: (posts) => set({ posts }),
+
+  // updateProfile
+  updateProfile: async (updatedProfile, token) => {
+    // const token = await auth.currentUser.getIdToken();
+    const res = await fetch(`http://localhost:5001/api/updateUserProfile`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(updatedProfile),
+    });
+    const data = await res.json();
+    console.log("Data:", data);
+    if (!data.success) return { success: false, message: data.message };
+    console.log("Data:", data);
+    console.log("error message:", data.message);
+    set({ user: data.data });
+    return { success: true, message: data.message };
+  },
+
+  // updateProfile: async (formData, token) => {
+  //   try {
+  //     const response = await axios.post(
+  //       "http://localhost:5001/api/updateUserProfile",
+  //       formData,
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //           "Content-Type": "multipart/form-data",
+  //         },
+  //       }
+  //     );
+
+  //     const data = await response.data;
+  //     setUserProfile(data);
+  //     console.log("Profile updated successfully:", data);
+  //   } catch (error) {
+  //     console.error("Error updating profile:", error);
+  //   }
+  // },
 
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {

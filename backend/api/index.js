@@ -11,6 +11,8 @@ import userRoutes from "../routes/user.route.js";
 
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
+import bodyParser from "body-parser";
+// const bodyParser = require("body-parser");
 
 connectDB();
 
@@ -27,6 +29,9 @@ mongoose.connect(process.env.MONGO_URI, {
 verifyIdToken;
 
 const app = express();
+app.use(express.json()); // allows to use json data in the body
+app.use(bodyParser.urlencoded({ extended: true }));
+// app.use(express.urlencoded({ extended: true }));
 
 app.use(
   cors({
@@ -35,8 +40,6 @@ app.use(
 );
 
 const __dirname = path.resolve();
-app.use(express.json()); // allows to use json data in the body
-
 // write a middleware to check if the user is authenticated and create a user in the database if it doesn't exist
 app.post("/api/protected", verifyIdToken, async (req, res) => {
   const { uid, name, email, picture } = req.user;

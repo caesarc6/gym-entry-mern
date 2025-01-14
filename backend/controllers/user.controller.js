@@ -20,18 +20,545 @@ const router = express.Router();
 //   process.env.VITE_SUPABASE_ANON_KEY
 // );
 
-// const testEnvVariables = () => {
-//   console.log("Supabase URL:", process.env.VITE_SUPABASE_URL);
-//   console.log(
-//     "Supabase Anon Key:",
-//     process.env.VITE_SUPABASE_ANON_KEY ? "Present" : "Missing"
-//   );
-//   console.log("Mongo URI:", process.env.MONGO_URI);
-//   console.log("Port:", process.env.PORT);
+// Define multer middleware at the top level
+const storage = multer.memoryStorage();
+const uploadMiddleware = multer({ storage }).single("profileImage");
+
+// get current mongoDB user
+export const getCurrentMongoDBUser = async (req, res) => {
+  const { uid } = req.user;
+
+  try {
+    // return al data from user
+    const user = await User.findOne({ uid });
+    // const user = await User.findOne({ uid }).select("uid name email picture");
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve user" });
+  }
+};
+
+// Modified updateUserProfile function
+export const updateUserProfile = async (req, res) => {
+  try {
+    const { uid } = req.user;
+
+    // Use promisified version of multer middleware
+    await new Promise((resolve, reject) => {
+      uploadMiddleware(req, res, (err) => {
+        if (err) {
+          reject(err);
+        }
+        resolve();
+      });
+    });
+
+    // Extract fields from form data
+    const { name, goal, gymName, bio } = req.body;
+
+    // Validate that at least one field is provided
+    if (!name && !goal && !gymName && !bio && !req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No data provided for update",
+      });
+    }
+
+    // Handle profile picture upload if present
+    let profilePicture = null;
+    if (req.file) {
+      const fileName = `profile_${uid}_${Date.now()}${path.extname(
+        req.file.originalname
+      )}`;
+      const filePath = `profiles/${fileName}`;
+
+      // Upload to Supabase with error handling
+      try {
+        const { data, error } = await supabase.storage
+          .from("user_profiles")
+          .upload(filePath, req.file.buffer, {
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (error) throw error;
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from("user_profiles")
+          .getPublicUrl(filePath);
+
+        profilePicture = urlData.publicUrl;
+      } catch (error) {
+        console.error("Supabase upload error:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload image",
+        });
+      }
+    }
+
+    // Build update object with only provided fields
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (goal) updateData.goal = goal;
+    if (gymName) updateData.gymName = gymName;
+    if (bio) updateData.bio = bio;
+    if (profilePicture) updateData.profileImage = profilePicture;
+
+    // Update user in database with error handling
+    const user = await User.findOneAndUpdate(
+      { uid },
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Update user profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// export const updateUserProfile = async (req, res) => {
+//   try {
+//     const { uid } = req.user;
+
+//     // Use multer middleware to parse multipart form data
+//     upload.single("profileImage")(req, res, async (err) => {
+//       if (err) {
+//         console.error("Multer error:", err);
+//         return res.status(400).json({
+//           success: false,
+//           message: err.message,
+//         });
+//       }
+
+//       // Extract fields from form data
+//       const { name, goal, gymName, bio } = req.body;
+
+//       // Validate that at least one field is provided
+//       if (!name && !goal && !gymName && !bio && !req.file) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "No data provided for update",
+//         });
+//       }
+
+//       // Handle profile picture upload if present
+//       let profilePicture = null;
+//       if (req.file) {
+//         const fileName = `profile_${uid}_${Date.now()}${path.extname(
+//           req.file.originalname
+//         )}`;
+//         const filePath = `profiles/${fileName}`;
+
+//         // Upload to Supabase
+//         const { data, error } = await supabase.storage
+//           .from("user_profiles")
+//           .upload(filePath, req.file.buffer, {
+//             cacheControl: "3600",
+//             upsert: true,
+//           });
+
+//         if (error) {
+//           console.error("Supabase upload error:", error);
+//           return res.status(500).json({
+//             success: false,
+//             message: "Failed to upload image",
+//           });
+//         }
+
+//         // Get public URL
+//         const { publicUrl } = supabase.storage
+//           .from("user_profiles")
+//           .getPublicUrl(filePath);
+
+//         profilePicture = publicUrl;
+//       }
+
+//       // Build update object with only provided fields
+//       const updateData = {};
+//       if (name) updateData.name = name;
+//       if (goal) updateData.goal = goal;
+//       if (gymName) updateData.gymName = gymName;
+//       if (bio) updateData.bio = bio;
+//       if (profilePicture) updateData.profileImage = profilePicture;
+
+//       // Update user in database
+//       const user = await User.findOneAndUpdate(
+//         { uid },
+//         { $set: updateData },
+//         { new: true }
+//       );
+
+//       if (!user) {
+//         return res.status(404).json({
+//           success: false,
+//           message: "User not found",
+//         });
+//       }
+
+//       // Send success response
+//       res.status(200).json({
+//         success: true,
+//         message: "Profile updated successfully",
+//         data: user,
+//       });
+//     });
+//   } catch (error) {
+//     console.error("Update user profile error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
 // };
 
-// // Call the test function
-// testEnvVariables();
+// export const updateUserProfile = async (req, res) => {
+//   try {
+//     const { uid } = req.user;
+
+//     // Log the incoming data
+//     console.log("Request body:", req.body);
+//     console.log("Request file:", req.file);
+
+//     // Extract fields from form data
+//     const { name, goal, gymName, bio } = req.body;
+
+//     // Validate that at least one field is provided
+//     if (!name && !goal && !gymName && !bio && !req.file) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "No data provided for update",
+//       });
+//     }
+
+//     // Handle profile picture upload if present
+//     let profilePicture = null;
+//     if (req.file) {
+//       const fileName = `profile_${uid}_${Date.now()}${path.extname(
+//         req.file.originalname
+//       )}`;
+//       const filePath = `profiles/${fileName}`;
+
+//       // Upload to Supabase
+//       const { data, error } = await supabase.storage
+//         .from("user_profiles")
+//         .upload(filePath, req.file.buffer, {
+//           cacheControl: "3600",
+//           upsert: true,
+//         });
+
+//       if (error) {
+//         console.error("Supabase upload error:", error);
+//         return res.status(500).json({
+//           success: false,
+//           message: "Failed to upload image",
+//         });
+//       }
+
+//       // Get public URL for the uploaded image
+//       const { publicUrl } = supabase.storage
+//         .from("user_profiles")
+//         .getPublicUrl(filePath);
+
+//       profilePicture = publicUrl;
+//     }
+
+//     // Build update object with only provided fields
+//     const updateData = {};
+//     if (name) updateData.name = name;
+//     if (goal) updateData.goal = goal;
+//     if (gymName) updateData.gymName = gymName;
+//     if (bio) updateData.bio = bio;
+//     if (profilePicture) updateData.profileImage = profilePicture;
+
+//     // Update user in database
+//     const user = await User.findOneAndUpdate(
+//       { uid },
+//       { $set: updateData },
+//       { new: true }
+//     );
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found",
+//       });
+//     }
+
+//     // Send success response
+//     res.status(200).json({
+//       success: true,
+//       message: "Profile updated successfully",
+//       data: user,
+//     });
+//   } catch (error) {
+//     console.error("Update user profile error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
+// Middleware to handle file upload errors
+export const handleFileUpload = (req, res, next) => {
+  upload.single("profilePicture")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({
+        error: "File upload error",
+        details: err.message,
+      });
+    } else if (err) {
+      return res.status(400).json({
+        error: err.message,
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    console.log("Request body:", req.body);
+    console.log("Request file:", req.file);
+
+    next();
+  });
+};
+
+// // update user profile data on mongoDB (bio, goal, gymName, profilePicture)
+// export const updateUserProfile = async (req, res) => {
+//   const { uid } = req.user;
+//   console.log("Request body:", req.body);
+//   try {
+//     // handleFileUpload;
+//     // Log the incoming request body
+//     console.log("Request body:", req.body);
+
+//     const { name, goal, gymName, bio } = req.body;
+
+//     // Validate required fields
+//     if (!name && !goal && !gymName && !bio && !req.file) {
+//       return res.status(400).json({ error: "No data provided for update" });
+//     }
+
+//     let profilePicture = null;
+//     if (req.file) {
+//       const fileName = `profile_${uid}_${Date.now()}${path.extname(
+//         req.file.originalname
+//       )}`;
+//       const filePath = `profiles/${fileName}`;
+
+//       const { data, error } = await supabase.storage
+//         .from("user_profiles")
+//         .upload(filePath, req.file.buffer, {
+//           cacheControl: "3600",
+//           upsert: true,
+//         });
+
+//       if (error) {
+//         console.error("Supabase upload error:", error);
+//         return res.status(500).json({ error: "Failed to upload image" });
+//       }
+
+//       const { publicUrl } = supabase.storage
+//         .from("user_profiles")
+//         .getPublicUrl(filePath);
+
+//       profilePicture = {
+//         url: publicUrl,
+//         storagePath: filePath,
+//       };
+//     }
+
+//     // Build update object with only provided fields
+//     const updateData = {};
+//     if (name) updateData.name = name;
+//     if (goal) updateData.goal = goal;
+//     if (gymName) updateData.gymName = gymName;
+//     if (bio) updateData.bio = bio;
+//     if (profilePicture) updateData.profileImage = profilePicture;
+
+//     const user = await User.findOneAndUpdate(
+//       { uid },
+//       { $set: updateData },
+//       { new: true }
+//     );
+
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Profile updated successfully",
+//       data: user,
+//     });
+//   } catch (error) {
+//     console.error("Update user profile error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// export const updateUserProfile = async (req, res) => {
+//   handleFileUpload;
+//   const { uid } = req.user;
+//   const { name, goal, gymName, bio } = req.body;
+//   console.log("Request req:", req);
+//   // console.log("Request body:", req.body);
+//   // console.log("Request file:", req.file);
+//   // console.log("Request user:", req.user);
+
+//   try {
+//     let profilePicture = null;
+//     // if req.body is empty return error
+//     if (!req.body) {
+//       return res.status(400).json({ error: "No data provided" });
+//     }
+//     if (req.file) {
+//       const fileName = `profile_${uid}_${Date.now()}${path.extname(
+//         req.file.originalname
+//       )}`;
+//       const filePath = `profiles/${fileName}`;
+
+//       const { data, error } = await supabase.storage
+//         .from("user_profiles")
+//         .upload(filePath, req.file.buffer, {
+//           cacheControl: "3600",
+//           upsert: true,
+//         });
+
+//       if (error) {
+//         console.error("Supabase upload error:", error);
+//         return res.status(500).json({ error: "Failed to upload image" });
+//       }
+
+//       const { publicUrl } = supabase.storage
+//         .from("user_profiles")
+//         .getPublicUrl(filePath);
+
+//       profilePicture = {
+//         url: publicUrl,
+//         storagePath: filePath,
+//       };
+//     }
+
+//     const updateData = { name, goal, gymName, bio };
+//     if (profilePicture) {
+//       updateData.profileImage = profilePicture;
+//     }
+//     console.log("updateData:", updateData);
+//     console.log("uid:", uid);
+
+//     const user = await User.findOneAndUpdate(
+//       { uid },
+//       { $set: updateData },
+//       { new: true }
+//     );
+//     console.log("Updated user:", user);
+
+//     if (!user) {
+//       console.error("User not found");
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     console.log("Updated user:", user);
+//     res.status(200).json(user);
+//   } catch (error) {
+//     console.error("Update user profile error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// export const updateUserProfile = async (req, res) => {
+//   // console.log("updateUserProfile");
+//   handleFileUpload;
+//   const { uid } = req.user;
+//   const { name, goal, gymName, bio } = req.body;
+//   console.log("Request body:", req.body);
+//   console.log("Request file:", req.file);
+//   console.log("Request user:", req.user);
+
+//   try {
+//     let profilePicture = null;
+
+//     if (req.file) {
+//       const fileName = `profile_${uid}_${Date.now()}${path.extname(
+//         req.file.originalname
+//       )}`;
+//       const filePath = `profiles/${fileName}`;
+
+//       const { data, error } = await supabase.storage
+//         .from("user_profiles")
+//         .upload(filePath, req.file.buffer, {
+//           cacheControl: "3600",
+//           upsert: true,
+//         });
+
+//       if (error) {
+//         console.error("Supabase upload error:", error);
+//         return res.status(500).json({ error: "Failed to upload image" });
+//       }
+
+//       const { publicUrl } = supabase.storage
+//         .from("user_profiles")
+//         .getPublicUrl(filePath);
+
+//       profilePicture = {
+//         url: publicUrl,
+//         storagePath: filePath,
+//       };
+//     }
+//     // const id = req.user.uid;
+//     // const trimmed_id = id.trim();
+//     // const picture = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/${filePath}`;
+
+//     const updateData = { name, goal, gymName, bio };
+//     if (profilePicture) {
+//       updateData.picture = profilePicture;
+//     }
+//     console.log("updateData:", updateData);
+//     console.log("uid:", uid);
+//     const user = await User.findOneAndUpdate(
+//       { uid },
+//       // updateData,
+//       { $set: updateData },
+//       {
+//         new: true,
+//       }
+//     );
+//     console.log("Request body:", req.body);
+//     console.log("Updated user:", user);
+
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     res.status(200).json(user);
+//   } catch (error) {
+//     console.error("Update user profile error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 
 export const checkSupabaseConnection = async () => {
   try {
@@ -194,97 +721,6 @@ export const getUserProfile = async (req, res) => {
   }
 };
 
-// Multer configuration
-// const upload = multer({
-//   // In-memory storage
-//   storage: multer.memoryStorage(),
-
-//   // File size and type limits
-//   limits: {
-//     fileSize: 5 * 1024 * 1024, // 5MB limit
-//   },
-//   fileFilter: (req, file, cb) => {
-//     console.log("Received file details:", {
-//       originalname: file.originalname,
-//       mimetype: file.mimetype,
-//     });
-
-//     // Allow only image files
-//     const allowedFileTypes = /jpeg|jpg|png|gif|webp/i;
-//     const extname = allowedFileTypes.test(
-//       path.extname(file.originalname).toLowerCase()
-//     );
-//     const mimetype = allowedFileTypes.test(file.mimetype);
-
-//     if (extname && mimetype) {
-//       return cb(null, true);
-//     } else {
-//       cb(new Error("Error: Images only!"));
-//     }
-//   },
-// });
-
-// Supabase client
-// const supabase = createClient(
-//   process.env.VITE_SUPABASE_URL,
-//   process.env.VITE_SUPABASE_ANON_KEY
-// );
-
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-// Middleware to handle file upload errors
-const handleFileUpload = (req, res, next) => {
-  upload.single("profilePicture")(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      return res.status(400).json({
-        error: "File upload error",
-        details: err.message,
-      });
-    } else if (err) {
-      return res.status(400).json({
-        error: err.message,
-      });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-
-    console.log("Request body:", req.body);
-    console.log("Request file:", req.file);
-
-    next();
-  });
-};
-
-// console.log("Request body:", req.body);
-// console.log("Request files:", req.files);
-//   if (!req.file) {
-//     return res.status(400).json({ error: "No file uploaded" });
-//   }
-//   upload.single("profilePicture")(req, res, (err) => {
-//     if (err instanceof multer.MulterError) {
-//       // Multer error (e.g., file too large)
-//       return res.status(400).json({
-//         error: "File upload error",
-//         details: err.message,
-//       });
-//     } else if (err) {
-//       // Other errors (e.g., file type)
-//       return res.status(400).json({
-//         error: err.message,
-//       });
-//     }
-
-//     if (!req.file) {
-//       return res.status(400).json({ error: "No file uploaded" });
-//     }
-//     // If no errors, proceed to next middleware
-//     next();
-//   });
-// };
-
 export const uploadProfilePic = [
   // First, use the file upload middleware
   handleFileUpload,
@@ -342,6 +778,71 @@ export const uploadProfilePic = [
     }
   },
 ];
+
+export default router;
+
+// Multer configuration
+// const upload = multer({
+//   // In-memory storage
+//   storage: multer.memoryStorage(),
+
+//   // File size and type limits
+//   limits: {
+//     fileSize: 5 * 1024 * 1024, // 5MB limit
+//   },
+//   fileFilter: (req, file, cb) => {
+//     console.log("Received file details:", {
+//       originalname: file.originalname,
+//       mimetype: file.mimetype,
+//     });
+
+//     // Allow only image files
+//     const allowedFileTypes = /jpeg|jpg|png|gif|webp/i;
+//     const extname = allowedFileTypes.test(
+//       path.extname(file.originalname).toLowerCase()
+//     );
+//     const mimetype = allowedFileTypes.test(file.mimetype);
+
+//     if (extname && mimetype) {
+//       return cb(null, true);
+//     } else {
+//       cb(new Error("Error: Images only!"));
+//     }
+//   },
+// });
+
+// Supabase client
+// const supabase = createClient(
+//   process.env.VITE_SUPABASE_URL,
+//   process.env.VITE_SUPABASE_ANON_KEY
+// );
+
+// console.log("Request body:", req.body);
+// console.log("Request files:", req.files);
+//   if (!req.file) {
+//     return res.status(400).json({ error: "No file uploaded" });
+//   }
+//   upload.single("profilePicture")(req, res, (err) => {
+//     if (err instanceof multer.MulterError) {
+//       // Multer error (e.g., file too large)
+//       return res.status(400).json({
+//         error: "File upload error",
+//         details: err.message,
+//       });
+//     } else if (err) {
+//       // Other errors (e.g., file type)
+//       return res.status(400).json({
+//         error: err.message,
+//       });
+//     }
+
+//     if (!req.file) {
+//       return res.status(400).json({ error: "No file uploaded" });
+//     }
+//     // If no errors, proceed to next middleware
+//     next();
+//   });
+// };
 
 // Then the actual upload logic
 //   async (req, res) => {
@@ -570,5 +1071,3 @@ export const uploadProfilePic = [
 //   res.status(500).json({ error: error.message });
 // }
 // };
-
-export default router;

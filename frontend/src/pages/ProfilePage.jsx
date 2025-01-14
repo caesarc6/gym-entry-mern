@@ -32,14 +32,13 @@ import { getAuth, signInWithPopup } from "firebase/auth";
 import { HiStar } from "react-icons/hi";
 import PropTypes from "prop-types";
 
-const ProfilePage = ({ entry }) => {
+const ProfilePage = () => {
   // const { fetchEntrys, entrys, clearEntrys } = useProductStore();
   // const [updatedEntry, setUpdatedEntry] = useState(entry);
-  const [updatedProfile, setUpdatedProfile] = useState(entry);
   const textColorDesc = useColorModeValue("gray.700", "gray.400");
   const [isSignedIn, setIsSignedIn] = useState(false);
-  const [uid, setUid] = useState(null);
   const [entries, setEntries] = useState([]);
+  const [updatedProfile, setUpdatedProfile] = useState(null);
   const [userProfile, setUserProfile] = useState({
     name: "",
     goal: "",
@@ -48,8 +47,10 @@ const ProfilePage = ({ entry }) => {
     profileImage: "",
     bio: "",
   });
+  const [profileImage, setProfileImage] = useState(null);
+  const [uid, setUid] = useState(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { updateProfile } = useProductStore();
+  // const { updateProfile } = useProductStore();
   const {
     isOpen: isDeleteOpen,
     onOpen: onDeleteOpen,
@@ -58,27 +59,28 @@ const ProfilePage = ({ entry }) => {
 
   const toast = useToast();
 
-  const handleUpdateProfile = async (pid, updatedProfile) => {
-    const { success, message } = await updateProfile(pid, updatedProfile);
-    onClose();
-    if (!success) {
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Product updated successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
+  // const handleUpdateProfile = async (updatedProfile) => {
+  //   console.log("handleUpdateProfile:", updatedProfile);
+  //   const { success, message } = await updateProfile(updatedProfile);
+  //   onClose();
+  //   if (!success) {
+  //     toast({
+  //       title: "Error",
+  //       description: message,
+  //       status: "error",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //   } else {
+  //     toast({
+  //       title: "Success",
+  //       description: "Product updated successfully",
+  //       status: "success",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //   }
+  // };
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -95,7 +97,9 @@ const ProfilePage = ({ entry }) => {
       if (user) {
         setUid(user.uid);
         fetchUserProfile(user);
-        console.log("User:", user.accessToken, user.uid);
+        console.log("User: token and UID::", user.accessToken, user.uid);
+        // const token = await user.getIdToken();
+        // console.log("Token:", token);
       } else {
         console.error("User not authenticated");
         setUid(null);
@@ -123,7 +127,7 @@ const ProfilePage = ({ entry }) => {
   // Function to fetch user profile
   const fetchUserProfile = async (user) => {
     const token = await user.accessToken;
-    const uid = await user.uid;
+    const uid = user.uid;
 
     try {
       if (!token) {
@@ -142,10 +146,16 @@ const ProfilePage = ({ entry }) => {
           },
         }
       );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+
       const data = await response.json();
       setUserProfile({
         name: data.data.name || "Anonymous",
-        goal: data.goal || "Not set",
+        goal: data.data.goal || "Not set",
         gymName: data.data.gymName || "Not specified",
         postsCount: data.postsCount,
         bio: data.data.bio || "No bio available",
@@ -183,10 +193,31 @@ const ProfilePage = ({ entry }) => {
   //   }
   // };
 
+  // const handleInputChange = (e) => {
+  //   const { name, value } = e.target;
+  //   setUserProfile((prevProfile) => ({
+  //     ...prevProfile,
+  //     [name]: value,
+  //   }));
+  // };
+
+  // const handleImageChange = (e) => {
+  //   const file = e.target.files[0];
+  //   setProfileImage(file);
+  // };
+
+  const [formData, setFormData] = useState({
+    name: userProfile.name || "",
+    goal: userProfile.goal || "",
+    gymName: userProfile.gymName || "",
+    bio: userProfile.bio || "",
+  });
+
+  // Update the handleInputChange function
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setUserProfile((prevProfile) => ({
-      ...prevProfile,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
     }));
   };
@@ -196,41 +227,329 @@ const ProfilePage = ({ entry }) => {
     setProfileImage(file);
   };
 
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   const auth = getAuth();
+  //   const user = auth.currentUser;
+  //   const token = await user.getIdToken();
+
+  //   const formData = new FormData();
+  //   formData.append("name", userProfile.name);
+  //   formData.append("goal", userProfile.goal);
+  //   formData.append("gymName", userProfile.gymName);
+  //   formData.append("postsCount", userProfile.postsCount);
+  //   formData.append("bio", userProfile.bio);
+  //   if (profileImage) {
+  //     formData.append("profileImage", profileImage);
+  //   }
+  //   await updateProfile(formData, token);
+  // };
+
+  // const updateProfile = async (formDataObj) => {
+  //   console.log("updateProfile:", formDataObj);
+  //   const auth = getAuth();
+  //   const user = auth.currentUser;
+  //   const token = await user.getIdToken();
+
+  //   try {
+  //     const response = await fetch(
+  //       "http://localhost:5001/api/updateUserProfile",
+  //       {
+  //         method: "POST",
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //           "Content-Type": "multipart/form-data",
+  //         },
+  //         body: formDataObj,
+  //       }
+  //     );
+
+  //     if (!response.ok) {
+  //       const errorText = await response.text();
+  //       throw new Error(errorText);
+  //     }
+
+  //     const data = await response.json();
+  //     setUserProfile(data);
+  //     console.log("Profile updated successfully:", data);
+  //     toast({
+  //       title: "Success",
+  //       description: "Profile updated successfully",
+  //       status: "success",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //     return { success: true, message: "Profile updated successfully" };
+  //   } catch (error) {
+  //     console.error("Error updating profile:", error);
+  //     toast({
+  //       title: "Error",
+  //       description: error.message,
+  //       status: "error",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //     return { success: false, message: error.message };
+  //   }
+  // };
+  const updateProfile = async (formData) => {
+    console.log("frontend:", ...formData);
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      const token = await user.getIdToken();
+
+      // Check if data is FormData or regular object
+      let requestBody;
+      let headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      if (formData instanceof FormData) {
+        requestBody = formData;
+        // Don't set Content-Type for FormData, let the browser set it with the boundary
+      } else {
+        // If it's a regular object, convert it to FormData
+        requestBody = new FormData();
+        // Object.keys(formData).forEach((key) => {
+        //   if (formData[key] !== undefined && formData[key] !== null) {
+        //     requestBody.append(key, formData[key]);
+        //   }
+        // });
+      }
+
+      console.log("requestBody:", requestBody);
+      const response = await fetch(
+        "http://localhost:5001/api/updateUserProfile",
+        {
+          method: "POST",
+          headers: headers,
+          body: requestBody,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+      const data = await response.json();
+
+      // Update local state
+      setUserProfile((prev) => ({
+        ...prev,
+        ...data,
+      }));
+
+      return { success: true, message: "Profile updated successfully" };
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      return { success: false, message: error.message };
+    }
+  };
+
+  // Update the handleUpdateProfile function
+  const handleUpdateProfile = async (updatedData) => {
+    try {
+      console.log("handleUpdateProfile:", updatedData);
+      const auth = getAuth();
+      const user = auth.currentUser;
+      const token = await user.getIdToken();
+
+      // Create FormData object
+      const formData = new FormData();
+
+      // Only append defined, non-empty values
+      Object.entries(updatedData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          formData.append(key, value);
+        }
+      });
+
+      // Append profile image if it exists
+      if (profileImage) {
+        formData.append("profileImage", profileImage);
+      }
+
+      // Log FormData contents for debugging
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ": " + pair[1]);
+      }
+
+      const response = await fetch(
+        "http://localhost:5001/api/updateUserProfile",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // Don't set Content-Type header - browser will set it automatically with boundary
+          },
+          body: formData,
+        }
+      );
+      console.log("response:", response);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update profile");
+      }
+
+      const data = await response.json();
+
+      // Update local state
+      setUserProfile((prev) => ({
+        ...prev,
+        ...data.data,
+      }));
+
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+      onClose();
+    } catch (error) {
+      console.error("Profile update error:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // const handleUpdateProfile = async (updatedData) => {
+  //   // Ensure we're only sending defined values
+  //   const filteredData = Object.fromEntries(
+  //     Object.entries(updatedData).filter(
+  //       ([_, value]) => value !== undefined && value !== null && value !== ""
+  //     )
+  //   );
+  //   console.log("filteredData:", filteredData);
+  //   if (Object.keys(filteredData).length === 0) {
+  //     toast({
+  //       title: "Error",
+  //       description: "No changes to update",
+  //       status: "error",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //     return;
+  //   }
+
+  //   const auth = getAuth();
+  //   const user = auth.currentUser;
+  //   const token = await user.getIdToken();
+
+  //   const formData = new FormData();
+  //   for (const key in filteredData) {
+  //     formData.append(key, filteredData[key]);
+  //   }
+  //   if (profileImage) {
+  //     formData.append("profileImage", profileImage);
+  //   }
+
+  //   const result = await updateProfile(formData, token);
+
+  //   if (result.success) {
+  //     toast({
+  //       title: "Success",
+  //       description: result.message,
+  //       status: "success",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //   } else {
+  //     toast({
+  //       title: "Error",
+  //       description: result.message,
+  //       status: "error",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //   }
+  // };
+
+  //   const result = await updateProfile(filteredData);
+
+  //   if (result.success) {
+  //     toast({
+  //       title: "Success",
+  //       description: result.message,
+  //       status: "success",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //     onClose();
+  //   } else {
+  //     toast({
+  //       title: "Error",
+  //       description: result.message,
+  //       status: "error",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //   }
+  // };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const auth = getAuth();
     const user = auth.currentUser;
     const token = await user.getIdToken();
 
-    const formData = new FormData();
-    formData.append("name", userProfile.name);
-    formData.append("goal", userProfile.goal);
-    formData.append("gymName", userProfile.gymName);
-    formData.append("postsCount", userProfile.postsCount);
-    formData.append("bio", userProfile.bio);
+    const formDataObj = new FormData();
+    formDataObj.append("name", formData.name);
+    formDataObj.append("goal", formData.goal);
+    formDataObj.append("gymName", formData.gymName);
+    formDataObj.append("bio", formData.bio);
+
     if (profileImage) {
-      formData.append("profileImage", profileImage);
+      formDataObj.append("profileImage", profileImage);
     }
 
-    try {
-      const response = await axios.post(
-        "http://localhost:5001/api/updateUserProfile",
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      const data = await response.data;
-      setUserProfile(data);
-      console.log("Profile updated successfully:", data);
-    } catch (error) {
-      console.error("Error updating profile:", error);
+    const result = await updateProfile(formDataObj);
+    if (!result.success) {
+      toast({
+        title: "Error",
+        description: result.message,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: result.message,
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+      onClose();
     }
   };
+
+  //   try {
+  //     const response = await axios.post(
+  //       "http://localhost:5001/api/updateUserProfile",
+  //       formData,
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //           "Content-Type": "multipart/form-data",
+  //         },
+  //       }
+  //     );
+
+  //     const data = await response.data;
+  //     setUserProfile(data);
+  //     console.log("Profile updated successfully:", data);
+  //   } catch (error) {
+  //     console.error("Error updating profile:", error);
+  //   }
+  // };
 
   // Fetch user profile when UID changes
   // useEffect(() => {
@@ -356,6 +675,28 @@ const ProfilePage = ({ entry }) => {
               <VStack>
                 <HStack>
                   <VStack>
+                    {/* <button
+                      // getCurrentMongoDBUser
+                      onClick={async () => {
+                        const auth = getAuth();
+                        const user = auth.currentUser;
+                        const token = await user.getIdToken();
+                        const response = await fetch(
+                          "http://localhost:5001/api/getCurrentMongoDBUser",
+                          {
+                            method: "GET",
+                            headers: {
+                              "Content-Type": "application/json",
+                              Authorization: `Bearer ${token}`,
+                            },
+                          }
+                        );
+                        const data = await response.json();
+                        console.log("Current MongoDB User:", data);
+                      }}
+                    >
+                      Get Current MongoDB User
+                    </button> */}
                     <Text fontSize="xl" fontWeight="bold" color="white">
                       {userProfile.name}
                     </Text>
@@ -385,11 +726,6 @@ const ProfilePage = ({ entry }) => {
                     {userProfile.bio}
                   </Text>
                 </HStack>
-                {/* <Link to={"/editProfile"}>
-                  <Button>
-                    <PlusSquareIcon fontSize={20} />
-                  </Button>
-                </Link> */}
                 <IconButton
                   onClick={onOpen}
                   icon={<EditIcon />}
@@ -402,151 +738,166 @@ const ProfilePage = ({ entry }) => {
         </Stack>
       </SimpleGrid>
       <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader fontFamily="Arial, sans-serif">Update Entry</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4}>
-              <Image
-                src={userProfile.profileImage || "default-profile-picture-url"}
-                alt="Profile Picture"
-                boxSize="150px"
-                objectFit="cover"
-                borderRadius="full"
-              />
-              <Text
-                className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
-                fontFamily="Arial, sans-serif"
-                color={textColorDesc}
-              >
-                Avatar
-              </Text>
-              <Input
-                className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
+        <form onSubmit={handleSubmit}>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader fontFamily="Arial, sans-serif">
+              Update Entry
+            </ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4}>
+                <Image
+                  src={
+                    userProfile.profileImage || "default-profile-picture-url"
+                  }
+                  alt="Profile Picture"
+                  boxSize="150px"
+                  objectFit="cover"
+                  borderRadius="full"
+                />
+                <Text
+                  className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
+                  fontFamily="Arial, sans-serif"
+                  color={textColorDesc}
+                >
+                  Avatar
+                </Text>
+                <Input
+                  className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setUserProfile({
+                        ...userProfile,
+                        profileImage: reader.result,
+                      });
+                    };
+                    if (file) {
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  fontFamily="Arial, sans-serif"
+                />
+                <Text
+                  className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
+                  fontFamily="Arial, sans-serif"
+                  color={textColorDesc}
+                >
+                  Name
+                </Text>
+                <Input
+                  className="form-control form-control-lg mb-2 mt-2 !w-[270px] text-center text-lg font-weight-light"
+                  fontFamily="Arial, sans-serif"
+                  type="text"
+                  name="name"
+                  // placeholder={userProfile.name}
+                  defaultValue={userProfile.name}
+                  // onChange={handleInputChange}
+                  onChange={(e) => {
                     setUserProfile({
                       ...userProfile,
-                      profileImage: reader.result,
+                      name: e.target.value,
                     });
-                  };
-                  if (file) {
-                    reader.readAsDataURL(file);
-                  }
-                }}
-                fontFamily="Arial, sans-serif"
-              />
-
-              <Text
-                className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
-                fontFamily="Arial, sans-serif"
-                color={textColorDesc}
-              >
-                Name
-              </Text>
-              <Input
-                className="form-control form-control-lg mb-2 mt-2 !w-[270px] text-center text-lg font-weight-light"
-                placeholder={userProfile.name}
-                name="name"
-                // value={updatedEntry.name}
-                onChange={(e) =>
-                  setUpdatedProfile({ ...updatedProfile, name: e.target.value })
-                }
-                fontFamily="Arial, sans-serif"
-              />
-              <Text
-                className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
-                fontFamily="Arial, sans-serif"
-                color={textColorDesc}
-              >
-                Goal
-              </Text>
-              <Input
-                className="form-control form-control-lg mb-2 mt-2 !w-[270px] text-center text-lg font-weight-light"
-                placeholder={userProfile.goal}
-                // style={{ height: "185px" }}
-                name="description"
-                // value={updatedEntry.description}
-                onChange={(e) =>
-                  setUpdatedEntry({
-                    ...updatedEntry,
-                    description: e.target.value,
-                  })
-                }
-                fontFamily="Arial, sans-serif"
-              />
-              <Text
-                className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
-                fontFamily="Arial, sans-serif"
-                color={textColorDesc}
-              >
-                Bio
-              </Text>
-              <Textarea
-                className="form-control form-control-lg mb-2 mt-2 !w-[270px] text-center text-lg font-weight-light"
-                placeholder={userProfile.bio}
-                name="image"
-                // value={updatedEntry.image}
-                onChange={(e) =>
-                  setUpdatedEntry({
-                    ...updatedEntry,
-                    image: e.target.value,
-                  })
-                }
-                fontFamily="Arial, sans-serif"
-              />
-              <Text
-                className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
-                fontFamily="Arial, sans-serif"
-                color={textColorDesc}
-              >
-                Gym
-              </Text>
-              <form className="!min-w-[10px] mx-auto">
-                {/* <label
-                  htmlFor="countries"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white text-center"
-                >
-                  Select an option
-                </label> */}
-                <select
-                  defaultValue={userProfile.gymName}
+                  }}
+                />
+                <Text
+                  className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
+                  fontFamily="Arial, sans-serif"
                   color={textColorDesc}
-                  id="countries"
+                >
+                  Goal
+                </Text>
+                <Input
+                  className="form-control form-control-lg mb-2 mt-2 !w-[270px] text-center text-lg font-weight-light"
+                  fontFamily="Arial, sans-serif"
+                  type="text"
+                  name="goal"
+                  placeholder={userProfile.goal}
+                  defaultValue={userProfile.goal}
+                  onChange={(e) => {
+                    setUserProfile({
+                      ...userProfile,
+                      goal: e.target.value,
+                    });
+                  }}
+                />
+                <Text
+                  className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
+                  fontFamily="Arial, sans-serif"
+                  color={textColorDesc}
+                >
+                  Bio
+                </Text>
+                <Textarea
+                  className="form-control form-control-lg mb-2 mt-2 !w-[270px] text-center text-lg font-weight-light"
+                  placeholder={userProfile.bio}
+                  defaultValue={userProfile.bio}
+                  name="bio"
+                  onChange={(e) => {
+                    setUserProfile({
+                      ...userProfile,
+                      bio: e.target.value,
+                    });
+                  }}
+                  fontFamily="Arial, sans-serif"
+                />
+                <Text
+                  className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
+                  fontFamily="Arial, sans-serif"
+                  color={textColorDesc}
+                >
+                  Gym
+                </Text>
+                {/* <form className="!min-w-[10px] mx-auto"> */}
+                <select
+                  id="selectedOption"
+                  defaultValue={userProfile.gymName}
+                  onChange={(e) => {
+                    setUserProfile({
+                      ...userProfile,
+                      gymName: e.target.value,
+                    });
+                  }}
+                  color={textColorDesc}
                   className="!w-[263px] bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-300 focus:border-blue-300 block p-2.5 dark:bg-inherit dark:border-gray-300 dark:placeholder-gray-400 dark:text-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500 "
                 >
-                  <option selected>Select a location</option>
-                  <option value="BL">Blink Fit</option>
-                  <option value="PL">Planet Fitness</option>
-                  <option value="RT">Retro Fitness</option>
-                  <option value="HM">Home</option>
+                  <option>Select a location</option>
+                  <option value="Blink Fitness">Blink Fitness</option>
+                  <option value="Planet Fitness">Planet Fitness</option>
+                  <option value="Retro Fitness">Retro Fitness</option>
+                  <option value="Home">Home</option>
                 </select>
-              </form>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              colorScheme="blue"
-              mr={3}
-              onClick={() => handleUpdateProfile(entry.id, updatedProfile)}
-              fontFamily="Arial, sans-serif"
-            >
-              Update
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={onClose}
-              fontFamily="Arial, sans-serif"
-            >
-              Cancel
-            </Button>
-          </ModalFooter>
-        </ModalContent>
+                {/* </form> */}
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                // type="submit"
+                colorScheme="blue"
+                mr={3}
+                // onClick={() => handleUpdateProfile(userProfile)}
+                onClick={() => {
+                  console.log("Updated Profile Data:", userProfile);
+                  handleUpdateProfile(userProfile);
+                }}
+                fontFamily="Arial, sans-serif"
+              >
+                Update
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={onClose}
+                fontFamily="Arial, sans-serif"
+              >
+                Cancel
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </form>
       </Modal>
       <VStack spacing={8} mt={10}>
         <Text
@@ -596,10 +947,10 @@ const ProfilePage = ({ entry }) => {
     </Container>
   );
 };
-ProfilePage.propTypes = {
-  entry: PropTypes.shape({
-    id: PropTypes.string.isRequired,
-  }).isRequired,
-};
+// ProfilePage.propTypes = {
+//   entry: PropTypes.shape({
+//     id: PropTypes.string.isRequired,
+//   }).isRequired,
+// };
 
 export default ProfilePage;
