@@ -292,65 +292,64 @@ const ProfilePage = () => {
   //     return { success: false, message: error.message };
   //   }
   // };
-  const updateProfile = async (formData) => {
-    console.log("frontend:", ...formData);
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      const token = await user.getIdToken();
+  // const updateProfile = async (formData) => {
+  //   console.log("frontend:", ...formData);
+  //   try {
+  //     const auth = getAuth();
+  //     const user = auth.currentUser;
+  //     const token = await user.getIdToken();
 
-      // Check if data is FormData or regular object
-      let requestBody;
-      let headers = {
-        Authorization: `Bearer ${token}`,
-      };
+  //     // Check if data is FormData or regular object
+  //     let requestBody;
+  //     let headers = {
+  //       Authorization: `Bearer ${token}`,
+  //     };
 
-      if (formData instanceof FormData) {
-        requestBody = formData;
-        // Don't set Content-Type for FormData, let the browser set it with the boundary
-      } else {
-        // If it's a regular object, convert it to FormData
-        requestBody = new FormData();
-        // Object.keys(formData).forEach((key) => {
-        //   if (formData[key] !== undefined && formData[key] !== null) {
-        //     requestBody.append(key, formData[key]);
-        //   }
-        // });
-      }
+  //     if (formData instanceof FormData) {
+  //       requestBody = formData;
+  //       // Don't set Content-Type for FormData, let the browser set it with the boundary
+  //     } else {
+  //       // If it's a regular object, convert it to FormData
+  //       requestBody = new FormData();
+  //       Object.keys(formData).forEach((key) => {
+  //         if (formData[key] !== undefined && formData[key] !== null) {
+  //           requestBody.append(key, formData[key]);
+  //         }
+  //       });
+  //     }
 
-      console.log("requestBody:", requestBody);
-      const response = await fetch(
-        "http://localhost:5001/api/updateUserProfile",
-        {
-          method: "POST",
-          headers: headers,
-          body: requestBody,
-        }
-      );
+  //     console.log("requestBody:", requestBody);
+  //     const response = await fetch(
+  //       "http://localhost:5001/api/updateUserProfile",
+  //       {
+  //         method: "POST",
+  //         headers: headers,
+  //         body: requestBody,
+  //       }
+  //     );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText);
-      }
-      const data = await response.json();
+  //     if (!response.ok) {
+  //       const errorText = await response.text();
+  //       throw new Error(errorText);
+  //     }
+  //     const data = await response.json();
 
-      // Update local state
-      setUserProfile((prev) => ({
-        ...prev,
-        ...data,
-      }));
+  //     // Update local state
+  //     setUserProfile((prev) => ({
+  //       ...prev,
+  //       ...data,
+  //     }));
 
-      return { success: true, message: "Profile updated successfully" };
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      return { success: false, message: error.message };
-    }
-  };
+  //     return { success: true, message: "Profile updated successfully" };
+  //   } catch (error) {
+  //     console.error("Error updating profile:", error);
+  //     return { success: false, message: error.message };
+  //   }
+  // };
 
   // Update the handleUpdateProfile function
   const handleUpdateProfile = async (updatedData) => {
     try {
-      console.log("handleUpdateProfile:", updatedData);
       const auth = getAuth();
       const user = auth.currentUser;
       const token = await user.getIdToken();
@@ -366,15 +365,21 @@ const ProfilePage = () => {
       });
 
       // Append profile image if it exists
-      if (profileImage) {
-        formData.append("profileImage", profileImage);
-      }
+      // if (profileImage) {
+      //   console.log("Appending profile image name to formData");
+      //   formData.append("profileImage", profileImage, profileImage.name);
 
+      //   // console log name, type, size of file
+      //   console.log("File to upload:", {
+      //     name: profileImage.name,
+      //   });
+      // }
       // Log FormData contents for debugging
-      for (let pair of formData.entries()) {
-        console.log(pair[0] + ": " + pair[1]);
-      }
+      // for (let pair of formData.entries()) {
+      //   console.log(pair[0] + ": " + pair[1]);
+      // }
 
+      console.log("formData:", ...formData);
       const response = await fetch(
         "http://localhost:5001/api/updateUserProfile",
         {
@@ -386,7 +391,7 @@ const ProfilePage = () => {
           body: formData,
         }
       );
-      console.log("response:", response);
+      // console.log("response:", response);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to update profile");
@@ -774,7 +779,10 @@ const ProfilePage = () => {
                       setUserProfile({
                         ...userProfile,
                         profileImage: reader.result,
+                        profileImageName: file.name,
                       });
+                      // console buffer of image
+                      console.log("File buffer:", reader.result);
                     };
                     if (file) {
                       reader.readAsDataURL(file);

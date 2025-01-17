@@ -45,9 +45,6 @@ router.post(
 );
 router.get("/getCurrentMongoDBUser", verifyIdToken, getCurrentMongoDBUser);
 
-// router.post("/upload/uploadProfilePic", verifyIdToken, uploadProfilePic);
-// router.post("/uploadProfilePic", verifyIdToken, uploadProfilePic);
-
 // const handleFileUpload = (req, res, next) => {
 //   upload.single("profilePicture")(req, res, (err) => {
 //     if (err instanceof multer.MulterError) {

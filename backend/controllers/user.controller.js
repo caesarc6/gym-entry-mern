@@ -11,6 +11,9 @@ import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
 import { supabase } from "../supabase/supabase.js";
+
+import { decode } from "base64-arraybuffer";
+
 dotenv.config();
 
 const router = express.Router();
@@ -42,9 +45,6 @@ export const getCurrentMongoDBUser = async (req, res) => {
 // Modified updateUserProfile function
 export const updateUserProfile = async (req, res) => {
   try {
-    // console.log("Request body:", req.body);
-    // console.log("Request file:", req.file);
-    console.log("Request BODY:", req.body);
     const { uid } = req.user;
 
     // Use promisified version of multer middleware
@@ -59,8 +59,9 @@ export const updateUserProfile = async (req, res) => {
 
     // Extract fields from form data
     const { name, goal, gymName, bio } = req.body;
-    const { profilePic } = req.body;
-    console.log("Profile pic:", profilePic);
+    const { profileImage } = req.body;
+    const { profileImageName } = req.body;
+
     // Validate that at least one field is provided
     if (!name && !goal && !gymName && !bio && !req.file) {
       return res.status(400).json({
@@ -72,21 +73,20 @@ export const updateUserProfile = async (req, res) => {
     // Handle profile picture upload if present
     // let profilePicture = null;
 
-    if (req.body.profilePic) {
+    if (profileImage) {
       // const profileImage = req.file.originalname; // This will be available as req.file
-      console.log("Profile image:", profileImage);
 
       const fileName = `profile_${uid}_${Date.now()}${path.extname(
         // req.file.originalname
-        req.body.profileImage
+        req.body.profileImageName
       )}`;
       const filePath = `profiles/${fileName}`;
 
       // Upload to Supabase with error handling
       try {
-        const { data, error } = await supabase.storage
+        const { data: file, error } = await supabase.storage
           .from("user_profiles")
-          .upload(filePath, req.file.buffer, {
+          .upload(filePath, decode(req.body.profileImageName), {
             cacheControl: "3600",
             upsert: true,
           });
@@ -100,11 +100,22 @@ export const updateUserProfile = async (req, res) => {
           .from("user_profiles")
           .getPublicUrl(filePath);
 
+        console.log("publicUrl:", publicUrl);
+
         const id = req.user.uid;
         const trimmed_id = id.trim();
-        const profilePicture = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/${filePath}`;
+        const profileImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/${filePath}`;
 
-        //
+        const updatedUser = await User.findByIdAndUpdate(
+          user._id,
+          {
+            profilePicture: {
+              url: publicUrl,
+              storagePath: filePath,
+            },
+          },
+          { new: true }
+        );
 
         // Get public URL
         // const { data: urlData } = supabase.storage
@@ -114,11 +125,11 @@ export const updateUserProfile = async (req, res) => {
         // profilePicture = urlData.publicUrl;
         // console.log("profilePicture backend URL:", profilePicture);
       } catch (error) {
-        //   console.error("Supabase upload error:", error);
-        //   return res.status(500).json({
-        //     success: false,
-        //     message: "Failed to upload image",
-        //   });
+        console.error("Supabase upload error:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload image",
+        });
       }
     }
 
@@ -128,7 +139,7 @@ export const updateUserProfile = async (req, res) => {
     if (goal) updateData.goal = goal;
     if (gymName) updateData.gymName = gymName;
     if (bio) updateData.bio = bio;
-    if (profilePic) updateData.profileImage = profilePic;
+    // if (profileImage) updateData.profileImage = profileImageUrl;
 
     // Update user in database with error handling
     const user = await User.findOneAndUpdate(
@@ -346,7 +357,7 @@ export const updateUserProfile = async (req, res) => {
 
 // Middleware to handle file upload errors
 export const handleFileUpload = (req, res, next) => {
-  upload.single("profilePicture")(req, res, (err) => {
+  upload.single("profileImage")(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       return res.status(400).json({
         error: "File upload error",
