@@ -86,10 +86,15 @@ export const updateUserProfile = async (req, res) => {
       try {
         const { data: file, error } = await supabase.storage
           .from("user_profiles")
-          .upload(filePath, decode(req.body.profileImageName), {
-            cacheControl: "3600",
-            upsert: true,
-          });
+          .upload(
+            filePath,
+            //  decode(req.body.profileImageName)
+            req.body.profileImageName,
+            {
+              cacheControl: "3600",
+              upsert: true,
+            }
+          );
 
         if (error) {
           console.error("Supabase upload error:", error);
@@ -106,14 +111,9 @@ export const updateUserProfile = async (req, res) => {
         const trimmed_id = id.trim();
         const profileImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/${filePath}`;
 
-        const updatedUser = await User.findByIdAndUpdate(
-          user._id,
-          {
-            profilePicture: {
-              url: publicUrl,
-              storagePath: filePath,
-            },
-          },
+        const updatedUser = await User.findOneAndUpdate(
+          { uid: trimmed_id },
+          { $set: { picture: profileImageUrl } },
           { new: true }
         );
 
