@@ -43,6 +43,7 @@ export const updateEntry = async (req, res) => {
   const { id } = req.params;
 
   const entry = req.body;
+  console.log("data form data", req.body);
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -51,6 +52,16 @@ export const updateEntry = async (req, res) => {
   }
 
   try {
+    //  upalod photo to supabase post_image folder and get the url and save it to the database
+    const { data, error } = await supabase.storage
+      .from("post_image")
+      .upload(`post_image/${req.file.originalname}`, req.file);
+
+    if (error) {
+      console.log("Error uploading image", error.message);
+      return res.status(500).json({ success: false, message: "Server Error" });
+    }
+
     const updatedEntry = await Entry.findByIdAndUpdate(id, entry, {
       new: true,
     });

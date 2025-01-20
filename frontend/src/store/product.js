@@ -158,7 +158,8 @@ export const useProductStore = create((set) => ({
 
   updateEntry: async (pid, updatedEntry) => {
     const res = await fetch(
-      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
+      // `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
+      `http://localhost:5001/api/entrys/${pid}`,
       {
         method: "PUT",
         headers: {

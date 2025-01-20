@@ -4,6 +4,8 @@ import {
   Container,
   Heading,
   Input,
+  Image,
+  Text,
   Textarea,
   useColorModeValue,
   useToast,
@@ -91,7 +93,7 @@ Eg. DumbBell Curls 6lbs: 3 sets of 10 reps"
               w="full"
             />
 
-            <Input
+            {/* <Input
               placeholder="Image URL (optional)"
               name="image"
               value={newPost.image}
@@ -99,6 +101,36 @@ Eg. DumbBell Curls 6lbs: 3 sets of 10 reps"
                 setNewPost({ ...newPost, image: e.target.value })
               }
               w="full"
+            /> */}
+            <Image
+              src={newPost.postImage || "default-profile-picture-url"}
+              alt="Profile Picture"
+              boxSize="150px"
+              objectFit="cover"
+              borderRadius="full"
+            />
+
+            <Input
+              className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  setNewPost({
+                    ...newPost,
+                    postImage: reader.result,
+                    postImageName: file.name,
+                  });
+                  // console buffer of image
+                  // console.log("File buffer:", reader.result);
+                };
+                if (file) {
+                  reader.readAsDataURL(file);
+                }
+              }}
+              fontFamily="Arial, sans-serif"
             />
             <Button colorScheme="blue" onClick={handleAddEntry} w="full">
               Add Entry

@@ -348,7 +348,7 @@ const ProductCard = ({ entry }) => {
                 }
                 fontFamily="Arial, sans-serif"
               />
-              <Input
+              {/* <Input
                 placeholder="Image URL"
                 name="image"
                 value={updatedEntry.image}
@@ -358,6 +358,36 @@ const ProductCard = ({ entry }) => {
                     image: e.target.value,
                   })
                 }
+                fontFamily="Arial, sans-serif"
+              /> */}
+              <Image
+                src={updatedEntry.image || "default-profile-picture-url"}
+                alt="Profile Picture"
+                boxSize="150px"
+                objectFit="cover"
+                borderRadius="full"
+              />
+
+              <Input
+                className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setUpdatedEntry({
+                      ...updatedEntry,
+                      image: reader.result,
+                      imageName: file.name,
+                    });
+                    // console buffer of image
+                    // console.log("File buffer:", reader.result);
+                  };
+                  if (file) {
+                    reader.readAsDataURL(file);
+                  }
+                }}
                 fontFamily="Arial, sans-serif"
               />
             </VStack>

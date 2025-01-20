@@ -23,10 +23,34 @@ const router = express.Router();
 //   process.env.VITE_SUPABASE_ANON_KEY
 // );
 
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Invalid file type"), false);
+  }
+};
+
 // Define multer middleware at the top level
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
-const uploadMiddleware = multer({ storage }).single("profileImage");
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB file size limit
+    fieldSize: 5 * 1024 * 1024, // 2MB field size limit
+  },
+});
+const uploadMiddleware = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB file size limit
+    fieldSize: 5 * 1024 * 1024, // 2MB field size limit
+  },
+}).single("profileImage");
 
 // get current mongoDB user
 export const getCurrentMongoDBUser = async (req, res) => {
@@ -581,10 +605,11 @@ export const updateUserProfile = async (req, res) => {
 export const handleFileUpload = (req, res, next) => {
   upload.single("profileImage")(req, res, (err) => {
     if (err instanceof multer.MulterError) {
-      return res.status(400).json({
-        error: "File upload error",
-        details: err.message,
-      });
+      if (err.code === "LIMIT_FIELD_VALUE") {
+        return res.status(400).json({
+          message: "File too large. Please upload a smaller image (max 10MB).",
+        });
+      }
     } else if (err) {
       return res.status(400).json({
         error: err.message,
