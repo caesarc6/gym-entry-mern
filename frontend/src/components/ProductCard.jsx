@@ -68,6 +68,7 @@ const ProductCard = ({ entry }) => {
   };
 
   const handleUpdateEntry = async (pid, updatedEntry) => {
+    console.log("Updated Entry:", pid, updatedEntry);
     const { success, message } = await updateEntry(pid, updatedEntry);
     onClose();
     if (!success) {

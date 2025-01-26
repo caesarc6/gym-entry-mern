@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { auth } from "../firebase";
 import axios from "axios";
+import { getAuth, signInWithPopup } from "firebase/auth";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
 // change fetch URL in dev mode to http://localhost:5173/api/entrys
@@ -13,25 +14,66 @@ export const useProductStore = create((set) => ({
   posts: [],
   setPosts: (posts) => set({ posts }),
 
+  post: [],
+  setPost: (post) => set({ post }),
+
   // updateProfile
-  updateProfile: async (updatedProfile, token) => {
-    // const token = await auth.currentUser.getIdToken();
-    const res = await fetch(`http://localhost:5001/api/updateUserProfile`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "multipart/form-data",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(updatedProfile),
-    });
-    const data = await res.json();
-    console.log("Data:", data);
-    if (!data.success) return { success: false, message: data.message };
-    console.log("Data:", data);
-    console.log("error message:", data.message);
-    set({ user: data.data });
-    return { success: true, message: data.message };
-  },
+  // updateEntry: async (pid, updatedEntry) => {
+  //   const auth = getAuth();
+  //   const user = auth.currentUser;
+  //   const token = await user.getIdToken();
+
+  //   console.log("Sending data:", updatedEntry); // Debug log
+
+  //   try {
+  //     const res = await fetch(`http://localhost:5001/api/entrys/${pid}`, {
+  //       method: "PUT",
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //         "Content-Type": "application/json", // Important!
+  //       },
+  //       body: JSON.stringify(updatedEntry), // Send directly as JSON
+  //     });
+
+  //     const data = await res.json();
+
+  //     if (!res.ok) {
+  //       throw new Error(data.message || "Failed to update entry");
+  //     }
+
+  //     if (!data.success) return { success: false, message: data.message };
+
+  //     set((state) => ({
+  //       entrys: state.entrys.map((entry) =>
+  //         entry._id === pid ? data.data : entry
+  //       ),
+  //     }));
+
+  //     return { success: true, message: data.message };
+  //   } catch (error) {
+  //     console.error("Error:", error);
+  //     throw error;
+  //   }
+  // },
+
+  // updateProfile: async (updatedProfile, token) => {
+  //   // const token = await auth.currentUser.getIdToken();
+  //   const res = await fetch(`http://localhost:5001/api/updateUserProfile`, {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "multipart/form-data",
+  //       Authorization: `Bearer ${token}`,
+  //     },
+  //     body: JSON.stringify(updatedProfile),
+  //   });
+  //   const data = await res.json();
+  //   console.log("Data:", data);
+  //   if (!data.success) return { success: false, message: data.message };
+  //   console.log("Data:", data);
+  //   console.log("error message:", data.message);
+  //   set({ user: data.data });
+  //   return { success: true, message: data.message };
+  // },
 
   // updateProfile: async (formData, token) => {
   //   try {
@@ -157,20 +199,56 @@ export const useProductStore = create((set) => ({
   },
 
   updateEntry: async (pid, updatedEntry) => {
-    const res = await fetch(
-      // `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
-      `http://localhost:5001/api/entrys/${pid}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedEntry),
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const token = await user.getIdToken();
+    const formData = new FormData();
+    console.log("sending data as FormData:", updatedEntry);
+
+    if (!updatedEntry || typeof updatedEntry !== "object") {
+      throw new Error("Invalid updatedEntry data");
+    }
+    // Object.entries(updatedEntry).forEach(([key, value]) => {
+    //   if (value != null && value !== "") {
+    //     formData.append(key, value);
+    //   }
+    // });
+    Object.entries(updatedEntry).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        formData.append(key, value);
       }
-    );
+    });
+
+    const entryData = {
+      entry: {
+        name: updatedEntry.name,
+        description: updatedEntry.description,
+        image: updatedEntry.image,
+      },
+    };
+
+    console.log("Form Data:", ...formData);
+    // `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
+    formData.append("pid", pid);
+
+    const res = await fetch(`http://localhost:5001/api/entrys/${pid}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      // body: formData,
+      body: JSON.stringify(entryData),
+    });
+
     const data = await res.json();
+    console.log("Response:", data);
+
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to update entry");
+    }
+    // const data = await res.json();
     if (!data.success) return { success: false, message: data.message };
-    // UPdates the UI immediately without needing to fetch all products again or a refresh
+    // Updates the UI immediately without needing to fetch all products again or a refresh
     set((state) => ({
       entrys: state.entrys.map((entry) =>
         entry._id === pid ? data.data : entry
