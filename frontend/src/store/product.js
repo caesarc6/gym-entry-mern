@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { auth } from "../firebase";
-import axios from "axios";
 import { getAuth, signInWithPopup } from "firebase/auth";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
