@@ -33,6 +33,9 @@ const uploadMiddleware = multer({
 
 // Middleware to handle file upload errors
 export const handleFileUpload = (req, res, next) => {
+  if (!req.file) {
+    return next(); // No file uploaded, skip to the next middleware
+  }
   upload.single("image")(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === "LIMIT_FIELD_VALUE") {
@@ -72,7 +75,7 @@ export const getEntrys = async (req, res) => {
 export const createEntry = async (req, res) => {
   const entry = req.body; // user will send this data
 
-  if (!entry.name || !entry.description) {
+  if (!entry.name && !entry.description) {
     return res
       .status(400)
       .json({ success: false, message: "Please provide all fields" });
@@ -89,56 +92,30 @@ export const createEntry = async (req, res) => {
   }
 };
 
+// Update Post
 export const updateEntry = async (req, res) => {
   console.log("Request received");
-  // console.log("req.body.entry", req);
-  const { entry } = req.body;
-  console.log("entry", entry);
-  console.log("req.body", req.body);
-  // const { postImage } = req.body;
-
-  // console.log("postimage", postImage);
-  const { image } = req.body;
-  console.log("image", image);
-  const { pid } = req.body;
-  // console.log("id", pid);
+  // console.log("req.body", req.body);
+  const imageUrl = req.imageUrl; // Get the image URL from handleFileUpload
+  const { pid, name, description, image } = req.body; // Extract fields directly from req.body
   const { uid } = req.user;
 
-  await new Promise((resolve, reject) => {
-    uploadMiddleware(req, res, (err) => {
-      if (err) {
-        reject(err);
-      }
-      resolve();
-    });
-  });
-  if (!req.body.entry) {
-    return res.status(400).json({ error: "Missing 'entry' in request body" });
+  if (!name && !description) {
+    console.log("Missing fields:", { name, description });
+    return res.status(400).json({ error: "Missing required fields" });
   }
 
-  // const { image } = req.body;
-  // console.log("image", image);
-  if (image) {
-    try {
-      // Remove data:image/jpeg;base64, or similar prefix if present
+  try {
+    let postImageUrl = null;
+
+    if (image) {
       const base64Data = image.split(";base64,").pop();
-
-      // Convert base64 to buffer
       const imageBuffer = Buffer.from(base64Data, "base64");
-
-      // Create a simple file path with timestamp
       const timestamp = Date.now();
-
       const filePath = `images/image_${uid}_${timestamp}.jpg`;
 
-      // req.body.entry will now be a string that needs to be parsed
-
-      console.log("req.body.entry", JSON.parse(JSON.stringify(req.body.entry)));
-      const entry = JSON.parse(req.body.entry);
-
-      // Upload to Supabase with error handling
       const { data: file, error } = await supabase.storage
-        .from("user_profiles")
+        .from("post_images")
         .upload(filePath, imageBuffer, {
           contentType: "image/jpeg",
           cacheControl: "3600",
@@ -153,27 +130,25 @@ export const updateEntry = async (req, res) => {
         });
       }
 
-      const postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/${filePath}`;
-      console.log("Debug - Generated URL:", postImageUrl);
-
-      // add image to user profile
-      const { pid } = req.body;
-      const entryData = await Entry.findIdAndUpdate(
-        { id: pid },
-        { $set: { picture: postImageUrl } },
-        { new: true }
-      );
-
-      res.status(200).json({ success: true, data: entryData });
-    } catch (error) {
-      console.error(
-        "Error in updating entry:",
-        error.message,
-        "error data req.body:",
-        req.body
-      );
-      res.status(500).json({ success: false, message: "Server Error" });
+      postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+      // console.log("Generated URL:", postImageUrl);
     }
+    // console.log("post URL", entryData.postImageUrl);
+    // Update the entry in the database
+    const entryData = await Entry.findByIdAndUpdate(
+      pid,
+      {
+        name,
+        description,
+        ...(postImageUrl && { image: postImageUrl }), // Only update image if it exists
+      },
+      { new: true }
+    );
+
+    res.status(200).json({ success: true, data: entryData });
+  } catch (error) {
+    console.error("Error in updating entry:", error.message);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 

@@ -68,10 +68,15 @@ const ProductCard = ({ entry }) => {
   };
 
   const handleUpdateEntry = async (pid, updatedEntry) => {
-    console.log("Updated Entry:", pid, updatedEntry);
-    const { success, message } = await updateEntry(pid, updatedEntry);
+    // console.log("Updated Entry:", pid, updatedEntry);
+    const previousEntry = { ...updatedEntry };
+    setUpdatedEntry((prevEntry) => ({ ...prevEntry, ...updatedEntry }));
+
+    const { success, message, data } = await updateEntry(pid, updatedEntry);
+
     onClose();
     if (!success) {
+      setUpdatedEntry(previousEntry);
       toast({
         title: "Error",
         description: message,
@@ -80,6 +85,16 @@ const ProductCard = ({ entry }) => {
         isClosable: true,
       });
     } else {
+      if (data && data.data) {
+        const { title, description, likes, comments } = data.data;
+        setUpdatedEntry((prevEntry) => ({
+          ...prevEntry,
+          title,
+          description,
+          likes,
+          comments,
+        }));
+      }
       toast({
         title: "Success",
         description: "Product updated successfully",
@@ -197,7 +212,7 @@ const ProductCard = ({ entry }) => {
       bg={bg}
     >
       <Image
-        src={entry.image}
+        src={updatedEntry.image || entry.image}
         alt={entry.name}
         h={48}
         w="full"
@@ -349,18 +364,6 @@ const ProductCard = ({ entry }) => {
                 }
                 fontFamily="Arial, sans-serif"
               />
-              {/* <Input
-                placeholder="Image URL"
-                name="image"
-                value={updatedEntry.image}
-                onChange={(e) =>
-                  setUpdatedEntry({
-                    ...updatedEntry,
-                    image: e.target.value,
-                  })
-                }
-                fontFamily="Arial, sans-serif"
-              /> */}
               <Image
                 src={updatedEntry.image || "default-profile-picture-url"}
                 alt="Profile Picture"
@@ -368,7 +371,6 @@ const ProductCard = ({ entry }) => {
                 objectFit="cover"
                 borderRadius="full"
               />
-
               <Input
                 className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
                 type="file"
@@ -382,8 +384,6 @@ const ProductCard = ({ entry }) => {
                       image: reader.result,
                       imageName: file.name,
                     });
-                    // console buffer of image
-                    // console.log("File buffer:", reader.result);
                   };
                   if (file) {
                     reader.readAsDataURL(file);

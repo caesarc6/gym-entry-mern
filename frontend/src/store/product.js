@@ -203,7 +203,8 @@ export const useProductStore = create((set) => ({
     const user = auth.currentUser;
     const token = await user.getIdToken();
     const formData = new FormData();
-    console.log("sending data as FormData:", updatedEntry);
+
+    // console.log("sending data as FormData:", updatedEntry);
 
     if (!updatedEntry || typeof updatedEntry !== "object") {
       throw new Error("Invalid updatedEntry data");
@@ -219,25 +220,21 @@ export const useProductStore = create((set) => ({
       }
     });
 
-    const entryData = {
-      entry: {
-        name: updatedEntry.name,
-        description: updatedEntry.description,
-        image: updatedEntry.image,
-      },
-    };
-
-    console.log("Form Data:", ...formData);
-    // `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
     formData.append("pid", pid);
+
+    // Log FormData to verify its contents
+    // for (let [key, value] of formData.entries()) {
+    //   console.log(key, value);
+    // }
+    // `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
 
     const res = await fetch(`http://localhost:5001/api/entrys/${pid}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
       },
-      // body: formData,
-      body: JSON.stringify(entryData),
+      body: formData,
+      // body: JSON.stringify(entryData),
     });
 
     const data = await res.json();

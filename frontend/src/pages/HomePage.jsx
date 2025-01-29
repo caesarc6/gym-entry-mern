@@ -8,7 +8,7 @@ import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
 
 const HomePage = () => {
-  const { fetchEntrys, entrys, clearEntrys } = useProductStore();
+  const { fetchEntrys, entrys, clearEntrys, updateEntry } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true); // Add loading state
   const [uid, setUid] = useState(null);
@@ -89,6 +89,42 @@ const HomePage = () => {
   // };
 
   // save token in local storage b/c sending token requests takes alot of time and is slow
+
+  const handleUpdateEntry = async (pid, updatedEntry) => {
+    // Save the current state for potential rollback
+    const previousEntries = [...entries];
+
+    // Optimistically update the local state
+    const updatedEntries = entries.map((entry) =>
+      entry._id === pid ? { ...entry, ...updatedEntry } : entry
+    );
+    setEntries(updatedEntries);
+
+    try {
+      // Send the update request to the server
+      const { success, message, data } = await updateEntry(pid, updatedEntry);
+
+      if (!success) {
+        // Revert to the previous state if the request fails
+        setEntries(previousEntries);
+        console.error("Failed to update entry:", message);
+        // Optionally show an error toast
+      } else {
+        // Update the local state with the server response
+        setEntries((prevEntries) =>
+          prevEntries.map((entry) =>
+            entry._id === pid ? { ...entry, ...data.data } : entry
+          )
+        );
+        // Optionally show a success toast
+      }
+    } catch (error) {
+      // Revert to the previous state if there's an error
+      setEntries(previousEntries);
+      console.error("Error updating entry:", error);
+      // Optionally show an error toast
+    }
+  };
 
   const searchPostsByUID = async () => {
     try {
@@ -342,7 +378,11 @@ const HomePage = () => {
               w={"full"}
             >
               {[...entries].reverse().map((entry) => (
-                <ProductCard key={entry._id} entry={entry} />
+                <ProductCard
+                  key={entry._id}
+                  entry={entry}
+                  onUpdate={handleUpdateEntry}
+                />
               ))}
             </SimpleGrid>
 
