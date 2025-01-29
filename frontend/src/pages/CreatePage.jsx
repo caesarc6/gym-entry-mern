@@ -14,7 +14,6 @@ import {
 import { useState } from "react";
 import { useProductStore } from "../store/product";
 import { auth } from "../firebase";
-import { set } from "mongoose";
 
 const CreatePage = () => {
   const [newEntry, setNewEntry] = useState({
