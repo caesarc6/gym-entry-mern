@@ -266,7 +266,7 @@ const ModifyProfile = ({ entry }) => {
 
       // const token = await user.getIdToken();
       const response = await fetch(
-        `http://localhost:5001/api/getUserProfile/${uid}`,
+        `https://gym-tracker-brown.vercel.app/api/getUserProfile/${uid}`,
         {
           method: "GET",
           headers: {

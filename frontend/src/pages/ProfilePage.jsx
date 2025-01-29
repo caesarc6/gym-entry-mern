@@ -137,7 +137,7 @@ const ProfilePage = () => {
 
       // const token = await user.getIdToken();
       const response = await fetch(
-        `http://localhost:5001/api/getUserProfile/${uid}`,
+        `https://gym-tracker-brown.vercel.app/api/getUserProfile/${uid}`,
         {
           method: "GET",
           headers: {
@@ -381,7 +381,7 @@ const ProfilePage = () => {
 
       console.log("formData:", ...formData);
       const response = await fetch(
-        "http://localhost:5001/api/updateUserProfile",
+        "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
         {
           method: "POST",
           headers: {
@@ -584,13 +584,16 @@ const ProfilePage = () => {
           return;
         }
         const token = await user.getIdToken();
-        const response = await fetch(`http://localhost:5001/api/posts/${uid}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          `https://gym-tracker-brown.vercel.app/api/posts/${uid}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const data = await response.json();
         console.log("Posts data:", data);

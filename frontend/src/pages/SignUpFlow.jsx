@@ -34,14 +34,17 @@ const SignUpFlow = () => {
       formData.append("username", username);
       formData.append("profilePicture", profileImage);
 
-      const response = await fetch("http://localhost:5001/api/protected", {
-        method: "POST",
-        headers: {
-          // "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData, // Include the username and profileImage in the request body
-      });
+      const response = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/protected",
+        {
+          method: "POST",
+          headers: {
+            // "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData, // Include the username and profileImage in the request body
+        }
+      );
 
       if (!response.ok) {
         throw new Error(await response.text());

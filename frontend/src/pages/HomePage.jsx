@@ -52,13 +52,16 @@ const HomePage = () => {
         if (!user) return;
 
         const token = await user.getIdToken();
-        const response = await fetch(`http://localhost:5001/api/posts/${uid}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          `https://gym-tracker-brown.vercel.app/api/posts/${uid}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const data = await response.json();
         if (data.success) {
@@ -133,13 +136,16 @@ const HomePage = () => {
       const token = await user.getIdToken();
       const uid = user.uid;
       // const token = await auth.currentUser.getIdToken();
-      const response = await fetch(`http://localhost:5001/api/posts/${uid}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `https://gym-tracker-brown.vercel.app/api/posts/${uid}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       if (!response.ok) {
         throw new Error(await response.text());
       }
@@ -155,13 +161,16 @@ const HomePage = () => {
   const getAllUID = async () => {
     try {
       const token = await auth.currentUser.getIdToken(); //
-      const response = await fetch("http://localhost:5001/api/getUsers", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/getUsers",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       if (!response.ok) {
         throw new Error(await response.text());
       }
@@ -180,13 +189,16 @@ const HomePage = () => {
   const getCurrentUser = async () => {
     try {
       const token = await auth.currentUser.getIdToken();
-      const response = await fetch("http://localhost:5001/api/getCurrentUser", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       if (!response.ok) {
         throw new Error(await response.text());
       }
@@ -229,13 +241,16 @@ const HomePage = () => {
       console.log(result);
       const token = await result.user.getIdToken();
 
-      const response = await fetch("http://localhost:5001/api/protected", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/protected",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       if (!response.ok) {
         throw new Error(await response.text());
       }
@@ -245,7 +260,7 @@ const HomePage = () => {
       try {
         const token = await auth.currentUser.getIdToken();
         const response = await fetch(
-          "http://localhost:5001/api/getCurrentUser",
+          "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
           {
             method: "GET",
             headers: {

@@ -47,7 +47,7 @@ function ProfilePictureUpload() {
       console.log("mytoken:", token);
       // Send to backend
       const res = await fetch(
-        "http://localhost:5001/api/upload/uploadProfilePic",
+        "https://gym-tracker-brown.vercel.app/api/upload/uploadProfilePic",
         {
           method: "POST",
           headers: {

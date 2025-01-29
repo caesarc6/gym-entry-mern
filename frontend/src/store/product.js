@@ -109,7 +109,7 @@ export const useProductStore = create((set) => ({
         "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
     }
 
-    const res = await fetch("http://localhost:5001/api/posts", {
+    const res = await fetch("https://gym-tracker-brown.vercel.app/api/posts", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -228,14 +228,17 @@ export const useProductStore = create((set) => ({
     // }
     // `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
 
-    const res = await fetch(`http://localhost:5001/api/entrys/${pid}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-      // body: JSON.stringify(entryData),
-    });
+    const res = await fetch(
+      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+        // body: JSON.stringify(entryData),
+      }
+    );
 
     const data = await res.json();
     console.log("Response:", data);
@@ -315,7 +318,7 @@ export const useProductStore = create((set) => ({
 
       // Send to backend
       const res = await fetch(
-        "http://localhost:5001/api/upload/uploadProfilePic",
+        "https://gym-tracker-brown.vercel.app/api/upload/uploadProfilePic",
         {
           method: "POST",
           headers: {
