@@ -36,28 +36,28 @@ export const handleFileUpload = (req, res, next) => {
   if (!req.file) {
     return next(); // No file uploaded, skip to the next middleware
   }
-  upload.single("image")(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      if (err.code === "LIMIT_FIELD_VALUE") {
+
+  // Check for Multer errors
+  if (req.fileError) {
+    if (req.fileError instanceof multer.MulterError) {
+      if (req.fileError.code === "LIMIT_FIELD_VALUE") {
         return res.status(400).json({
           message: "File too large. Please upload a smaller image (max 10MB).",
         });
       }
-    } else if (err) {
+    } else {
       return res.status(400).json({
-        error: err.message,
+        error: req.fileError.message,
       });
     }
+  }
 
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
+  // Log the request body and file for debugging
+  console.log("Request body:", req.body);
+  console.log("Request file:", req.file);
 
-    console.log("Request body:", req.body);
-    console.log("Request file:", req.file);
-
-    next();
-  });
+  // Proceed to the next middleware
+  next();
 };
 
 // get all products
