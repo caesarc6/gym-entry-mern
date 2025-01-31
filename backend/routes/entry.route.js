@@ -16,13 +16,13 @@ const upload = multer({ storage });
 
 router.get("/", getEntrys);
 router.post("/", createEntry);
-router.post(
-  "/:id",
-  verifyIdToken,
-  updateEntry,
-  upload.single("image"),
-  handleFileUpload
-);
+// router.post(
+//   "/:id",
+//   verifyIdToken,
+//   updateEntry,
+//   upload.single("image"),
+//   handleFileUpload
+// );
 router.delete("/:id", deleteEntry);
 router.post("/:id/like", likeEntry);
 router.post("/:id/comment", commentEntry);
