@@ -7,7 +7,7 @@ import {
   updateEntry,
   likeEntry,
   commentEntry,
-  handleFileUpload,
+  // handleFileUpload,
 } from "../controllers/entry.controller.js";
 import { verifyIdToken } from "../middleware/auth.js";
 
