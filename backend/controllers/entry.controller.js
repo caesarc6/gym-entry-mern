@@ -99,36 +99,26 @@ export const createEntry = async (req, res) => {
   }
 };
 
-// Update Post
 export const updateEntry = async (req, res) => {
-  // console.log("Request received");
-  // console.log("req.body", req.body);
-  const imageUrl = req.imageUrl; // Get the image URL from handleFileUpload
   const { pid, name, description, image } = req.body; // Extract fields directly from req.body
   const { uid } = req.user;
 
-  if (!name && !description) {
-    // console.log("Missing fields:", { name, description });
+  // Check if at least one of the fields (name or description) is provided
+  if (!name) {
     return res.status(400).json({ error: "Missing required fields" });
   }
-  await new Promise((resolve, reject) => {
-    uploadMiddleware(req, res, (err) => {
-      if (err) {
-        reject(err);
-      }
-      resolve();
-    });
-  });
 
   try {
     let postImageUrl = null;
 
+    // Check if a new image is provided
     if (image) {
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
       const timestamp = Date.now();
       const filePath = `images/image_${uid}_${timestamp}.jpg`;
 
+      // Upload the new image to Supabase storage
       const { data: file, error } = await supabase.storage
         .from("post_images")
         .upload(filePath, imageBuffer, {
@@ -138,34 +128,101 @@ export const updateEntry = async (req, res) => {
         });
 
       if (error) {
-        // console.error("Supabase upload error details:", error);
         return res.status(500).json({
           error: "Failed to upload image",
           details: error.message,
         });
       }
 
+      // Generate the URL for the newly uploaded image
       postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
-      // console.log("Generated URL:", postImageUrl);
     }
-    // console.log("post URL", entryData.postImageUrl);
+
+    // Prepare the update object
+    const updateData = {
+      ...(name && { name }), // Only include name if it's provided
+      ...(description && { description }), // Only include description if it's provided
+      ...(postImageUrl && { image: postImageUrl }), // Only include image URL if a new image is uploaded
+    };
+
     // Update the entry in the database
-    const entryData = await Entry.findByIdAndUpdate(
-      pid,
-      {
-        name,
-        description,
-        ...(postImageUrl && { image: postImageUrl }), // Only update image if it exists
-      },
-      { new: true }
-    );
+    const entryData = await Entry.findByIdAndUpdate(pid, updateData, {
+      new: true,
+    });
 
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
-    // console.error("Error in updating entry:", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+
+// Update Post
+// export const updateEntry = async (req, res) => {
+//   // console.log("Request received");
+//   // console.log("req.body", req.body);
+//   const imageUrl = req.imageUrl; // Get the image URL from handleFileUpload
+//   const { pid, name, description, image } = req.body; // Extract fields directly from req.body
+//   const { uid } = req.user;
+
+//   if (!name && !description) {
+//     // console.log("Missing fields:", { name, description });
+//     return res.status(400).json({ error: "Missing required fields" });
+//   }
+//   await new Promise((resolve, reject) => {
+//     uploadMiddleware(req, res, (err) => {
+//       if (err) {
+//         reject(err);
+//       }
+//       resolve();
+//     });
+//   });
+
+//   try {
+//     let postImageUrl = null;
+
+//     if (image) {
+//       const base64Data = image.split(";base64,").pop();
+//       const imageBuffer = Buffer.from(base64Data, "base64");
+//       const timestamp = Date.now();
+//       const filePath = `images/image_${uid}_${timestamp}.jpg`;
+
+//       const { data: file, error } = await supabase.storage
+//         .from("post_images")
+//         .upload(filePath, imageBuffer, {
+//           contentType: "image/jpeg",
+//           cacheControl: "3600",
+//           upsert: true,
+//         });
+
+//       if (error) {
+//         // console.error("Supabase upload error details:", error);
+//         return res.status(500).json({
+//           error: "Failed to upload image",
+//           details: error.message,
+//         });
+//       }
+
+//       postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+//       // console.log("Generated URL:", postImageUrl);
+//     }
+//     // console.log("post URL", entryData.postImageUrl);
+//     // Update the entry in the database
+//     const entryData = await Entry.findByIdAndUpdate(
+//       pid,
+//       {
+//         name,
+//         description,
+//         ...(postImageUrl && { image: postImageUrl }),
+//       },
+//       { new: true }
+//     );
+
+//     res.status(200).json({ success: true, data: entryData });
+//   } catch (error) {
+//     // console.error("Error in updating entry:", error.message);
+//     res.status(500).json({ success: false, message: "Server Error" });
+//   }
+// };
 
 // update product
 // export const updateEntry = async (req, res) => {
