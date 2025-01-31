@@ -19,9 +19,9 @@ router.post("/", createEntry);
 router.post(
   "/:id",
   verifyIdToken,
+  updateEntry,
   upload.single("image"),
-  handleFileUpload,
-  updateEntry
+  handleFileUpload
 );
 router.delete("/:id", deleteEntry);
 router.post("/:id/like", likeEntry);

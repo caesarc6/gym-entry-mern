@@ -9,9 +9,6 @@ import { supabase } from "../supabase/supabase.js";
 // import User from "../models/user.model.js";
 import { verifyIdToken } from "../middleware/auth.js"; //
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
 
@@ -22,12 +19,22 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+// Define multer middleware at the top level
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB file size limit
+    fieldSize: 5 * 1024 * 1024, // 2MB field size limit
+  },
+});
 const uploadMiddleware = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 5MB file size limit
-    fieldSize: 30 * 1024 * 1024, // 10MB field size limit
+    fileSize: 5 * 1024 * 1024, // 5MB file size limit
+    fieldSize: 5 * 1024 * 1024, // 2MB field size limit
   },
 }).single("image");
 
@@ -104,6 +111,14 @@ export const updateEntry = async (req, res) => {
     console.log("Missing fields:", { name, description });
     return res.status(400).json({ error: "Missing required fields" });
   }
+  await new Promise((resolve, reject) => {
+    uploadMiddleware(req, res, (err) => {
+      if (err) {
+        reject(err);
+      }
+      resolve();
+    });
+  });
 
   try {
     let postImageUrl = null;
