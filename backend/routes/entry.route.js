@@ -70,8 +70,8 @@ export const handleFileUpload = (req, res, next) => {
     }
   }
   // Log the request body and file for debugging
-  console.log("Request body:", req.body);
-  console.log("Request file:", req.file);
+  // console.log("Request body:", req.body);
+  // console.log("Request file:", req.file);
 
   // Proceed to the next middleware
   next();
@@ -95,12 +95,12 @@ router.post(
   verifyIdToken,
   upload.single("image"), // Only use this middleware
   async (req, res) => {
-    console.log("Request received");
+    // console.log("Request received");
     const { pid, name, description, image } = req.body;
     const { uid } = req.user;
 
     if (!name && !description) {
-      console.log("Missing fields:", { name, description });
+      // console.log("Missing fields:", { name, description });
       return res.status(400).json({ error: "Missing required fields" });
     }
 

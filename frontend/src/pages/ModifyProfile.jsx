@@ -94,14 +94,14 @@ const ModifyProfile = ({ entry }) => {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        console.log("User authenticated:", user.uid);
+        // console.log("User authenticated:", user.uid);
         setIsSignedIn(true);
         setUid(user.uid);
         // fetchUserProfile(user);
         fetchUserProfile(user);
-        console.log("User:", user.accessToken, user.uid);
+        // console.log("User:", user.accessToken, user.uid);
       } else {
-        console.error("User not authenticated");
+        // console.error("User not authenticated");
         setUid(null);
         clearEntrys();
         setUserProfile({
@@ -281,7 +281,7 @@ const ModifyProfile = ({ entry }) => {
       }
 
       const data = await response.json();
-      console.log("User profile data:", data);
+      // console.log("User profile data:", data);
 
       if (data.success) {
         setUserProfile({

@@ -60,8 +60,8 @@ export const handleFileUpload = (req, res, next) => {
   }
 
   // Log the request body and file for debugging
-  console.log("Request body:", req.body);
-  console.log("Request file:", req.file);
+  // console.log("Request body:", req.body);
+  // console.log("Request file:", req.file);
 
   // Proceed to the next middleware
   next();
@@ -94,21 +94,21 @@ export const createEntry = async (req, res) => {
     await newEntry.save();
     res.status(201).json({ success: true, data: newEntry });
   } catch (error) {
-    console.error("Error in Create entry:", error.message);
+    // console.error("Error in Create entry:", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
 // Update Post
 export const updateEntry = async (req, res) => {
-  console.log("Request received");
+  // console.log("Request received");
   // console.log("req.body", req.body);
   const imageUrl = req.imageUrl; // Get the image URL from handleFileUpload
   const { pid, name, description, image } = req.body; // Extract fields directly from req.body
   const { uid } = req.user;
 
   if (!name && !description) {
-    console.log("Missing fields:", { name, description });
+    // console.log("Missing fields:", { name, description });
     return res.status(400).json({ error: "Missing required fields" });
   }
   await new Promise((resolve, reject) => {
@@ -138,7 +138,7 @@ export const updateEntry = async (req, res) => {
         });
 
       if (error) {
-        console.error("Supabase upload error details:", error);
+        // console.error("Supabase upload error details:", error);
         return res.status(500).json({
           error: "Failed to upload image",
           details: error.message,
@@ -162,7 +162,7 @@ export const updateEntry = async (req, res) => {
 
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
-    console.error("Error in updating entry:", error.message);
+    // console.error("Error in updating entry:", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -235,7 +235,7 @@ export const deleteEntry = async (req, res) => {
     await Entry.findByIdAndDelete(id);
     res.status(200).json({ success: true, message: "Entry deleted" });
   } catch (error) {
-    console.error("Error in deleting entry", error.message);
+    // console.error("Error in deleting entry", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -263,7 +263,7 @@ export const likeEntry = async (req, res) => {
 
     res.status(200).json({ success: true, data: entry });
   } catch (error) {
-    console.error("Error in liking entry:", error.message);
+    // console.error("Error in liking entry:", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -296,7 +296,7 @@ export const commentEntry = async (req, res) => {
 
     res.status(200).json({ success: true, data: entry });
   } catch (error) {
-    console.error("Error in commenting entry:", error.message);
+    // console.error("Error in commenting entry:", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };

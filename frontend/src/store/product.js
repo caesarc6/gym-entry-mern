@@ -97,7 +97,7 @@ export const useProductStore = create((set) => ({
 
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
-    console.log("New Post:", newPost);
+    // console.log("New Post:", newPost);
     const token = await auth.currentUser.getIdToken();
     if (!newPost.name || !newPost.description) {
       return { success: false, message: "Please fill in all fields." };
@@ -118,14 +118,14 @@ export const useProductStore = create((set) => ({
     });
     if (!res.ok) {
       const errorData = await res.json();
-      console.error("Error creating post:", errorData);
+      // console.error("Error creating post:", errorData);
       throw new Error(errorData.error || "Failed to create post");
     }
-    console.log("New Post:", newPost);
-    console.log("Response:", res);
+    // console.log("New Post:", newPost);
+    // console.log("Response:", res);
     const data = await res.json();
     set((state) => ({ posts: [...state.posts, data.data] }));
-    console.log("New Post:", newPost);
+    // console.log("New Post:", newPost);
     return { success: true, message: "Post created successfully" };
   },
 
@@ -223,7 +223,7 @@ export const useProductStore = create((set) => ({
     );
 
     const data = await res.json();
-    console.log("Response:", data);
+    // console.log("Response:", data);
 
     if (!res.ok) {
       throw new Error(data.message || "Failed to update entry");
@@ -355,7 +355,7 @@ export const useProductStore = create((set) => ({
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("profilePicture", file);
-      console.log("executing code from Product.js (uploadProfilePic)");
+      // console.log("executing code from Product.js (uploadProfilePic)");
       // Send to backend
       const res = await fetch(
         "https://gym-tracker-brown.vercel.app/api/upload/uploadProfilePic",
@@ -370,7 +370,7 @@ export const useProductStore = create((set) => ({
       );
       if (!res.ok) {
         const errorData = await res.json();
-        console.error("Error creating post:", errorData);
+        // console.error("Error creating post:", errorData);
         throw new Error(errorData.error || "Failed to create post");
       }
 

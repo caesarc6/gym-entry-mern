@@ -97,11 +97,11 @@ const ProfilePage = () => {
       if (user) {
         setUid(user.uid);
         fetchUserProfile(user);
-        console.log("User: token and UID::", user.accessToken, user.uid);
+        // console.log("User: token and UID::", user.accessToken, user.uid);
         // const token = await user.getIdToken();
         // console.log("Token:", token);
       } else {
-        console.error("User not authenticated");
+        // console.error("User not authenticated");
         setUid(null);
         setUserProfile({
           name: "",
@@ -379,7 +379,7 @@ const ProfilePage = () => {
       //   console.log(pair[0] + ": " + pair[1]);
       // }
 
-      console.log("formData:", ...formData);
+      // console.log("formData:", ...formData);
       const response = await fetch(
         "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
         {
@@ -596,7 +596,7 @@ const ProfilePage = () => {
         );
 
         const data = await response.json();
-        console.log("Posts data:", data);
+        // console.log("Posts data:", data);
         if (data.success) {
           setEntries(data.data);
         } else {
@@ -785,7 +785,7 @@ const ProfilePage = () => {
                         profileImageName: file.name,
                       });
                       // console buffer of image
-                      console.log("File buffer:", reader.result);
+                      // console.log("File buffer:", reader.result);
                     };
                     if (file) {
                       reader.readAsDataURL(file);
@@ -892,7 +892,7 @@ const ProfilePage = () => {
                 mr={3}
                 // onClick={() => handleUpdateProfile(userProfile)}
                 onClick={() => {
-                  console.log("Updated Profile Data:", userProfile);
+                  // console.log("Updated Profile Data:", userProfile);
                   handleUpdateProfile(userProfile);
                 }}
                 fontFamily="Arial, sans-serif"
