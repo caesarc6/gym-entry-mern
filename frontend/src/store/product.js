@@ -314,7 +314,7 @@ export const useProductStore = create((set) => ({
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("profilePicture", file);
-
+      console.log("executing code from Product.js (uploadProfilePic)");
       // Send to backend
       const res = await fetch(
         "https://gym-tracker-brown.vercel.app/api/upload/uploadProfilePic",
