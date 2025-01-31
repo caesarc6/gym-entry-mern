@@ -210,7 +210,7 @@ export const useProductStore = create((set) => ({
     });
 
     formData.append("pid", pid);
-
+    console.log("formData:", ...formData);
     const res = await fetch(
       `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
       {
@@ -223,7 +223,7 @@ export const useProductStore = create((set) => ({
     );
 
     const data = await res.json();
-    // console.log("Response:", data);
+    console.log("Response:", data);
 
     if (!res.ok) {
       throw new Error(data.message || "Failed to update entry");
