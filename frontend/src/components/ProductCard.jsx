@@ -384,6 +384,8 @@ const ProductCard = ({ entry }) => {
                       image: reader.result,
                       imageName: file.name,
                     });
+                    // console buffer of image
+                    console.log("File buffer:", reader.result);
                   };
                   if (file) {
                     reader.readAsDataURL(file);
