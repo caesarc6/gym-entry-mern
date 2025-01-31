@@ -10,7 +10,13 @@ import {
   // handleFileUpload,
 } from "../controllers/entry.controller.js";
 import { verifyIdToken } from "../middleware/auth.js";
+import mongoose from "mongoose";
+import multer from "multer";
+import Entry from "../models/entry.model.js";
+
 import { supabase } from "../supabase/supabase.js";
+// import User from "../models/user.model.js";
+import { verifyIdToken } from "../middleware/auth.js"; //
 
 const router = express.Router();
 // const storage = multer.memoryStorage();
