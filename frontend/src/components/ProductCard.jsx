@@ -71,7 +71,8 @@ const ProductCard = ({ entry }) => {
     // console.log("Updated Entry:", pid, updatedEntry);
     const previousEntry = { ...updatedEntry };
     setUpdatedEntry((prevEntry) => ({ ...prevEntry, ...updatedEntry }));
-
+    console.log("debug 'field too long' - updatedEntry:", updatedEntry);
+    // error from backend server is coming from below line
     const { success, message, data } = await updateEntry(pid, updatedEntry);
 
     onClose();
