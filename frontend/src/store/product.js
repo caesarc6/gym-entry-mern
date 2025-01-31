@@ -203,16 +203,6 @@ export const useProductStore = create((set) => ({
     const token = await user.getIdToken();
     const formData = new FormData();
 
-    // console.log("sending data as FormData:", updatedEntry);
-
-    if (!updatedEntry || typeof updatedEntry !== "object") {
-      throw new Error("Invalid updatedEntry data");
-    }
-    // Object.entries(updatedEntry).forEach(([key, value]) => {
-    //   if (value != null && value !== "") {
-    //     formData.append(key, value);
-    //   }
-    // });
     Object.entries(updatedEntry).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
         formData.append(key, value);
@@ -220,12 +210,6 @@ export const useProductStore = create((set) => ({
     });
 
     formData.append("pid", pid);
-
-    // Log FormData to verify its contents
-    // for (let [key, value] of formData.entries()) {
-    //   console.log(key, value);
-    // }
-    // `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
 
     const res = await fetch(
       `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
@@ -235,7 +219,6 @@ export const useProductStore = create((set) => ({
           Authorization: `Bearer ${token}`,
         },
         body: formData,
-        // body: JSON.stringify(entryData),
       }
     );
 
@@ -245,9 +228,7 @@ export const useProductStore = create((set) => ({
     if (!res.ok) {
       throw new Error(data.message || "Failed to update entry");
     }
-    // const data = await res.json();
-    if (!data.success) return { success: false, message: data.message };
-    // Updates the UI immediately without needing to fetch all products again or a refresh
+
     set((state) => ({
       entrys: state.entrys.map((entry) =>
         entry._id === pid ? data.data : entry
@@ -256,6 +237,66 @@ export const useProductStore = create((set) => ({
 
     return { success: true, message: data.message };
   },
+
+  // updateEntry: async (pid, updatedEntry) => {
+  //   const auth = getAuth();
+  //   const user = auth.currentUser;
+  //   const token = await user.getIdToken();
+  //   const formData = new FormData();
+
+  //   // console.log("sending data as FormData:", updatedEntry);
+
+  //   if (!updatedEntry || typeof updatedEntry !== "object") {
+  //     throw new Error("Invalid updatedEntry data");
+  //   }
+  //   // Object.entries(updatedEntry).forEach(([key, value]) => {
+  //   //   if (value != null && value !== "") {
+  //   //     formData.append(key, value);
+  //   //   }
+  //   // });
+  //   Object.entries(updatedEntry).forEach(([key, value]) => {
+  //     if (value !== undefined && value !== null && value !== "") {
+  //       formData.append(key, value);
+  //     }
+  //   });
+
+  //   formData.append("pid", pid);
+
+  //   // Log FormData to verify its contents
+  //   // for (let [key, value] of formData.entries()) {
+  //   //   console.log(key, value);
+  //   // }
+  //   // `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
+
+  //   const res = await fetch(
+  //     `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
+  //     {
+  //       method: "POST",
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //       body: formData,
+  //       // body: JSON.stringify(entryData),
+  //     }
+  //   );
+
+  //   const data = await res.json();
+  //   console.log("Response:", data);
+
+  //   if (!res.ok) {
+  //     throw new Error(data.message || "Failed to update entry");
+  //   }
+  //   // const data = await res.json();
+  //   if (!data.success) return { success: false, message: data.message };
+  //   // Updates the UI immediately without needing to fetch all products again or a refresh
+  //   set((state) => ({
+  //     entrys: state.entrys.map((entry) =>
+  //       entry._id === pid ? data.data : entry
+  //     ),
+  //   }));
+
+  //   return { success: true, message: data.message };
+  // },
 
   // Like a product
   likeEntry: async (pid) => {
