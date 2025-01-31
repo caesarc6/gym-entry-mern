@@ -9,7 +9,7 @@ import {
   commentEntry,
   handleFileUpload,
 } from "../controllers/entry.controller.js";
-import { verifyIdToken } from "../middleware/auth.js"; 
+import { verifyIdToken } from "../middleware/auth.js";
 
 const router = express.Router();
 // const storage = multer.memoryStorage();
@@ -64,6 +64,13 @@ export const handleFileUpload = (req, res, next) => {
       });
     }
   }
+  // Log the request body and file for debugging
+  console.log("Request body:", req.body);
+  console.log("Request file:", req.file);
+
+  // Proceed to the next middleware
+  next();
+};
 
 router.get("/", getEntrys);
 router.post("/", createEntry);
