@@ -9,7 +9,6 @@ import {
   commentEntry,
   // handleFileUpload,
 } from "../controllers/entry.controller.js";
-import { verifyIdToken } from "../middleware/auth.js";
 import mongoose from "mongoose";
 import Entry from "../models/entry.model.js";
 
