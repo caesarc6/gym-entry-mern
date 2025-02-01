@@ -38,7 +38,7 @@ const ProfilePage = () => {
   // const [updatedEntry, setUpdatedEntry] = useState(entry);
   const [isFileSelected, setIsFileSelected] = useState(false);
   const textColorDesc = useColorModeValue("gray.700", "gray.400");
-  const profileColorMode = useColorModeValue(night, light);
+  const profileColorMode = useColorModeValue(light, night);
 
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [entries, setEntries] = useState([]);
