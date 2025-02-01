@@ -38,6 +38,8 @@ const ProfilePage = () => {
   // const [updatedEntry, setUpdatedEntry] = useState(entry);
   const [isFileSelected, setIsFileSelected] = useState(false);
   const textColorDesc = useColorModeValue("gray.700", "gray.400");
+  const profileColorMode = useColorModeValue(night, light);
+
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [entries, setEntries] = useState([]);
   const [updatedProfile, setUpdatedProfile] = useState(null);
@@ -530,7 +532,7 @@ const ProfilePage = () => {
           style={{ justifyContent: "center", borderRadius: "39px" }}
         >
           <Image
-            src={userProfile.profileImage || light}
+            src={userProfile.profileImage || profileColorMode}
             boxSize="150px"
             borderRadius="full"
             fit="cover"
