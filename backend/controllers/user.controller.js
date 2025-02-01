@@ -70,7 +70,7 @@ export const updateUserProfile = async (req, res) => {
     const userId = req.user.id; // Assuming user ID is available from authentication
 
     // Find the user profile
-    let userProfile = await users.findOne({ userId });
+    let userProfile = await User.findOne({ userId });
 
     if (!userProfile) {
       return res
