@@ -64,197 +64,46 @@ export const getCurrentMongoDBUser = async (req, res) => {
   }
 };
 
-import { supabase } from "../path/to/supabaseClient"; // Adjust the import path
-import path from "path";
-import User from "../models/User"; // Adjust the import path
-
 export const updateUserProfile = async (req, res) => {
   try {
-    const { uid } = req.user;
+    const { name, goal, gymName, bio, retainImage } = req.body;
+    const userId = req.user.id; // Assuming user ID is available from authentication
 
-    // Use promisified version of multer middleware
-    await new Promise((resolve, reject) => {
-      uploadMiddleware(req, res, (err) => {
-        if (err) {
-          reject(err);
-        }
-        resolve();
-      });
-    });
+    // Find the user profile
+    let userProfile = await User.findOne({ userId });
 
-    // Extract fields from form data
-    const { name, goal, gymName, bio, profileImage, profileImageName } =
-      req.body;
-
-    // Validate that at least one field is provided
-    if (!name && !goal && !gymName && !bio && !profileImage) {
-      return res.status(400).json({
-        success: false,
-        message: "No data provided for update",
-      });
+    if (!userProfile) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User profile not found" });
     }
 
-    let profileImageUrl = null;
+    // Update fields
+    if (name) userProfile.name = name;
+    if (goal) userProfile.goal = goal;
+    if (gymName) userProfile.gymName = gymName;
+    if (bio) userProfile.bio = bio;
 
-    // Handle profile picture upload if present
-    if (profileImage) {
-      try {
-        // Convert base64 to buffer
-        const base64Data = profileImage.split(";base64,").pop();
-        const imageBuffer = Buffer.from(base64Data, "base64");
-
-        // Generate a safe file name
-        const safeFileName = (profileImageName || "image.jpg").replace(
-          /[^a-zA-Z0-9.-]/g,
-          "_"
-        );
-        const fileExtension = path.extname(safeFileName) || ".jpg";
-        const fileName = `profile_${uid}_${Date.now()}${fileExtension}`;
-        const filePath = `profiles/${fileName}`;
-
-        // Upload to Supabase Storage
-        const { data: file, error: uploadError } = await supabase.storage
-          .from("user_profiles")
-          .upload(filePath, imageBuffer, {
-            contentType: `image/${fileExtension.substring(1)}`,
-            cacheControl: "3600",
-            upsert: true,
-          });
-
-        if (uploadError) {
-          console.error("Supabase upload error:", uploadError);
-          return res
-            .status(500)
-            .json({ success: false, message: "Failed to upload image" });
-        }
-
-        // Get public URL of the uploaded file
-        const { data: publicUrlData } = supabase.storage
-          .from("user_profiles")
-          .getPublicUrl(filePath);
-
-        profileImageUrl = publicUrlData.publicUrl;
-        console.log("Profile image uploaded. Public URL:", profileImageUrl);
-      } catch (error) {
-        console.error("Error uploading image to Supabase:", error);
-        return res.status(500).json({
-          success: false,
-          message: "Failed to upload image",
-        });
-      }
+    // Handle profile image
+    if (req.file && !retainImage) {
+      // If a new image is provided and retainImage is not true, update the image
+      userProfile.profileImage = req.file.path; // Save the file path or URL
+    } else if (retainImage === "true") {
+      // Retain the existing image (do nothing)
+    } else {
+      // If no image is provided and retainImage is not set, remove the image
+      userProfile.profileImage = null;
     }
 
-    // Build update object with only provided fields
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (goal) updateData.goal = goal;
-    if (gymName) updateData.gymName = gymName;
-    if (bio) updateData.bio = bio;
-    if (profileImageUrl) updateData.picture = profileImageUrl;
+    // Save the updated profile
+    await userProfile.save();
 
-    // Update user in MongoDB
-    const user = await User.findOneAndUpdate(
-      { uid },
-      { $set: updateData },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Profile updated successfully",
-      data: user,
-    });
+    res.status(200).json({ success: true, data: userProfile });
   } catch (error) {
-    console.error("Update user profile error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    console.error("Error updating profile:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
-// export const updateUserProfile = async (req, res) => {
-//   try {
-//     const { name, goal, gymName, bio } = req.body;
-//     const userId = req.user.id; // Assuming user ID is available from authentication
-
-//     // Find the user profile
-//     let userProfile = await User.findOne({ userId });
-
-//     if (!userProfile) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "User profile not found" });
-//     }
-
-//     // Update fields
-//     if (name) userProfile.name = name;
-//     if (goal) userProfile.goal = goal;
-//     if (gymName) userProfile.gymName = gymName;
-//     if (bio) userProfile.bio = bio;
-
-//     // Handle profile image (only update if a file is provided)
-//     if (req.file) {
-//       userProfile.profileImage = req.file.path; // Save the file path or URL
-//     }
-
-//     // Save the updated profile
-//     await userProfile.save();
-
-//     res.status(200).json({ success: true, data: userProfile });
-//   } catch (error) {
-//     console.error("Error updating profile:", error);
-//     res.status(500).json({ success: false, message: "Internal server error" });
-//   }
-// };
-
-// export const updateUserProfile = async (req, res) => {
-//   try {
-//     const { name, goal, gymName, bio, retainImage } = req.body;
-//     const userId = req.user.id; // Assuming user ID is available from authentication
-
-//     // Find the user profile
-//     let userProfile = await User.findOne({ userId });
-
-//     if (!userProfile) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "User profile not found" });
-//     }
-
-//     // Update fields
-//     if (name) userProfile.name = name;
-//     if (goal) userProfile.goal = goal;
-//     if (gymName) userProfile.gymName = gymName;
-//     if (bio) userProfile.bio = bio;
-
-//     // Handle profile image
-//     if (req.file && !retainImage) {
-//       // If a new image is provided and retainImage is not true, update the image
-//       userProfile.profileImage = req.file.path; // Save the file path or URL
-//     } else if (retainImage === "true") {
-//       // Retain the existing image (do nothing)
-//     } else {
-//       // If no image is provided and retainImage is not set, remove the image
-//       userProfile.profileImage = null;
-//     }
-
-//     // Save the updated profile
-//     await userProfile.save();
-
-//     res.status(200).json({ success: true, data: userProfile });
-//   } catch (error) {
-//     console.error("Error updating profile:", error);
-//     res.status(500).json({ success: false, message: "Internal server error" });
-//   }
-// };
 
 // Modified updateUserProfile function
 // export const updateUserProfile = async (req, res) => {
