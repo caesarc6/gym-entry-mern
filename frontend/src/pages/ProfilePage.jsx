@@ -35,6 +35,7 @@ import PropTypes from "prop-types";
 const ProfilePage = () => {
   // const { fetchEntrys, entrys, clearEntrys } = useProductStore();
   // const [updatedEntry, setUpdatedEntry] = useState(entry);
+  const [isFileSelected, setIsFileSelected] = useState(false);
   const textColorDesc = useColorModeValue("gray.700", "gray.400");
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [entries, setEntries] = useState([]);
@@ -639,20 +640,36 @@ const ProfilePage = () => {
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files[0];
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setUserProfile({
-                        ...userProfile,
-                        profileImage: reader.result,
-                        profileImageName: file.name,
-                      });
-                      // console buffer of image
-                      // console.log("File buffer:", reader.result);
-                    };
                     if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setUserProfile({
+                          ...userProfile,
+                          profileImage: reader.result,
+                          profileImageName: file.name,
+                        });
+                      };
                       reader.readAsDataURL(file);
+                      setIsFileSelected(true); // Set file selection state to true
+                    } else {
+                      setIsFileSelected(false); // Set file selection state to false
                     }
                   }}
+                  //   const file = e.target.files[0];
+                  //   const reader = new FileReader();
+                  //   reader.onloadend = () => {
+                  //     setUserProfile({
+                  //       ...userProfile,
+                  //       profileImage: reader.result,
+                  //       profileImageName: file.name,
+                  //     });
+                  //     // console buffer of image
+                  //     // console.log("File buffer:", reader.result);
+                  //   };
+                  //   if (file) {
+                  //     reader.readAsDataURL(file);
+                  //   }
+                  // }}
                   fontFamily="Arial, sans-serif"
                 />
                 <Text
