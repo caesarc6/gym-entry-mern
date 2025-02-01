@@ -25,7 +25,8 @@ import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
 import { PlusSquareIcon } from "@chakra-ui/icons";
-
+import light from "../assets/light.jpg";
+import night from "../assets/night.jpg";
 import { auth, googleProvider } from "../firebase";
 import { getAuth, signInWithPopup } from "firebase/auth";
 
@@ -529,7 +530,7 @@ const ProfilePage = () => {
           style={{ justifyContent: "center", borderRadius: "39px" }}
         >
           <Image
-            src={userProfile.profileImage || "https://bit.ly/naruto-sage"}
+            src={userProfile.profileImage || light}
             boxSize="150px"
             borderRadius="full"
             fit="cover"
