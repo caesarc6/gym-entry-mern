@@ -64,7 +64,7 @@ export const getCurrentMongoDBUser = async (req, res) => {
   }
 };
 
-const updateUserProfile = async (req, res) => {
+export const updateUserProfile = async (req, res) => {
   try {
     const { name, goal, gymName, bio, retainImage } = req.body;
     const userId = req.user.id; // Assuming user ID is available from authentication
