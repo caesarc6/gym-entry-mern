@@ -167,44 +167,6 @@ const ProfilePage = () => {
       console.error("Error fetching user profile:", error);
     }
   };
-  //     if (!response.ok) {
-  //       throw new Error(`Failed to fetch user profile: ${response.status}`);
-  //     }
-
-  //     const data = await response.json();
-  //     console.log("User profile data:", data);
-
-  //     if (data.success) {
-  //       setUserProfile({
-  //         profileImage:
-  //           data.data.picture ||
-  //           "https://johnjayathletics.com/images/logos/site/site.png",
-  //         name: data.data.name || "Anonymous",
-  //         goal: data.goal || "Not set",
-  //         gymName: data.data.gymName || "Not specified",
-  //         postsCount: data.postsCount,
-  //         bio: data.data.bio || "No bio available",
-  //       });
-  //     } else {
-  //       console.error("Failed to fetch user profile:", data.message);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching user profile:", error);
-  //   }
-  // };
-
-  // const handleInputChange = (e) => {
-  //   const { name, value } = e.target;
-  //   setUserProfile((prevProfile) => ({
-  //     ...prevProfile,
-  //     [name]: value,
-  //   }));
-  // };
-
-  // const handleImageChange = (e) => {
-  //   const file = e.target.files[0];
-  //   setProfileImage(file);
-  // };
 
   const [formData, setFormData] = useState({
     name: userProfile.name || "",
@@ -227,127 +189,6 @@ const ProfilePage = () => {
     setProfileImage(file);
   };
 
-  // const handleSubmit = async (e) => {
-  //   e.preventDefault();
-  //   const auth = getAuth();
-  //   const user = auth.currentUser;
-  //   const token = await user.getIdToken();
-
-  //   const formData = new FormData();
-  //   formData.append("name", userProfile.name);
-  //   formData.append("goal", userProfile.goal);
-  //   formData.append("gymName", userProfile.gymName);
-  //   formData.append("postsCount", userProfile.postsCount);
-  //   formData.append("bio", userProfile.bio);
-  //   if (profileImage) {
-  //     formData.append("profileImage", profileImage);
-  //   }
-  //   await updateProfile(formData, token);
-  // };
-
-  // const updateProfile = async (formDataObj) => {
-  //   console.log("updateProfile:", formDataObj);
-  //   const auth = getAuth();
-  //   const user = auth.currentUser;
-  //   const token = await user.getIdToken();
-
-  //   try {
-  //     const response = await fetch(
-  //       "http://localhost:5001/api/updateUserProfile",
-  //       {
-  //         method: "POST",
-  //         headers: {
-  //           Authorization: `Bearer ${token}`,
-  //           "Content-Type": "multipart/form-data",
-  //         },
-  //         body: formDataObj,
-  //       }
-  //     );
-
-  //     if (!response.ok) {
-  //       const errorText = await response.text();
-  //       throw new Error(errorText);
-  //     }
-
-  //     const data = await response.json();
-  //     setUserProfile(data);
-  //     console.log("Profile updated successfully:", data);
-  //     toast({
-  //       title: "Success",
-  //       description: "Profile updated successfully",
-  //       status: "success",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //     return { success: true, message: "Profile updated successfully" };
-  //   } catch (error) {
-  //     console.error("Error updating profile:", error);
-  //     toast({
-  //       title: "Error",
-  //       description: error.message,
-  //       status: "error",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //     return { success: false, message: error.message };
-  //   }
-  // };
-  // const updateProfile = async (formData) => {
-  //   console.log("frontend:", ...formData);
-  //   try {
-  //     const auth = getAuth();
-  //     const user = auth.currentUser;
-  //     const token = await user.getIdToken();
-
-  //     // Check if data is FormData or regular object
-  //     let requestBody;
-  //     let headers = {
-  //       Authorization: `Bearer ${token}`,
-  //     };
-
-  //     if (formData instanceof FormData) {
-  //       requestBody = formData;
-  //       // Don't set Content-Type for FormData, let the browser set it with the boundary
-  //     } else {
-  //       // If it's a regular object, convert it to FormData
-  //       requestBody = new FormData();
-  //       Object.keys(formData).forEach((key) => {
-  //         if (formData[key] !== undefined && formData[key] !== null) {
-  //           requestBody.append(key, formData[key]);
-  //         }
-  //       });
-  //     }
-
-  //     console.log("requestBody:", requestBody);
-  //     const response = await fetch(
-  //       "http://localhost:5001/api/updateUserProfile",
-  //       {
-  //         method: "POST",
-  //         headers: headers,
-  //         body: requestBody,
-  //       }
-  //     );
-
-  //     if (!response.ok) {
-  //       const errorText = await response.text();
-  //       throw new Error(errorText);
-  //     }
-  //     const data = await response.json();
-
-  //     // Update local state
-  //     setUserProfile((prev) => ({
-  //       ...prev,
-  //       ...data,
-  //     }));
-
-  //     return { success: true, message: "Profile updated successfully" };
-  //   } catch (error) {
-  //     console.error("Error updating profile:", error);
-  //     return { success: false, message: error.message };
-  //   }
-  // };
-
-  // Update the handleUpdateProfile function
   const handleUpdateProfile = async (updatedData) => {
     try {
       const auth = getAuth();
@@ -365,21 +206,15 @@ const ProfilePage = () => {
       });
 
       // Append profile image if it exists
-      // if (profileImage) {
-      //   console.log("Appending profile image name to formData");
-      //   formData.append("profileImage", profileImage, profileImage.name);
+      if (profileImage) {
+        formData.append("profileImage", profileImage);
+      }
 
-      //   // console log name, type, size of file
-      //   console.log("File to upload:", {
-      //     name: profileImage.name,
-      //   });
-      // }
       // Log FormData contents for debugging
-      // for (let pair of formData.entries()) {
-      //   console.log(pair[0] + ": " + pair[1]);
-      // }
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ": " + pair[1]);
+      }
 
-      // console.log("formData:", ...formData);
       const response = await fetch(
         "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
         {
@@ -391,7 +226,7 @@ const ProfilePage = () => {
           body: formData,
         }
       );
-      // console.log("response:", response);
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to update profile");
@@ -425,73 +260,61 @@ const ProfilePage = () => {
     }
   };
 
+  // Update the handleUpdateProfile function
   // const handleUpdateProfile = async (updatedData) => {
-  //   // Ensure we're only sending defined values
-  //   const filteredData = Object.fromEntries(
-  //     Object.entries(updatedData).filter(
-  //       ([_, value]) => value !== undefined && value !== null && value !== ""
-  //     )
-  //   );
-  //   console.log("filteredData:", filteredData);
-  //   if (Object.keys(filteredData).length === 0) {
-  //     toast({
-  //       title: "Error",
-  //       description: "No changes to update",
-  //       status: "error",
-  //       duration: 5000,
-  //       isClosable: true,
+  //   try {
+  //     const auth = getAuth();
+  //     const user = auth.currentUser;
+  //     const token = await user.getIdToken();
+
+  //     // Create FormData object
+  //     const formData = new FormData();
+
+  //     // Only append defined, non-empty values
+  //     Object.entries(updatedData).forEach(([key, value]) => {
+  //       if (value !== undefined && value !== null && value !== "") {
+  //         formData.append(key, value);
+  //       }
   //     });
-  //     return;
-  //   }
 
-  //   const auth = getAuth();
-  //   const user = auth.currentUser;
-  //   const token = await user.getIdToken();
+  //     const response = await fetch(
+  //       "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
+  //       {
+  //         method: "POST",
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //           // Don't set Content-Type header - browser will set it automatically with boundary
+  //         },
+  //         body: formData,
+  //       }
+  //     );
+  //     // console.log("response:", response);
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.message || "Failed to update profile");
+  //     }
 
-  //   const formData = new FormData();
-  //   for (const key in filteredData) {
-  //     formData.append(key, filteredData[key]);
-  //   }
-  //   if (profileImage) {
-  //     formData.append("profileImage", profileImage);
-  //   }
+  //     const data = await response.json();
 
-  //   const result = await updateProfile(formData, token);
+  //     // Update local state
+  //     setUserProfile((prev) => ({
+  //       ...prev,
+  //       ...data.data,
+  //     }));
 
-  //   if (result.success) {
   //     toast({
   //       title: "Success",
-  //       description: result.message,
-  //       status: "success",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //   } else {
-  //     toast({
-  //       title: "Error",
-  //       description: result.message,
-  //       status: "error",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //   }
-  // };
-
-  //   const result = await updateProfile(filteredData);
-
-  //   if (result.success) {
-  //     toast({
-  //       title: "Success",
-  //       description: result.message,
+  //       description: "Profile updated successfully",
   //       status: "success",
   //       duration: 5000,
   //       isClosable: true,
   //     });
   //     onClose();
-  //   } else {
+  //   } catch (error) {
+  //     console.error("Profile update error:", error);
   //     toast({
   //       title: "Error",
-  //       description: result.message,
+  //       description: error.message,
   //       status: "error",
   //       duration: 5000,
   //       isClosable: true,
@@ -536,41 +359,6 @@ const ProfilePage = () => {
     }
   };
 
-  //   try {
-  //     const response = await axios.post(
-  //       "http://localhost:5001/api/updateUserProfile",
-  //       formData,
-  //       {
-  //         headers: {
-  //           Authorization: `Bearer ${token}`,
-  //           "Content-Type": "multipart/form-data",
-  //         },
-  //       }
-  //     );
-
-  //     const data = await response.data;
-  //     setUserProfile(data);
-  //     console.log("Profile updated successfully:", data);
-  //   } catch (error) {
-  //     console.error("Error updating profile:", error);
-  //   }
-  // };
-
-  // Fetch user profile when UID changes
-  // useEffect(() => {
-  //   fetchUserProfile();
-  // }, [uid]);
-
-  // Update user profile when entries change
-  // useEffect(() => {
-  //   if (uid && auth.currentUser) {
-  //     auth.currentUser.getIdToken().then((token) => {
-  //       fetchUserProfile(token, uid);
-  //     });
-  //   }
-  // }, [entries, uid]);
-
-  // Fetch posts effect
   useEffect(() => {
     const fetchPosts = async () => {
       try {
