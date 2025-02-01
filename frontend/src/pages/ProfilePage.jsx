@@ -206,12 +206,9 @@ const ProfilePage = () => {
         }
       });
 
-      // Append profile image ONLY if a new image is provided
-      if (profileImage) {
+      // Append profile image ONLY if a file is selected
+      if (isFileSelected && profileImage) {
         formData.append("profileImage", profileImage);
-      } else {
-        // Explicitly tell the backend to retain the existing image
-        formData.append("retainImage", "true");
       }
 
       // Log FormData contents for debugging
@@ -263,6 +260,80 @@ const ProfilePage = () => {
       });
     }
   };
+
+  // const handleUpdateProfile = async (updatedData) => {
+  //   try {
+  //     const auth = getAuth();
+  //     const user = auth.currentUser;
+  //     const token = await user.getIdToken();
+
+  //     // Create FormData object
+  //     const formData = new FormData();
+
+  //     // Append only defined, non-empty values
+  //     Object.entries(updatedData).forEach(([key, value]) => {
+  //       if (value !== undefined && value !== null && value !== "") {
+  //         formData.append(key, value);
+  //       }
+  //     });
+
+  //     // Append profile image ONLY if a new image is provided
+  //     if (profileImage) {
+  //       formData.append("profileImage", profileImage);
+  //     } else {
+  //       // Explicitly tell the backend to retain the existing image
+  //       formData.append("retainImage", "true");
+  //     }
+
+  //     // Log FormData contents for debugging
+  //     for (let pair of formData.entries()) {
+  //       console.log(pair[0] + ": " + pair[1]);
+  //     }
+
+  //     const response = await fetch(
+  //       "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
+  //       {
+  //         method: "POST",
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //           // Don't set Content-Type header - browser will set it automatically with boundary
+  //         },
+  //         body: formData,
+  //       }
+  //     );
+
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.message || "Failed to update profile");
+  //     }
+
+  //     const data = await response.json();
+
+  //     // Update local state
+  //     setUserProfile((prev) => ({
+  //       ...prev,
+  //       ...data.data,
+  //     }));
+
+  //     toast({
+  //       title: "Success",
+  //       description: "Profile updated successfully",
+  //       status: "success",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //     onClose();
+  //   } catch (error) {
+  //     console.error("Profile update error:", error);
+  //     toast({
+  //       title: "Error",
+  //       description: error.message,
+  //       status: "error",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //   }
+  // };
 
   // const handleUpdateProfile = async (updatedData) => {
   //   try {

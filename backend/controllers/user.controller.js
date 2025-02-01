@@ -66,7 +66,7 @@ export const getCurrentMongoDBUser = async (req, res) => {
 
 export const updateUserProfile = async (req, res) => {
   try {
-    const { name, goal, gymName, bio, retainImage } = req.body;
+    const { name, goal, gymName, bio } = req.body;
     const userId = req.user.id; // Assuming user ID is available from authentication
 
     // Find the user profile
@@ -84,15 +84,9 @@ export const updateUserProfile = async (req, res) => {
     if (gymName) userProfile.gymName = gymName;
     if (bio) userProfile.bio = bio;
 
-    // Handle profile image
-    if (req.file && !retainImage) {
-      // If a new image is provided and retainImage is not true, update the image
+    // Handle profile image (only update if a file is provided)
+    if (req.file) {
       userProfile.profileImage = req.file.path; // Save the file path or URL
-    } else if (retainImage === "true") {
-      // Retain the existing image (do nothing)
-    } else {
-      // If no image is provided and retainImage is not set, remove the image
-      userProfile.profileImage = null;
     }
 
     // Save the updated profile
@@ -104,6 +98,47 @@ export const updateUserProfile = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+// export const updateUserProfile = async (req, res) => {
+//   try {
+//     const { name, goal, gymName, bio, retainImage } = req.body;
+//     const userId = req.user.id; // Assuming user ID is available from authentication
+
+//     // Find the user profile
+//     let userProfile = await User.findOne({ userId });
+
+//     if (!userProfile) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "User profile not found" });
+//     }
+
+//     // Update fields
+//     if (name) userProfile.name = name;
+//     if (goal) userProfile.goal = goal;
+//     if (gymName) userProfile.gymName = gymName;
+//     if (bio) userProfile.bio = bio;
+
+//     // Handle profile image
+//     if (req.file && !retainImage) {
+//       // If a new image is provided and retainImage is not true, update the image
+//       userProfile.profileImage = req.file.path; // Save the file path or URL
+//     } else if (retainImage === "true") {
+//       // Retain the existing image (do nothing)
+//     } else {
+//       // If no image is provided and retainImage is not set, remove the image
+//       userProfile.profileImage = null;
+//     }
+
+//     // Save the updated profile
+//     await userProfile.save();
+
+//     res.status(200).json({ success: true, data: userProfile });
+//   } catch (error) {
+//     console.error("Error updating profile:", error);
+//     res.status(500).json({ success: false, message: "Internal server error" });
+//   }
+// };
 
 // Modified updateUserProfile function
 // export const updateUserProfile = async (req, res) => {
