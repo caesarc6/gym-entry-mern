@@ -604,7 +604,7 @@ const ProfilePage = () => {
                   onClick={onOpen}
                   icon={<EditIcon />}
                   colorScheme="blue"
-                  style={{ width: "300px", height: "65px" }}
+                  style={{ width: "200px", height: "45px" }}
                 />
               </VStack>
             </HStack>
