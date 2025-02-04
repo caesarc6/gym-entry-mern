@@ -15,15 +15,6 @@ const HomePage = () => {
   const [posts, setPosts] = useState([]);
   const [entries, setEntries] = useState([]);
 
-  // Update entries when user signs out
-  // useEffect(() => {
-  //   if (!isSignedIn) {
-  //     // fetchEntries();
-  //     // clear feed
-  //     setEntries([]);
-  //   }
-  // }, [isSignedIn]);
-
   // Add this useEffect to handle initial auth state
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -76,20 +67,6 @@ const HomePage = () => {
       fetchPosts();
     }
   }, [uid]);
-
-  // Function to fetch entries (dummy function for illustration)
-  // const fetchEntries = async () => {
-  //   try {
-  //     const response = await fetch("/api/entrys"); // Adjust the endpoint as needed
-  //     if (!response.ok) {
-  //       throw new Error("Failed to fetch entries");
-  //     }
-  //     const data = await response.json();
-  //     setEntries(data);
-  //   } catch (error) {
-  //     console.error("Error fetching entries:", error);
-  //   }
-  // };
 
   // save token in local storage b/c sending token requests takes alot of time and is slow
 
@@ -209,31 +186,6 @@ const HomePage = () => {
       console.error("Error fetching current user:", error);
     }
   };
-
-  // const getUser = async () => {
-  //   try {
-  //     const user = auth.currentUser;
-  //     const uid = user.uid;
-  //     const token = await user.getIdToken();
-  //     const response = await fetch(`http://localhost:5001/api/getUser/${uid}`, {
-  //       method: "GET",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //     });
-  //     if (!response.ok) {
-  //       throw new Error(await response.text());
-  //     }
-  //     const result = await response.json();
-  //     if (result.success) {
-  //       setEntries(result.data);
-  //     }
-  //     console.log("User:", result);
-  //   } catch (error) {
-  //     console.error("Error fetching user:", error);
-  //   }
-  // };
 
   const handleGoogleSignIn = async () => {
     try {
@@ -431,17 +383,46 @@ const HomePage = () => {
         </>
       ) : (
         <>
+          {/* ------------------------------------------------------------------ */}
+          {/* ------------------------------------------------------------------ */}
+          {/* ------------------------------------------------------------------ */}
+          {/* Gradients */}
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 z-0" // Covers the entire viewport and stays fixed
+          >
+            <div className="absolute inset-0 bg-[#061f32] overflow-hidden">
+              {/* Top Gradients */}
+              {/* First Gradient (Top) */}
+              <div
+                className="absolute w-[25rem] h-[44rem] bg-gradient-to-r from-background/50 to-background blur-3xl rotate-[-60deg] transform -translate-x-[10rem] bg-slate-700 animate-blob"
+                style={{ top: "-10%", left: "50%" }} // Adjust positioning as needed
+              />
+              {/* Second Gradient (Top) */}
+              <div
+                className="absolute w-[90rem] h-[50rem] bg-gradient-to-tl from-primary-foreground via-primary-foreground to-background blur-3xl rounded-full origin-top-left -rotate-12 -translate-x-[15rem] bg-[#cfe6ff] animate-blob-reverse"
+                style={{ top: "-20%", left: "50%" }} // Adjust positioning as needed
+              />
+
+              {/* Bottom Gradients (Inverted Mirror Image) */}
+              {/* First Gradient (Bottom) */}
+              <div
+                className="absolute w-[25rem] h-[44rem] bg-gradient-to-r from-background/50 to-background blur-3xl rotate-[60deg] transform translate-x-[10rem] bg-slate-700 animate-blob"
+                style={{ bottom: "-30%", left: "20%" }} // Adjust positioning as needed
+              />
+              {/* Second Gradient (Bottom) */}
+              <div
+                className="absolute w-[90rem] h-[50rem] bg-gradient-to-tl from-primary-foreground via-primary-foreground to-background blur-3xl rounded-full origin-bottom-left rotate-12 translate-x-[15rem] bg-[#cfe6ff] animate-blob-reverse"
+                style={{ bottom: "-36%", right: "54%" }} // Adjust positioning as needed
+              />
+            </div>
+          </div>
+          {/* End Gradients */}
+          {/* ------------------------------------------------------------------ */}
+          {/* ------------------------------------------------------------------ */}
+          {/* ------------------------------------------------------------------ */}
           {/* Hero */}
           <div className="relative overflow-hidden py-24 lg:py-32">
-            {/* Gradients */}
-            <div
-              aria-hidden="true"
-              className="flex absolute -top-96 start-1/2 transform -translate-x-1/2 bg-[#061f32]"
-            >
-              <div className="bg-gradient-to-r from-background/50 to-background blur-3xl w-[25rem] h-[44rem] rotate-[-60deg] transform -translate-x-[10rem] bg-slate-700" />
-              <div className="bg-gradient-to-tl blur-3xl w-[90rem] h-[50rem] rounded-full origin-top-left -rotate-12 -translate-x-[15rem] from-primary-foreground via-primary-foreground to-background bg-[#cfe6ff]" />
-            </div>
-            {/* End Gradients */}
             <div className="relative z-10">
               <div className="container py-10 lg:py-16">
                 <div className="max-w-2xl text-center mx-auto">
@@ -487,68 +468,10 @@ const HomePage = () => {
               </div>
             </div>
           </div>
+
           {/* End Hero */}
         </>
       )}
-
-      {/* <VStack spacing={8}>
-        <Text
-          fontSize={"22"}
-          fontWeight={"bold"}
-          bgGradient={"linear(to-r, blue.200, gray.400)"}
-          // bgGradient="linear(to-r, red.600, red.400, yellow.300)"
-          bgClip={"text"}
-          textAlign={"center"}
-        >
-          Workout Entries
-        </Text>
-
-        <SimpleGrid
-          columns={{
-            base: 1,
-            md: 2,
-            lg: 3,
-          }}
-          spacing={10}
-          w={"full"}
-        >
-          {[...entries].reverse().map((entry) => (
-            <ProductCard key={entry._id} entry={entry} />
-          ))}
-        </SimpleGrid>
-
-        {isLoading ? (
-          <Button isLoading>Loading...</Button>
-        ) : isSignedIn ? (
-          <div>
-            {entries.length === 0 && (
-              <Text
-                fontSize="xl"
-                textAlign={"center"}
-                fontWeight="bold"
-                color="gray.500"
-              >
-                No entries found 😢{" "}
-                <Link to={"/create"}>
-                  <Text
-                    as="span"
-                    color="blue.500"
-                    _hover={{ textDecoration: "underline" }}
-                  >
-                    Create an entry
-                  </Text>
-                </Link>
-                <div
-                  className=" flex justify-center items-center"
-                  style={{ textAlign: "center" }}
-                ></div>
-              </Text>
-            )}
-          </div>
-        ) : (
-          <span></span>
-        )}
-      </VStack> */}
     </Container>
   );
 };

@@ -13,6 +13,8 @@ import { LuSun } from "react-icons/lu";
 import { useState, useEffect } from "react";
 import { auth, googleProvider } from "../firebase";
 
+import { signInWithPopup } from "firebase/auth";
+
 const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -37,8 +39,63 @@ const Navbar = () => {
     return () => unsubscribe(); // Cleanup subscription
   }, []);
 
+  const handleGoogleSignIn = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log(result);
+      const token = await result.user.getIdToken();
+
+      const response = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/protected",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const userData = await response.json();
+      console.log("User Data:", userData.uid);
+      // console.log("User Data:", userData);
+      try {
+        const token = await auth.currentUser.getIdToken();
+        const response = await fetch(
+          "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+        const resultOne = await response.json();
+        console.log("Logged in as:", resultOne);
+      } catch (error) {
+        console.error("Error fetching all UID:", error);
+      }
+    } catch (error) {
+      // clear feed and user sign in state to sign out
+      console.error("Error during sign-in:", error);
+      handleSignOutUser();
+    }
+  };
+
   return (
-    <Container maxW={"1140px"} px={4}>
+    <Container
+      maxW={"1140px"}
+      px={4}
+      position={"fixed"}
+      zIndex={1}
+      justifySelf={"anchor-center"}
+    >
       <Flex
         h={16}
         alignItems={"center"}
@@ -64,7 +121,27 @@ const Navbar = () => {
             </Link>
           ) : (
             <>
-              <span>Login SignUp</span>
+              {/* <span>Login SignUp</span> */}
+              <Button size={"sm"}>
+                {" "}
+                <Link to={"/signup"}>
+                  <Text as="span" color="neutral.400">
+                    Sign Up
+                  </Text>
+                  {/* or sign in */}
+                </Link>
+              </Button>
+              <Button
+                size={"sm"}
+                variant={"outline"}
+                onClick={async () => {
+                  await handleGoogleSignIn();
+                  setIsSignedIn(true);
+                }}
+                className="p-3  rounded-md"
+              >
+                Login
+              </Button>
             </>
           )}
           <Button onClick={toggleColorMode}>
