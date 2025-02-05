@@ -33,7 +33,7 @@
 }
 
 .animate-blob {
-  animation: blob 10s infinite ease-in-out;
+  animation: blob 7s infinite ease-in-out;
 }
 
 .animate-blob-reverse {

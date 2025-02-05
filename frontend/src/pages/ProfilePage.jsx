@@ -18,6 +18,11 @@ import {
   ModalOverlay,
   Textarea,
   useColorModeValue,
+  //  FOR profile section
+  Heading,
+  Avatar,
+  Center,
+  Flex,
 } from "@chakra-ui/react";
 import { Stack, Badge, Box, HStack, Icon, Image } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
@@ -63,29 +68,6 @@ const ProfilePage = () => {
 
   const toast = useToast();
 
-  // const handleUpdateProfile = async (updatedProfile) => {
-  //   console.log("handleUpdateProfile:", updatedProfile);
-  //   const { success, message } = await updateProfile(updatedProfile);
-  //   onClose();
-  //   if (!success) {
-  //     toast({
-  //       title: "Error",
-  //       description: message,
-  //       status: "error",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //   } else {
-  //     toast({
-  //       title: "Success",
-  //       description: "Product updated successfully",
-  //       status: "success",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //   }
-  // };
-
   useEffect(() => {
     if (!isSignedIn) {
       // fetchEntries();
@@ -120,13 +102,6 @@ const ProfilePage = () => {
 
     return () => unsubscribe();
   }, []);
-
-  // Update user profile when entries change
-  // useEffect(() => {
-  //   if (uid && auth.currentUser) {
-  //     fetchUserProfile(); // Remove parameters
-  //   }
-  // }, [entries, uid]);
 
   // Function to fetch user profile
   const fetchUserProfile = async (user) => {
@@ -267,139 +242,6 @@ const ProfilePage = () => {
     }
   };
 
-  // const handleUpdateProfile = async (updatedData) => {
-  //   try {
-  //     const auth = getAuth();
-  //     const user = auth.currentUser;
-  //     const token = await user.getIdToken();
-
-  //     // Create FormData object
-  //     const formData = new FormData();
-
-  //     // Only append defined, non-empty values
-  //     Object.entries(updatedData).forEach(([key, value]) => {
-  //       if (value !== undefined && value !== null && value !== "") {
-  //         formData.append(key, value);
-  //       }
-  //     });
-
-  //     // Append profile image if it exists
-  //     if (profileImage) {
-  //       formData.append("profileImage", profileImage);
-  //     }
-
-  //     // Log FormData contents for debugging
-  //     for (let pair of formData.entries()) {
-  //       console.log(pair[0] + ": " + pair[1]);
-  //     }
-
-  //     const response = await fetch(
-  //       "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
-  //       {
-  //         method: "POST",
-  //         headers: {
-  //           Authorization: `Bearer ${token}`,
-  //           // Don't set Content-Type header - browser will set it automatically with boundary
-  //         },
-  //         body: formData,
-  //       }
-  //     );
-
-  //     if (!response.ok) {
-  //       const errorData = await response.json();
-  //       throw new Error(errorData.message || "Failed to update profile");
-  //     }
-
-  //     const data = await response.json();
-
-  //     // Update local state
-  //     setUserProfile((prev) => ({
-  //       ...prev,
-  //       ...data.data,
-  //     }));
-
-  //     toast({
-  //       title: "Success",
-  //       description: "Profile updated successfully",
-  //       status: "success",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //     onClose();
-  //   } catch (error) {
-  //     console.error("Profile update error:", error);
-  //     toast({
-  //       title: "Error",
-  //       description: error.message,
-  //       status: "error",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //   }
-  // };
-
-  // Update the handleUpdateProfile function
-  // const handleUpdateProfile = async (updatedData) => {
-  //   try {
-  //     const auth = getAuth();
-  //     const user = auth.currentUser;
-  //     const token = await user.getIdToken();
-
-  //     // Create FormData object
-  //     const formData = new FormData();
-
-  //     // Only append defined, non-empty values
-  //     Object.entries(updatedData).forEach(([key, value]) => {
-  //       if (value !== undefined && value !== null && value !== "") {
-  //         formData.append(key, value);
-  //       }
-  //     });
-
-  //     const response = await fetch(
-  //       "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
-  //       {
-  //         method: "POST",
-  //         headers: {
-  //           Authorization: `Bearer ${token}`,
-  //           // Don't set Content-Type header - browser will set it automatically with boundary
-  //         },
-  //         body: formData,
-  //       }
-  //     );
-  //     // console.log("response:", response);
-  //     if (!response.ok) {
-  //       const errorData = await response.json();
-  //       throw new Error(errorData.message || "Failed to update profile");
-  //     }
-
-  //     const data = await response.json();
-
-  //     // Update local state
-  //     setUserProfile((prev) => ({
-  //       ...prev,
-  //       ...data.data,
-  //     }));
-
-  //     toast({
-  //       title: "Success",
-  //       description: "Profile updated successfully",
-  //       status: "success",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //     onClose();
-  //   } catch (error) {
-  //     console.error("Profile update error:", error);
-  //     toast({
-  //       title: "Error",
-  //       description: error.message,
-  //       status: "error",
-  //       duration: 5000,
-  //       isClosable: true,
-  //     });
-  //   }
-  // };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const auth = getAuth();
@@ -488,7 +330,7 @@ const ProfilePage = () => {
         flexDirection: "column",
       }}
     >
-      <SimpleGrid
+      {/* <SimpleGrid
         columns={{
           base: 1,
           md: 1,
@@ -504,8 +346,117 @@ const ProfilePage = () => {
           height: "200px",
           inlineSize: "-webkit-fill-available",
         }}
-      ></SimpleGrid>
-      <SimpleGrid
+      ></SimpleGrid> */}
+      <Center py={6} mt={10}>
+        <Box
+          maxW={"580px"}
+          w={"full"}
+          bg={useColorModeValue("white", "gray.800")}
+          boxShadow={"2xl"}
+          rounded={"md"}
+          overflow={"hidden"}
+        >
+          <Image
+            h={"120px"}
+            w={"full"}
+            src={
+              "https://images.unsplash.com/photo-1612865547334-09cb8cb455da?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=634&q=80"
+            }
+            objectFit="cover"
+            alt="#"
+          />
+          <Flex justify={"center"} mt={-12}>
+            <Avatar
+              size={"xl"}
+              src={userProfile.profileImage || profileColorMode}
+              css={{
+                border: "2px solid white",
+              }}
+            />
+          </Flex>
+
+          <Box p={6}>
+            <Stack spacing={0} align={"center"} mb={3}>
+              <Heading fontSize={"2xl"} fontWeight={500} fontFamily={"body"}>
+                {userProfile.name}
+              </Heading>
+            </Stack>
+            <Stack spacing={0} align={"center"} mb={4}>
+              <Heading fontSize={"sm"} fontWeight={500} fontFamily={"body"}>
+                <Text color={"gray.500"}>
+                  {userProfile.goal} | {userProfile.gymName} |{" "}
+                  {userProfile.gymName}
+                </Text>
+              </Heading>
+            </Stack>
+            <Stack direction={"row"} justify={"center"} spacing={6}>
+              <Stack spacing={0} align={"center"}>
+                <Text fontWeight={600}>23k</Text>
+                <Text fontSize={"sm"} color={"gray.500"}>
+                  Followers
+                </Text>
+              </Stack>
+              <Stack spacing={0} align={"center"}>
+                <Text fontWeight={600}>23k</Text>
+                <Text fontSize={"sm"} color={"gray.500"}>
+                  Followers
+                </Text>
+              </Stack>
+              <Stack spacing={0} align={"center"}>
+                <Text fontWeight={600}>{userProfile.postsCount}</Text>
+                <Text fontSize={"sm"} color={"gray.500"}>
+                  Posts
+                </Text>
+              </Stack>
+            </Stack>
+            <Stack
+              spacing={0}
+              align={"center"}
+              mt={4}
+              maxW={"sm"}
+              justifySelf={"center"}
+            >
+              <Heading fontSize={"md"} fontWeight={500} fontFamily={"body"}>
+                <Text color={"gray.500"}>{userProfile.bio}</Text>
+              </Heading>
+            </Stack>
+            <Button
+              w={"full"}
+              mt={6}
+              bg={useColorModeValue("#151f21", "gray.900")}
+              color={"white"}
+              rounded={"md"}
+              _hover={{
+                transform: "translateY(-2px)",
+                boxShadow: "lg",
+              }}
+            >
+              Follow
+            </Button>
+            <Button
+              onClick={onOpen}
+              icon={<EditIcon />}
+              colorScheme="blue"
+              // style={{ width: "200px", height: "45px" }}
+              w={"full"}
+              mt={6}
+              bg={useColorModeValue("gray.400", "gray.900")}
+              color={"white"}
+              rounded={"md"}
+              _hover={{
+                transform: "translateY(-2px)",
+                boxShadow: "lg",
+              }}
+            >
+              Edit
+            </Button>
+          </Box>
+        </Box>
+      </Center>
+
+      {/* profile section */}
+
+      {/* <SimpleGrid
         columns={{
           base: 1,
           md: 1,
@@ -549,28 +500,6 @@ const ProfilePage = () => {
               <VStack>
                 <HStack>
                   <VStack>
-                    {/* <button
-                      // getCurrentMongoDBUser
-                      onClick={async () => {
-                        const auth = getAuth();
-                        const user = auth.currentUser;
-                        const token = await user.getIdToken();
-                        const response = await fetch(
-                          "http://localhost:5001/api/getCurrentMongoDBUser",
-                          {
-                            method: "GET",
-                            headers: {
-                              "Content-Type": "application/json",
-                              Authorization: `Bearer ${token}`,
-                            },
-                          }
-                        );
-                        const data = await response.json();
-                        console.log("Current MongoDB User:", data);
-                      }}
-                    >
-                      Get Current MongoDB User
-                    </button> */}
                     <Text fontSize="xl" fontWeight="bold" color="white">
                       {userProfile.name}
                     </Text>
@@ -610,7 +539,10 @@ const ProfilePage = () => {
             </HStack>
           </Box>
         </Stack>
-      </SimpleGrid>
+      </SimpleGrid> */}
+
+      {/* end of profile section */}
+
       <Modal isOpen={isOpen} onClose={onClose}>
         <form onSubmit={handleSubmit}>
           <ModalOverlay />
@@ -840,10 +772,5 @@ const ProfilePage = () => {
     </Container>
   );
 };
-// ProfilePage.propTypes = {
-//   entry: PropTypes.shape({
-//     id: PropTypes.string.isRequired,
-//   }).isRequired,
-// };
 
 export default ProfilePage;

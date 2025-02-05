@@ -90,65 +90,80 @@ const Navbar = () => {
 
   return (
     <Container
-      maxW={"1140px"}
-      px={4}
+      backgroundColor={"#071f3278"}
+      maxW={"100%"}
       position={"fixed"}
+      p={0}
+      m={0}
+      height={"90px"}
       zIndex={1}
       justifySelf={"anchor-center"}
+      display={"flex"}
     >
-      <Flex
-        h={16}
-        alignItems={"center"}
-        justifyContent={"space-between"}
-        flexDir={{ base: "column", sm: "row" }}
+      <Container
+        // backgroundColor={"grey"}
+        alignContent={"center"}
+        maxW={"1140px"}
+        px={4}
+        // position={"fixed"}
+        zIndex={1}
+        justifySelf={"anchor-center"}
       >
-        <Text
-          fontSize={{ base: "22", md: "28" }}
-          // fontWeight="bold"
-          textTransform={"uppercase"}
-          textAlign={"center"}
-          bgGradient={"linear(to-r, blue.300, gray.400)"}
-          bgClip={"text"}
+        <Flex
+          h={16}
+          alignItems={"center"}
+          justifyContent={"space-between"}
+          flexDir={{ base: "column", sm: "row" }}
         >
-          <Link to={"/"}>Ethereal Gains </Link>
-        </Text>
-        <HStack spacing={2} alignItems={"center"}>
-          {isSignedIn ? (
-            <Link to={"/create"}>
-              <Button>
-                <PlusSquareIcon fontSize={20} />
-              </Button>
-            </Link>
-          ) : (
-            <>
-              {/* <span>Login SignUp</span> */}
-              <Button size={"sm"}>
-                {" "}
-                <Link to={"/signup"}>
-                  <Text as="span" color="neutral.400">
-                    Sign Up
-                  </Text>
-                  {/* or sign in */}
-                </Link>
-              </Button>
-              <Button
-                size={"sm"}
-                variant={"outline"}
-                onClick={async () => {
-                  await handleGoogleSignIn();
-                  setIsSignedIn(true);
-                }}
-                className="p-3  rounded-md"
-              >
-                Login
-              </Button>
-            </>
-          )}
-          <Button onClick={toggleColorMode}>
-            {colorMode === "light" ? <IoMoon /> : <LuSun size="20" />}
-          </Button>
-        </HStack>
-      </Flex>
+          <Text
+            fontSize={{ base: "22", md: "28" }}
+            // fontWeight="bold"
+            textTransform={"uppercase"}
+            textAlign={"center"}
+            bgGradient={"linear(to-r, blue.300, gray.400)"}
+            bgClip={"text"}
+          >
+            <Link to={"/"}>Ethereal Gains </Link>
+          </Text>
+          <HStack spacing={2} alignItems={"center"}>
+            {isSignedIn ? (
+              <Link to={"/create"}>
+                <Button>
+                  <PlusSquareIcon fontSize={20} />
+                </Button>
+              </Link>
+            ) : (
+              <>
+                {/* <span>Login SignUp</span> */}
+                <Button className="p-0 m-0" size={"sm"}>
+                  {" "}
+                  <Link to={"/signup"}>
+                    <Text as="span" color="neutral.400">
+                      Sign Up
+                    </Text>
+                    {/* or sign in */}
+                  </Link>
+                </Button>
+
+                <Button
+                  size={"sm"}
+                  variant={"outline"}
+                  onClick={async () => {
+                    await handleGoogleSignIn();
+                    setIsSignedIn(true);
+                  }}
+                  className="p-0 m-0  rounded-md"
+                >
+                  Login
+                </Button>
+              </>
+            )}
+            <Button onClick={toggleColorMode}>
+              {colorMode === "light" ? <IoMoon /> : <LuSun size="20" />}
+            </Button>
+          </HStack>
+        </Flex>
+      </Container>
     </Container>
   );
 };

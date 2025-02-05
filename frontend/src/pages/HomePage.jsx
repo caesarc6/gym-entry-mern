@@ -267,7 +267,10 @@ const HomePage = () => {
   };
 
   return (
-    <Container maxW="container.xl" className="text-center" py={12}>
+    <Container
+      maxW="container.xl"
+      className="text-center h-[157vh] z-0 relative p-[117px]"
+    >
       {/* {"     ...    "} */}
       {/* {"     ...    "} */}
       {/* <button
