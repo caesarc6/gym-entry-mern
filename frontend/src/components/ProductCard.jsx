@@ -22,8 +22,10 @@ import {
   VStack,
   useColorMode,
 } from "@chakra-ui/react";
+import { HiUpload } from "react-icons/hi";
+import { FileUploader } from "./FileUploader"; // Import the FileUploader component
 import { useProductStore } from "../store/product";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import PropTypes from "prop-types";
 
 const ProductCard = ({ entry }) => {
@@ -45,6 +47,21 @@ const ProductCard = ({ entry }) => {
     onOpen: onDeleteOpen,
     onClose: onDeleteClose,
   } = useDisclosure();
+
+  const handleFileUpload = (file) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setUpdatedEntry({
+        ...updatedEntry,
+        image: reader.result,
+        imageName: file.name,
+      });
+      // console.log("File buffer:", reader.result);
+    };
+    if (file) {
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleDeleteEntry = async (pid) => {
     const { success, message } = await deleteEntry(pid);
@@ -394,9 +411,13 @@ const ProductCard = ({ entry }) => {
                 alt="Profile Picture"
                 boxSize="150px"
                 objectFit="cover"
-                borderRadius="full"
+                borderRadius="3xl"
               />
-              <Input
+              <FileUploader
+                // className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
+                handleFile={handleFileUpload}
+              />
+              {/* <Input
                 className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
                 type="file"
                 accept="image/*"
@@ -417,7 +438,7 @@ const ProductCard = ({ entry }) => {
                   }
                 }}
                 fontFamily="Arial, sans-serif"
-              />
+              /> */}
             </VStack>
           </ModalBody>
           <ModalFooter>

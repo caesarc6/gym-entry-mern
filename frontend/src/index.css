@@ -39,3 +39,13 @@
 .animate-blob-reverse {
   animation: blob-reverse 12s infinite ease-in-out;
 }
+
+.button-upload {
+  cursor: pointer;
+  border-radius: 6px;
+  font: inherit;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0px 22px;
+  border: 1.3px solid #94949446;
+}

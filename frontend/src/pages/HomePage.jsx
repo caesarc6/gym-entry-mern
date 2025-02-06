@@ -269,37 +269,8 @@ const HomePage = () => {
   return (
     <Container
       maxW="container.xl"
-      className="text-center h-[157vh] z-0 relative p-[117px]"
+      className="text-center z-0 relative p-[117px]"
     >
-      {/* {"     ...    "} */}
-      {/* {"     ...    "} */}
-      {/* <button
-          onClick={searchPostsByUID}
-          className="p-3 bg-blue-400 rounded-md ml-4"
-          // disabled={!uid}
-        >
-          Search Posts by UID
-        </button>
-
-        {"     ...    "}
-        {"     ...    "}
-        <button
-          onClick={getAllUID}
-          className="p-3 bg-blue-400 rounded-md ml-4"
-          // disabled={!uid}
-        >
-          get all UID's
-        </button>
-        {"     ...    "}
-        {"     ...    "}
-        <button
-          onClick={getCurrentUser}
-          className="p-3 bg-blue-400 rounded-md ml-4"
-          // disabled={!uid}
-        >
-          getCurrentUser
-        </button> */}
-
       {isSignedIn ? (
         <>
           <VStack spacing={8}>
@@ -382,13 +353,9 @@ const HomePage = () => {
               )}
             </div>
           </VStack>
-          {/* </div> */}
         </>
       ) : (
         <>
-          {/* ------------------------------------------------------------------ */}
-          {/* ------------------------------------------------------------------ */}
-          {/* ------------------------------------------------------------------ */}
           {/* Gradients */}
           <div
             aria-hidden="true"
@@ -421,12 +388,10 @@ const HomePage = () => {
             </div>
           </div>
           {/* End Gradients */}
-          {/* ------------------------------------------------------------------ */}
-          {/* ------------------------------------------------------------------ */}
-          {/* ------------------------------------------------------------------ */}
+
           {/* Hero */}
-          <div className="relative overflow-hidden py-24 lg:py-32">
-            <div className="relative z-10">
+          <div className="relative overflow-hidden py-24 lg:py-32 h-[73vh]">
+            <div className="relative ">
               <div className="container py-10 lg:py-16">
                 <div className="max-w-2xl text-center mx-auto">
                   <p className="">All your workouts. In one place.</p>
@@ -445,14 +410,27 @@ const HomePage = () => {
                   </div>
                   {/* Buttons */}
                   <div className="mt-8 gap-3 flex justify-center">
-                    <Button size={"lg"}>
+                    {/* <Button size={"lg"}>
                       {" "}
                       <Link to={"/signup"}>
                         <Text as="span" color="neutral.400">
                           Sign Up
                         </Text>
-                        {/* or sign in */}
+
                       </Link>
+                    </Button> */}
+                    <Button
+                      size={"lg"}
+                      // variant={"outline"}
+                      onClick={async () => {
+                        await handleGoogleSignIn();
+                        setIsSignedIn(true);
+                      }}
+                      className="p-3  rounded-md"
+                    >
+                      <Text as="span" color="neutral.400">
+                        Sign Up
+                      </Text>
                     </Button>
                     <Button
                       size={"lg"}

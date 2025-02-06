@@ -29,7 +29,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
-import { PlusSquareIcon } from "@chakra-ui/icons";
+import { FileUploader } from "../components/FileUploader"; // Import the FileUploader component
 import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import { auth, googleProvider } from "../firebase";
@@ -102,6 +102,23 @@ const ProfilePage = () => {
 
     return () => unsubscribe();
   }, []);
+
+  const handleFileUpload = (file) => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUserProfile({
+          ...userProfile,
+          profileImage: reader.result,
+          profileImageName: file.name,
+        });
+      };
+      reader.readAsDataURL(file);
+      setIsFileSelected(true); // Set file selection state to true
+    } else {
+      setIsFileSelected(false); // Set file selection state to false
+    }
+  };
 
   // Function to fetch user profile
   const fetchUserProfile = async (user) => {
@@ -378,36 +395,35 @@ const ProfilePage = () => {
           <Box p={6}>
             <Stack spacing={0} align={"center"} mb={3}>
               <Heading fontSize={"2xl"} fontWeight={500} fontFamily={"body"}>
-                {userProfile.name}
+                @{userProfile.name}
               </Heading>
             </Stack>
             <Stack spacing={0} align={"center"} mb={4}>
               <Heading fontSize={"sm"} fontWeight={500} fontFamily={"body"}>
                 <Text color={"gray.500"}>
-                  {userProfile.goal} | {userProfile.gymName} |{" "}
-                  {userProfile.gymName}
+                  {userProfile.goal} | {userProfile.gymName}
                 </Text>
               </Heading>
             </Stack>
             <Stack direction={"row"} justify={"center"} spacing={6}>
-              <Stack spacing={0} align={"center"}>
-                <Text fontWeight={600}>23k</Text>
+              {/* <Stack spacing={0} align={"center"}>
+                <Text fontWeight={600}>{userProfile.followers}</Text>
                 <Text fontSize={"sm"} color={"gray.500"}>
                   Followers
                 </Text>
               </Stack>
               <Stack spacing={0} align={"center"}>
-                <Text fontWeight={600}>23k</Text>
+                <Text fontWeight={600}>{userProfile.following}</Text>
                 <Text fontSize={"sm"} color={"gray.500"}>
                   Followers
                 </Text>
-              </Stack>
-              <Stack spacing={0} align={"center"}>
+              </Stack> */}
+              {/* <Stack spacing={0} align={"center"}>
                 <Text fontWeight={600}>{userProfile.postsCount}</Text>
                 <Text fontSize={"sm"} color={"gray.500"}>
                   Posts
                 </Text>
-              </Stack>
+              </Stack> */}
             </Stack>
             <Stack
               spacing={0}
@@ -420,7 +436,27 @@ const ProfilePage = () => {
                 <Text color={"gray.500"}>{userProfile.bio}</Text>
               </Heading>
             </Stack>
-            <Button
+            <Stack direction={"row"} justify={"center"} spacing={6} mt={8}>
+              {/* <Stack spacing={0} align={"center"}>
+                <Text fontWeight={600}>{userProfile.followers}</Text>
+                <Text fontSize={"sm"} color={"gray.500"}>
+                  Followers
+                </Text>
+              </Stack>
+              <Stack spacing={0} align={"center"}>
+                <Text fontWeight={600}>{userProfile.following}</Text>
+                <Text fontSize={"sm"} color={"gray.500"}>
+                  Followers
+                </Text>
+              </Stack> */}
+              <Stack spacing={0} align={"center"}>
+                <Text fontWeight={600}>{userProfile.postsCount || 0}</Text>
+                <Text fontSize={"sm"} color={"gray.500"}>
+                  Posts
+                </Text>
+              </Stack>
+            </Stack>
+            {/* <Button
               w={"full"}
               mt={6}
               bg={useColorModeValue("#151f21", "gray.900")}
@@ -432,7 +468,7 @@ const ProfilePage = () => {
               }}
             >
               Follow
-            </Button>
+            </Button> */}
             <Button
               onClick={onOpen}
               icon={<EditIcon />}
@@ -569,44 +605,11 @@ const ProfilePage = () => {
                 >
                   Avatar
                 </Text>
-                <Input
-                  className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        setUserProfile({
-                          ...userProfile,
-                          profileImage: reader.result,
-                          profileImageName: file.name,
-                        });
-                      };
-                      reader.readAsDataURL(file);
-                      setIsFileSelected(true); // Set file selection state to true
-                    } else {
-                      setIsFileSelected(false); // Set file selection state to false
-                    }
-                  }}
-                  //   const file = e.target.files[0];
-                  //   const reader = new FileReader();
-                  //   reader.onloadend = () => {
-                  //     setUserProfile({
-                  //       ...userProfile,
-                  //       profileImage: reader.result,
-                  //       profileImageName: file.name,
-                  //     });
-                  //     // console buffer of image
-                  //     // console.log("File buffer:", reader.result);
-                  //   };
-                  //   if (file) {
-                  //     reader.readAsDataURL(file);
-                  //   }
-                  // }}
-                  fontFamily="Arial, sans-serif"
+                <FileUploader
+                  // className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
+                  handleFile={handleFileUpload}
                 />
+
                 <Text
                   className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
                   fontFamily="Arial, sans-serif"

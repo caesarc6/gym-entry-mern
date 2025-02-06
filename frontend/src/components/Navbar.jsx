@@ -128,25 +128,37 @@ const Navbar = () => {
           <HStack spacing={2} alignItems={"center"}>
             {isSignedIn ? (
               <Link to={"/create"}>
-                <Button>
+                <Button size={"sm"}>
                   <PlusSquareIcon fontSize={20} />
                 </Button>
               </Link>
             ) : (
               <>
                 {/* <span>Login SignUp</span> */}
-                <Button className="p-0 m-0" size={"sm"}>
+                {/* <Button className="p-0 m-0" size={"sm"}>
                   {" "}
                   <Link to={"/signup"}>
                     <Text as="span" color="neutral.400">
                       Sign Up
                     </Text>
-                    {/* or sign in */}
-                  </Link>
-                </Button>
 
+                  </Link>
+                </Button> */}
                 <Button
-                  size={"sm"}
+                  size={"xs"}
+                  // variant={"outline"}
+                  onClick={async () => {
+                    await handleGoogleSignIn();
+                    setIsSignedIn(true);
+                  }}
+                  className="p-3  rounded-md"
+                >
+                  <Text as="span" color="neutral.400">
+                    Sign Up
+                  </Text>
+                </Button>
+                <Button
+                  size={"xs"}
                   variant={"outline"}
                   onClick={async () => {
                     await handleGoogleSignIn();
@@ -158,7 +170,7 @@ const Navbar = () => {
                 </Button>
               </>
             )}
-            <Button onClick={toggleColorMode}>
+            <Button size={"sm"} onClick={toggleColorMode}>
               {colorMode === "light" ? <IoMoon /> : <LuSun size="20" />}
             </Button>
           </HStack>

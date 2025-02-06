@@ -85,7 +85,7 @@ export const createEntry = async (req, res) => {
   if (!entry.name && !entry.description) {
     return res
       .status(400)
-      .json({ success: false, message: "Please provide all fields" });
+      .json({ success: false, message: "Please provide Name and Description" });
   }
 
   const newEntry = new Entry(entry);
