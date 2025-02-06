@@ -269,16 +269,40 @@ const ProductCard = ({ entry }) => {
             colorScheme="purple"
             style={{ width: "40px", height: "33px" }}
           />
+          {/* <Button
+              onClick={onOpen}
+              icon={<EditIcon />}
+              colorScheme="blue"
+              style={{ width: "200px", height: "45px" }}
+              w={"full"}
+              mt={6}
+              bg={useColorModeValue("gray.400", "gray.900")}
+              color={"white"}
+              rounded={"md"}
+              _hover={{
+                transform: "translateY(-2px)",
+                boxShadow: "lg",
+              }}
+            >
+              Edit
+            </Button> */}
           <IconButton
             onClick={onOpen}
             icon={<EditIcon />}
-            colorScheme="blue"
-            style={{ width: "300px", height: "65px" }}
+            // colorScheme="gray"
+            style={{ width: "235px", height: "55px" }}
+            bg={useColorModeValue("gray.300", "gray.900")}
+            color={"white"}
+            rounded={"md"}
+            _hover={{
+              boxShadow: "lg",
+            }}
           />
           <IconButton
             onClick={onDeleteOpen}
             icon={<DeleteIcon />}
             colorScheme="red"
+            bg={useColorModeValue("red.200", "red.800")}
             style={{ width: "40px", height: "29px" }}
           />
         </HStack>
