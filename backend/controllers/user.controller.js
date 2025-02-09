@@ -82,7 +82,8 @@ export const updateUserProfile = async (req, res) => {
     const { name, goal, gymName, bio } = req.body;
     const { profileImage } = req.body;
     const { profileImageName } = req.body;
-    // console.log("req.body", req.body);
+    console.log("req.body.profileImage", req.body.profileImage);
+    console.log("req.body.profileImageName", req.body.profileImageName);
     // Validate that at least one field is provided
     if (!name && !goal && !gymName && !bio && !profileImage) {
       return res.status(400).json({
