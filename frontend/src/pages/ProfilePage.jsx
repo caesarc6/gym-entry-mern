@@ -59,7 +59,7 @@ const ProfilePage = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [uid, setUid] = useState(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  // const { updateProfile } = useProductStore();
+  const { updateProfile } = useProductStore();
   const {
     isOpen: isDeleteOpen,
     onOpen: onDeleteOpen,
@@ -185,97 +185,28 @@ const ProfilePage = () => {
     setProfileImage(file);
   };
 
-  const handleUpdateProfile = async (updatedData) => {
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      const token = await user.getIdToken();
-
-      // Create FormData object
-      const formData = new FormData();
-
-      // Append only defined, non-empty values
-      Object.entries(updatedData).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-          formData.append(key, value);
-        }
-      });
-
-      // Append profile image ONLY if a new image is provided
-      if (profileImage) {
-        formData.append("profileImage", profileImage);
-      } else {
-        // Explicitly tell the backend to retain the existing image
-        formData.append("retainImage", "true");
-      }
-
-      // Log FormData contents for debugging
-      for (let pair of formData.entries()) {
-        console.log(pair[0] + ": " + pair[1]);
-      }
-
-      const response = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            // Don't set Content-Type header - browser will set it automatically with boundary
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update profile");
-      }
-
-      const data = await response.json();
-
-      // Update local state
-      setUserProfile((prev) => ({
-        ...prev,
-        ...data.data,
-      }));
-
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-      onClose();
-    } catch (error) {
-      console.error("Profile update error:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log(
+      "Debug - userProfile, profileImage:",
+      userProfile
+      // profileImage
+    );
     const auth = getAuth();
     const user = auth.currentUser;
     const token = await user.getIdToken();
 
     const formDataObj = new FormData();
-    formDataObj.append("name", formData.name);
-    formDataObj.append("goal", formData.goal);
-    formDataObj.append("gymName", formData.gymName);
-    formDataObj.append("bio", formData.bio);
+    formDataObj.append("name", userProfile.name);
+    formDataObj.append("goal", userProfile.goal);
+    formDataObj.append("gymName", userProfile.gymName);
+    formDataObj.append("bio", userProfile.bio);
 
-    if (profileImage) {
-      formDataObj.append("profileImage", profileImage);
+    if (userProfile.profileImage) {
+      formDataObj.append("profileImage", userProfile.profileImage);
     }
-
-    const result = await updateProfile(formDataObj);
+    console.log("Debug - Form Data Object:", ...formDataObj);
+    const result = await handleUpdateProfile(formDataObj);
     if (!result.success) {
       toast({
         title: "Error",
@@ -293,6 +224,85 @@ const ProfilePage = () => {
         isClosable: true,
       });
       onClose();
+    }
+  };
+
+  const handleUpdateProfile = async (formDataObj) => {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      const token = await user.getIdToken();
+
+      // Create FormData object
+      const formData = new FormData();
+
+      // Append only defined, non-empty values
+      // Object.entries(formDataObj).forEach(([key, value]) => {
+      //   if (value !== undefined && value !== null && value !== "") {
+      //     formData.append(key, value);
+      //   }
+      // });
+
+      // Append profile image ONLY if a new image is provided
+      if (profileImage) {
+        formData.append("profileImage", profileImage);
+      } else {
+        // Explicitly tell the backend to retain the existing image
+        formData.append("retainImage", "true");
+      }
+
+      // Log FormData contents for debugging
+      for (let pair of formDataObj.entries()) {
+        console.log(pair[0] + ": " + pair[1]);
+      }
+
+      const response = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // Don't set Content-Type header - browser will set it automatically with boundary
+          },
+          body: formDataObj,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update profile");
+      }
+
+      const data = await response.json();
+      console.log("response", data);
+      // Update local state
+      setUserProfile((prev) => ({
+        ...prev,
+        ...data.data,
+      }));
+
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+      onClose();
+
+      // Return the result for handleSubmit
+      return { success: true, message: "Profile updated successfully" };
+    } catch (error) {
+      console.error("Profile update error:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      // Return the result for handleSubmit
+      return { success: false, message: error.message };
     }
   };
 
@@ -492,91 +502,6 @@ const ProfilePage = () => {
 
       {/* profile section */}
 
-      {/* <SimpleGrid
-        columns={{
-          base: 1,
-          md: 1,
-          lg: 1,
-        }}
-        spacing={10}
-        w={"sm"}
-        style={{
-          placeItems: "center",
-          justifyContent: "center",
-          alignSelf: "center",
-          position: "absolute",
-          borderRadius: "42px",
-          backgroundColor: "#32323285",
-          backdropFilter: "blur(4px)",
-        }}
-      >
-        <Stack
-          direction="row"
-          w={"sm"}
-          borderWidth="1px"
-          gap="0"
-          className="content-center flex-wrap flex-row"
-          style={{ justifyContent: "center", borderRadius: "39px" }}
-        >
-          <Image
-            src={userProfile.profileImage || profileColorMode}
-            boxSize="150px"
-            borderRadius="full"
-            fit="cover"
-            alt={userProfile.name}
-            style={{ placeSelf: "center", padding: "10px 10px" }}
-          />
-
-          <Box
-            p="4"
-            spacey="0"
-            style={{ display: "block", alignContent: "center" }}
-          >
-            <HStack direction="row">
-              <VStack>
-                <HStack>
-                  <VStack>
-                    <Text fontSize="xl" fontWeight="bold" color="white">
-                      {userProfile.name}
-                    </Text>
-                    <Badge colorScheme="teal" variant="solid">
-                      {userProfile.goal}
-                    </Badge>
-                  </VStack>
-                  <VStack>
-                    <Text fontSize="xl" fontWeight="bold" color="white">
-                      {userProfile.postsCount}
-                    </Text>
-                    <Badge colorScheme="teal" variant="solid">
-                      Posts
-                    </Badge>
-                  </VStack>
-                  <VStack>
-                    <Text fontSize="xl" fontWeight="bold" color="white">
-                      {userProfile.gymName}
-                    </Text>
-                    <Badge colorScheme="teal" variant="solid">
-                      Gym
-                    </Badge>
-                  </VStack>
-                </HStack>
-                <HStack gap="1" fontWeight="medium">
-                  <Text maxWidth="600px" color="white">
-                    {userProfile.bio}
-                  </Text>
-                </HStack>
-                <IconButton
-                  onClick={onOpen}
-                  icon={<EditIcon />}
-                  colorScheme="blue"
-                  style={{ width: "200px", height: "45px" }}
-                />
-              </VStack>
-            </HStack>
-          </Box>
-        </Stack>
-      </SimpleGrid> */}
-
       {/* end of profile section */}
 
       <Modal isOpen={isOpen} onClose={onClose}>
@@ -704,14 +629,17 @@ const ProfilePage = () => {
             </ModalBody>
             <ModalFooter>
               <Button
-                // type="submit"
+                type="submit"
                 colorScheme="blue"
                 mr={3}
                 // onClick={() => handleUpdateProfile(userProfile)}
-                onClick={() => {
-                  // console.log("Updated Profile Data:", userProfile);
-                  handleUpdateProfile(userProfile);
-                }}
+                // onClick={() => {
+                //   // e.preventDefault();
+                //   console.log("Form Submitted");
+                //   console.log("Submitted Profile Data:", userProfile);
+                //   // handleUpdateProfile(userProfile);
+                //   handleSubmit(userProfile);
+                // }}
                 fontFamily="Arial, sans-serif"
               >
                 Update
