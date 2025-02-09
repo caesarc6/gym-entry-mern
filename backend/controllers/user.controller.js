@@ -93,7 +93,7 @@ export const updateUserProfile = async (req, res) => {
     }
 
     // Handle profile picture upload if present
-    if (profileImage !== undefined) {
+    if (profileImageName !== undefined) {
       try {
         // Remove data:image/jpeg;base64, or similar prefix if present
         const base64Data = profileImage.split(";base64,").pop();
