@@ -204,6 +204,7 @@ const ProfilePage = () => {
 
     if (userProfile.profileImage) {
       formDataObj.append("profileImage", userProfile.profileImage);
+      formDataObj.append("profileImageName", userProfile.profileImageName);
     }
     console.log("Debug - Form Data Object:", ...formDataObj);
     const result = await handleUpdateProfile(formDataObj);
