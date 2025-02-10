@@ -127,7 +127,7 @@ router.post(
           });
         }
 
-        postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/postImage_${uid}/${filePath}`;
+        postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
       } else if (imageName !== "undefined") {
         console.log("image name ", imageName);
         console.log("image route!!");
@@ -153,7 +153,7 @@ router.post(
           });
         }
 
-        postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/postImage_${uid}/${filePath}`;
+        postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
       }
 
       // Update the entry in the database
