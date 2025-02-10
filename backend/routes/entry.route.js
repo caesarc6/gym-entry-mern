@@ -37,14 +37,14 @@ const upload = multer({
     fieldSize: 5 * 1024 * 1024, // 2MB field size limit
   },
 });
-const uploadMiddleware = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB file size limit
-    fieldSize: 5 * 1024 * 1024, // 2MB field size limit
-  },
-}).single("image");
+// const uploadMiddleware = multer({
+//   storage: storage,
+//   fileFilter: fileFilter,
+//   limits: {
+//     fileSize: 5 * 1024 * 1024, // 5MB file size limit
+//     fieldSize: 5 * 1024 * 1024, // 2MB field size limit
+//   },
+// }).single("image");
 
 // Middleware to handle file upload errors
 export const handleFileUpload = (req, res, next) => {
