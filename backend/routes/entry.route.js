@@ -107,13 +107,18 @@ router.post(
     try {
       let postImageUrl = null;
 
-      if (req.file) {
-        console.log("file route!!");
-        // Handle file upload
+      if (imageName !== "undefined" || imageName !== "") {
+        console.log("image name ", imageName);
+        console.log("image route!!");
+        // Handle base64 image
+        const base64Data = image.split(";base64,").pop();
+        const imageBuffer = Buffer.from(base64Data, "base64");
         const filePath = `images/image_${uid}/${imageName}_${Date.now()}.jpg`;
+        // const filePath = `images/image_${uid}_${Date.now()}.jpg`;
+
         const { error } = await supabase.storage
           .from("post_images")
-          .upload(filePath, req.file.buffer, {
+          .upload(filePath, imageBuffer, {
             contentType: "image/jpeg",
             cacheControl: "3600",
             upsert: true,
@@ -128,18 +133,13 @@ router.post(
         }
 
         postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
-      } else if (imageName !== "undefined" || imageName !== "") {
-        console.log("image name ", imageName);
-        console.log("image route!!");
-        // Handle base64 image
-        const base64Data = image.split(";base64,").pop();
-        const imageBuffer = Buffer.from(base64Data, "base64");
+      } else if (req.file) {
+        console.log("file route!!");
+        // Handle file upload
         const filePath = `images/image_${uid}/${imageName}_${Date.now()}.jpg`;
-        // const filePath = `images/image_${uid}_${Date.now()}.jpg`;
-
         const { error } = await supabase.storage
           .from("post_images")
-          .upload(filePath, imageBuffer, {
+          .upload(filePath, req.file.buffer, {
             contentType: "image/jpeg",
             cacheControl: "3600",
             upsert: true,
