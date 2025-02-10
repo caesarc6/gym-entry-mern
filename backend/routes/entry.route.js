@@ -107,7 +107,6 @@ router.post(
     try {
       let postImageUrl = null;
 
-      // if (imageName !== "undefined") {
       if (req.file) {
         console.log("file route!!");
         // Handle file upload
@@ -129,7 +128,8 @@ router.post(
         }
 
         postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/postImage_${uid}/${filePath}`;
-      } else if (image) {
+      } else if (imageName !== "undefined") {
+        console.log("image name ", imageName);
         console.log("image route!!");
         // Handle base64 image
         const base64Data = image.split(";base64,").pop();
