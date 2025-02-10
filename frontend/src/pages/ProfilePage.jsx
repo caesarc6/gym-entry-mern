@@ -282,13 +282,13 @@ const ProfilePage = () => {
         ...data.data,
       }));
 
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      // toast({
+      //   title: "Success",
+      //   description: "Profile updated successfully",
+      //   status: "success",
+      //   duration: 5000,
+      //   isClosable: true,
+      // });
       onClose();
 
       // Return the result for handleSubmit

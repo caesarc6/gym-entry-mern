@@ -79,9 +79,8 @@ export const updateUserProfile = async (req, res) => {
     });
 
     // Extract fields from form data
-    const { name, goal, gymName, bio } = req.body;
-    const { profileImage } = req.body;
-    const { profileImageName } = req.body;
+    const { name, goal, gymName, bio, profileImageName, profileImage } =
+      req.body;
     console.log("req.body.profileImage", req.body.profileImage);
     console.log("req.body.profileImageName", req.body.profileImageName);
     // Validate that at least one field is provided
@@ -103,7 +102,7 @@ export const updateUserProfile = async (req, res) => {
 
         // Create a simple file path with timestamp
         const timestamp = Date.now();
-        const filePath = `profiles/profile_${uid}_${profileImageName}_${timestamp}.jpg`;
+        const filePath = `profiles/profile_${uid}/${profileImageName}_${timestamp}.jpg`;
 
         console.log("Debug - Upload attempt with path:", filePath);
 
@@ -124,7 +123,7 @@ export const updateUserProfile = async (req, res) => {
           });
         }
 
-        const profileImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/${filePath}`;
+        const profileImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/profiles/${filePath}`;
         console.log("Debug - Generated URL:", profileImageUrl);
 
         await User.findOneAndUpdate(
@@ -163,11 +162,11 @@ export const updateUserProfile = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      message: "Profile updated successfully",
-      data: user,
-    });
+    // res.status(200).json({
+    //   success: true,
+    //   message: "Profile updated successfully",
+    //   data: user,
+    // });
   } catch (error) {
     console.error("Update user profile error:", error);
     res.status(500).json({

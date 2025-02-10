@@ -197,6 +197,7 @@ export const useProductStore = create((set) => ({
     return { success: true, message: data.message };
   },
 
+  // Update workout entry
   updateEntry: async (pid, updatedEntry) => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -206,6 +207,7 @@ export const useProductStore = create((set) => ({
     Object.entries(updatedEntry).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
         formData.append(key, value);
+        console.log("key:", key, "value:", value);
       }
     });
 

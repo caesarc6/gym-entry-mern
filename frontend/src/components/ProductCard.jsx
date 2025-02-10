@@ -22,10 +22,9 @@ import {
   VStack,
   useColorMode,
 } from "@chakra-ui/react";
-import { HiUpload } from "react-icons/hi";
 import { FileUploader } from "./FileUploader"; // Import the FileUploader component
 import { useProductStore } from "../store/product";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import PropTypes from "prop-types";
 
 const ProductCard = ({ entry }) => {
@@ -88,7 +87,7 @@ const ProductCard = ({ entry }) => {
     // console.log("Updated Entry:", pid, updatedEntry);
     const previousEntry = { ...updatedEntry };
     setUpdatedEntry((prevEntry) => ({ ...prevEntry, ...updatedEntry }));
-    console.log("debug 'field too long' - updatedEntry:", updatedEntry);
+    // console.log("debug 'field too long' - updatedEntry:", updatedEntry);
     // error from backend server is coming from below line
     const { success, message, data } = await updateEntry(pid, updatedEntry);
 

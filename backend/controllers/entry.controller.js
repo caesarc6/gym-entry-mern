@@ -99,8 +99,9 @@ export const createEntry = async (req, res) => {
   }
 };
 
+//update workout entry
 export const updateEntry = async (req, res) => {
-  const { pid, name, description, image } = req.body; // Extract fields directly from req.body
+  const { pid, name, description, image, imageName } = req.body; // Extract fields directly from req.body
   const { uid } = req.user;
 
   // Check if at least one of the fields (name or description) is provided
@@ -112,11 +113,11 @@ export const updateEntry = async (req, res) => {
     let postImageUrl = null;
 
     // Check if a new image is provided
-    if (image) {
+    if (imageName !== "undefined") {
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
       const timestamp = Date.now();
-      const filePath = `images/image_${uid}_${timestamp}.jpg`;
+      const filePath = `images/image_${uid}/${imageName}_${timestamp}.jpg`;
 
       // Upload the new image to Supabase storage
       const { data: file, error } = await supabase.storage
