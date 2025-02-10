@@ -96,7 +96,7 @@ router.post(
   upload.single("image"), // Only use this middleware
   async (req, res) => {
     // console.log("Request received");
-    const { pid, name, description, image } = req.body;
+    const { pid, name, description, image, imageName } = req.body;
     const { uid } = req.user;
 
     if (!name && !description) {
@@ -107,9 +107,11 @@ router.post(
     try {
       let postImageUrl = null;
 
-      if (req.file) {
+      if (imageName !== "undefined") {
+        console.log("file route!!");
+        // if (req.file) {
         // Handle file upload
-        const filePath = `images/image_${uid}_${Date.now()}.jpg`;
+        const filePath = `images/image_${uid}/${imageName}_${Date.now()}.jpg`;
         const { error } = await supabase.storage
           .from("post_images")
           .upload(filePath, req.file.buffer, {
@@ -126,8 +128,9 @@ router.post(
           });
         }
 
-        postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+        postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/postImage_${uid}/${filePath}`;
       } else if (image) {
+        console.log("image route!!");
         // Handle base64 image
         const base64Data = image.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
@@ -149,7 +152,7 @@ router.post(
           });
         }
 
-        postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+        postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/postImage_${uid}/${filePath}`;
       }
 
       // Update the entry in the database
