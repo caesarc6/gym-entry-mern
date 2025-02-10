@@ -9,7 +9,7 @@ import {
   getUser,
   getUserProfile,
   getCurrentMongoDBUser,
-  updateUserProfile,
+  // updateUserProfile,
 } from "../controllers/user.controller.js";
 import { verifyIdToken } from "../middleware/auth.js";
 import User from "../models/user.model.js";
