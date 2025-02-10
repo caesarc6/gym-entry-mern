@@ -107,9 +107,9 @@ router.post(
     try {
       let postImageUrl = null;
 
-      if (imageName !== "undefined") {
+      // if (imageName !== "undefined") {
+      if (req.file) {
         console.log("file route!!");
-        // if (req.file) {
         // Handle file upload
         const filePath = `images/image_${uid}/${imageName}_${Date.now()}.jpg`;
         const { error } = await supabase.storage
