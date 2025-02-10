@@ -7,13 +7,10 @@ import {
   updateEntry,
   likeEntry,
   commentEntry,
-  // handleFileUpload,
 } from "../controllers/entry.controller.js";
 import mongoose from "mongoose";
 import Entry from "../models/entry.model.js";
-
 import { supabase } from "../supabase/supabase.js";
-// import User from "../models/user.model.js";
 import { verifyIdToken } from "../middleware/auth.js"; //
 
 const router = express.Router();
@@ -54,7 +51,6 @@ export const handleFileUpload = (req, res, next) => {
   if (!req.file) {
     return next(); // No file uploaded, skip to the next middleware
   }
-
   // Check for Multer errors
   if (req.fileError) {
     if (req.fileError instanceof multer.MulterError) {
@@ -69,23 +65,13 @@ export const handleFileUpload = (req, res, next) => {
       });
     }
   }
-  // Log the request body and file for debugging
-  // console.log("Request body:", req.body);
-  // console.log("Request file:", req.file);
 
-  // Proceed to the next middleware
   next();
 };
 
 router.get("/", getEntrys);
 router.post("/", createEntry);
-// router.post(
-//   "/:id",
-//   verifyIdToken,
-//   updateEntry,
-//   upload.single("image"),
-//   handleFileUpload
-// );
+
 router.delete("/:id", deleteEntry);
 router.post("/:id/like", likeEntry);
 router.post("/:id/comment", commentEntry);
