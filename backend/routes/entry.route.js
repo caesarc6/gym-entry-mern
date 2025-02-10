@@ -134,7 +134,8 @@ router.post(
         // Handle base64 image
         const base64Data = image.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
-        const filePath = `images/image_${uid}_${Date.now()}.jpg`;
+        const filePath = `images/image_${uid}/${imageName}_${Date.now()}.jpg`;
+        // const filePath = `images/image_${uid}_${Date.now()}.jpg`;
 
         const { error } = await supabase.storage
           .from("post_images")
