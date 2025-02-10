@@ -90,7 +90,8 @@ const Navbar = () => {
 
   return (
     <Container
-      backgroundColor={"#071f3278"}
+      backgroundColor={colorMode === "light" ? "#071f3278" : "#13151775"}
+      // backgroundColor={"#071f3278"}
       maxW={"100%"}
       position={"fixed"}
       p={0}

@@ -6,6 +6,7 @@ import ProductCard from "../components/ProductCard";
 import ProfilePage from "./ProfilePage";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
+import { Hero } from "../components/Hero";
 
 const HomePage = () => {
   const { fetchEntrys, entrys, clearEntrys, updateEntry } = useProductStore();
@@ -267,13 +268,10 @@ const HomePage = () => {
   };
 
   return (
-    <Container
-      maxW="container.xl"
-      className="text-center z-0 relative p-[117px]"
-    >
+    <Container maxW="container.xl" className="text-center z-0 relative">
       {isSignedIn ? (
         <>
-          <VStack spacing={8}>
+          <VStack spacing={8} className="pt-[112px]">
             <Text
               fontSize={"22"}
               fontWeight={"bold"}
@@ -286,10 +284,10 @@ const HomePage = () => {
             </Text>
             <div>
               <div
-                className="gap-9 flex flex-col justify-center"
+                className="gap-9  flex-col justify-center"
                 style={{ textAlign: "center" }}
               >
-                <Button className="p-3  rounded-md">
+                <Button className="p-3 m-2 rounded-md">
                   <Link className="py-[10px] px-[8px]" to={"/profile"}>
                     Profile
                   </Link>
@@ -302,7 +300,7 @@ const HomePage = () => {
                     setUid(null);
                     // fetchEntries();
                   }}
-                  className="p-3 bg-red-400 rounded-md"
+                  className="p-3 m-2 bg-red-400 rounded-md"
                 >
                   Sign Out
                 </Button>
@@ -355,103 +353,7 @@ const HomePage = () => {
           </VStack>
         </>
       ) : (
-        <>
-          {/* Gradients */}
-          <div
-            aria-hidden="true"
-            className="fixed inset-0 z-0" // Covers the entire viewport and stays fixed
-          >
-            <div className="absolute inset-0 bg-[#061f32] overflow-hidden">
-              {/* Top Gradients */}
-              {/* First Gradient (Top) */}
-              <div
-                className="absolute w-[25rem] h-[44rem] bg-gradient-to-r from-background/50 to-background blur-3xl rotate-[-60deg] transform -translate-x-[10rem] bg-slate-700 animate-blob"
-                style={{ top: "-10%", left: "50%" }} // Adjust positioning as needed
-              />
-              {/* Second Gradient (Top) */}
-              <div
-                className="absolute w-[90rem] h-[50rem] bg-gradient-to-tl from-primary-foreground via-primary-foreground to-background blur-3xl rounded-full origin-top-left -rotate-12 -translate-x-[15rem] bg-[#cfe6ff] animate-blob-reverse"
-                style={{ top: "-20%", left: "50%" }} // Adjust positioning as needed
-              />
-
-              {/* Bottom Gradients (Inverted Mirror Image) */}
-              {/* First Gradient (Bottom) */}
-              <div
-                className="absolute w-[25rem] h-[44rem] bg-gradient-to-r from-background/50 to-background blur-3xl rotate-[60deg] transform translate-x-[10rem] bg-slate-700 animate-blob"
-                style={{ bottom: "-30%", left: "20%" }} // Adjust positioning as needed
-              />
-              {/* Second Gradient (Bottom) */}
-              <div
-                className="absolute w-[90rem] h-[50rem] bg-gradient-to-tl from-primary-foreground via-primary-foreground to-background blur-3xl rounded-full origin-bottom-left rotate-12 translate-x-[15rem] bg-[#cfe6ff] animate-blob-reverse"
-                style={{ bottom: "-36%", right: "54%" }} // Adjust positioning as needed
-              />
-            </div>
-          </div>
-          {/* End Gradients */}
-
-          {/* Hero */}
-          <div className="relative overflow-hidden py-24 lg:py-32 h-[73vh]">
-            <div className="relative ">
-              <div className="container py-10 lg:py-16">
-                <div className="max-w-2xl text-center mx-auto">
-                  <p className="">All your workouts. In one place.</p>
-                  {/* Title */}
-                  <div className="mt-5 max-w-2xl">
-                    <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
-                      Track Your Progress Simply.
-                    </h1>
-                  </div>
-                  {/* End Title */}
-                  <div className="mt-5 max-w-3xl">
-                    <p className="text-xl text-muted-foreground">
-                      Keep track of your workouts and progress with ease. Sign
-                      up now to get started.
-                    </p>
-                  </div>
-                  {/* Buttons */}
-                  <div className="mt-8 gap-3 flex justify-center">
-                    {/* <Button size={"lg"}>
-                      {" "}
-                      <Link to={"/signup"}>
-                        <Text as="span" color="neutral.400">
-                          Sign Up
-                        </Text>
-
-                      </Link>
-                    </Button> */}
-                    <Button
-                      size={"lg"}
-                      // variant={"outline"}
-                      onClick={async () => {
-                        await handleGoogleSignIn();
-                        setIsSignedIn(true);
-                      }}
-                      className="p-3  rounded-md"
-                    >
-                      <Text as="span" color="neutral.400">
-                        Sign Up
-                      </Text>
-                    </Button>
-                    <Button
-                      size={"lg"}
-                      variant={"outline"}
-                      onClick={async () => {
-                        await handleGoogleSignIn();
-                        setIsSignedIn(true);
-                      }}
-                      className="p-3  rounded-md"
-                    >
-                      Login
-                    </Button>
-                  </div>
-                  {/* End Buttons */}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* End Hero */}
-        </>
+        <Hero />
       )}
     </Container>
   );

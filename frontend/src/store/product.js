@@ -390,6 +390,6 @@ auth.onAuthStateChanged((user) => {
     console.log("User authenticated:", user);
     // Call fetchEntrys function here if needed
   } else {
-    console.error("User not authenticated");
+    // console.error("User not authenticated");
   }
 });
