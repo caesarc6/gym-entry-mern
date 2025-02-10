@@ -107,7 +107,7 @@ router.post(
     try {
       let postImageUrl = null;
 
-      if (imageName !== "undefined" || imageName !== "") {
+      if (imageName && imageName !== "undefined") {
         console.log("image name ", imageName);
         console.log("image route!!");
         // Handle base64 image
