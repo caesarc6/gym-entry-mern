@@ -116,7 +116,7 @@ router.post(
       let profileImageUrl = null;
 
       // Handle base64 image upload
-      if (profileImageName && profileImage) {
+      if (profileImageName !== "undefined") {
         const base64Data = profileImage.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
         const timestamp = Date.now();
