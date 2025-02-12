@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+// import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import User from "../models/user.model.js";
 import { createClient } from "@supabase/supabase-js";
 import multer from "multer";
@@ -299,19 +299,101 @@ export const createPost = async (req, res) => {
   }
 };
 
-// Get entries by UID
-export const getPostsByUID = async (req, res) => {
-  const { uid } = req.params;
-  // console.log("UID:", uid);
+// Get entries by UID from mongoDB database using pagination
+// export const getPostsByUID = async (req, res) => {
+//   const { uid } = req.params;
 
+//   // Extract pagination parameters from query string
+//   const page = parseInt(req.query.page) || 1; // Default to page 1
+//   const limit = parseInt(req.query.limit) || 10; // Default to 10 items per page
+
+//   try {
+//     // Calculate the number of documents to skip
+//     const skip = (page - 1) * limit;
+
+//     // Fetch posts for the user with pagination
+//     const entries = await Entry.find({ uid })
+//       .skip(skip) // Skip the previous pages' documents
+//       .limit(limit); // Limit the number of documents returned
+
+//     // Get the total number of posts for the user (for calculating total pages)
+//     const totalEntries = await Entry.countDocuments({ uid });
+
+//     // Calculate total pages
+//     const totalPages = Math.ceil(totalEntries / limit);
+
+//     // Send response with posts and pagination metadata
+//     res.status(200).json({
+//       success: true,
+//       data: entries,
+//       pagination: {
+//         currentPage: page,
+//         totalPages: totalPages,
+//         totalEntries: totalEntries,
+//         limit: limit,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error fetching entries:", error);
+//     res
+//       .status(500)
+//       .json({ success: false, error: "Failed to retrieve entries" });
+//   }
+// };
+
+export const getPostsByUID = async (req, res) => {
   try {
-    const entries = await Entry.find({ uid });
-    res.status(200).json({ success: true, data: entries });
+    const { uid } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 6;
+
+    // Validate page and limit
+    if (page < 1 || limit < 1) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid page or limit value" });
+    }
+
+    const skip = (page - 1) * limit;
+
+    // Fetch posts for the user with pagination
+    const posts = await Entry.find({ uid }).skip(skip).limit(limit);
+
+    // Get the total number of posts for the user
+    const totalPosts = await Entry.countDocuments({ uid });
+
+    // Calculate total pages
+    const totalPages = Math.ceil(totalPosts / limit);
+
+    res.json({
+      success: true,
+      data: posts,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalPosts: totalPosts,
+        limit: limit,
+      },
+    });
   } catch (error) {
-    res.status(500).json({ error: "Failed to retrieve entries" });
+    console.error("Error fetching posts:", error);
+    res.status(500).json({ success: false, error: "Failed to retrieve posts" });
   }
-  //
 };
+
+// Get entries by UID
+// export const getPostsByUID = async (req, res) => {
+//   const { uid } = req.params;
+//   // console.log("UID:", uid);
+
+//   try {
+//     const entries = await Entry.find({ uid });
+//     res.status(200).json({ success: true, data: entries });
+//   } catch (error) {
+//     res.status(500).json({ error: "Failed to retrieve entries" });
+//   }
+//   //
+// };
 
 // get users in database sending back all users with name and UID
 export const getUsers = async (req, res) => {

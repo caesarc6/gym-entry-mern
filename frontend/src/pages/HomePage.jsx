@@ -1,4 +1,11 @@
-import { Container, SimpleGrid, Text, VStack, Button } from "@chakra-ui/react";
+import {
+  Container,
+  SimpleGrid,
+  Text,
+  VStack,
+  Button,
+  Box,
+} from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
@@ -15,6 +22,24 @@ const HomePage = () => {
   const [uid, setUid] = useState(null);
   const [posts, setPosts] = useState([]);
   const [entries, setEntries] = useState([]);
+
+  //
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(6); // Number of items per page
+
+  // Calculate the total number of pages
+  const totalPages = Math.ceil(entries.length / limit);
+
+  // Slice the entries array to get only the items for the current page
+  const startIndex = (currentPage - 1) * limit;
+  const endIndex = startIndex + limit;
+  const paginatedEntries = [...entries].reverse().slice(startIndex, endIndex);
+
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+  //
 
   // Add this useEffect to handle initial auth state
   useEffect(() => {
@@ -45,7 +70,10 @@ const HomePage = () => {
 
         const token = await user.getIdToken();
         const response = await fetch(
-          `https://gym-tracker-brown.vercel.app/api/posts/${uid}`,
+          `http://localhost:5001/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
+          // `http://localhost:5001/api/posts/${uid}?limit=7`,
+          // `http://localhost:5173/api/posts/${uid}?limit=10`,
+          // `https://gym-tracker-brown.vercel.app/api/posts/${uid}`,
           {
             method: "GET",
             headers: {
@@ -67,7 +95,7 @@ const HomePage = () => {
     if (uid) {
       fetchPosts();
     }
-  }, [uid]);
+  }, [uid, currentPage, limit, totalPages]);
 
   // save token in local storage b/c sending token requests takes alot of time and is slow
 
@@ -316,15 +344,47 @@ const HomePage = () => {
               spacing={10}
               w={"full"}
             >
-              {[...entries].reverse().map((entry) => (
+              {entries.map((entry) => (
                 <ProductCard
                   key={entry._id}
                   entry={entry}
                   onUpdate={handleUpdateEntry}
                 />
               ))}
-            </SimpleGrid>
 
+              {/* {[...entries].reverse().map((entry) => (
+                <ProductCard
+                  key={entry._id}
+                  entry={entry}
+                  onUpdate={handleUpdateEntry}
+                />
+              ))} */}
+            </SimpleGrid>
+            {/* Pagination controls */}
+            <Box
+              mt={6}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Button
+                onClick={() => handlePageChange(currentPage - 1)}
+                isDisabled={currentPage === 1}
+                mr={2}
+              >
+                Previous
+              </Button>
+              <Text mx={2}>
+                Page {currentPage} of {totalPages}
+              </Text>
+              <Button
+                onClick={() => handlePageChange(currentPage + 1)}
+                isDisabled={currentPage === totalPages}
+                ml={2}
+              >
+                Next
+              </Button>
+            </Box>
             <div>
               {entries.length === 0 && (
                 <Text

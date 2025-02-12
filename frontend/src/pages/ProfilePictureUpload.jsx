@@ -1,18 +1,7 @@
 import { Container, SimpleGrid, Text, VStack, Button } from "@chakra-ui/react";
-// import { useState } from "react";
-// import axios from "axios";
-// import { auth } from "../firebase";
-// import { getAuth } from "firebase/auth";
 import path from "path";
-// import multer from "multer";
-import { createClient } from "@supabase/supabase-js";
-// import User from "../models/user.model.js";
-// import cors from "cors";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
-// const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-// const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-// const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 import { useState } from "react";
 import { getAuth } from "firebase/auth";
