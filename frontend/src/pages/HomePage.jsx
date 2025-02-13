@@ -74,7 +74,8 @@ const HomePage = () => {
 
         const token = await user.getIdToken();
         const response = await fetch(
-          `http://localhost:5001/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
+          // `http://localhost:5001/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
+          `https://gym-tracker-brown.vercel.app/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
           {
             method: "GET",
             headers: {
