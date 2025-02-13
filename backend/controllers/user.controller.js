@@ -357,7 +357,10 @@ export const getPostsByUID = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Fetch posts for the user with pagination
-    const posts = await Entry.find({ uid }).skip(skip).limit(limit);
+    const posts = await Entry.find({ uid })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     // Get the total number of posts for the user
     const totalPosts = await Entry.countDocuments({ uid });

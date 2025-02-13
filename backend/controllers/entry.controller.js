@@ -99,7 +99,7 @@ export const createEntry = async (req, res) => {
   }
 };
 
-//update workout entry
+// update workout entry
 export const updateEntry = async (req, res) => {
   const { pid, name, description, image, imageName } = req.body; // Extract fields directly from req.body
   const { uid } = req.user;

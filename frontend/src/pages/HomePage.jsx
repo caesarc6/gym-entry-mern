@@ -27,9 +27,6 @@ const HomePage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(6); // Number of items per page
 
-  // Calculate the total number of pages
-  const totalPages = Math.ceil(entries.length / limit);
-
   // Slice the entries array to get only the items for the current page
   const startIndex = (currentPage - 1) * limit;
   const endIndex = startIndex + limit;
@@ -59,10 +56,17 @@ const HomePage = () => {
     return () => unsubscribe(); // Cleanup subscription
   }, [clearEntrys]);
 
-  // Your existing useEffect for fetching posts
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalPosts: 0,
+    limit: 6,
+  });
+
   useEffect(() => {
     const fetchPosts = async () => {
       try {
+        setIsLoading(true); // Set loading to true before fetching
         if (!uid) return;
 
         const user = auth.currentUser;
@@ -71,9 +75,6 @@ const HomePage = () => {
         const token = await user.getIdToken();
         const response = await fetch(
           `http://localhost:5001/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
-          // `http://localhost:5001/api/posts/${uid}?limit=7`,
-          // `http://localhost:5173/api/posts/${uid}?limit=10`,
-          // `https://gym-tracker-brown.vercel.app/api/posts/${uid}`,
           {
             method: "GET",
             headers: {
@@ -86,16 +87,60 @@ const HomePage = () => {
         const data = await response.json();
         if (data.success) {
           setEntries(data.data);
+          setPagination(data.pagination); // Store pagination data
         }
       } catch (error) {
         console.error("Error fetching posts:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     if (uid) {
       fetchPosts();
     }
-  }, [uid, currentPage, limit, totalPages]);
+  }, [uid, currentPage, limit]);
+
+  // Calculate the total number of pages
+  const totalPages = pagination.totalPages;
+
+  // Your existing useEffect for fetching posts
+  // useEffect(() => {
+  //   const fetchPosts = async () => {
+  //     try {
+  //       if (!uid) return;
+
+  //       const user = auth.currentUser;
+  //       if (!user) return;
+
+  //       const token = await user.getIdToken();
+  //       const response = await fetch(
+  //         `http://localhost:5001/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
+  //         // `http://localhost:5001/api/posts/${uid}?limit=7`,
+  //         // `http://localhost:5173/api/posts/${uid}?limit=10`,
+  //         // `https://gym-tracker-brown.vercel.app/api/posts/${uid}`,
+  //         {
+  //           method: "GET",
+  //           headers: {
+  //             "Content-Type": "application/json",
+  //             Authorization: `Bearer ${token}`,
+  //           },
+  //         }
+  //       );
+
+  //       const data = await response.json();
+  //       if (data.success) {
+  //         setEntries(data.data);
+  //       }
+  //     } catch (error) {
+  //       console.error("Error fetching posts:", error);
+  //     }
+  //   };
+
+  //   if (uid) {
+  //     fetchPosts();
+  //   }
+  // }, [uid, currentPage, limit, totalPages]);
 
   // save token in local storage b/c sending token requests takes alot of time and is slow
 
@@ -163,6 +208,14 @@ const HomePage = () => {
       console.error("Error searching posts by UID:", error);
     }
   };
+
+  if (isLoading) {
+    return (
+      <Box textAlign="center" mt={10}>
+        <Text>Loading...</Text>
+      </Box>
+    );
+  }
 
   const getAllUID = async () => {
     try {
