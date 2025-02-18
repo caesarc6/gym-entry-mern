@@ -37,7 +37,8 @@ const HomePage = () => {
     setCurrentPage(newPage);
   };
   //
-
+  const leftString = "<";
+  const rightString = ">";
   // Add this useEffect to handle initial auth state
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -426,7 +427,7 @@ const HomePage = () => {
                 isDisabled={currentPage === 1}
                 mr={2}
               >
-                Previous
+                {leftString}
               </Button>
               <Text mx={2}>
                 Page {currentPage} of {totalPages}
@@ -436,7 +437,7 @@ const HomePage = () => {
                 isDisabled={currentPage === totalPages}
                 ml={2}
               >
-                Next
+                {rightString}
               </Button>
             </Box>
             <div>

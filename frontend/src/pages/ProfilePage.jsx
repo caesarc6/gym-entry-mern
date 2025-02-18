@@ -562,6 +562,9 @@ const ProfilePage = () => {
     }
   };
 
+  const leftString = "<";
+  const rightString = ">";
+
   // end of new code for pagination
 
   return (
@@ -910,7 +913,7 @@ const ProfilePage = () => {
             isDisabled={currentPage === 1}
             mr={2}
           >
-            Previous
+            {leftString}
           </Button>
           <Text mx={2}>
             Page {currentPage} of {totalPages}
@@ -920,7 +923,7 @@ const ProfilePage = () => {
             isDisabled={currentPage === totalPages}
             ml={2}
           >
-            Next
+            {rightString}
           </Button>
         </Box>
         {entries.length === 0 && (
