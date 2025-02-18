@@ -14,6 +14,9 @@ import ProfilePage from "./ProfilePage";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
 import { Hero } from "../components/Hero";
+import { RxThickArrowLeft } from "react-icons/rx";
+import { SlArrowRight } from "react-icons/sl";
+import { SlArrowLeft } from "react-icons/sl";
 
 const HomePage = () => {
   const { fetchEntrys, entrys, clearEntrys, updateEntry } = useProductStore();
@@ -37,8 +40,7 @@ const HomePage = () => {
     setCurrentPage(newPage);
   };
   //
-  const leftString = "<";
-  const rightString = ">";
+
   // Add this useEffect to handle initial auth state
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -365,8 +367,8 @@ const HomePage = () => {
             >
               Workout Entries
             </Text>
-            <div>
-              <div
+            <span>
+              <span
                 className="gap-9  flex-col justify-center"
                 style={{ textAlign: "center" }}
               >
@@ -387,8 +389,8 @@ const HomePage = () => {
                 >
                   Sign Out
                 </Button>
-              </div>
-            </div>
+              </span>
+            </span>
 
             <SimpleGrid
               columns={{
@@ -427,7 +429,7 @@ const HomePage = () => {
                 isDisabled={currentPage === 1}
                 mr={2}
               >
-                {leftString}
+                <SlArrowLeft />
               </Button>
               <Text mx={2}>
                 Page {currentPage} of {totalPages}
@@ -437,10 +439,10 @@ const HomePage = () => {
                 isDisabled={currentPage === totalPages}
                 ml={2}
               >
-                {rightString}
+                <SlArrowRight />
               </Button>
             </Box>
-            <div>
+            <span>
               {entries.length === 0 && (
                 <Text
                   fontSize="xl"
@@ -458,13 +460,13 @@ const HomePage = () => {
                       Create an entry
                     </Text>
                   </Link>
-                  <div
+                  <span
                     className=" flex justify-center items-center"
                     style={{ textAlign: "center" }}
-                  ></div>
+                  ></span>
                 </Text>
               )}
-            </div>
+            </span>
           </VStack>
         </>
       ) : (

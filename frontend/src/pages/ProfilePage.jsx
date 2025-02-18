@@ -34,6 +34,8 @@ import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import { auth, googleProvider } from "../firebase";
 import { getAuth, signInWithPopup } from "firebase/auth";
+import { SlArrowRight } from "react-icons/sl";
+import { SlArrowLeft } from "react-icons/sl";
 
 import { HiStar } from "react-icons/hi";
 import PropTypes from "prop-types";
@@ -41,10 +43,6 @@ import PropTypes from "prop-types";
 const ProfilePage = () => {
   // const { fetchEntrys, entrys, clearEntrys } = useProductStore();
   // const [updatedEntry, setUpdatedEntry] = useState(entry);
-  const [isFileSelected, setIsFileSelected] = useState(false);
-  const textColorDesc = useColorModeValue("gray.700", "gray.400");
-  const profileColorMode = useColorModeValue(light, night);
-
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [entries, setEntries] = useState([]);
   const [updatedProfile, setUpdatedProfile] = useState(null);
@@ -58,6 +56,31 @@ const ProfilePage = () => {
   });
   const [profileImage, setProfileImage] = useState(null);
   const [uid, setUid] = useState(null);
+  const [posts, setPosts] = useState([]);
+
+  //
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(6); // Number of items per page
+  const [isFileSelected, setIsFileSelected] = useState(false);
+  const [formData, setFormData] = useState({
+    name: userProfile.name || "",
+    goal: userProfile.goal || "",
+    gymName: userProfile.gymName || "",
+    bio: userProfile.bio || "",
+  });
+
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalPosts: 0,
+    limit: 6,
+  });
+
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
+  const textColorDesc = useColorModeValue("gray.700", "gray.400");
+  const bgColor = useColorModeValue("white", "gray.800");
+  const colorEditButton = useColorModeValue("gray.400", "gray.900");
+  const profileColorMode = useColorModeValue(light, night);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { updateProfile } = useProductStore();
   const {
@@ -69,11 +92,6 @@ const ProfilePage = () => {
   const toast = useToast();
 
   const { fetchEntrys, entrys, clearEntrys, updateEntry } = useProductStore();
-  const [posts, setPosts] = useState([]);
-
-  //
-  const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(6); // Number of items per page
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -170,13 +188,6 @@ const ProfilePage = () => {
       console.error("Error fetching user profile:", error);
     }
   };
-
-  const [formData, setFormData] = useState({
-    name: userProfile.name || "",
-    goal: userProfile.goal || "",
-    gymName: userProfile.gymName || "",
-    bio: userProfile.bio || "",
-  });
 
   // Update the handleInputChange function
   const handleInputChange = (e) => {
@@ -359,7 +370,6 @@ const ProfilePage = () => {
   }, [uid]);
 
   // start of new code
-  const bgColor = useColorModeValue("white", "gray.800");
 
   // Slice the entries array to get only the items for the current page
   const startIndex = (currentPage - 1) * limit;
@@ -388,13 +398,6 @@ const ProfilePage = () => {
 
     return () => unsubscribe(); // Cleanup subscription
   }, [clearEntrys]);
-
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalPosts: 0,
-    limit: 6,
-  });
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -474,7 +477,6 @@ const ProfilePage = () => {
     }
   };
 
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
   if (isLoading) {
     return (
       <Box textAlign="center" mt={10}>
@@ -561,9 +563,6 @@ const ProfilePage = () => {
       console.error("Error during sign-out:", error);
     }
   };
-
-  const leftString = "<";
-  const rightString = ">";
 
   // end of new code for pagination
 
@@ -706,7 +705,7 @@ const ProfilePage = () => {
               // style={{ width: "200px", height: "45px" }}
               w={"full"}
               mt={6}
-              bg={useColorModeValue("gray.400", "gray.900")}
+              bg={colorEditButton}
               color={"white"}
               rounded={"md"}
               _hover={{
@@ -913,7 +912,7 @@ const ProfilePage = () => {
             isDisabled={currentPage === 1}
             mr={2}
           >
-            {leftString}
+            <SlArrowLeft />
           </Button>
           <Text mx={2}>
             Page {currentPage} of {totalPages}
@@ -923,7 +922,7 @@ const ProfilePage = () => {
             isDisabled={currentPage === totalPages}
             ml={2}
           >
-            {rightString}
+            <SlArrowRight />
           </Button>
         </Box>
         {entries.length === 0 && (
