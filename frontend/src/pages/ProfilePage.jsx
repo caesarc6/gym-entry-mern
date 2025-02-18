@@ -68,6 +68,13 @@ const ProfilePage = () => {
 
   const toast = useToast();
 
+  const { fetchEntrys, entrys, clearEntrys, updateEntry } = useProductStore();
+  const [posts, setPosts] = useState([]);
+
+  //
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(6); // Number of items per page
+
   useEffect(() => {
     if (!isSignedIn) {
       // fetchEntries();
@@ -310,6 +317,7 @@ const ProfilePage = () => {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
+        setIsLoading(true); // Set loading to true before fetching
         if (!uid) {
           console.error("UID is not set");
           return;
@@ -321,7 +329,7 @@ const ProfilePage = () => {
         }
         const token = await user.getIdToken();
         const response = await fetch(
-          `https://gym-tracker-brown.vercel.app/api/posts/${uid}`,
+          `https://gym-tracker-brown.vercel.app/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
           {
             method: "GET",
             headers: {
@@ -340,6 +348,8 @@ const ProfilePage = () => {
         }
       } catch (error) {
         console.error("Error fetching posts:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -347,6 +357,212 @@ const ProfilePage = () => {
       fetchPosts();
     }
   }, [uid]);
+
+  // start of new code
+  const bgColor = useColorModeValue("white", "gray.800");
+
+  // Slice the entries array to get only the items for the current page
+  const startIndex = (currentPage - 1) * limit;
+  const endIndex = startIndex + limit;
+
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+  //
+
+  // Add this useEffect to handle initial auth state
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setIsSignedIn(true);
+        setUid(user.uid);
+      } else {
+        setIsSignedIn(false);
+        setUid(null);
+        setEntries([]);
+        clearEntrys();
+      }
+      setIsLoading(false); // Set loading to false once we know the auth state
+    });
+
+    return () => unsubscribe(); // Cleanup subscription
+  }, [clearEntrys]);
+
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalPosts: 0,
+    limit: 6,
+  });
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        setIsLoading(true); // Set loading to true before fetching
+        if (!uid) return;
+
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const token = await user.getIdToken();
+        const response = await fetch(
+          // `http://localhost:5001/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
+          `https://gym-tracker-brown.vercel.app/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+        if (data.success) {
+          setEntries(data.data);
+          setPagination(data.pagination); // Store pagination data
+        }
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (uid) {
+      fetchPosts();
+    }
+  }, [uid, currentPage, limit]);
+
+  // Calculate the total number of pages
+  const totalPages = pagination.totalPages;
+
+  const handleUpdateEntry = async (pid, updatedEntry) => {
+    // Save the current state for potential rollback
+    const previousEntries = [...entries];
+
+    // Optimistically update the local state
+    const updatedEntries = entries.map((entry) =>
+      entry._id === pid ? { ...entry, ...updatedEntry } : entry
+    );
+    setEntries(updatedEntries);
+
+    try {
+      // Send the update request to the server
+      const { success, message, data } = await updateEntry(pid, updatedEntry);
+
+      if (!success) {
+        // Revert to the previous state if the request fails
+        setEntries(previousEntries);
+        console.error("Failed to update entry:", message);
+        // Optionally show an error toast
+      } else {
+        // Update the local state with the server response
+        setEntries((prevEntries) =>
+          prevEntries.map((entry) =>
+            entry._id === pid ? { ...entry, ...data.data } : entry
+          )
+        );
+        // Optionally show a success toast
+      }
+    } catch (error) {
+      // Revert to the previous state if there's an error
+      setEntries(previousEntries);
+      console.error("Error updating entry:", error);
+      // Optionally show an error toast
+    }
+  };
+
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
+  if (isLoading) {
+    return (
+      <Box textAlign="center" mt={10}>
+        <Text>Loading...</Text>
+      </Box>
+    );
+  }
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log(result);
+      const token = await result.user.getIdToken();
+
+      const response = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/protected",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const userData = await response.json();
+      console.log("User Data:", userData.uid);
+      // console.log("User Data:", userData);
+      try {
+        const token = await auth.currentUser.getIdToken();
+        const response = await fetch(
+          "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+        const resultOne = await response.json();
+        console.log("Logged in as:", resultOne);
+      } catch (error) {
+        console.error("Error fetching all UID:", error);
+      }
+    } catch (error) {
+      // clear feed and user sign in state to sign out
+      console.error("Error during sign-in:", error);
+      handleSignOutUser();
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      console.log("User signed out");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  // handle signout
+  const handleSignOutUser = async () => {
+    try {
+      await auth.signOut();
+      console.log("Signed out");
+      setUid(null);
+      setIsSignedIn(false);
+      setEntries([]);
+      // set uid to null
+
+      // set isSignedIn to false
+      // handleSignOut();
+      // fetch entries and update state
+      // change button to sign in
+      // setIsSignedIn(false);
+      // fetchEntries();
+    } catch (error) {
+      console.error("Error during sign-out:", error);
+    }
+  };
+
+  // end of new code for pagination
 
   return (
     <Container
@@ -379,7 +595,7 @@ const ProfilePage = () => {
         <Box
           maxW={"580px"}
           w={"full"}
-          bg={useColorModeValue("white", "gray.800")}
+          bg={bgColor}
           boxShadow={"2xl"}
           rounded={"md"}
           overflow={"hidden"}
@@ -676,11 +892,37 @@ const ProfilePage = () => {
           spacing={10}
           w={"full"}
         >
-          {[...entries].reverse().map((entry) => (
-            <ProductCard key={entry._id} entry={entry} />
+          {entries.map((entry) => (
+            <ProductCard
+              key={entry._id}
+              entry={entry}
+              onUpdate={handleUpdateEntry}
+            />
           ))}
-        </SimpleGrid>
 
+          {/* {[...entries].reverse().map((entry) => (
+            <ProductCard key={entry._id} entry={entry} />
+          ))} */}
+        </SimpleGrid>
+        <Box mt={6} display="flex" justifyContent="center" alignItems="center">
+          <Button
+            onClick={() => handlePageChange(currentPage - 1)}
+            isDisabled={currentPage === 1}
+            mr={2}
+          >
+            Previous
+          </Button>
+          <Text mx={2}>
+            Page {currentPage} of {totalPages}
+          </Text>
+          <Button
+            onClick={() => handlePageChange(currentPage + 1)}
+            isDisabled={currentPage === totalPages}
+            ml={2}
+          >
+            Next
+          </Button>
+        </Box>
         {entries.length === 0 && (
           <Text
             fontSize="xl"
