@@ -94,7 +94,7 @@ const CreatePage = () => {
           mb={8}
           mt={24}
         >
-          Create New Entry
+          Create New Post
         </Heading>
 
         <Box

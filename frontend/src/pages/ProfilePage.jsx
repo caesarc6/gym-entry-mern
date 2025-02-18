@@ -882,7 +882,7 @@ const ProfilePage = () => {
           bgClip={"text"}
           textAlign={"center"}
         >
-          Workout Entries
+          Workout Page
         </Text>
 
         <SimpleGrid
@@ -915,7 +915,7 @@ const ProfilePage = () => {
             <SlArrowLeft />
           </Button>
           <Text mx={2}>
-            Page {currentPage} of {totalPages}
+            {currentPage} • {totalPages}
           </Text>
           <Button
             onClick={() => handlePageChange(currentPage + 1)}

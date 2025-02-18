@@ -365,7 +365,7 @@ const HomePage = () => {
               bgClip={"text"}
               textAlign={"center"}
             >
-              Workout Entries
+              Workout Page
             </Text>
             <span>
               <span
@@ -432,7 +432,7 @@ const HomePage = () => {
                 <SlArrowLeft />
               </Button>
               <Text mx={2}>
-                Page {currentPage} of {totalPages}
+                {currentPage} • {totalPages}
               </Text>
               <Button
                 onClick={() => handlePageChange(currentPage + 1)}
