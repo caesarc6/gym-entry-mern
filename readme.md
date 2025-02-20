@@ -67,86 +67,92 @@ Gym Tracker is a full-stack web application designed to help users track their w
 
 1. Clone the repository
 
-```bash
-git clone https://github.com/caesarc6/gym-track-frontend.git
-cd gym-tracker
-```
+   ```bash
+   git clone https://github.com/caesarc6/gym-track-frontend.git
+   cd gym-tracker
+   ```
 
-2.  Install dependencies:
+2. Install dependencies:
 
 - For the frontend:
 
-```bash
-cd frontend
-npm install
-```
+  ```bash
+  cd frontend
+  npm install
+  ```
 
 - For the backend:
 
-```bash
-cd backend
-npm install
-```
+  ```bash
+  cd backend
+  npm install
+  ```
 
 3. Set up environment variables:
 
 Create a .env file in the server directory and add the following:
 
 env
-Copy
-MONGO_URI=your_mongodb_connection_string
-FIREBASE_PROJECT_ID=your_firebase_project_id
-FIREBASE_PRIVATE_KEY=your_firebase_private_key
-FIREBASE_CLIENT_EMAIL=your_firebase_client_email
-Create a .env file in the client directory and add the following:
+`bash
+	MONGO_URI=your_mongodb_connection_string
+	FIREBASE_PROJECT_ID=your_firebase_project_id
+	FIREBASE_PRIVATE_KEY=your_firebase_private_key
+	FIREBASE_CLIENT_EMAIL=your_firebase_client_email
+	`
+
+4. Create a .env file in the client directory and add the following:
 
 env
-Copy
-REACT_APP_FIREBASE_API_KEY=your_firebase_api_key
-REACT_APP_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
-REACT_APP_FIREBASE_PROJECT_ID=your_firebase_project_id
-REACT_APP_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
-REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
-REACT_APP_FIREBASE_APP_ID=your_firebase_app_id 4. Run the application:
-
+`bash
+	REACT_APP_FIREBASE_API_KEY=your_firebase_api_key
+	REACT_APP_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
+	REACT_APP_FIREBASE_PROJECT_ID=your_firebase_project_id
+	REACT_APP_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
+	REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
+	REACT_APP_FIREBASE_APP_ID=your_firebase_app_id 4. Run the application:
+	`
 Start the backend server:
 
 ```bash
-
 cd server
 npm start
 ```
 
 - Start the frontend development server:
 
-bash
-Copy
-cd client
-npm start
+```bash
+cd frontend
+npm run dev
+```
+
 Access the application:
 Open your browser and navigate to http://localhost:3000.
 
-Project Structure 📂
+##### Project Structure 📂
+
 Frontend
-Copy
-client/
-├── public/ # Static assets
-├── src/
-│ ├── components/ # Reusable components
-│ ├── pages/ # Application pages
-│ ├── store/ # Zustand store for state management
-│ ├── App.js # Main application component
-│ └── index.js # Entry point
+
+    frontend/
+    ├── public/ # Static assets
+    ├── src/
+    │ ├── components/ # Reusable components
+    │ ├── pages/ # Application pages
+    │ ├── store/ # Zustand store for state management
+    │ ├── App.js # Main application component
+    │ └── index.js # Entry point
+
 Backend
-Copy
-server/
-├── controllers/ # Route handlers
-├── models/ # MongoDB models
-├── routes/ # API routes
-├── utils/ # Utility functions
-├── app.js # Express application setup
-└── server.js # Server entry point
-API Endpoints 📡
+
+    backend/
+    ├── controllers/ # Route handlers
+    ├── models/ # MongoDB models
+    ├── routes/ # API routes
+    ├── utils/ # Utility functions
+    ├── app.js # Express application setup
+    └── server.js # Server entry point
+
+##### API Endpoints 📡
+
 User Authentication
 POST /api/signup: Register a new user.
 
