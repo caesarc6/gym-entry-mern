@@ -44,8 +44,8 @@ const uploadMiddleware = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB file size limit
-    fieldSize: 5 * 1024 * 1024, // 2MB field size limit
+    fileSize: 10 * 1024 * 1024, // 5MB file size limit
+    fieldSize: 10 * 1024 * 1024, // 2MB field size limit
   },
 }).single("profileImage");
 
