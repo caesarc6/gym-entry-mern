@@ -53,7 +53,7 @@ export const FileUploader = ({ handleFile }) => {
         onClick={handleClick}
         type="button" // Explicitly set type to "button"
       >
-        Upload a file
+        Profile Picture
       </button>
       <input
         type="file"

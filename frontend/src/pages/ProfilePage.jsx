@@ -728,7 +728,7 @@ const ProfilePage = () => {
           <ModalOverlay />
           <ModalContent>
             <ModalHeader fontFamily="Arial, sans-serif">
-              Update Entry
+              Update Profile
             </ModalHeader>
             <ModalCloseButton />
             <ModalBody>
@@ -746,9 +746,7 @@ const ProfilePage = () => {
                   className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
                   fontFamily="Arial, sans-serif"
                   color={textColorDesc}
-                >
-                  Avatar
-                </Text>
+                ></Text>
                 <FileUploader
                   // className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
                   handleFile={handleFileUpload}
@@ -759,7 +757,7 @@ const ProfilePage = () => {
                   fontFamily="Arial, sans-serif"
                   color={textColorDesc}
                 >
-                  Name
+                  Name 🤳🏽
                 </Text>
                 <Input
                   className="form-control form-control-lg mb-2 mt-2 !w-[270px] text-center text-lg font-weight-light"
@@ -781,7 +779,7 @@ const ProfilePage = () => {
                   fontFamily="Arial, sans-serif"
                   color={textColorDesc}
                 >
-                  Goal
+                  Fitness Goal 🏁
                 </Text>
                 <Input
                   className="form-control form-control-lg mb-2 mt-2 !w-[270px] text-center text-lg font-weight-light"
@@ -802,7 +800,7 @@ const ProfilePage = () => {
                   fontFamily="Arial, sans-serif"
                   color={textColorDesc}
                 >
-                  Bio
+                  Bio 🗒️
                 </Text>
                 <Textarea
                   className="form-control form-control-lg mb-2 mt-2 !w-[270px] text-center text-lg font-weight-light"
@@ -822,7 +820,7 @@ const ProfilePage = () => {
                   fontFamily="Arial, sans-serif"
                   color={textColorDesc}
                 >
-                  Gym
+                  Gym 🏋🏼‍♂️
                 </Text>
                 {/* <form className="!min-w-[10px] mx-auto"> */}
                 <select
