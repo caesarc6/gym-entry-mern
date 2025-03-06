@@ -5,72 +5,64 @@ import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
 import ProfilePage from "../pages/ProfilePage";
 import { auth, googleProvider } from "../firebase";
-import { signInWithRedirect, getRedirectResult } from "firebase/auth"; // Import getRedirectResult
+import { signInWithPopup } from "firebase/auth"; // Use signInWithPopup
 import { useColorModeValue } from "@chakra-ui/react";
 
 export const Hero = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
 
-  // Handle the redirect result when the component mounts
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          console.log(result);
-          const token = await result.user.getIdToken();
-
-          // Call your protected API endpoint
-          const response = await fetch(
-            "https://gym-tracker-brown.vercel.app/api/protected",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-          if (!response.ok) {
-            throw new Error(await response.text());
-          }
-          const userData = await response.json();
-          console.log("User Data:", userData.uid);
-
-          // Fetch current user data
-          const tokenForCurrentUser = await auth.currentUser.getIdToken();
-          const currentUserResponse = await fetch(
-            "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
-            {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${tokenForCurrentUser}`,
-              },
-            }
-          );
-          if (!currentUserResponse.ok) {
-            throw new Error(await currentUserResponse.text());
-          }
-          const currentUserData = await currentUserResponse.json();
-          console.log("Logged in as:", currentUserData);
-
-          setIsSignedIn(true); // Update sign-in state
-        }
-      } catch (error) {
-        console.error("Error during sign-in:", error);
-        handleSignOutUser();
-      }
-    };
-
-    handleRedirectResult();
-  }, []);
-
   const handleGoogleSignIn = async () => {
     try {
-      await signInWithRedirect(auth, googleProvider); // Initiate the redirect flow
+      // Sign in with Google using a popup
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log("User signed in:", result.user);
+
+      // Get the ID token
+      const token = await result.user.getIdToken();
+
+      // Call your protected API endpoint
+      const response = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/protected",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const userData = await response.json();
+      console.log("User Data:", userData.uid);
+
+      // Fetch current user data
+      const tokenForCurrentUser = await auth.currentUser.getIdToken();
+      const currentUserResponse = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${tokenForCurrentUser}`,
+          },
+        }
+      );
+
+      if (!currentUserResponse.ok) {
+        throw new Error(await currentUserResponse.text());
+      }
+
+      const currentUserData = await currentUserResponse.json();
+      console.log("Logged in as:", currentUserData);
+
+      setIsSignedIn(true); // Update sign-in state
     } catch (error) {
-      console.error("Error initiating sign-in:", error);
+      console.error("Error during sign-in:", error);
+      handleSignOutUser();
     }
   };
 
