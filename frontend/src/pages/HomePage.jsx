@@ -5,6 +5,7 @@ import {
   VStack,
   Button,
   Box,
+  Spinner,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -213,13 +214,13 @@ const HomePage = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <Box textAlign="center" mt={10}>
-        <Text>Loading...</Text>
-      </Box>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <Box textAlign="center" mt={10}>
+  //       <Text>Loading...</Text>
+  //     </Box>
+  //   );
+  // }
 
   const getAllUID = async () => {
     try {
@@ -391,82 +392,87 @@ const HomePage = () => {
                 </Button>
               </span>
             </span>
-
-            <SimpleGrid
-              columns={{
-                base: 1,
-                md: 2,
-                lg: 3,
-              }}
-              spacing={10}
-              w={"full"}
-            >
-              {entries.map((entry) => (
-                <ProductCard
-                  key={entry._id}
-                  entry={entry}
-                  onUpdate={handleUpdateEntry}
-                />
-              ))}
-
-              {/* {[...entries].reverse().map((entry) => (
-                <ProductCard
-                  key={entry._id}
-                  entry={entry}
-                  onUpdate={handleUpdateEntry}
-                />
-              ))} */}
-            </SimpleGrid>
-            {/* Pagination controls */}
-            <Box
-              mt={6}
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-            >
-              <Button
-                onClick={() => handlePageChange(currentPage - 1)}
-                isDisabled={currentPage === 1}
-                mr={2}
+            {/* Loading State */}
+            {isLoading ? (
+              <Box
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                height="200px"
               >
-                <SlArrowLeft />
-              </Button>
-              <Text mx={2}>
-                {currentPage} • {totalPages}
-              </Text>
-              <Button
-                onClick={() => handlePageChange(currentPage + 1)}
-                isDisabled={currentPage === totalPages}
-                ml={2}
-              >
-                <SlArrowRight />
-              </Button>
-            </Box>
-            <span>
-              {entries.length === 0 && (
-                <Text
-                  fontSize="xl"
-                  textAlign={"center"}
-                  fontWeight="bold"
-                  color="gray.500"
+                <Spinner size="xl" />
+              </Box>
+            ) : (
+              <>
+                <SimpleGrid
+                  columns={{
+                    base: 1,
+                    md: 2,
+                    lg: 3,
+                  }}
+                  spacing={10}
+                  w={"full"}
                 >
-                  No entries found 😢{" "}
-                  <Link to={"/create"}>
+                  {entries.map((entry) => (
+                    <ProductCard
+                      key={entry._id}
+                      entry={entry}
+                      onUpdate={handleUpdateEntry}
+                    />
+                  ))}
+                </SimpleGrid>
+                {/* Pagination controls */}
+                <Box
+                  mt={6}
+                  display="flex"
+                  justifyContent="center"
+                  alignItems="center"
+                >
+                  <Button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    isDisabled={currentPage === 1}
+                    mr={2}
+                  >
+                    <SlArrowLeft />
+                  </Button>
+                  <Text mx={2}>
+                    {currentPage} • {totalPages}
+                  </Text>
+                  <Button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    isDisabled={currentPage === totalPages}
+                    ml={2}
+                  >
+                    <SlArrowRight />
+                  </Button>
+                </Box>
+                <span>
+                  {entries.length === 0 && (
                     <Text
-                      as="span"
-                      color="blue.500"
-                      _hover={{ textDecoration: "underline" }}
+                      fontSize="xl"
+                      textAlign={"center"}
+                      fontWeight="bold"
+                      color="gray.500"
                     >
-                      Create an entry
+                      No entries found 😢{" "}
+                      <Link to={"/create"}>
+                        <Text
+                          as="span"
+                          color="blue.500"
+                          _hover={{ textDecoration: "underline" }}
+                        >
+                          Create an entry
+                        </Text>
+                      </Link>
+                      <span
+                        className=" flex justify-center items-center"
+                        style={{ textAlign: "center" }}
+                      ></span>
                     </Text>
-                  </Link>
-                  <span
-                    className=" flex justify-center items-center"
-                    style={{ textAlign: "center" }}
-                  ></span>
-                </Text>
-              )}
-            </span>
+                  )}
+                </span>
+              </>
+            )}
           </VStack>
         </>
       ) : (

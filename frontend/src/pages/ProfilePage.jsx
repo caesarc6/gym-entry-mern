@@ -23,6 +23,7 @@ import {
   Avatar,
   Center,
   Flex,
+  Spinner,
 } from "@chakra-ui/react";
 import { Stack, Badge, Box, HStack, Icon, Image } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
@@ -46,6 +47,7 @@ const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [entries, setEntries] = useState([]);
   const [updatedProfile, setUpdatedProfile] = useState(null);
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
   const [userProfile, setUserProfile] = useState({
     name: "",
     goal: "",
@@ -76,7 +78,6 @@ const ProfilePage = () => {
     limit: 6,
   });
 
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
   const textColorDesc = useColorModeValue("gray.700", "gray.400");
   const bgColor = useColorModeValue("white", "gray.800");
   const colorEditButton = useColorModeValue("gray.400", "gray.900");
@@ -477,13 +478,13 @@ const ProfilePage = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <Box textAlign="center" mt={10}>
-        <Text>Loading...</Text>
-      </Box>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <Box textAlign="center" mt={10}>
+  //       <Text>Loading...</Text>
+  //     </Box>
+  //   );
+  // }
 
   const handleGoogleSignIn = async () => {
     try {
@@ -882,65 +883,83 @@ const ProfilePage = () => {
         >
           Workout Page
         </Text>
+        {/* Loading State */}
+        {isLoading ? (
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            height="200px"
+          >
+            <Spinner size="xl" />
+          </Box>
+        ) : (
+          <>
+            <SimpleGrid
+              columns={{
+                base: 1,
+                md: 2,
+                lg: 3,
+              }}
+              spacing={10}
+              w={"full"}
+            >
+              {entries.map((entry) => (
+                <ProductCard
+                  key={entry._id}
+                  entry={entry}
+                  onUpdate={handleUpdateEntry}
+                />
+              ))}
 
-        <SimpleGrid
-          columns={{
-            base: 1,
-            md: 2,
-            lg: 3,
-          }}
-          spacing={10}
-          w={"full"}
-        >
-          {entries.map((entry) => (
-            <ProductCard
-              key={entry._id}
-              entry={entry}
-              onUpdate={handleUpdateEntry}
-            />
-          ))}
-
-          {/* {[...entries].reverse().map((entry) => (
+              {/* {[...entries].reverse().map((entry) => (
             <ProductCard key={entry._id} entry={entry} />
           ))} */}
-        </SimpleGrid>
-        <Box mt={6} display="flex" justifyContent="center" alignItems="center">
-          <Button
-            onClick={() => handlePageChange(currentPage - 1)}
-            isDisabled={currentPage === 1}
-            mr={2}
-          >
-            <SlArrowLeft />
-          </Button>
-          <Text mx={2}>
-            {currentPage} • {totalPages}
-          </Text>
-          <Button
-            onClick={() => handlePageChange(currentPage + 1)}
-            isDisabled={currentPage === totalPages}
-            ml={2}
-          >
-            <SlArrowRight />
-          </Button>
-        </Box>
-        {entries.length === 0 && (
-          <Text
-            fontSize="xl"
-            textAlign={"center"}
-            fontWeight="bold"
-            color="gray.500"
-          >
-            No entries found 😢{" "}
-            <Link to={"/create"}>
-              <Text
-                as="span"
-                color="blue.500"
-                _hover={{ textDecoration: "underline" }}
+            </SimpleGrid>
+            <Box
+              mt={6}
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Button
+                onClick={() => handlePageChange(currentPage - 1)}
+                isDisabled={currentPage === 1}
+                mr={2}
               >
-                Create an entry
+                <SlArrowLeft />
+              </Button>
+              <Text mx={2}>
+                {currentPage} • {totalPages}
               </Text>
-            </Link>
-          </Text>
+              <Button
+                onClick={() => handlePageChange(currentPage + 1)}
+                isDisabled={currentPage === totalPages}
+                ml={2}
+              >
+                <SlArrowRight />
+              </Button>
+            </Box>
+            {entries.length === 0 && (
+              <Text
+                fontSize="xl"
+                textAlign={"center"}
+                fontWeight="bold"
+                color="gray.500"
+              >
+                No entries found 😢{" "}
+                <Link to={"/create"}>
+                  <Text
+                    as="span"
+                    color="blue.500"
+                    _hover={{ textDecoration: "underline" }}
+                  >
+                    Create an entry
+                  </Text>
+                </Link>
+              </Text>
+            )}
+          </>
         )}
       </VStack>
     </Container>
