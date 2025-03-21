@@ -31,10 +31,10 @@ export default function HeroSection() {
                     size="lg"
                     className="h-12 rounded-full pl-5 pr-3 text-base"
                   >
-                    <Link href="#link">
+                    <a href="#link">
                       <span className="text-nowrap">Start Building</span>
                       <ChevronRight className="ml-1" />
-                    </Link>
+                    </a>
                   </Button>
                   <Button
                     key={2}
@@ -43,9 +43,9 @@ export default function HeroSection() {
                     variant="ghost"
                     className="h-12 rounded-full px-5 text-base hover:bg-zinc-950/5 dark:hover:bg-white/5"
                   >
-                    <Link href="#link">
+                    <a href="#link">
                       <span className="text-nowrap">Request a demo</span>
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               </div>

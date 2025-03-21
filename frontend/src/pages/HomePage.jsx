@@ -368,7 +368,7 @@ const HomePage = () => {
             >
               Workout Page
             </Text>
-            <span>
+            {/* <span>
               <span
                 className="gap-9  flex-col justify-center"
                 style={{ textAlign: "center" }}
@@ -391,7 +391,7 @@ const HomePage = () => {
                   Sign Out
                 </Button>
               </span>
-            </span>
+            </span> */}
             {/* Loading State */}
             {isLoading ? (
               <Box
