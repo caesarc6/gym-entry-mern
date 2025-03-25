@@ -476,7 +476,11 @@ const HomePage = () => {
           </VStack>
         </>
       ) : (
-        <Hero />
+        <div>
+          {" "}
+          <Hero />{" "}
+        </div>
+        // <Hero />
       )}
     </Container>
   );
