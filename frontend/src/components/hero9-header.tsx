@@ -123,7 +123,7 @@ export const HeroHeader = () => {
             )}
           >
             {/* Logo and Hamburger */}
-            <div className="flex w-full items-center justify-between gap-12 lg:w-auto">
+            <div className="flex w-full items-center justify-between gap-12 lg:w-auto md:w-auto">
               <a
                 href="/"
                 aria-label="home"
@@ -141,7 +141,7 @@ export const HeroHeader = () => {
               <button
                 onClick={() => setMenuState(!menuState)}
                 aria-label={menuState ? "Close Menu" : "Open Menu"}
-                className="relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 lg:hidden"
+                className="relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 md:hidden"
               >
                 <span className="relative block size-6">
                   <Menu
@@ -165,7 +165,7 @@ export const HeroHeader = () => {
             </div>
 
             {/* Desktop Buttons (always visible on lg screens) */}
-            <div className="hidden lg:flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-6">
               {/* Buttons */}
               <div className="flex flex-row gap-3">
                 {isLoading ? (
@@ -280,7 +280,7 @@ export const HeroHeader = () => {
               initial="closed"
               animate={menuState ? "open" : "closed"}
               className={cn(
-                "w-full lg:hidden",
+                "w-full lg:hidden md:hidden",
                 menuState
                   ? "block bg-background mb-6 rounded-xl border p-6 shadow-2xl shadow-zinc-400/20 mt-4"
                   : "hidden"
