@@ -4,21 +4,16 @@ import { Button } from "@/components/ui/button";
 import React from "react";
 import { useScroll, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { auth, googleProvider } from "../firebase"; // Adjust path to your Firebase config
+import { auth, googleProvider } from "../firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
-import { PlusSquareIcon } from "@chakra-ui/icons"; // For create post icon
-import { IoMoon } from "react-icons/io5"; // Moon icon for dark mode
-import { LuSun } from "react-icons/lu"; // Sun icon for light mode
-import { useColorMode } from "@chakra-ui/react"; // Chakra UI color mode hook
+import { PlusSquareIcon } from "@chakra-ui/icons";
+import { IoMoon } from "react-icons/io5";
+import { LuSun } from "react-icons/lu";
+import { useColorMode } from "@chakra-ui/react";
 import { RxAvatar } from "react-icons/rx";
 import { PiSignOutThin } from "react-icons/pi";
 
-const menuItems = [
-  { name: "Profile", href: "/Profile" },
-  // { name: "Solution", href: "#link" },
-  // { name: "Pricing", href: "#link" },
-  // { name: "About", href: "#link" },
-];
+const menuItems = [{ name: "Profile", href: "/Profile" }];
 
 export const HeroHeader = () => {
   const [menuState, setMenuState] = React.useState(false);
@@ -26,11 +21,20 @@ export const HeroHeader = () => {
   const [isSignedIn, setIsSignedIn] = React.useState(false);
   const [uid, setUid] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [entries, setEntries] = React.useState([]); // From second navbar
+  const [entries, setEntries] = React.useState([]);
   const { scrollYProgress } = useScroll();
-  const { colorMode, toggleColorMode } = useColorMode(); // Chakra UI color mode
+  const { colorMode, toggleColorMode } = useColorMode();
 
-  // Handle auth state changes
+  // Animation variants for the mobile menu
+  const menuVariants = {
+    closed: { y: -20, opacity: 0 },
+    open: {
+      y: 0,
+      opacity: 1,
+      transition: { duration: 0.3, ease: "easeInOut" },
+    },
+  };
+
   React.useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
@@ -39,14 +43,13 @@ export const HeroHeader = () => {
       } else {
         setIsSignedIn(false);
         setUid(null);
-        setEntries([]); // Clear entries on sign-out
+        setEntries([]);
       }
       setIsLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Handle scroll behavior
   React.useEffect(() => {
     const unsubscribe = scrollYProgress.on("change", (latest) => {
       setScrolled(latest > 0.05);
@@ -58,7 +61,6 @@ export const HeroHeader = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const token = await result.user.getIdToken();
-
       const response = await fetch(
         "https://gym-tracker-brown.vercel.app/api/protected",
         {
@@ -160,60 +162,12 @@ export const HeroHeader = () => {
                   />
                 </span>
               </button>
-
-              {/* Desktop Menu */}
-
-              {/* <div className="hidden lg:block">
-                <ul className="flex gap-8 text-sm">
-                  {menuItems.map((item, index) => (
-                    <li key={index}>
-                      <a
-                        href={item.href}
-                        className={cn(
-                          "duration-150",
-                          colorMode === "light"
-                            ? "text-gray-500 hover:text-blue-200"
-                            : "text-gray-500 hover:text-blue-300"
-                        )}
-                      >
-                        {item.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div> */}
             </div>
 
-            {/* Mobile/Desktop Actions */}
-            <div
-              className={cn(
-                "w-full lg:w-fit flex flex-wrap items-center justify-end space-y-8 md:flex-nowrap lg:gap-6 lg:space-y-0",
-                menuState
-                  ? "block bg-background mb-6 rounded-xl border p-6 shadow-2xl shadow-zinc-400/20 lg:m-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent mt-4 lg:mt-0"
-                  : "hidden lg:flex"
-              )}
-            >
-              {/* Mobile Menu */}
-              <ul className="space-y-6 text-base lg:hidden">
-                {menuItems.map((item, index) => (
-                  <li key={index}>
-                    <a
-                      href={item.href}
-                      className={cn(
-                        "duration-150",
-                        colorMode === "light"
-                          ? "text-gray-600 hover:text-blue-500"
-                          : "text-gray-300 hover:text-blue-300"
-                      )}
-                    >
-                      {item.name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-
+            {/* Desktop Buttons (always visible on lg screens) */}
+            <div className="hidden lg:flex items-center gap-6">
               {/* Buttons */}
-              <div className="mt-6 flex w-full flex-row space-y-3 min:sm:flex-col sm:gap-3 sm:space-y-0 md:w-fit lg:mt-0 sm:place-self-center sm:w-[200px]">
+              <div className="flex flex-row gap-3">
                 {isLoading ? (
                   <Button
                     disabled
@@ -234,27 +188,31 @@ export const HeroHeader = () => {
                       size="sm"
                       className={cn(
                         colorMode === "light"
-                          ? " text-gray-400 hover:text-gray-500 hover:bg-gray-100 "
+                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                           : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-300 hover:bg-gray-800"
                       )}
                     >
-                      <Link to="/profile">
+                      {/* <Link to="/profile">
                         <RxAvatar className="!w-5 !h-5" />
+                      </Link> */}
+                      <Link to="/profile" className="flex items-center gap-2">
+                        <RxAvatar className="!w-5 !h-5" />
+                        <span>Profile</span>
                       </Link>
                     </Button>
-
                     <Button
                       asChild
                       variant="ghost"
                       size="sm"
                       className={cn(
                         colorMode === "light"
-                          ? " text-gray-400 hover:text-gray-500 hover:bg-gray-100 "
+                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                           : "border-gray-800 bg-inherit text-gray-400 hover:text-blue-300 hover:bg-zinc-800"
                       )}
                     >
                       <Link to="/create">
-                        <PlusSquareIcon className=" h-4 w-4" />
+                        <PlusSquareIcon className="h-4 w-4" />
+                        <span>Create</span>
                       </Link>
                     </Button>
                     <Button
@@ -263,11 +221,12 @@ export const HeroHeader = () => {
                       onClick={handleSignOut}
                       className={cn(
                         colorMode === "light"
-                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200 "
-                          : "border-gray-800 text-gray-500 bg-slate-900  hover:bg-gray-500 hover:text-blue-300"
+                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200"
+                          : "border-gray-800 text-gray-500 bg-slate-900 hover:bg-gray-500 hover:text-blue-300"
                       )}
                     >
                       <PiSignOutThin />
+                      <span>Sign Out</span>
                     </Button>
                   </>
                 ) : (
@@ -297,7 +256,6 @@ export const HeroHeader = () => {
                     </Button>
                   </>
                 )}
-                {/* Color Mode Toggle */}
                 <Button
                   size="sm"
                   onClick={toggleColorMode}
@@ -315,12 +273,154 @@ export const HeroHeader = () => {
                 </Button>
               </div>
             </div>
+
+            {/* Mobile Menu (only visible when menuState is true) */}
+            <motion.div
+              variants={menuVariants}
+              initial="closed"
+              animate={menuState ? "open" : "closed"}
+              className={cn(
+                "w-full lg:hidden",
+                menuState
+                  ? "block bg-background mb-6 rounded-xl border p-6 shadow-2xl shadow-zinc-400/20 mt-4"
+                  : "hidden"
+              )}
+            >
+              {/* Mobile Menu Items */}
+              {/* <ul className="space-y-6 text-base">
+                {menuItems.map((item, index) => (
+                  <li key={index}>
+                    <a
+                      href={item.href}
+                      className={cn(
+                        "duration-150",
+                        colorMode === "light"
+                          ? "text-gray-600 hover:text-blue-500"
+                          : "text-gray-300 hover:text-blue-300"
+                      )}
+                    >
+                      {item.name}
+                    </a>
+                  </li>
+                ))}
+              </ul> */}
+
+              {/* Mobile Buttons */}
+              <div className="mt-6 flex flex-col space-y-3">
+                {isLoading ? (
+                  <Button
+                    disabled
+                    size="sm"
+                    className={cn(
+                      colorMode === "light"
+                        ? "bg-gray-200 text-gray-700"
+                        : "bg-gray-700 text-gray-200"
+                    )}
+                  >
+                    Loading...
+                  </Button>
+                ) : isSignedIn ? (
+                  <>
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        colorMode === "light"
+                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-300 hover:bg-gray-800"
+                      )}
+                    >
+                      <Link to="/profile" className="flex items-center gap-2">
+                        <RxAvatar className="!w-5 !h-5" />
+                        <span>Profile</span>
+                      </Link>
+                    </Button>
+
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        colorMode === "light"
+                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                          : "border-gray-800 bg-inherit text-gray-400 hover:text-blue-300 hover:bg-zinc-800"
+                      )}
+                    >
+                      <Link to="/create" className="flex items-center gap-2">
+                        <PlusSquareIcon className="h-4 w-4" />
+                        <span>Create</span>
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSignOut}
+                      className={cn(
+                        colorMode === "light"
+                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200"
+                          : "border-gray-800 text-gray-500 bg-slate-900 hover:bg-gray-500 hover:text-blue-300"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <PiSignOutThin />
+                        <span>Sign Out</span>
+                      </div>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGoogleSignIn}
+                      className={cn(
+                        colorMode === "light"
+                          ? "border-gray-300 text-gray-700 hover:bg-gray-100"
+                          : "border-gray-600 text-gray-200 hover:bg-gray-700"
+                      )}
+                    >
+                      Login
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleGoogleSignIn}
+                      className={cn(
+                        colorMode === "light"
+                          ? "bg-blue-500 text-white hover:bg-blue-600"
+                          : "bg-blue-700 text-white hover:bg-blue-800"
+                      )}
+                    >
+                      Sign Up
+                    </Button>
+                  </>
+                )}
+                <Button
+                  size="sm"
+                  onClick={toggleColorMode}
+                  className={cn(
+                    colorMode === "light"
+                      ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                  )}
+                >
+                  {colorMode === "light" ? (
+                    <IoMoon size={20} />
+                  ) : (
+                    <LuSun size={20} />
+                  )}
+                </Button>
+              </div>
+            </motion.div>
           </motion.div>
         </div>
       </nav>
     </header>
   );
 };
+
+// ----------------------------------
 
 // import { Link } from "react-router-dom";
 // import { Menu, X } from "lucide-react";
@@ -334,6 +434,8 @@ export const HeroHeader = () => {
 // import { IoMoon } from "react-icons/io5"; // Moon icon for dark mode
 // import { LuSun } from "react-icons/lu"; // Sun icon for light mode
 // import { useColorMode } from "@chakra-ui/react"; // Chakra UI color mode hook
+// import { RxAvatar } from "react-icons/rx";
+// import { PiSignOutThin } from "react-icons/pi";
 
 // const menuItems = [
 //   { name: "Profile", href: "/Profile" },
@@ -484,7 +586,8 @@ export const HeroHeader = () => {
 //               </button>
 
 //               {/* Desktop Menu */}
-//               <div className="hidden lg:block">
+
+//               {/* <div className="hidden lg:block">
 //                 <ul className="flex gap-8 text-sm">
 //                   {menuItems.map((item, index) => (
 //                     <li key={index}>
@@ -502,7 +605,7 @@ export const HeroHeader = () => {
 //                     </li>
 //                   ))}
 //                 </ul>
-//               </div>
+//               </div> */}
 //             </div>
 
 //             {/* Mobile/Desktop Actions */}
@@ -510,7 +613,7 @@ export const HeroHeader = () => {
 //               className={cn(
 //                 "w-full lg:w-fit flex flex-wrap items-center justify-end space-y-8 md:flex-nowrap lg:gap-6 lg:space-y-0",
 //                 menuState
-//                   ? "block bg-background mb-6 rounded-xl border p-6 shadow-2xl shadow-zinc-300/20 lg:m-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent mt-4 lg:mt-0"
+//                   ? "block bg-background mb-6 rounded-xl border p-6 shadow-2xl shadow-zinc-400/20 lg:m-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent mt-4 lg:mt-0"
 //                   : "hidden lg:flex"
 //               )}
 //             >
@@ -551,21 +654,35 @@ export const HeroHeader = () => {
 //                   <>
 //                     <Button
 //                       asChild
-//                       variant="outline"
+//                       variant="ghost"
 //                       size="sm"
 //                       className={cn(
 //                         colorMode === "light"
-//                           ? "border-gray-200 text-gray-600 hover:bg-gray-200"
+//                           ? " text-gray-400 hover:text-gray-500 hover:bg-gray-100 "
+//                           : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-300 hover:bg-gray-800"
+//                       )}
+//                     >
+//                       <Link to="/profile">
+//                         <RxAvatar className="!w-5 !h-5" />
+//                       </Link>
+//                     </Button>
+
+//                     <Button
+//                       asChild
+//                       variant="ghost"
+//                       size="sm"
+//                       className={cn(
+//                         colorMode === "light"
+//                           ? " text-gray-400 hover:text-gray-500 hover:bg-gray-100 "
 //                           : "border-gray-800 bg-inherit text-gray-400 hover:text-blue-300 hover:bg-zinc-800"
 //                       )}
 //                     >
 //                       <Link to="/create">
-//                         <PlusSquareIcon className="mr-2 h-4 w-4" />
-//                         Create Post
+//                         <PlusSquareIcon className=" h-4 w-4" />
 //                       </Link>
 //                     </Button>
 //                     <Button
-//                       variant="outline"
+//                       variant="ghost"
 //                       size="sm"
 //                       onClick={handleSignOut}
 //                       className={cn(
@@ -574,7 +691,7 @@ export const HeroHeader = () => {
 //                           : "border-gray-800 text-gray-500 bg-slate-900  hover:bg-gray-500 hover:text-blue-300"
 //                       )}
 //                     >
-//                       Sign Out
+//                       <PiSignOutThin />
 //                     </Button>
 //                   </>
 //                 ) : (
