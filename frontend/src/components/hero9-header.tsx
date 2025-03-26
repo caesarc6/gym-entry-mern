@@ -25,6 +25,25 @@ export const HeroHeader = () => {
   const { scrollYProgress } = useScroll();
   const { colorMode, toggleColorMode } = useColorMode();
 
+  // Function to close the mobile menu
+  const closeMenu = () => setMenuState(false);
+
+  // Modified handlers that combine existing functionality with menu closing
+  const handleSignOutAndClose = async () => {
+    await handleSignOut();
+    closeMenu();
+  };
+
+  const handleGoogleSignInAndClose = async () => {
+    await handleGoogleSignIn();
+    closeMenu();
+  };
+
+  const handleToggleColorModeAndClose = () => {
+    toggleColorMode();
+    closeMenu();
+  };
+
   // Animation variants for the mobile menu
   const menuVariants = {
     closed: { y: -20, opacity: 0 },
@@ -306,7 +325,7 @@ export const HeroHeader = () => {
               </ul> */}
 
               {/* Mobile Buttons */}
-              <div className="mt-6 flex flex-col space-y-3">
+              <div className="mt-1 flex flex-col space-y-3">
                 {isLoading ? (
                   <Button
                     disabled
@@ -328,8 +347,9 @@ export const HeroHeader = () => {
                       className={cn(
                         colorMode === "light"
                           ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-300 hover:bg-gray-800"
+                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
                       )}
+                      onClick={closeMenu} // Add click handler to close menu
                     >
                       <Link to="/profile" className="flex items-center gap-2">
                         <RxAvatar className="!w-5 !h-5" />
@@ -344,8 +364,9 @@ export const HeroHeader = () => {
                       className={cn(
                         colorMode === "light"
                           ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "border-gray-800 bg-inherit text-gray-400 hover:text-blue-300 hover:bg-zinc-800"
+                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
                       )}
+                      onClick={closeMenu} // Add click handler to close menu
                     >
                       <Link to="/create" className="flex items-center gap-2">
                         <PlusSquareIcon className="h-4 w-4" />
@@ -356,11 +377,11 @@ export const HeroHeader = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleSignOut}
+                      onClick={handleSignOutAndClose}
                       className={cn(
                         colorMode === "light"
                           ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "border-gray-800 text-gray-500 bg-slate-900 hover:bg-gray-500 hover:text-blue-300"
+                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
                       )}
                     >
                       <div className="flex items-center gap-2">
@@ -372,24 +393,29 @@ export const HeroHeader = () => {
                 ) : (
                   <>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      onClick={handleGoogleSignIn}
+                      onClick={handleGoogleSignInAndClose}
                       className={cn(
                         colorMode === "light"
-                          ? "border-gray-300 text-gray-700 hover:bg-gray-100"
-                          : "border-gray-600 text-gray-200 hover:bg-gray-700"
+                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200"
+                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                        // ? "border-gray-300 text-gray-700 hover:bg-gray-100"
+                        // : "border-gray-600 text-gray-200 hover:bg-gray-700"
                       )}
                     >
                       Login
                     </Button>
                     <Button
+                      variant="ghost"
                       size="sm"
-                      onClick={handleGoogleSignIn}
+                      onClick={handleGoogleSignInAndClose}
                       className={cn(
                         colorMode === "light"
-                          ? "bg-blue-500 text-white hover:bg-blue-600"
-                          : "bg-blue-700 text-white hover:bg-blue-800"
+                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200"
+                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                        // ? "bg-blue-500 text-white hover:bg-blue-600"
+                        // : "bg-blue-700 text-white hover:bg-blue-800"
                       )}
                     >
                       Sign Up
@@ -398,7 +424,7 @@ export const HeroHeader = () => {
                 )}
                 <Button
                   size="sm"
-                  onClick={toggleColorMode}
+                  onClick={handleToggleColorModeAndClose}
                   className={cn(
                     colorMode === "light"
                       ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
