@@ -251,24 +251,25 @@ export const HeroHeader = () => {
                 ) : (
                   <>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={handleGoogleSignIn}
                       className={cn(
                         colorMode === "light"
-                          ? "border-gray-300 text-gray-700 hover:bg-gray-100"
+                          ? "border-gray-300 text-gray-700 hover:bg-gray-100 bg-stone-100"
                           : "border-gray-600 text-gray-200 hover:bg-gray-700"
                       )}
                     >
                       Login
                     </Button>
                     <Button
+                      variant="ghost"
                       size="sm"
                       onClick={handleGoogleSignIn}
                       className={cn(
                         colorMode === "light"
-                          ? "bg-blue-500 text-white hover:bg-blue-600"
-                          : "bg-blue-700 text-white hover:bg-blue-800"
+                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200 bg-stone-100"
+                          : "border-gray-800  text-gray-200 hover:text-blue-400 hover:bg-gray-200"
                       )}
                     >
                       Sign Up
