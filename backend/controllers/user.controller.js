@@ -448,6 +448,62 @@ export const getUserProfile = async (req, res) => {
   }
 };
 
+export const uploadBackgroindPicture = [
+  handleFileUpload,
+
+  async (req, res) => {
+    try {
+      const isConnected = await checkSupabaseConnection();
+      if (!isConnected) {
+        return res.status(500).json({ error: "Supabase connection failed" });
+      }
+
+      // get image and user from frontend
+      const user = req.user;
+      const fileName = `background_${user.uid}_${Date.now()}${path.extname(
+        req.file.originalname
+      )}`;
+      const filePath = `backgrounds/${fileName}`;
+
+      const { data: file, error } = await supabase.storage
+        .from("user_backgrounds")
+        .upload(filePath, req.file.buffer, {
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (error) {
+        console.error("Supabase upload error:", error);
+        return res.status(500).json({ error: "Failed to upload image" });
+      }
+
+      const { publicUrl } = supabase.storage
+        .from("user_backgrounds")
+        .getPublicUrl(filePath);
+
+      const updatedUser = await User.findByIdAndUpdate(
+        user._id,
+        {
+          backgroundPicture: {
+            url: publicUrl,
+          },
+        },
+        { new: true }
+      );
+      console.log("Updated user:", updatedUser);
+
+      res.json({
+        url: publicUrl,
+        path: filePath,
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  }, // save url to mongoDB in user
+];
+
 export const uploadProfilePic = [
   // First, use the file upload middleware
   handleFileUpload,

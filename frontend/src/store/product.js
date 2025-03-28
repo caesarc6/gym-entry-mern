@@ -88,6 +88,35 @@ export const useProductStore = create((set) => ({
     return { success: true, message: data.message };
   },
 
+  updateBackgroundProfile: async (newBackgroundProfile) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const token = await user.getIdToken();
+    const formData = new FormData();
+    formData.append("backgroundProfile", newBackgroundProfile);
+
+    const res = await fetch(
+      `https://locahost:5001/api/upload/updateUserBackgroundPicture`,
+      // `https://gym-tracker-brown.vercel.app/api/upload/uploadBackgroundProfile`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
+
+    const data = await res.json();
+    console.log("Response:", data);
+
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to update background profile");
+    }
+
+    return { success: true, message: data.message };
+  }
+
   // Update workout entry
   updateEntry: async (pid, updatedEntry) => {
     const auth = getAuth();

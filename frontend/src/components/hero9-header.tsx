@@ -131,7 +131,7 @@ export const HeroHeader = () => {
       <nav className="fixed z-20 w-full">
         <div
           className={cn(
-            "mx-auto max-w-7xl px-6 transition-all duration-300 lg:px-12 backdrop-blur-2xl border-b",
+            "mx-auto max-w-7xl px-6 py-[1px] transition-all duration-300 lg:px-12 backdrop-blur-2xl border-b",
             colorMode === "dark" ? "bg-gray-900/80" : "bg-background/80"
           )}
         >

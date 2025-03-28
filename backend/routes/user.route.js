@@ -95,6 +95,99 @@ router.get("/getUserProfile/:uid", verifyIdToken, getUserProfile);
 //   handleFileUpload
 // );
 router.get("/getCurrentMongoDBUser", verifyIdToken, getCurrentMongoDBUser);
+router.post(
+  "/updateUserBackgroundPicture",
+  verifyIdToken,
+  upload.single("backgroundPicture"),
+  async (req, res) => {
+    try {
+      const { uid } = req.user;
+      const { backgroundPictureName, backgroundPicture } = req.body;
+
+      if (!backgroundPicture && !req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No data provided for update",
+        });
+      }
+
+      let backgroundPictureUrl = null;
+
+      if (backgroundPictureName !== "undefined") {
+        const base64Data = backgroundPicture.split(";base64,").pop();
+        const imageBuffer = Buffer.from(base64Data, "base64");
+        const timestamp = Date.now();
+        const filePath = `profiles/profile_${uid}/_backgroundProfile/${backgroundPictureName}_${timestamp}.jpg`;
+
+        const { error } = await supabase.storage
+          .from("user_profiles")
+          .upload(filePath, imageBuffer, {
+            contentType: "image/jpeg",
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (error) {
+          console.error("Supabase upload error:", error);
+          return res.status(500).json({
+            error: "Failed to upload image",
+            details: error.message,
+          });
+        }
+
+        backgroundPictureUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/${filePath}`;
+      }
+
+      if (req.file) {
+        const timestamp = Date.now();
+        const filePath = `profiles/profile_${uid}/_backgroundProfile/file_${timestamp}.jpg`;
+
+        const { error } = await supabase.storage
+          .from("user_profiles")
+          .upload(filePath, req.file.buffer, {
+            contentType: "image/jpeg",
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (error) {
+          console.error("Supabase upload error:", error);
+          return res.status(500).json({
+            error: "Failed to upload image",
+            details: error.message,
+          });
+        }
+
+        backgroundPictureUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/${filePath}`;
+      }
+
+      const user = await User.findOneAndUpdate(
+        { uid },
+        { $set: { backgroundPicture: backgroundPictureUrl } },
+        { new: true }
+      );
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Background picture updated successfully",
+        data: user,
+      });
+    } catch (error) {
+      console.error("Update background picture error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
 
 router.post(
   "/updateUserProfile",
