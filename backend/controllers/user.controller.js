@@ -81,8 +81,8 @@ export const updateUserProfile = async (req, res) => {
     // Extract fields from form data
     const { name, goal, gymName, bio, profileImageName, profileImage } =
       req.body;
-    console.log("req.body.profileImage", req.body.profileImage);
-    console.log("req.body.profileImageName", req.body.profileImageName);
+    // console.log("req.body.profileImage", req.body.profileImage);
+    // console.log("req.body.profileImageName", req.body.profileImageName);
     // Validate that at least one field is provided
     if (!name && !goal && !gymName && !bio && !profileImage) {
       return res.status(400).json({
@@ -104,7 +104,7 @@ export const updateUserProfile = async (req, res) => {
         const timestamp = Date.now();
         const filePath = `profiles/profile_${uid}/${profileImageName}_${timestamp}.jpg`;
 
-        console.log("Debug - Upload attempt with path:", filePath);
+        // console.log("Debug - Upload attempt with path:", filePath);
 
         // Upload to Supabase with error handling
         const { data: file, error } = await supabase.storage
@@ -124,7 +124,7 @@ export const updateUserProfile = async (req, res) => {
         }
 
         const profileImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/profiles/${filePath}`;
-        console.log("Debug - Generated URL:", profileImageUrl);
+        // console.log("Debug - Generated URL:", profileImageUrl);
 
         await User.findOneAndUpdate(
           { uid: uid.trim() },
@@ -195,8 +195,8 @@ export const handleFileUpload = (req, res, next) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    console.log("Request body:", req.body);
-    console.log("Request file:", req.file);
+    // console.log("Request body:", req.body);
+    // console.log("Request file:", req.file);
 
     next();
   });
@@ -438,7 +438,7 @@ export const getUserProfile = async (req, res) => {
 
   try {
     const user = await User.findOne({ uid }).select(
-      "name email picture bio goal gymName"
+      "name email picture bio goal gymName backgroundPicture"
     );
     const postsLength = await Entry.find({ uid });
     const postsCount = postsLength.length;
@@ -490,7 +490,7 @@ export const uploadBackgroindPicture = [
         },
         { new: true }
       );
-      console.log("Updated user:", updatedUser);
+      // console.log("Updated user:", updatedUser);
 
       res.json({
         url: publicUrl,
@@ -511,8 +511,8 @@ export const uploadProfilePic = [
   async (req, res) => {
     try {
       const isConnected = await checkSupabaseConnection();
-      console.log(process.env.VITE_SUPABASE_URL); // "123"
-      console.log(process.env.VITE_SUPABASE_ANON_KEY); // undefined
+      // console.log(process.env.VITE_SUPABASE_URL); // "123"
+      // console.log(process.env.VITE_SUPABASE_ANON_KEY); // undefined
       if (!isConnected) {
         return res.status(500).json({ error: "Supabase connection failed" });
       }
@@ -549,7 +549,7 @@ export const uploadProfilePic = [
         },
         { new: true }
       );
-      console.log("Updated user:", updatedUser);
+      // console.log("Updated user:", updatedUser);
       res.json({
         url: publicUrl,
         path: filePath,

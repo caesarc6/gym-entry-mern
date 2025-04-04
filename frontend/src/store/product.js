@@ -247,7 +247,7 @@ export const useProductStore = create((set) => ({
 // Add an authentication state listener to ensure the user is authenticated
 auth.onAuthStateChanged((user) => {
   if (user) {
-    console.log("User authenticated:", user);
+    // console.log("User authenticated:", user);
     // Call fetchEntrys function here if needed
   } else {
     // console.error("User not authenticated");

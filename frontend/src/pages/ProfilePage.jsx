@@ -137,6 +137,7 @@ const ProfilePage = () => {
       const token = await user.getIdToken();
       const response = await fetch(
         `https://gym-tracker-brown.vercel.app/api/getUserProfile/${user.uid}`,
+        // `http://localhost:5001/api/getUserProfile/${user.uid}`,
         {
           method: "GET",
           headers: {
@@ -149,6 +150,7 @@ const ProfilePage = () => {
       if (!response.ok) throw new Error(await response.text());
 
       const data = await response.json();
+
       setUserProfile({
         name: data.data.name || "Anonymous",
         goal: data.data.goal || "Not set",
@@ -183,7 +185,8 @@ const ProfilePage = () => {
       }
 
       const profileResponse = await fetch(
-        "http://localhost:5001/api/updateUserProfile",
+        // "http://localhost:5001/api/updateUserProfile",
+        "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
         {
           method: "POST",
           headers: {
@@ -240,8 +243,8 @@ const ProfilePage = () => {
       backgroundFormData.append("backgroundPictureName", backgroundImage.name);
 
       const backgroundResponse = await fetch(
-        "http://localhost:5001/api/updateUserBackgroundPicture",
-        // "https://gym-tracker-brown.vercel.app/api/updateUserBackgroundPicture",
+        // "http://localhost:5001/api/updateUserBackgroundPicture",
+        "https://gym-tracker-brown.vercel.app/api/updateUserBackgroundPicture",
         {
           method: "POST",
           headers: {
@@ -335,6 +338,92 @@ const ProfilePage = () => {
           rounded={"md"}
           overflow={"hidden"}
         >
+          {/* Container for the background image and button */}
+          <Box position="relative">
+            <Image
+              h={"120px"}
+              w={"full"}
+              src={userProfile.backgroundPicture}
+              objectFit="cover"
+              alt="Background"
+            />
+            <Button
+              onClick={onBackgroundOpen}
+              size="sm" // Smaller size for a cleaner look
+              colorScheme="blue"
+              bg={colorEditButton}
+              color={"white"}
+              position="absolute"
+              top={2} // Distance from the top
+              right={2} // Distance from the right
+              _hover={{
+                transform: "translateY(-2px)",
+                boxShadow: "lg",
+              }}
+            >
+              Edit Background
+            </Button>
+          </Box>
+
+          <Flex justify={"center"} mt={-12}>
+            <Avatar
+              size={"xl"}
+              src={userProfile.profileImage}
+              css={{ border: "2px solid white" }}
+            />
+          </Flex>
+          <Box p={6}>
+            <Stack spacing={0} align={"center"} mb={3}>
+              <Heading fontSize={"2xl"} fontWeight={500}>
+                @{userProfile.name}
+              </Heading>
+            </Stack>
+            <Stack spacing={0} align={"center"} mb={4}>
+              <Text color={"gray.500"}>
+                {userProfile.goal} | {userProfile.gymName}
+              </Text>
+            </Stack>
+            <Stack spacing={0} align={"center"} mt={4}>
+              <Text color={"gray.500"}>{userProfile.bio}</Text>
+            </Stack>
+            <Stack direction={"row"} justify={"center"} spacing={6} mt={8}>
+              <Stack spacing={0} align={"center"}>
+                <Text fontWeight={600}>{userProfile.postsCount || 0}</Text>
+                <Text fontSize={"sm"} color={"gray.500"}>
+                  Posts
+                </Text>
+              </Stack>
+            </Stack>
+            {/* Keep only the Edit Profile button here */}
+            <Stack direction={"row"} spacing={4} mt={6}>
+              <Button
+                onClick={onProfileOpen}
+                colorScheme="blue"
+                w={"full"}
+                bg={colorEditButton}
+                color={"white"}
+                rounded={"md"}
+                _hover={{
+                  transform: "translateY(-2px)",
+                  boxShadow: "lg",
+                }}
+              >
+                Edit Profile
+              </Button>
+            </Stack>
+          </Box>
+        </Box>
+      </Center>
+
+      {/* <Center py={6} mt={10}>
+        <Box
+          maxW={"580px"}
+          w={"full"}
+          bg={bgColor}
+          boxShadow={"2xl"}
+          rounded={"md"}
+          overflow={"hidden"}
+        >
           <Image
             h={"120px"}
             w={"full"}
@@ -403,7 +492,7 @@ const ProfilePage = () => {
             </Stack>
           </Box>
         </Box>
-      </Center>
+      </Center> */}
 
       {/* Profile Edit Modal */}
       <Modal isOpen={isProfileOpen} onClose={onProfileClose}>
