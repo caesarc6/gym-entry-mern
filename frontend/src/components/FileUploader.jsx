@@ -1,28 +1,31 @@
-// // FileUploader.js
 // import { useRef } from "react";
 // import "../index.css";
 
-// export const FileUploader = ({ handleFile }) => {
+// export const FileUploader = ({ handleFile, accept = "image/*" }) => {
 //   const hiddenFileInput = useRef(null);
 
-//   const handleClick = () => {
+//   const handleClick = (e) => {
+//     e.preventDefault(); // Prevent form submission
 //     hiddenFileInput.current.click();
 //   };
 
 //   const handleChange = (event) => {
 //     const fileUploaded = event.target.files[0];
-//     handleFile(fileUploaded);
+//     if (fileUploaded) {
+//       handleFile(fileUploaded);
+//     }
 //   };
 
 //   return (
 //     <>
-//       <button className="button-upload" onClick={handleClick}>
-//         Upload a file
+//       <button className="button-upload" onClick={handleClick} type="button">
+//         Upload Image
 //       </button>
 //       <input
 //         type="file"
 //         onChange={handleChange}
 //         ref={hiddenFileInput}
+//         accept={accept}
 //         style={{ display: "none" }}
 //       />
 //     </>

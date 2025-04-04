@@ -96,8 +96,8 @@ export const useProductStore = create((set) => ({
     formData.append("backgroundProfile", newBackgroundProfile);
 
     const res = await fetch(
-      `https://locahost:5001/api/upload/updateUserBackgroundPicture`,
-      // `https://gym-tracker-brown.vercel.app/api/upload/uploadBackgroundProfile`,
+      `https://locahost:5001/api/updateUserBackgroundPicture`,
+      // `https://gym-tracker-brown.vercel.app/api/uploadBackgroundProfile`,
       {
         method: "POST",
         headers: {
@@ -115,7 +115,7 @@ export const useProductStore = create((set) => ({
     }
 
     return { success: true, message: data.message };
-  }
+  },
 
   // Update workout entry
   updateEntry: async (pid, updatedEntry) => {
