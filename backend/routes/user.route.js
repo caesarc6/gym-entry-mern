@@ -16,6 +16,13 @@ import {
   // uploadProfilePic,
   // updateUserProfile,
   // handleFileUpload,
+  followUser,
+  unfollowUser,
+  likePost,
+  commentOnPost,
+  getFollowers,
+  getFollowing,
+  searchUsers,
 } from "../controllers/user.controller.js";
 import { verifyIdToken } from "../middleware/auth.js"; // Middleware to verify Firebase ID token
 
@@ -185,14 +192,45 @@ router.post(
   }
 );
 
+// Check if current user is following another user
+router.get("/isFollowing/:userId", verifyIdToken, async (req, res) => {
+  try {
+    const currentUser = await User.findOne({ uid: req.user.uid });
+    const targetUser = await User.findById(req.params.userId);
+
+    if (!targetUser) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const isFollowing = currentUser.following.includes(targetUser._id);
+    res.status(200).json({ success: true, isFollowing });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get("/users/:userId/followers", verifyIdToken, getFollowers);
+router.get("/users/:userId/following", verifyIdToken, getFollowing);
+
 // Other routes remain unchanged
 router.get("/createUsers", verifyIdToken, createUser);
 router.post("/posts", verifyIdToken, createPost);
 router.get("/posts/:uid", verifyIdToken, getPostsByUID);
-router.get("/getUsers", verifyIdToken, getUsers);
+// router.get("/getUsers", verifyIdToken, getUsers);
 router.get("/getCurrentUser", verifyIdToken, getCurrentUser);
 router.get("/getUser/:uid", getUser);
 router.get("/getUserProfile/:uid", verifyIdToken, getUserProfile);
 router.get("/getCurrentMongoDBUser", verifyIdToken, getCurrentMongoDBUser);
+
+// New social feature routes
+router.post("/follow/:userId", followUser);
+router.post("/unfollow/:userId", unfollowUser);
+// router.post("/posts", createPost);
+router.post("/posts/:postId/like", likePost);
+router.post("/posts/:postId/comment", commentOnPost);
+router.get("/getUsers", verifyIdToken, getUsers);
+router.get("/searchUsers", searchUsers);
 
 export default router;

@@ -3,11 +3,11 @@ import { Route, Routes } from "react-router-dom";
 import CreatePage from "./pages/CreatePage";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
-import Navbar from "./components/Navbar";
 import SignUpFlow from "./pages/SignUpFlow";
 import ModifyProfile from "./pages/ModifyProfile";
 import { HeroHeader } from "@/components/hero9-header";
 import "./index.css";
+import UserProfilePage from "./pages/UserProfilePage";
 
 function App() {
   return (
@@ -19,6 +19,7 @@ function App() {
         <Route path="/create" element={<CreatePage />} />
         <Route path="/editProfile" element={<ModifyProfile />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/user/:userId" element={<UserProfilePage />} />
         <Route path="/signup" element={<SignUpFlow />} />
       </Routes>
     </Box>

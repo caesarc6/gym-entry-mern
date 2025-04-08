@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 // import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import User from "../models/user.model.js";
+import { User, Post, Comment } from "../models/user.model.js";
 import { createClient } from "@supabase/supabase-js";
 import multer from "multer";
 import express from "express";
@@ -399,14 +399,14 @@ export const getPostsByUID = async (req, res) => {
 // };
 
 // get users in database sending back all users with name and UID
-export const getUsers = async (req, res) => {
-  try {
-    const users = await User.find({}).select("name uid");
-    res.status(200).json({ success: true, data: users });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to retrieve users" });
-  }
-};
+// export const getUsers = async (req, res) => {
+//   try {
+//     const users = await User.find({}).select("name uid");
+//     res.status(200).json({ success: true, data: users });
+//   } catch (error) {
+//     res.status(500).json({ error: "Failed to retrieve users" });
+//   }
+// };
 
 export const getCurrentUser = async (req, res) => {
   const { uid } = req.user;
@@ -421,32 +421,79 @@ export const getCurrentUser = async (req, res) => {
 };
 
 // get user UID and name
+// export const getUser = async (req, res) => {
+//   const { uid } = req.params;
+
+//   try {
+//     const user = await User.findOne({ uid }).select("name uid");
+//     res.status(200).json({ success: true, data: user });
+//   } catch (error) {
+//     res.status(500).json({ error: "Failed to retrieve user" });
+//   }
+// };
+
 export const getUser = async (req, res) => {
-  const { uid } = req.params;
+  const { uid } = req.params; // Rename to userId to match frontend route (/user/:userId)
 
   try {
-    const user = await User.findOne({ uid }).select("name uid");
+    const user = await User.findOne({ uid }).select(
+      "name picture bio gymName goal followers following"
+    );
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
     res.status(200).json({ success: true, data: user });
   } catch (error) {
-    res.status(500).json({ error: "Failed to retrieve user" });
+    console.error("Error retrieving user:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to retrieve user" });
+  }
+};
+
+export const searchUsers = async (req, res) => {
+  const { query } = req.query; // Get the search query from ?query=
+
+  if (!query || query.trim() === "") {
+    return res
+      .status(400)
+      .json({ success: false, message: "Search query is required" });
+  }
+
+  try {
+    const users = await User.find({
+      $or: [
+        { name: { $regex: query, $options: "i" } }, // Search name (case-insensitive)
+        { username: { $regex: query, $options: "i" } }, // Search username (case-insensitive)
+      ],
+    })
+      .select("name username picture uid") // Return name, username, picture, and _id
+      .limit(10); // Limit to 10 results for performance
+
+    res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    console.error("Error searching users:", error);
+    res.status(500).json({ success: false, message: "Failed to search users" });
   }
 };
 
 // get user profile (User info and posts)
-export const getUserProfile = async (req, res) => {
-  const { uid } = req.params;
+// export const getUserProfile = async (req, res) => {
+//   const { uid } = req.params;
 
-  try {
-    const user = await User.findOne({ uid }).select(
-      "name email picture bio goal gymName backgroundPicture"
-    );
-    const postsLength = await Entry.find({ uid });
-    const postsCount = postsLength.length;
-    res.status(200).json({ success: true, data: user, postsCount });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to retrieve user profile" });
-  }
-};
+//   try {
+//     const user = await User.findOne({ uid }).select(
+//       "name email picture bio goal gymName backgroundPicture"
+//     );
+//     const postsLength = await Entry.find({ uid });
+//     const postsCount = postsLength.length;
+//     res.status(200).json({ success: true, data: user, postsCount });
+//   } catch (error) {
+//     res.status(500).json({ error: "Failed to retrieve user profile" });
+//   }
+// };
 
 export const uploadBackgroindPicture = [
   handleFileUpload,
@@ -561,5 +608,209 @@ export const uploadProfilePic = [
     }
   },
 ];
+
+export const followUser = async (req, res) => {
+  try {
+    const userToFollow = await User.findById(req.params.userId);
+    const currentUser = await User.findById(req.body.currentUserId);
+
+    if (!userToFollow || !currentUser)
+      return res.status(404).json({ message: "User not found" });
+
+    if (!currentUser.following.includes(userToFollow._id)) {
+      currentUser.following.push(userToFollow._id);
+      userToFollow.followers.push(currentUser._id);
+      await currentUser.save();
+      await userToFollow.save();
+    }
+    res.status(200).json({ message: "Followed successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const unfollowUser = async (req, res) => {
+  try {
+    const userToUnfollow = await User.findById(req.params.userId);
+    const currentUser = await User.findById(req.body.currentUserId);
+
+    if (!userToUnfollow || !currentUser)
+      return res.status(404).json({ message: "User not found" });
+
+    currentUser.following = currentUser.following.filter(
+      (id) => id.toString() !== userToUnfollow._id.toString()
+    );
+    userToUnfollow.followers = userToUnfollow.followers.filter(
+      (id) => id.toString() !== currentUser._id.toString()
+    );
+    await currentUser.save();
+    await userToUnfollow.save();
+
+    res.status(200).json({ message: "Unfollowed successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const likePost = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    const user = await User.findById(req.body.userId);
+
+    if (!post || !user)
+      return res.status(404).json({ message: "Post or user not found" });
+
+    if (!post.likes.includes(user._id)) {
+      post.likes.push(user._id);
+      await post.save();
+    }
+    res.status(200).json({ message: "Post liked" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const commentOnPost = async (req, res) => {
+  try {
+    const comment = new Comment({
+      user: req.body.userId,
+      post: req.params.postId,
+      content: req.body.content,
+    });
+    await comment.save();
+    res.status(201).json(comment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// export const getUserProfile = async (req, res) => {
+//   try {
+//     const { uid } = req.params;
+//     const user = await User.findOne({ uid })
+//       .populate("followers", "username name picture")
+//       .populate("following", "username name picture");
+//     const posts = await Post.find({ user: req.params.userId }).populate(
+//       "likes",
+//       "username"
+//     );
+//     const comments = await Comment.find({ user: req.params.userId }).populate(
+//       "post"
+//     );
+//     res.status(200).json({ user, posts, comments });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+export const getUserProfile = async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const user = await User.findOne({ uid })
+      .populate("followers", "username name picture")
+      .populate("following", "username name picture");
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    Entry.find({ uid });
+    const posts = await Entry.find({ uid }).populate("likes", "username");
+    const comments = await Comment.find({ user: user._id }).populate("post");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user,
+        posts,
+        postsCount: posts.length,
+        comments,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUsers = async (req, res) => {
+  try {
+    const users = await User.find()
+      .select("uid name username picture") // Only return necessary fields
+      .sort({ name: 1 }); // Sort alphabetically by name (1 = ascending, -1 = descending)
+
+    if (!users || users.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No users found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Add these functions to your user.controller.js file
+
+export const getFollowers = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findOne({ uid: userId }).populate({
+      path: "followers",
+      select: "uid name picture bio",
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user.followers || [],
+    });
+  } catch (error) {
+    console.error("Get followers error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const getFollowing = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findOne({ uid: userId }).populate({
+      path: "following",
+      select: "uid name picture bio",
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user.following || [],
+    });
+  } catch (error) {
+    console.error("Get following error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
 export default router;

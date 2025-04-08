@@ -60,6 +60,7 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
       bio: null, // Additional field initialized with null
       goal: null, // Additional field initialized with null
       gymName: null, // Additional field initialized with null
+      backgroundPicture: null, // Additional field initialized with null
     });
     await user.save();
   }
