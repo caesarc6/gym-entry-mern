@@ -160,26 +160,55 @@ const UserProfilePage = () => {
         }
       );
 
-      if (!response.ok) throw new Error(`Failed to ${endpoint} user`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to ${endpoint} user`);
+      }
 
       const data = await response.json();
-      setIsFollowing(!isFollowing);
-
-      // Update follower count
-      setUserProfile((prev) => ({
-        ...prev,
-        followers: isFollowing ? prev.followers - 1 : prev.followers + 1,
-      }));
-
-      toast({
-        title: "Success",
-        description: isFollowing
-          ? `You have unfollowed ${userProfile.name}`
-          : `You are now following ${userProfile.name}`,
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      if (data.message === "Followed successfully") {
+        setIsFollowing(true);
+        setUserProfile((prev) => ({
+          ...prev,
+          followers: prev.followers + 1,
+        }));
+        toast({
+          title: "Success",
+          description: `You are now following ${userProfile.name}`,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else if (data.message === "Already following") {
+        toast({
+          title: "Info",
+          description: `You are already following ${userProfile.name}`,
+          status: "info",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else if (data.message === "Unfollowed successfully") {
+        setIsFollowing(false);
+        setUserProfile((prev) => ({
+          ...prev,
+          followers: prev.followers - 1,
+        }));
+        toast({
+          title: "Success",
+          description: `You have unfollowed ${userProfile.name}`,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else if (data.message === "Not following") {
+        toast({
+          title: "Info",
+          description: `You are not following ${userProfile.name}`,
+          status: "info",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     } catch (error) {
       console.error(
         `Error ${isFollowing ? "unfollowing" : "following"} user:`,

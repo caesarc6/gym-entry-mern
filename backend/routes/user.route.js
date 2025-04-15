@@ -225,8 +225,8 @@ router.get("/getUserProfile/:uid", verifyIdToken, getUserProfile);
 router.get("/getCurrentMongoDBUser", verifyIdToken, getCurrentMongoDBUser);
 
 // New social feature routes
-router.post("/follow/:userId", followUser);
-router.post("/unfollow/:userId", unfollowUser);
+router.post("/follow/:userId", verifyIdToken, followUser);
+router.post("/unfollow/:userId", verifyIdToken, unfollowUser);
 // router.post("/posts", createPost);
 router.post("/posts/:postId/like", likePost);
 router.post("/posts/:postId/comment", commentOnPost);

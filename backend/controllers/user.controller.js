@@ -611,44 +611,115 @@ export const uploadProfilePic = [
 
 export const followUser = async (req, res) => {
   try {
-    const userToFollow = await User.findById(req.params.userId);
-    const currentUser = await User.findById(req.body.currentUserId);
+    // Log request details for debugging
+    console.log("req.user:", req.user);
+    console.log("req.params.userId:", req.params.userId);
 
-    if (!userToFollow || !currentUser)
+    // Validate req.user and uid
+    if (!req.user || !req.user.uid) {
+      return res.status(401).json({ message: "Unauthorized: No user data" });
+    }
+    const { uid } = req.user;
+
+    // Find users by Firebase UID (stored in uid field)
+    const userToFollow = await User.findOne({ uid: req.params.userId });
+    const currentUser = await User.findOne({ uid });
+
+    // Log user data
+    console.log("userToFollow:", userToFollow);
+    console.log("currentUser:", currentUser);
+
+    // Check if users exist
+    if (!userToFollow || !currentUser) {
       return res.status(404).json({ message: "User not found" });
+    }
 
+    // Prevent self-follow
+    if (currentUser._id.equals(userToFollow._id)) {
+      return res.status(400).json({ message: "Cannot follow yourself" });
+    }
+
+    // Check if already following
     if (!currentUser.following.includes(userToFollow._id)) {
       currentUser.following.push(userToFollow._id);
       userToFollow.followers.push(currentUser._id);
       await currentUser.save();
       await userToFollow.save();
+      return res.status(200).json({ message: "Followed successfully" });
     }
-    res.status(200).json({ message: "Followed successfully" });
+
+    return res.status(200).json({ message: "Already following" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Log full error for debugging
+    console.error("Error in followUser:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+// export const followUser = async (req, res) => {
+//   try {
+//     const { uid } = req.user;
+//     const userToFollow = await User.findById(req.params.userId);
+//     const currentUser = await User.findById(uid);
+//     console.log("uid", uid);
+//     console.log("to follow", userToFollow);
+//     if (!userToFollow || !currentUser)
+//       return res.status(404).json({ message: "User not found" });
+
+//     if (!currentUser.following.includes(userToFollow._id)) {
+//       currentUser.following.push(userToFollow._id);
+//       userToFollow.followers.push(currentUser._id);
+//       await currentUser.save();
+//       await userToFollow.save();
+//     }
+//     res.status(200).json({ message: "Followed successfully" });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 
 export const unfollowUser = async (req, res) => {
   try {
-    const userToUnfollow = await User.findById(req.params.userId);
-    const currentUser = await User.findById(req.body.currentUserId);
+    // Log request details for debugging
+    console.log("req.user:", req.user);
+    console.log("req.params.userId:", req.params.userId);
 
-    if (!userToUnfollow || !currentUser)
+    // Validate req.user and uid
+    if (!req.user || !req.user.uid) {
+      return res.status(401).json({ message: "Unauthorized: No user data" });
+    }
+    const { uid } = req.user;
+
+    // Find users by Firebase UID (stored in uid field)
+    const userToUnfollow = await User.findOne({ uid: req.params.userId });
+    const currentUser = await User.findOne({ uid });
+
+    // Log user data
+    console.log("userToUnfollow:", userToUnfollow);
+    console.log("currentUser:", currentUser);
+
+    // Check if users exist
+    if (!userToUnfollow || !currentUser) {
       return res.status(404).json({ message: "User not found" });
+    }
 
-    currentUser.following = currentUser.following.filter(
-      (id) => id.toString() !== userToUnfollow._id.toString()
-    );
-    userToUnfollow.followers = userToUnfollow.followers.filter(
-      (id) => id.toString() !== currentUser._id.toString()
-    );
-    await currentUser.save();
-    await userToUnfollow.save();
+    // Check if following
+    if (currentUser.following.includes(userToUnfollow._id)) {
+      currentUser.following = currentUser.following.filter(
+        (id) => !id.equals(userToUnfollow._id)
+      );
+      userToUnfollow.followers = userToUnfollow.followers.filter(
+        (id) => !id.equals(currentUser._id)
+      );
+      await currentUser.save();
+      await userToUnfollow.save();
+      return res.status(200).json({ message: "Unfollowed successfully" });
+    }
 
-    res.status(200).json({ message: "Unfollowed successfully" });
+    return res.status(200).json({ message: "Not following" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Log full error for debugging
+    console.error("Error in unfollowUser:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
