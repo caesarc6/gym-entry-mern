@@ -2,8 +2,6 @@ import express from "express";
 import multer from "multer";
 import User from "../models/user.model.js";
 import { supabase } from "../supabase/supabase.js";
-// import { verifyIdToken } from "../middleware/auth.js";
-
 import {
   createUser,
   createPost,
@@ -13,9 +11,6 @@ import {
   getUser,
   getUserProfile,
   getCurrentMongoDBUser,
-  // uploadProfilePic,
-  // updateUserProfile,
-  // handleFileUpload,
   followUser,
   unfollowUser,
   likePost,
@@ -24,7 +19,8 @@ import {
   getFollowing,
   searchUsers,
 } from "../controllers/user.controller.js";
-import { verifyIdToken } from "../middleware/auth.js"; // Middleware to verify Firebase ID token
+import { verifyIdToken } from "../middleware/auth.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
@@ -70,7 +66,7 @@ router.post(
       const { error } = await supabase.storage
         .from("user_profiles")
         .upload(filePath, req.file.buffer, {
-          contentType: req.file.mimetype, // Use the actual mimetype from the file
+          contentType: req.file.mimetype,
           cacheControl: "3600",
           upsert: true,
         });
@@ -140,7 +136,7 @@ router.post(
         const { error } = await supabase.storage
           .from("user_profiles")
           .upload(filePath, req.file.buffer, {
-            contentType: req.file.mimetype, // Use the actual mimetype from the file
+            contentType: req.file.mimetype,
             cacheControl: "3600",
             upsert: true,
           });
@@ -195,19 +191,43 @@ router.post(
 // Check if current user is following another user
 router.get("/isFollowing/:userId", verifyIdToken, async (req, res) => {
   try {
-    const currentUser = await User.findOne({ uid: req.user.uid });
-    const targetUser = await User.findById(req.params.userId);
+    const { userId } = req.params; // MongoDB _id of the target user
+    const currentUserUid = req.user.uid; // Firebase UID of the current user
 
-    if (!targetUser) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+    // Find the current user by Firebase UID to get their MongoDB _id
+    const currentUser = await User.findOneAndUpdate({ uid: currentUserUid });
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Current user not found",
+      });
     }
 
-    const isFollowing = currentUser.following.includes(targetUser._id);
-    res.status(200).json({ success: true, isFollowing });
+    // Find the target user by MongoDB _id
+    const targetUser = await User.findById(userId);
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Target user not found",
+      });
+    }
+
+    // Check if the current user's _id is in the target user's followers array
+    const isFollowing = targetUser.followers.includes(
+      currentUser._id.toString()
+    );
+
+    res.status(200).json({
+      success: true,
+      isFollowing,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Error checking follow status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error checking follow status",
+      error: error.message,
+    });
   }
 });
 
@@ -218,7 +238,6 @@ router.get("/users/:userId/following", verifyIdToken, getFollowing);
 router.get("/createUsers", verifyIdToken, createUser);
 router.post("/posts", verifyIdToken, createPost);
 router.get("/posts/:uid", verifyIdToken, getPostsByUID);
-// router.get("/getUsers", verifyIdToken, getUsers);
 router.get("/getCurrentUser", verifyIdToken, getCurrentUser);
 router.get("/getUser/:uid", getUser);
 router.get("/getUserProfile/:uid", verifyIdToken, getUserProfile);
@@ -227,7 +246,6 @@ router.get("/getCurrentMongoDBUser", verifyIdToken, getCurrentMongoDBUser);
 // New social feature routes
 router.post("/follow/:userId", verifyIdToken, followUser);
 router.post("/unfollow/:userId", verifyIdToken, unfollowUser);
-// router.post("/posts", createPost);
 router.post("/posts/:postId/like", likePost);
 router.post("/posts/:postId/comment", commentOnPost);
 router.get("/getUsers", verifyIdToken, getUsers);

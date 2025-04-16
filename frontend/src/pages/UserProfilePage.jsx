@@ -16,14 +16,13 @@ import { Stack, Box, Image } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { auth } from "../firebase";
-import { getAuth } from "firebase/auth";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import ProductCard from "../components/ProductCard";
 import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 
 const UserProfilePage = () => {
-  const { userId } = useParams(); // Get userId from URL params
+  const { userId } = useParams();
   const [userProfile, setUserProfile] = useState({
     name: "",
     goal: "",
@@ -39,6 +38,8 @@ const UserProfilePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowingLoading, setIsFollowingLoading] = useState(false);
+  const [isFollowingLoadingInitial, setIsFollowingLoadingInitial] =
+    useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(6);
   const [pagination, setPagination] = useState({
@@ -57,7 +58,9 @@ const UserProfilePage = () => {
       try {
         setIsLoading(true);
         const user = auth.currentUser;
-        const token = await user?.getIdToken();
+        if (!user) throw new Error("User not authenticated");
+
+        const token = await user.getIdToken();
 
         // Fetch user profile data
         const profileResponse = await fetch(
@@ -89,7 +92,7 @@ const UserProfilePage = () => {
         });
 
         // Check if current user is following this profile
-        if (user) {
+        if (user && user.uid !== userId) {
           const isFollowingResponse = await fetch(
             `http://localhost:5001/api/isFollowing/${userId}`,
             {
@@ -100,10 +103,17 @@ const UserProfilePage = () => {
               },
             }
           );
-          if (isFollowingResponse.ok) {
-            const isFollowingData = await isFollowingResponse.json();
-            setIsFollowing(isFollowingData.isFollowing);
+
+          if (!isFollowingResponse.ok) {
+            throw new Error("Failed to check follow status");
           }
+
+          const isFollowingData = await isFollowingResponse.json();
+          setIsFollowing(isFollowingData.isFollowing || false);
+          setIsFollowingLoadingInitial(false);
+        } else {
+          setIsFollowing(false);
+          setIsFollowingLoadingInitial(false);
         }
 
         // Fetch user's posts
@@ -127,7 +137,7 @@ const UserProfilePage = () => {
         console.error("Error fetching user profile:", error);
         toast({
           title: "Error",
-          description: error.message,
+          description: error.message || "Failed to load profile",
           status: "error",
           duration: 5000,
           isClosable: true,
@@ -138,7 +148,7 @@ const UserProfilePage = () => {
     };
 
     fetchUserProfile();
-  }, [userId, currentPage, limit]);
+  }, [userId, currentPage, limit, toast, profileColorMode]);
 
   const handleFollow = async () => {
     try {
@@ -180,6 +190,7 @@ const UserProfilePage = () => {
           isClosable: true,
         });
       } else if (data.message === "Already following") {
+        setIsFollowing(true);
         toast({
           title: "Info",
           description: `You are already following ${userProfile.name}`,
@@ -201,6 +212,7 @@ const UserProfilePage = () => {
           isClosable: true,
         });
       } else if (data.message === "Not following") {
+        setIsFollowing(false);
         toast({
           title: "Info",
           description: `You are not following ${userProfile.name}`,
@@ -291,17 +303,24 @@ const UserProfilePage = () => {
                 </Text>
               </Stack>
             </Stack>
-            <Stack direction={"row"} spacing={4} mt={6}>
-              <Button
-                onClick={handleFollow}
-                colorScheme={isFollowing ? "red" : "blue"}
-                w={"full"}
-                isLoading={isFollowingLoading}
-                loadingText={isFollowing ? "Unfollowing..." : "Following..."}
-              >
-                {isFollowing ? "Unfollow" : "Follow"}
-              </Button>
-            </Stack>
+            {auth.currentUser?.uid !== userId && (
+              <Stack direction={"row"} spacing={4} mt={6}>
+                <Button
+                  onClick={handleFollow}
+                  colorScheme={isFollowing ? "red" : "blue"}
+                  w={"full"}
+                  isLoading={isFollowingLoading}
+                  isDisabled={isFollowingLoadingInitial}
+                  loadingText={isFollowing ? "Unfollowing..." : "Following..."}
+                >
+                  {isFollowingLoadingInitial
+                    ? "Loading..."
+                    : isFollowing
+                    ? "Unfollow"
+                    : "Follow"}
+                </Button>
+              </Stack>
+            )}
           </Box>
         </Box>
       </Center>

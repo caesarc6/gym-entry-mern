@@ -4,7 +4,6 @@ import { User, Post, Comment } from "../models/user.model.js";
 import { createClient } from "@supabase/supabase-js";
 import multer from "multer";
 import express from "express";
-// import User from "../models/user.model.js";
 import Entry from "../models/entry.model.js";
 import { verifyIdToken } from "../middleware/auth.js"; // Middleware to verify Firebase ID token
 import dotenv from "dotenv";
