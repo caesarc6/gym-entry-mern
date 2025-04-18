@@ -63,6 +63,8 @@ const ProfilePage = () => {
   });
   const [allUsers, setAllUsers] = useState([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [followingStatus, setFollowingStatus] = useState({});
+  const [loadingStates, setLoadingStates] = useState({});
 
   const textColorDesc = useColorModeValue("gray.700", "gray.400");
   const bgColor = useColorModeValue("white", "gray.800");
@@ -90,6 +92,8 @@ const ProfilePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const auth = getAuth();
+  const currentUser = auth.currentUser; // Get current user
 
   useEffect(() => {
     const auth = getAuth();
@@ -419,16 +423,25 @@ const ProfilePage = () => {
     }
   };
 
-  // Add these functions to your ProfilePage component
-  const followUser = async (userIdToFollow) => {
-    setIsFollowingLoading(true);
+  const handleFollow = async (userIdToFollow) => {
     try {
+      // Set loading state for this specific user
+      setLoadingStates((prev) => ({ ...prev, [userIdToFollow]: true }));
       const user = auth.currentUser;
-      if (!user) throw new Error("User not authenticated");
+      if (!user) throw new Error("You need to sign in to follow users");
 
       const token = await user.getIdToken();
+      const isCurrentlyFollowing = followingStatus[userIdToFollow];
+      const endpoint = isCurrentlyFollowing ? "follow" : "unfollow";
+      console.log(endpoint);
+
+      // Debug: Log the action being performed
+      console.log(
+        `Attempting to ${endpoint} user ${userIdToFollow}, isCurrentlyFollowing: ${isCurrentlyFollowing}`
+      );
+
       const response = await fetch(
-        `http://localhost:5001/api/follow/${userIdToFollow}`,
+        `http://localhost:5001/api/${endpoint}/${userIdToFollow}`,
         {
           method: "POST",
           headers: {
@@ -438,18 +451,81 @@ const ProfilePage = () => {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to follow user");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to ${endpoint} user`);
+      }
 
       const data = await response.json();
-      toast({
-        title: "Success",
-        description: `You are now following ${data.data.followedUser.name}`,
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
 
-      // Refresh the followers/following lists
+      // Debug: Log the API response
+      console.log("API Response:", data);
+
+      if (data.message === "Followed successfully") {
+        setFollowingStatus((prev) => ({ ...prev, [userIdToFollow]: true }));
+        setUserProfile((prev) => ({
+          ...prev,
+          followers: isFollowersOpen ? prev.followers : prev.followers + 1,
+        }));
+        toast({
+          title: "Success",
+          description: `You are now following ${
+            data.data?.followedUser?.name || "this user"
+          }`,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else if (data.message === "Already following") {
+        setFollowingStatus((prev) => ({ ...prev, [userIdToFollow]: true }));
+        toast({
+          title: "Info",
+          description: `You are already following ${
+            data.data?.followedUser?.name || "this user"
+          }`,
+          status: "info",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else if (data.message === "Unfollowed successfully") {
+        setFollowingStatus((prev) => ({ ...prev, [userIdToFollow]: false }));
+        setUserProfile((prev) => ({
+          ...prev,
+          followers: isFollowersOpen ? prev.followers : prev.followers - 1,
+        }));
+        toast({
+          title: "Success",
+          description: `You have unfollowed ${
+            data.data?.unfollowedUser?.name || "this user"
+          }`,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else if (data.message === "Not following") {
+        setFollowingStatus((prev) => ({ ...prev, [userIdToFollow]: false }));
+        toast({
+          title: "Info",
+          description: `You are not following ${
+            data.data?.unfollowedUser?.name || "this user"
+          }`,
+          status: "info",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        // Handle unexpected API response
+        console.warn("Unexpected API response:", data);
+        toast({
+          title: "Warning",
+          description: "Unexpected response from server",
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+
+      // Refresh followers/following lists if open
       if (isFollowersOpen) {
         const followers = await getFollowers(uid);
         setFollowersList(followers);
@@ -459,76 +535,77 @@ const ProfilePage = () => {
         setFollowingList(following);
       }
 
-      // Update the follower count in the profile
-      fetchUserProfile(user);
+      // Refresh user profile to get updated follower/following counts
+      const updatedUser = auth.currentUser;
+      if (updatedUser) {
+        fetchUserProfile(updatedUser);
+      }
+
       return true;
     } catch (error) {
-      console.error("Error following user:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-      return false;
-    }
-  };
-
-  const unfollowUser = async (userIdToUnfollow) => {
-    setIsFollowingLoading(true);
-    try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("User not authenticated");
-
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `http://localhost:5001/api/unfollow/${userIdToUnfollow}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+      console.error(
+        `Error ${
+          followingStatus[userIdToFollow] ? "unfollowing" : "following"
+        } user:`,
+        error
       );
-
-      if (!response.ok) throw new Error("Failed to unfollow user");
-
-      const data = await response.json();
-      toast({
-        title: "Success",
-        description: `You have unfollowed ${data.data.unfollowedUser.name}`,
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-
-      // Refresh the followers/following lists
-      if (isFollowersOpen) {
-        const followers = await getFollowers(uid);
-        setFollowersList(followers);
-      }
-      if (isFollowingOpen) {
-        const following = await getFollowing(uid);
-        setFollowingList(following);
-      }
-
-      // Update the follower count in the profile
-      fetchUserProfile(user);
-      return true;
-    } catch (error) {
-      console.error("Error unfollowing user:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description:
+          error.message ||
+          `Failed to ${
+            followingStatus[userIdToFollow] ? "unfollow" : "follow"
+          } user`,
         status: "error",
         duration: 5000,
         isClosable: true,
       });
       return false;
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [userIdToFollow]: false }));
     }
   };
+
+  // Add this effect to initialize the following status
+  useEffect(() => {
+    const initializeFollowingStatus = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const token = await user.getIdToken();
+
+        // Replace this with your actual endpoint that can return following data
+        const response = await fetch(
+          `http://localhost:5001/api/users/${user.uid}/following`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.success && data.data) {
+          const followingMap = {};
+          data.data.forEach((uid) => {
+            followingMap[uid] = true;
+          });
+          setFollowingStatus(followingMap);
+        }
+      } catch (error) {
+        console.error("Error initializing following status:", error);
+      }
+    };
+
+    if (isSignedIn) {
+      initializeFollowingStatus();
+    }
+  }, [isSignedIn]);
 
   const searchUsers = async (query) => {
     if (!query.trim()) {
@@ -698,7 +775,7 @@ const ProfilePage = () => {
             {followersList.length === 0 ? (
               <Text>No followers yet</Text>
             ) : (
-              <VStack align="start" spacing={4}>
+              <VStack align="start" spacing={4} pb={4}>
                 {followersList.map((user) => (
                   <Flex
                     key={user.uid}
@@ -719,13 +796,19 @@ const ProfilePage = () => {
                     {user.uid !== uid && (
                       <Button
                         size="sm"
-                        colorScheme="red"
-                        variant="outline"
-                        onClick={() => unfollowUser(user.uid)}
-                        isLoading={isFollowingLoading}
-                        loadingText="Unfollowing..."
+                        colorScheme={followingStatus[user.uid] ? "red" : "blue"}
+                        variant={
+                          followingStatus[user.uid] ? "outline" : "solid"
+                        }
+                        onClick={() => handleFollow(user.uid)}
+                        isLoading={loadingStates[user.uid]}
+                        loadingText={
+                          followingStatus[user.uid]
+                            ? "Unfollowing..."
+                            : "Following..."
+                        }
                       >
-                        Unfollow
+                        {followingStatus[user.uid] ? "Unfollow" : "Follow"}
                       </Button>
                     )}
                   </Flex>
@@ -746,7 +829,7 @@ const ProfilePage = () => {
             {followingList.length === 0 ? (
               <Text>Not following anyone yet</Text>
             ) : (
-              <VStack align="start" spacing={4}>
+              <VStack align="start" spacing={4} pb={4}>
                 {followingList.map((user) => (
                   <Flex
                     key={user.uid}
@@ -769,8 +852,8 @@ const ProfilePage = () => {
                         size="sm"
                         colorScheme="red"
                         variant="outline"
-                        onClick={() => unfollowUser(user.uid)}
-                        isLoading={isFollowingLoading}
+                        onClick={() => handleFollow(user.uid)}
+                        isLoading={loadingStates[user.uid]}
                         loadingText="Unfollowing..."
                       >
                         Unfollow
@@ -783,6 +866,7 @@ const ProfilePage = () => {
           </ModalBody>
         </ModalContent>
       </Modal>
+
       {/* Profile Edit Modal */}
       <Modal isOpen={isProfileOpen} onClose={onProfileClose}>
         <form onSubmit={handleProfileSubmit}>
@@ -922,12 +1006,24 @@ const ProfilePage = () => {
             {searchResults.map((user) => (
               <Link
                 key={user.uid}
-                to={`/user/${user.uid}`}
+                to={
+                  currentUser && user.uid === currentUser.uid
+                    ? "/profile"
+                    : `/user/${user.uid}`
+                }
                 aria-label={`View ${user.name}'s profile`}
               >
                 <Flex align="center" _hover={{ bg: "gray.100" }} p={2} w="full">
                   <Avatar src={user.picture} size="sm" mr={2} />
-                  <Text>{user.name}</Text>
+                  <Text
+                    fontWeight={
+                      currentUser && user.uid === currentUser.uid
+                        ? "bold"
+                        : "normal"
+                    }
+                  >
+                    {user.name}
+                  </Text>
                 </Flex>
               </Link>
             ))}

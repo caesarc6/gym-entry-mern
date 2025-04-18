@@ -18,6 +18,7 @@ import {
   getFollowers,
   getFollowing,
   searchUsers,
+  isFollowing,
 } from "../controllers/user.controller.js";
 import { verifyIdToken } from "../middleware/auth.js";
 import mongoose from "mongoose";
@@ -189,47 +190,49 @@ router.post(
 );
 
 // Check if current user is following another user
-router.get("/isFollowing/:userId", verifyIdToken, async (req, res) => {
-  try {
-    const { userId } = req.params; // MongoDB _id of the target user
-    const currentUserUid = req.user.uid; // Firebase UID of the current user
+// router.get("/isFollowing/:userId", verifyIdToken, async (req, res) => {
+//   try {
+//     const { userId } = req.params; // MongoDB _id of the target user
+//     const currentUserUid = req.user.uid; // Firebase UID of the current user
 
-    // Find the current user by Firebase UID to get their MongoDB _id
-    const currentUser = await User.findOneAndUpdate({ uid: currentUserUid });
-    if (!currentUser) {
-      return res.status(404).json({
-        success: false,
-        message: "Current user not found",
-      });
-    }
+//     // Find the current user by Firebase UID to get their MongoDB _id
+//     const currentUser = await User.findOneAndUpdate({ uid: currentUserUid });
+//     if (!currentUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Current user not found",
+//       });
+//     }
 
-    // Find the target user by MongoDB _id
-    const targetUser = await User.findById(userId);
-    if (!targetUser) {
-      return res.status(404).json({
-        success: false,
-        message: "Target user not found",
-      });
-    }
+//     // Find the target user by MongoDB _id
+//     const targetUser = await User.findById(userId);
+//     if (!targetUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Target user not found",
+//       });
+//     }
 
-    // Check if the current user's _id is in the target user's followers array
-    const isFollowing = targetUser.followers.includes(
-      currentUser._id.toString()
-    );
+//     // Check if the current user's _id is in the target user's followers array
+//     const isFollowing = targetUser.followers.includes(
+//       currentUser._id.toString()
+//     );
 
-    res.status(200).json({
-      success: true,
-      isFollowing,
-    });
-  } catch (error) {
-    console.error("Error checking follow status:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error checking follow status",
-      error: error.message,
-    });
-  }
-});
+//     res.status(200).json({
+//       success: true,
+//       isFollowing,
+//     });
+//   } catch (error) {
+//     console.error("Error checking follow status:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error checking follow status",
+//       error: error.message,
+//     });
+//   }
+// });
+
+router.get("/isFollowing/:userId", verifyIdToken, isFollowing);
 
 router.get("/users/:userId/followers", verifyIdToken, getFollowers);
 router.get("/users/:userId/following", verifyIdToken, getFollowing);

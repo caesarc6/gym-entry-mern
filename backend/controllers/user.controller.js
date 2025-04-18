@@ -340,6 +340,46 @@ export const createPost = async (req, res) => {
 //   }
 // };
 
+export const isFollowing = async (req, res) => {
+  try {
+    const { userId } = req.params; // Firebase UID of the target user
+    const currentUserUid = req.user.uid; // Firebase UID of the current user
+
+    // Find the current user by Firebase UID to get their MongoDB _id
+    const currentUser = await User.findOne({ uid: currentUserUid });
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Current user not found",
+      });
+    }
+
+    // Find the target user by Firebase UID (not _id)
+    const targetUser = await User.findOne({ uid: userId });
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Target user not found",
+      });
+    }
+
+    // Check if the current user's _id is in the target user's followers array
+    const isFollowing = targetUser.followers.includes(currentUser._id);
+
+    res.status(200).json({
+      success: true,
+      isFollowing,
+    });
+  } catch (error) {
+    console.error("Error checking follow status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error checking follow status",
+      error: error.message,
+    });
+  }
+};
+
 export const getPostsByUID = async (req, res) => {
   try {
     const { uid } = req.params;
@@ -494,7 +534,7 @@ export const searchUsers = async (req, res) => {
 //   }
 // };
 
-export const uploadBackgroindPicture = [
+export const uploadBackgroundPicture = [
   handleFileUpload,
 
   async (req, res) => {
@@ -654,27 +694,6 @@ export const followUser = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-// export const followUser = async (req, res) => {
-//   try {
-//     const { uid } = req.user;
-//     const userToFollow = await User.findById(req.params.userId);
-//     const currentUser = await User.findById(uid);
-//     console.log("uid", uid);
-//     console.log("to follow", userToFollow);
-//     if (!userToFollow || !currentUser)
-//       return res.status(404).json({ message: "User not found" });
-
-//     if (!currentUser.following.includes(userToFollow._id)) {
-//       currentUser.following.push(userToFollow._id);
-//       userToFollow.followers.push(currentUser._id);
-//       await currentUser.save();
-//       await userToFollow.save();
-//     }
-//     res.status(200).json({ message: "Followed successfully" });
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// };
 
 export const unfollowUser = async (req, res) => {
   try {
