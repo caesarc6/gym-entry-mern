@@ -307,7 +307,7 @@ const UserProfilePage = () => {
               <Stack direction={"row"} spacing={4} mt={6}>
                 <Button
                   onClick={handleFollow}
-                  colorScheme={isFollowing ? "red" : "blue"}
+                  colorScheme={isFollowing ? "whiteAlpha" : "blue"}
                   w={"full"}
                   isLoading={isFollowingLoading}
                   isDisabled={isFollowingLoadingInitial}
@@ -316,7 +316,7 @@ const UserProfilePage = () => {
                   {isFollowingLoadingInitial
                     ? "Loading..."
                     : isFollowing
-                    ? "Unfollow"
+                    ? "Following"
                     : "Follow"}
                 </Button>
               </Stack>
@@ -325,7 +325,7 @@ const UserProfilePage = () => {
         </Box>
       </Center>
 
-      <VStack spacing={8} mt={10}>
+      <VStack spacing={8} mt={6}>
         <Text
           fontSize={"22"}
           fontWeight={"bold"}

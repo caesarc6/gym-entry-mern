@@ -47,8 +47,8 @@ const ProfilePage = () => {
     profileImage: "",
     backgroundPicture: "",
     bio: "",
-    followers: 0, // Add followers count
-    following: 0, // Add following count
+    followers: 0,
+    following: 0,
   });
   const [profileImage, setProfileImage] = useState(null);
   const [backgroundImage, setBackgroundImage] = useState(null);
@@ -89,11 +89,7 @@ const ProfilePage = () => {
   const [followingList, setFollowingList] = useState([]);
   const [isFollowingLoading, setIsFollowingLoading] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
   const auth = getAuth();
-  const currentUser = auth.currentUser; // Get current user
 
   useEffect(() => {
     const auth = getAuth();
@@ -154,7 +150,6 @@ const ProfilePage = () => {
     try {
       const token = await user.getIdToken();
       const response = await fetch(
-        // `https://gym-tracker-brown.vercel.app/api/getUserProfile/${user.uid}`,
         `http://localhost:5001/api/getUserProfile/${user.uid}`,
         {
           method: "GET",
@@ -168,13 +163,11 @@ const ProfilePage = () => {
       if (!response.ok) throw new Error(await response.text());
 
       const data = await response.json();
-      // console.log(data);
       setUserProfile({
         name: data.data.user.name || "Anonymous",
         goal: data.data.user.goal || "Not set…",
         gymName: data.data.user.gymName || "Not specified",
         postsCount: data.data.postsCount || 0,
-        // postsCount: data.postsCount || 0,
         bio: data.data.user.bio || "No bio available",
         profileImage: data.data.user.picture || profileColorMode,
         backgroundPicture:
@@ -213,7 +206,6 @@ const ProfilePage = () => {
       }
 
       const profileResponse = await fetch(
-        // "http://localhost:5001/api/updateUserProfile",
         "https://gym-tracker-brown.vercel.app/api/updateUserProfile",
         {
           method: "POST",
@@ -271,7 +263,6 @@ const ProfilePage = () => {
       backgroundFormData.append("backgroundPictureName", backgroundImage.name);
 
       const backgroundResponse = await fetch(
-        // "http://localhost:5001/api/updateUserBackgroundPicture",
         "https://gym-tracker-brown.vercel.app/api/updateUserBackgroundPicture",
         {
           method: "POST",
@@ -367,7 +358,7 @@ const ProfilePage = () => {
         {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${token}`, // Your Firebase ID token
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         }
@@ -400,7 +391,7 @@ const ProfilePage = () => {
         {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${token}`, // Your Firebase ID token
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         }
@@ -425,7 +416,6 @@ const ProfilePage = () => {
 
   const handleFollow = async (userIdToFollow) => {
     try {
-      // Set loading state for this specific user
       setLoadingStates((prev) => ({ ...prev, [userIdToFollow]: true }));
       const user = auth.currentUser;
       if (!user) throw new Error("You need to sign in to follow users");
@@ -434,11 +424,6 @@ const ProfilePage = () => {
       const isCurrentlyFollowing = followingStatus[userIdToFollow];
       const endpoint = isCurrentlyFollowing ? "follow" : "unfollow";
       console.log(endpoint);
-
-      // Debug: Log the action being performed
-      console.log(
-        `Attempting to ${endpoint} user ${userIdToFollow}, isCurrentlyFollowing: ${isCurrentlyFollowing}`
-      );
 
       const response = await fetch(
         `http://localhost:5001/api/${endpoint}/${userIdToFollow}`,
@@ -457,9 +442,6 @@ const ProfilePage = () => {
       }
 
       const data = await response.json();
-
-      // Debug: Log the API response
-      console.log("API Response:", data);
 
       if (data.message === "Followed successfully") {
         setFollowingStatus((prev) => ({ ...prev, [userIdToFollow]: true }));
@@ -514,7 +496,6 @@ const ProfilePage = () => {
           isClosable: true,
         });
       } else {
-        // Handle unexpected API response
         console.warn("Unexpected API response:", data);
         toast({
           title: "Warning",
@@ -525,7 +506,6 @@ const ProfilePage = () => {
         });
       }
 
-      // Refresh followers/following lists if open
       if (isFollowersOpen) {
         const followers = await getFollowers(uid);
         setFollowersList(followers);
@@ -535,7 +515,6 @@ const ProfilePage = () => {
         setFollowingList(following);
       }
 
-      // Refresh user profile to get updated follower/following counts
       const updatedUser = auth.currentUser;
       if (updatedUser) {
         fetchUserProfile(updatedUser);
@@ -566,7 +545,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Add this effect to initialize the following status
   useEffect(() => {
     const initializeFollowingStatus = async () => {
       try {
@@ -574,8 +552,6 @@ const ProfilePage = () => {
         if (!user) return;
 
         const token = await user.getIdToken();
-
-        // Replace this with your actual endpoint that can return following data
         const response = await fetch(
           `http://localhost:5001/api/users/${user.uid}/following`,
           {
@@ -607,46 +583,6 @@ const ProfilePage = () => {
     }
   }, [isSignedIn]);
 
-  const searchUsers = async (query) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("User not authenticated");
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `http://localhost:5001/api/searchUsers?query=${encodeURIComponent(
-          query
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      if (!response.ok) throw new Error("Failed to search users");
-      const data = await response.json();
-      setSearchResults(data.data || []);
-    } catch (error) {
-      console.error("Error searching users:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
   return (
     <Container maxW="container.xl" py={12}>
       <Center py={6} mt={10}>
@@ -658,7 +594,6 @@ const ProfilePage = () => {
           rounded={"md"}
           overflow={"hidden"}
         >
-          {/* Container for the background image and button */}
           <Box position="relative">
             <Image
               h={"120px"}
@@ -669,13 +604,13 @@ const ProfilePage = () => {
             />
             <Button
               onClick={onBackgroundOpen}
-              size="sm" // Smaller size for a cleaner look
+              size="sm"
               colorScheme="blue"
               bg={colorEditButton}
               color={"white"}
               position="absolute"
-              top={2} // Distance from the top
-              right={2} // Distance from the right
+              top={2}
+              right={2}
               _hover={{
                 transform: "translateY(-2px)",
                 boxShadow: "lg",
@@ -722,7 +657,6 @@ const ProfilePage = () => {
                   Followers
                 </Text>
               </Stack>
-
               <Stack
                 spacing={0}
                 align={"center"}
@@ -982,57 +916,7 @@ const ProfilePage = () => {
           </ModalContent>
         </form>
       </Modal>
-      <VStack spacing={4} mt={6} w="full" maxW="md" mx="auto">
-        <Input
-          placeholder="Search users..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            searchUsers(e.target.value);
-          }}
-          size="lg"
-        />
-        {isSearching && <Spinner />}
-        {searchResults.length > 0 && (
-          <VStack
-            align="start"
-            spacing={2}
-            w="full"
-            bg={bgColor}
-            p={4}
-            borderRadius="md"
-            boxShadow="md"
-          >
-            {searchResults.map((user) => (
-              <Link
-                key={user.uid}
-                to={
-                  currentUser && user.uid === currentUser.uid
-                    ? "/profile"
-                    : `/user/${user.uid}`
-                }
-                aria-label={`View ${user.name}'s profile`}
-              >
-                <Flex align="center" _hover={{ bg: "gray.100" }} p={2} w="full">
-                  <Avatar src={user.picture} size="sm" mr={2} />
-                  <Text
-                    fontWeight={
-                      currentUser && user.uid === currentUser.uid
-                        ? "bold"
-                        : "normal"
-                    }
-                  >
-                    {user.name}
-                  </Text>
-                </Flex>
-              </Link>
-            ))}
-          </VStack>
-        )}
-        {searchQuery && !isSearching && searchResults.length === 0 && (
-          <Text>No users found</Text>
-        )}
-      </VStack>
+
       <VStack spacing={8} mt={10}>
         <Text
           fontSize={"22"}
