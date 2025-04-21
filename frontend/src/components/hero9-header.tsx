@@ -248,31 +248,24 @@ export const HeroHeader = () => {
                       <Search className="h-5 w-5" />
                     </Button>
                   ) : (
-                    <Flex
-                      position="absolute"
-                      top="0"
-                      left="0"
-                      right="0"
-                      bg={colorMode === "light" ? "background" : "gray.900"}
-                      px={4}
-                      py={2}
-                      zIndex="30"
-                      boxShadow="md"
-                      boxSizing="border-box"
-                    >
+                    <div className="flex items-center gap-2">
                       <Input
+                        borderRadius="16px"
                         placeholder="Search users..."
                         value={searchQuery}
                         onChange={(e) => {
                           setSearchQuery(e.target.value);
                           searchUsers(e.target.value);
                         }}
-                        size="md"
+                        onClick={(e) => e.stopPropagation()} // Prevent click propagation
+                        onTouchStart={(e) => e.stopPropagation()} // Prevent touch propagation
+                        size="sm"
                         autoFocus
                         className={cn(
                           colorMode === "light"
                             ? "bg-gray-100 text-gray-700"
-                            : "bg-gray-700 text-gray-200"
+                            : "bg-gray-700 text-gray-200",
+                          "w-[150px]" // Adjust width as needed
                         )}
                       />
                       {searchQuery && (
@@ -282,104 +275,82 @@ export const HeroHeader = () => {
                           onClick={() => {
                             setSearchQuery("");
                             setSearchResults([]);
-                            setIsSearchOpen(false);
+                            setIsSearchOpen(false); // Close search box
                           }}
                           className={cn(
-                            "absolute right-4 top-1/2 -translate-y-1/2",
                             colorMode === "light"
                               ? "text-gray-500 hover:text-gray-700"
                               : "text-gray-400 hover:text-gray-200"
                           )}
+                          aria-label="Clear search"
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       )}
-                      {isSearching && (
-                        <Spinner
-                          size="sm"
-                          position="absolute"
-                          right="30px"
-                          top="50%"
-                          transform="translateY(-50%)"
-                        />
-                      )}
-                      {searchResults.length > 0 && (
-                        <VStack
-                          align="start"
-                          spacing={2}
-                          w="full"
-                          maxW="calc(100vw - 2rem)" // Ensure dropdown stays within viewport
-                          bg={colorMode === "light" ? "white" : "gray.800"}
-                          p={4}
-                          borderRadius="md"
-                          boxShadow="md"
-                          position="absolute"
-                          top="50px" // Adjusted to align below input
-                          left="0"
-                          right="0"
-                          mx="auto"
-                          zIndex="10"
-                        >
-                          {searchResults.map((user) => (
-                            <Link
-                              key={user.uid}
-                              to={
-                                auth.currentUser &&
-                                user.uid === auth.currentUser.uid
-                                  ? "/profile"
-                                  : `/user/${user.uid}`
-                              }
-                              onClick={() => {
-                                closeMenu();
-                                setSearchQuery("");
-                                setSearchResults([]);
-                                setIsSearchOpen(false);
-                              }}
-                              aria-label={`View ${user.name}'s profile`}
-                            >
-                              <Flex
-                                align="center"
-                                _hover={{ bg: "gray.100" }}
-                                p={2}
-                                w="full"
-                              >
-                                <Avatar src={user.picture} size="sm" mr={2} />
-                                <Text
-                                  fontWeight={
-                                    auth.currentUser &&
-                                    user.uid === auth.currentUser.uid
-                                      ? "bold"
-                                      : "normal"
-                                  }
-                                >
-                                  {user.name}
-                                </Text>
-                              </Flex>
-                            </Link>
-                          ))}
-                        </VStack>
-                      )}
-                      {searchQuery &&
-                        !isSearching &&
-                        searchResults.length === 0 && (
-                          <Text
-                            bg={colorMode === "light" ? "white" : "gray.800"}
-                            p={4}
-                            borderRadius="md"
-                            boxShadow="md"
-                            position="absolute"
-                            top="50px"
-                            left="0"
-                            right="0"
-                            mx="auto"
-                            w="full"
-                            maxW="calc(100vw - 2rem)"
-                            zIndex="10"
+                      {isSearching && <Spinner size="sm" className="ml-2" />}
+                    </div>
+                  )}
+                  {/* Search Results Dropdown */}
+                  {(searchResults.length > 0 ||
+                    (searchQuery &&
+                      !isSearching &&
+                      searchResults.length === 0)) && (
+                    <VStack
+                      align="start"
+                      spacing={2}
+                      w="full"
+                      maxW="calc(100vw - 2rem)"
+                      bg={colorMode === "light" ? "white" : "gray.800"}
+                      p={4}
+                      borderRadius="md"
+                      boxShadow="md"
+                      position="absolute"
+                      top="100%"
+                      left="0"
+                      zIndex="10"
+                    >
+                      {searchResults.length > 0 ? (
+                        searchResults.map((user) => (
+                          <Link
+                            key={user.uid}
+                            to={
+                              auth.currentUser &&
+                              user.uid === auth.currentUser.uid
+                                ? "/profile"
+                                : `/user/${user.uid}`
+                            }
+                            onClick={() => {
+                              closeMenu();
+                              setSearchQuery("");
+                              setSearchResults([]);
+                              setIsSearchOpen(false);
+                            }}
+                            aria-label={`View ${user.name}'s profile`}
                           >
-                            No users found
-                          </Text>
-                        )}
-                    </Flex>
+                            <Flex
+                              align="center"
+                              _hover={{ bg: "gray.100" }}
+                              p={2}
+                              w="full"
+                            >
+                              <Avatar src={user.picture} size="sm" mr={2} />
+                              <Text
+                                fontWeight={
+                                  auth.currentUser &&
+                                  user.uid === auth.currentUser.uid
+                                    ? "bold"
+                                    : "normal"
+                                }
+                              >
+                                {user.name}
+                              </Text>
+                            </Flex>
+                          </Link>
+                        ))
+                      ) : (
+                        <Text w="full">No users found</Text>
+                      )}
+                    </VStack>
                   )}
                 </div>
 
@@ -411,7 +382,7 @@ export const HeroHeader = () => {
             </div>
 
             {/* Desktop Buttons and Search */}
-            <div className="hidden md:flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-3">
               {/* Desktop Search Icon/Input */}
               <div className="relative" ref={searchRef}>
                 {!isSearchOpen ? (
@@ -431,6 +402,7 @@ export const HeroHeader = () => {
                 ) : (
                   <Flex align="center">
                     <Input
+                      borderRadius="16px"
                       placeholder="Search users..."
                       value={searchQuery}
                       onChange={(e) => {
@@ -439,6 +411,7 @@ export const HeroHeader = () => {
                       }}
                       size="sm"
                       width="200px"
+                      mr="15px"
                       autoFocus
                       className={cn(
                         colorMode === "light"
@@ -446,6 +419,21 @@ export const HeroHeader = () => {
                           : "bg-gray-700 text-gray-200"
                       )}
                     />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setIsSearchOpen(isSearchOpen ? false : isSearchOpen)
+                      }
+                      className={cn(
+                        colorMode === "light"
+                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                          : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
+                      )}
+                      aria-label="Open search"
+                    >
+                      <Search className="h-5 w-5" />
+                    </Button>
                     {searchQuery && (
                       <Button
                         variant="ghost"
