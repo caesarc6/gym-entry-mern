@@ -1,7 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Menu, X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useScroll, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { auth, googleProvider } from "../firebase";
@@ -34,6 +34,8 @@ export const HeroHeader = () => {
   const { scrollYProgress } = useScroll();
   const { colorMode, toggleColorMode } = useColorMode();
   const toast = useToast();
+  const location = useLocation();
+  const [pendingNavigation, setPendingNavigation] = useState(null);
 
   // Search-related states
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -41,6 +43,7 @@ export const HeroHeader = () => {
   const [isSearching, setIsSearching] = React.useState(false);
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const searchRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // Function to close the mobile menu
   const closeMenu = () => setMenuState(false);
@@ -115,17 +118,40 @@ export const HeroHeader = () => {
   // Handle click-away to clear search
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setSearchQuery("");
-        setSearchResults([]);
-        setIsSearchOpen(false);
+      // Prevent closing if clicking within the search container, dropdown, search button, or input
+      if (
+        (searchRef.current && searchRef.current.contains(event.target)) ||
+        (dropdownRef.current && dropdownRef.current.contains(event.target)) ||
+        event.target.closest('button[aria-label="Open search"]') ||
+        event.target.closest("input")
+      ) {
+        console.log("Click within search or dropdown, not closing");
+        return;
       }
+      console.log("Click outside detected, closing search");
+      setSearchQuery("");
+      setSearchResults([]);
+      setIsSearchOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, []);
+
+  // Clean up search state after navigation
+  useEffect(() => {
+    if (pendingNavigation && location.pathname === pendingNavigation) {
+      console.log("Navigation completed to:", pendingNavigation);
+      setSearchQuery("");
+      setSearchResults([]);
+      setIsSearchOpen(false);
+      closeMenu();
+      setPendingNavigation(null);
+    }
+  }, [location.pathname, pendingNavigation]);
 
   React.useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -199,6 +225,17 @@ export const HeroHeader = () => {
     }
   };
 
+  // Handle profile click for mobile and desktop
+  const handleProfileClick = (e, path) => {
+    e.stopPropagation();
+    console.log("Profile clicked, attempting navigation to:", path);
+    setPendingNavigation(path);
+    // Delay state cleanup to ensure navigation completes
+    setTimeout(() => {
+      console.log("Delayed cleanup triggered for path:", path);
+    }, 300);
+  };
+
   return (
     <header>
       <nav className="fixed z-20 w-full">
@@ -210,7 +247,7 @@ export const HeroHeader = () => {
         >
           <motion.div
             className={cn(
-              "relative flex flex-wrap items-center justify-between gap-4 py-3 duration-200 lg:gap-0 lg:py-6",
+              "relative flex flex-wrap items-center justify-between gap-4 py-3 duration-200 lg:gap-ericsson lg:py-6",
               scrolled && "lg:py-4"
             )}
           >
@@ -257,15 +294,15 @@ export const HeroHeader = () => {
                           setSearchQuery(e.target.value);
                           searchUsers(e.target.value);
                         }}
-                        onClick={(e) => e.stopPropagation()} // Prevent click propagation
-                        onTouchStart={(e) => e.stopPropagation()} // Prevent touch propagation
+                        onClick={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
                         size="sm"
                         autoFocus
                         className={cn(
                           colorMode === "light"
                             ? "bg-gray-100 text-gray-700"
                             : "bg-gray-700 text-gray-200",
-                          "w-[150px]" // Adjust width as needed
+                          "w-[150px]"
                         )}
                       />
                       {searchQuery && (
@@ -275,7 +312,7 @@ export const HeroHeader = () => {
                           onClick={() => {
                             setSearchQuery("");
                             setSearchResults([]);
-                            setIsSearchOpen(false); // Close search box
+                            setIsSearchOpen(false);
                           }}
                           className={cn(
                             colorMode === "light"
@@ -307,46 +344,47 @@ export const HeroHeader = () => {
                       position="absolute"
                       top="100%"
                       left="0"
-                      zIndex="10"
+                      zIndex="50"
+                      ref={dropdownRef}
                     >
                       {searchResults.length > 0 ? (
-                        searchResults.map((user) => (
-                          <Link
-                            key={user.uid}
-                            to={
-                              auth.currentUser &&
-                              user.uid === auth.currentUser.uid
-                                ? "/profile"
-                                : `/user/${user.uid}`
-                            }
-                            onClick={() => {
-                              closeMenu();
-                              setSearchQuery("");
-                              setSearchResults([]);
-                              setIsSearchOpen(false);
-                            }}
-                            aria-label={`View ${user.name}'s profile`}
-                          >
-                            <Flex
-                              align="center"
-                              _hover={{ bg: "gray.100" }}
-                              p={2}
-                              w="full"
+                        searchResults.map((user) => {
+                          const path =
+                            auth.currentUser &&
+                            user.uid === auth.currentUser.uid
+                              ? "/profile"
+                              : `/user/${user.uid}`;
+                          return (
+                            <Link
+                              key={user.uid}
+                              to={path}
+                              onClick={(e) => handleProfileClick(e, path)}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => handleProfileClick(e, path)}
+                              aria-label={`View ${user.name}'s profile`}
+                              style={{ display: "block", width: "100%" }}
                             >
-                              <Avatar src={user.picture} size="sm" mr={2} />
-                              <Text
-                                fontWeight={
-                                  auth.currentUser &&
-                                  user.uid === auth.currentUser.uid
-                                    ? "bold"
-                                    : "normal"
-                                }
+                              <Flex
+                                align="center"
+                                _hover={{ bg: "gray.100" }}
+                                p={2}
+                                w="full"
                               >
-                                {user.name}
-                              </Text>
-                            </Flex>
-                          </Link>
-                        ))
+                                <Avatar src={user.picture} size="sm" mr={2} />
+                                <Text
+                                  fontWeight={
+                                    auth.currentUser &&
+                                    user.uid === auth.currentUser.uid
+                                      ? "bold"
+                                      : "normal"
+                                  }
+                                >
+                                  {user.name}
+                                </Text>
+                              </Flex>
+                            </Link>
+                          );
+                        })
                       ) : (
                         <Text w="full">No users found</Text>
                       )}
@@ -473,45 +511,46 @@ export const HeroHeader = () => {
                         position="absolute"
                         top="40px"
                         left="0"
-                        zIndex="10"
+                        zIndex="50"
+                        ref={dropdownRef}
                       >
-                        {searchResults.map((user) => (
-                          <Link
-                            key={user.uid}
-                            to={
-                              auth.currentUser &&
-                              user.uid === auth.currentUser.uid
-                                ? "/profile"
-                                : `/user/${user.uid}`
-                            }
-                            onClick={() => {
-                              closeMenu();
-                              setSearchQuery("");
-                              setSearchResults([]);
-                              setIsSearchOpen(false);
-                            }}
-                            aria-label={`View ${user.name}'s profile`}
-                          >
-                            <Flex
-                              align="center"
-                              _hover={{ bg: "gray.100" }}
-                              p={2}
-                              w="full"
+                        {searchResults.map((user) => {
+                          const path =
+                            auth.currentUser &&
+                            user.uid === auth.currentUser.uid
+                              ? "/profile"
+                              : `/user/${user.uid}`;
+                          return (
+                            <Link
+                              key={user.uid}
+                              to={path}
+                              onClick={(e) => handleProfileClick(e, path)}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => handleProfileClick(e, path)}
+                              aria-label={`View ${user.name}'s profile`}
+                              style={{ display: "block", width: "100%" }}
                             >
-                              <Avatar src={user.picture} size="sm" mr={2} />
-                              <Text
-                                fontWeight={
-                                  auth.currentUser &&
-                                  user.uid === auth.currentUser.uid
-                                    ? "bold"
-                                    : "normal"
-                                }
+                              <Flex
+                                align="center"
+                                _hover={{ bg: "gray.100" }}
+                                p={2}
+                                w="full"
                               >
-                                {user.name}
-                              </Text>
-                            </Flex>
-                          </Link>
-                        ))}
+                                <Avatar src={user.picture} size="sm" mr={2} />
+                                <Text
+                                  fontWeight={
+                                    auth.currentUser &&
+                                    user.uid === auth.currentUser.uid
+                                      ? "bold"
+                                      : "normal"
+                                  }
+                                >
+                                  {user.name}
+                                </Text>
+                              </Flex>
+                            </Link>
+                          );
+                        })}
                       </VStack>
                     )}
                     {searchQuery &&
@@ -526,7 +565,8 @@ export const HeroHeader = () => {
                           borderRadius="md"
                           boxShadow="md"
                           w="200px"
-                          zIndex="10"
+                          zIndex="50"
+                          ref={dropdownRef}
                         >
                           No users found
                         </Text>
