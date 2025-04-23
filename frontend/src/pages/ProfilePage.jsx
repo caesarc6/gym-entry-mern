@@ -34,6 +34,8 @@ import night from "../assets/night.jpg";
 import { auth } from "../firebase";
 import { getAuth } from "firebase/auth";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
+import defaultBg from "../assets/defaultBg.jpg";
+import defaultBgNight from "../assets/defaultBgNight.jpg";
 
 const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -70,6 +72,7 @@ const ProfilePage = () => {
   const bgColor = useColorModeValue("white", "gray.800");
   const colorEditButton = useColorModeValue("gray.400", "gray.900");
   const profileColorMode = useColorModeValue(light, night);
+  const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
   const {
     isOpen: isProfileOpen,
     onOpen: onProfileOpen,
@@ -170,9 +173,7 @@ const ProfilePage = () => {
         postsCount: data.data.postsCount || 0,
         bio: data.data.user.bio || "No bio available",
         profileImage: data.data.user.picture || profileColorMode,
-        backgroundPicture:
-          data.data.user.backgroundPicture ||
-          "https://images.unsplash.com/photo-1612865547334-09cb8cb455da",
+        backgroundPicture: data.data.user.backgroundPicture || bgColorMode,
         followers: data.data.user.followers?.length || 0,
         following: data.data.user.following?.length || 0,
       });
@@ -598,10 +599,12 @@ const ProfilePage = () => {
             <Image
               h={"120px"}
               w={"full"}
-              src={userProfile.backgroundPicture}
+              src={isLoading ? bgColorMode : userProfile.backgroundPicture}
+              fallbackSrc={bgColorMode}
               objectFit="cover"
               alt="Background"
             />
+
             <Button
               onClick={onBackgroundOpen}
               size="sm"
@@ -933,7 +936,12 @@ const ProfilePage = () => {
             alignItems="center"
             height="200px"
           >
-            <Spinner size="xl" />
+            <Spinner
+              size="lg"
+              thickness="4px"
+              speed="1.2s"
+              color={useColorModeValue("gray.700", "gray.400")}
+            />
           </Box>
         ) : (
           <>
@@ -964,7 +972,7 @@ const ProfilePage = () => {
               </Text>
               <Button
                 onClick={() => handlePageChange(currentPage + 1)}
-                isDisabled={currentPage === totalPages}
+                isDisabled={currentPage === totalPages || totalPages === 0}
                 ml={2}
               >
                 <SlArrowRight />

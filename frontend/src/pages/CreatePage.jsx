@@ -18,6 +18,8 @@ import { auth } from "../firebase";
 import { FileUploader } from "../components/FileUploader"; // Import the FileUploader component
 import night from "../assets/night.jpg";
 import day from "../assets/light.jpg";
+import defaultBg from "../assets/defaultBg.jpg";
+import defaultBgNight from "../assets/defaultBgNight.jpg";
 
 const CreatePage = () => {
   const [newEntry, setNewEntry] = useState({
@@ -34,6 +36,7 @@ const CreatePage = () => {
   });
 
   const navigate = useNavigate(); // Initialize useNavigate
+  const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
 
   const handleFileUpload = (file) => {
     const reader = new FileReader();
@@ -137,7 +140,7 @@ DumbBell Curls 6lbs: 3 sets of 10 reps"
             /> */}
 
             <Image
-              src={newPost.postImage || defaultImage}
+              src={newPost.postImage || bgColorMode}
               alt="Profile Picture"
               backgroundColor={useColorModeValue("gray.200", "gray.700")}
               boxSize="150px"

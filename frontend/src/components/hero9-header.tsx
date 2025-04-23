@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import React, { useEffect, useRef, useState } from "react";
@@ -21,6 +21,7 @@ import {
   useToast,
   Flex,
 } from "@chakra-ui/react";
+import { debounce } from "lodash";
 
 const menuItems = [{ name: "Profile", href: "/Profile" }];
 
@@ -35,7 +36,7 @@ export const HeroHeader = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const toast = useToast();
   const location = useLocation();
-  const [pendingNavigation, setPendingNavigation] = useState(null);
+  const navigate = useNavigate();
 
   // Search-related states
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -75,7 +76,7 @@ export const HeroHeader = () => {
   };
 
   // Search users function
-  const searchUsers = async (query) => {
+  const searchUsers = debounce(async (query) => {
     if (!query.trim()) {
       setSearchResults([]);
       return;
@@ -113,22 +114,23 @@ export const HeroHeader = () => {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, 300);
 
   // Handle click-away to clear search
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Prevent closing if clicking within the search container, dropdown, search button, or input
+      // Prevent closing if clicking within the search container, dropdown, search button, input, or a Link
       if (
         (searchRef.current && searchRef.current.contains(event.target)) ||
         (dropdownRef.current && dropdownRef.current.contains(event.target)) ||
         event.target.closest('button[aria-label="Open search"]') ||
-        event.target.closest("input")
+        event.target.closest("input") ||
+        event.target.closest("a") // Ignore clicks on Link components
       ) {
-        console.log("Click within search or dropdown, not closing");
+        // console.log("Click within search, dropdown, or Link, not closing");
         return;
       }
-      console.log("Click outside detected, closing search");
+      // console.log("Click outside detected, closing search");
       setSearchQuery("");
       setSearchResults([]);
       setIsSearchOpen(false);
@@ -140,18 +142,6 @@ export const HeroHeader = () => {
       document.removeEventListener("touchstart", handleClickOutside);
     };
   }, []);
-
-  // Clean up search state after navigation
-  useEffect(() => {
-    if (pendingNavigation && location.pathname === pendingNavigation) {
-      console.log("Navigation completed to:", pendingNavigation);
-      setSearchQuery("");
-      setSearchResults([]);
-      setIsSearchOpen(false);
-      closeMenu();
-      setPendingNavigation(null);
-    }
-  }, [location.pathname, pendingNavigation]);
 
   React.useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -226,10 +216,13 @@ export const HeroHeader = () => {
   };
 
   // Handle profile click for mobile and desktop
+
   const handleProfileClick = (e, path) => {
+    e.preventDefault();
     e.stopPropagation();
-    console.log("Profile clicked, attempting navigation to:", path);
-    setPendingNavigation(path);
+    // console.log("Profile clicked, attempting navigation to:", path);
+
+    navigate(path);
     // Delay state cleanup to ensure navigation completes
     setTimeout(() => {
       console.log("Delayed cleanup triggered for path:", path);
@@ -247,12 +240,12 @@ export const HeroHeader = () => {
         >
           <motion.div
             className={cn(
-              "relative flex flex-wrap items-center justify-between gap-4 py-3 duration-200 lg:gap-ericsson lg:py-6",
+              "relative flex flex-wrap items-center justify-between gap-1 py-3 duration-200 lg:gap-ericsson lg:py-6",
               scrolled && "lg:py-4"
             )}
           >
             {/* Logo, Search Icon, and Hamburger */}
-            <div className="flex w-full items-center justify-between gap-4 lg:w-auto md:w-auto">
+            <div className="flex w-full items-center justify-between gap-1 lg:w-auto md:w-auto">
               <a
                 href="/"
                 aria-label="home"
@@ -288,7 +281,7 @@ export const HeroHeader = () => {
                     <div className="flex items-center gap-2">
                       <Input
                         borderRadius="16px"
-                        placeholder="Search users..."
+                        placeholder="Search Users..."
                         value={searchQuery}
                         onChange={(e) => {
                           setSearchQuery(e.target.value);
@@ -315,13 +308,14 @@ export const HeroHeader = () => {
                             setIsSearchOpen(false);
                           }}
                           className={cn(
+                            "px-1",
                             colorMode === "light"
                               ? "text-gray-500 hover:text-gray-700"
                               : "text-gray-400 hover:text-gray-200"
                           )}
                           aria-label="Clear search"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-1 w-1" />
                         </Button>
                       )}
                       {isSearching && <Spinner size="sm" className="ml-2" />}
@@ -359,8 +353,6 @@ export const HeroHeader = () => {
                               key={user.uid}
                               to={path}
                               onClick={(e) => handleProfileClick(e, path)}
-                              onTouchStart={(e) => e.stopPropagation()}
-                              onTouchEnd={(e) => handleProfileClick(e, path)}
                               aria-label={`View ${user.name}'s profile`}
                               style={{ display: "block", width: "100%" }}
                             >
@@ -420,7 +412,8 @@ export const HeroHeader = () => {
             </div>
 
             {/* Desktop Buttons and Search */}
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center">
+              {/* Desktop Search Icon/Input */}
               {/* Desktop Search Icon/Input */}
               <div className="relative" ref={searchRef}>
                 {!isSearchOpen ? (
@@ -429,6 +422,7 @@ export const HeroHeader = () => {
                     size="sm"
                     onClick={() => setIsSearchOpen(true)}
                     className={cn(
+                      "py-0 px-[8px]",
                       colorMode === "light"
                         ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                         : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
@@ -438,23 +432,30 @@ export const HeroHeader = () => {
                     <Search className="h-5 w-5" />
                   </Button>
                 ) : (
-                  <Flex align="center">
+                  <Flex align="center" position="relative">
                     <Input
                       borderRadius="16px"
-                      placeholder="Search users..."
+                      placeholder="Search Users..."
                       value={searchQuery}
                       onChange={(e) => {
                         setSearchQuery(e.target.value);
                         searchUsers(e.target.value);
                       }}
                       size="sm"
-                      width="200px"
-                      mr="15px"
+                      minWidth="90px"
+                      maxWidth={{
+                        base: "99px",
+                        sm: "99px",
+                        md: "108px",
+                        lg: "300px",
+                      }}
+                      width="full"
                       autoFocus
                       className={cn(
                         colorMode === "light"
                           ? "bg-gray-100 text-gray-700"
-                          : "bg-gray-700 text-gray-200"
+                          : "bg-gray-700 text-gray-200",
+                        "pr-10" // Add padding-right to reserve space for clear button
                       )}
                     />
                     <Button
@@ -464,6 +465,7 @@ export const HeroHeader = () => {
                         setIsSearchOpen(isSearchOpen ? false : isSearchOpen)
                       }
                       className={cn(
+                        "py-0 px-[8px] ml-2", // Add margin-left to separate from input
                         colorMode === "light"
                           ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                           : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
@@ -481,25 +483,28 @@ export const HeroHeader = () => {
                           setSearchResults([]);
                         }}
                         className={cn(
-                          "absolute right-0 top-1/2 -translate-y-1/2",
+                          "absolute right-12 top-1/2 -translate-y-1/2 py-[0px] px-1", // Adjust right to avoid overlap with search button
                           colorMode === "light"
                             ? "text-gray-500 hover:text-gray-700"
                             : "text-gray-400 hover:text-gray-200"
                         )}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-1 w-2" />
                       </Button>
                     )}
                     {isSearching && (
                       <Spinner
                         size="sm"
                         position="absolute"
-                        right="30px"
+                        right="16px" // Adjust to align with clear button
                         top="50%"
                         transform="translateY(-50%)"
                       />
                     )}
-                    {searchResults.length > 0 && (
+                    {(searchResults.length > 0 ||
+                      (searchQuery &&
+                        !isSearching &&
+                        searchResults.length === 0)) && (
                       <VStack
                         align="start"
                         spacing={2}
@@ -514,69 +519,53 @@ export const HeroHeader = () => {
                         zIndex="50"
                         ref={dropdownRef}
                       >
-                        {searchResults.map((user) => {
-                          const path =
-                            auth.currentUser &&
-                            user.uid === auth.currentUser.uid
-                              ? "/profile"
-                              : `/user/${user.uid}`;
-                          return (
-                            <Link
-                              key={user.uid}
-                              to={path}
-                              onClick={(e) => handleProfileClick(e, path)}
-                              onTouchStart={(e) => e.stopPropagation()}
-                              onTouchEnd={(e) => handleProfileClick(e, path)}
-                              aria-label={`View ${user.name}'s profile`}
-                              style={{ display: "block", width: "100%" }}
-                            >
-                              <Flex
-                                align="center"
-                                _hover={{ bg: "gray.100" }}
-                                p={2}
-                                w="full"
+                        {searchResults.length > 0 ? (
+                          searchResults.map((user) => {
+                            const path =
+                              auth.currentUser &&
+                              user.uid === auth.currentUser.uid
+                                ? "/profile"
+                                : `/user/${user.uid}`;
+                            return (
+                              <Link
+                                key={user.uid}
+                                to={path}
+                                onClick={(e) => handleProfileClick(e, path)}
+                                aria-label={`View ${user.name}'s profile`}
+                                style={{ display: "block", width: "100%" }}
                               >
-                                <Avatar src={user.picture} size="sm" mr={2} />
-                                <Text
-                                  fontWeight={
-                                    auth.currentUser &&
-                                    user.uid === auth.currentUser.uid
-                                      ? "bold"
-                                      : "normal"
-                                  }
+                                <Flex
+                                  align="center"
+                                  _hover={{ bg: "gray.100" }}
+                                  p={2}
+                                  w="full"
                                 >
-                                  {user.name}
-                                </Text>
-                              </Flex>
-                            </Link>
-                          );
-                        })}
+                                  <Avatar src={user.picture} size="sm" mr={2} />
+                                  <Text
+                                    fontWeight={
+                                      auth.currentUser &&
+                                      user.uid === auth.currentUser.uid
+                                        ? "bold"
+                                        : "normal"
+                                    }
+                                  >
+                                    {user.name}
+                                  </Text>
+                                </Flex>
+                              </Link>
+                            );
+                          })
+                        ) : (
+                          <Text w="full">No users found</Text>
+                        )}
                       </VStack>
                     )}
-                    {searchQuery &&
-                      !isSearching &&
-                      searchResults.length === 0 && (
-                        <Text
-                          position="absolute"
-                          top="40px"
-                          left="0"
-                          bg={colorMode === "light" ? "white" : "gray.800"}
-                          p={4}
-                          borderRadius="md"
-                          boxShadow="md"
-                          w="200px"
-                          zIndex="50"
-                          ref={dropdownRef}
-                        >
-                          No users found
-                        </Text>
-                      )}
                   </Flex>
                 )}
               </div>
 
               {/* Desktop Buttons */}
-              <div className="flex flex-row gap-3">
+              <div className="flex flex-row gap-2">
                 {isLoading ? (
                   <Button
                     disabled

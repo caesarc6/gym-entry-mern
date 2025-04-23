@@ -11,18 +11,21 @@ import {
   Center,
   Flex,
   Spinner,
+  Box,
 } from "@chakra-ui/react";
-import { Stack, Box, Image } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Stack, Image } from "@chakra-ui/react";
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import ProductCard from "../components/ProductCard";
 import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
-
+import defaultBg from "../assets/defaultBg.jpg";
+import defaultBgNight from "../assets/defaultBgNight.jpg";
 const UserProfilePage = () => {
   const { userId } = useParams();
+  const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState({
     name: "",
     goal: "",
@@ -36,6 +39,7 @@ const UserProfilePage = () => {
   });
   const [entries, setEntries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(true); // New state for auth loading
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowingLoading, setIsFollowingLoading] = useState(false);
   const [isFollowingLoadingInitial, setIsFollowingLoadingInitial] =
@@ -51,104 +55,137 @@ const UserProfilePage = () => {
 
   const toast = useToast();
   const profileColorMode = useColorModeValue(light, night);
+  const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
   const bgColor = useColorModeValue("white", "gray.800");
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        setIsLoading(true);
-        const user = auth.currentUser;
-        if (!user) throw new Error("User not authenticated");
-
-        const token = await user.getIdToken();
-
-        // Fetch user profile data
-        const profileResponse = await fetch(
-          `http://localhost:5001/api/getUserProfile/${userId}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!profileResponse.ok) throw new Error(await profileResponse.text());
-
-        const profileData = await profileResponse.json();
-        setUserProfile({
-          name: profileData.data.user.name || "Anonymous",
-          goal: profileData.data.user.goal || "Not set…",
-          gymName: profileData.data.user.gymName || "Not specified",
-          postsCount: profileData.data.postsCount || 0,
-          bio: profileData.data.user.bio || "No bio available",
-          profileImage: profileData.data.user.picture || profileColorMode,
-          backgroundPicture:
-            profileData.data.user.backgroundPicture ||
-            "https://images.unsplash.com/photo-1612865547334-09cb8cb455da",
-          followers: profileData.data.user.followers?.length || 0,
-          following: profileData.data.user.following?.length || 0,
-        });
-
-        // Check if current user is following this profile
-        if (user && user.uid !== userId) {
-          const isFollowingResponse = await fetch(
-            `http://localhost:5001/api/isFollowing/${userId}`,
-            {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-          if (!isFollowingResponse.ok) {
-            throw new Error("Failed to check follow status");
-          }
-
-          const isFollowingData = await isFollowingResponse.json();
-          setIsFollowing(isFollowingData.isFollowing || false);
-          setIsFollowingLoadingInitial(false);
-        } else {
-          setIsFollowing(false);
-          setIsFollowingLoadingInitial(false);
-        }
-
-        // Fetch user's posts
-        const postsResponse = await fetch(
-          `http://localhost:5001/api/posts/${userId}?page=${currentPage}&limit=${limit}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const postsData = await postsResponse.json();
-        if (postsData.success) {
-          setEntries(postsData.data);
-          setPagination(postsData.pagination);
-        }
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-        toast({
-          title: "Error",
-          description: error.message || "Failed to load profile",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      } finally {
-        setIsLoading(false);
+  // Memoized fetchUserProfile function
+  const fetchUserProfile = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("User not authenticated");
       }
-    };
 
-    fetchUserProfile();
-  }, [userId, currentPage, limit, toast, profileColorMode]);
+      const token = await user.getIdToken();
+
+      // Fetch user profile data
+      const profileResponse = await fetch(
+        `http://localhost:5001/api/getUserProfile/${userId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!profileResponse.ok) throw new Error(await profileResponse.text());
+
+      const profileData = await profileResponse.json();
+      setUserProfile({
+        name: profileData.data.user.name || "Anonymous",
+        goal: profileData.data.user.goal || "Not set…",
+        gymName: profileData.data.user.gymName || "Not specified",
+        postsCount: profileData.data.postsCount || 0,
+        bio: profileData.data.user.bio || "No bio available",
+        profileImage: profileData.data.user.picture || profileColorMode,
+        backgroundPicture:
+          profileData.data.user.backgroundPicture || bgColorMode,
+        followers: profileData.data.user.followers?.length || 0,
+        following: profileData.data.user.following?.length || 0,
+      });
+
+      // Check if current user is following this profile
+      if (user && user.uid !== userId) {
+        const isFollowingResponse = await fetch(
+          `http://localhost:5001/api/isFollowing/${userId}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!isFollowingResponse.ok) {
+          throw new Error("Failed to check follow status");
+        }
+
+        const isFollowingData = await isFollowingResponse.json();
+        setIsFollowing(isFollowingData.isFollowing || false);
+        setIsFollowingLoadingInitial(false);
+      } else {
+        setIsFollowing(false);
+        setIsFollowingLoadingInitial(false);
+      }
+
+      // Fetch user's posts
+      const postsResponse = await fetch(
+        `http://localhost:5001/api/posts/${userId}?page=${currentPage}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const postsData = await postsResponse.json();
+      if (postsData.success) {
+        setEntries(postsData.data);
+        setPagination(postsData.pagination);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load profile",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      // Redirect to login if not authenticated
+      if (error.message === "User not authenticated") {
+        navigate("/login");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, currentPage, limit, toast, profileColorMode, navigate]);
+
+  // Use onAuthStateChanged to wait for auth state
+  useEffect(() => {
+    let isMounted = true;
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (isMounted) {
+        if (user) {
+          // User is authenticated, fetch profile
+          fetchUserProfile();
+        } else {
+          // No user, redirect to login or handle unauthenticated state
+          setIsLoading(false);
+          toast({
+            title: "Authentication Required",
+            description: "Please sign in to view this profile",
+            status: "warning",
+            duration: 5000,
+            isClosable: true,
+          });
+          navigate("/login");
+        }
+        setIsAuthLoading(false); // Auth state resolved
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [fetchUserProfile, navigate, toast]);
 
   const handleFollow = async () => {
     try {
@@ -243,6 +280,26 @@ const UserProfilePage = () => {
   };
 
   const totalPages = pagination.totalPages;
+
+  // Show spinner while checking auth state
+  if (isAuthLoading) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height="100vh"
+        bg={useColorModeValue("gray.50", "gray.900")} // Match app's background
+      >
+        <Spinner
+          size="lg"
+          thickness="4px"
+          speed="1.4s"
+          color={useColorModeValue("gray.700", "gray.400")}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Container maxW="container.xl" py={12}>
@@ -341,7 +398,12 @@ const UserProfilePage = () => {
             alignItems="center"
             height="200px"
           >
-            <Spinner size="xl" />
+            <Spinner
+              size="lg"
+              thickness="4px"
+              speed="1.2s"
+              color={useColorModeValue("gray.700", "gray.400")}
+            />
           </Box>
         ) : (
           <>
@@ -372,7 +434,7 @@ const UserProfilePage = () => {
               </Text>
               <Button
                 onClick={() => handlePageChange(currentPage + 1)}
-                isDisabled={currentPage === totalPages}
+                isDisabled={currentPage === totalPages || totalPages === 0}
                 ml={2}
               >
                 <SlArrowRight />
