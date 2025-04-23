@@ -20,10 +20,12 @@ import {
   Spinner,
   useToast,
   Flex,
+  Menu as ChakraMenu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from "@chakra-ui/react";
 import { debounce } from "lodash";
-
-const menuItems = [{ name: "Profile", href: "/Profile" }];
 
 export const HeroHeader = () => {
   const [menuState, setMenuState] = React.useState(false);
@@ -31,6 +33,7 @@ export const HeroHeader = () => {
   const [isSignedIn, setIsSignedIn] = React.useState(false);
   const [uid, setUid] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [userName, setUserName] = React.useState("");
   const [entries, setEntries] = React.useState([]);
   const { scrollYProgress } = useScroll();
   const { colorMode, toggleColorMode } = useColorMode();
@@ -119,18 +122,15 @@ export const HeroHeader = () => {
   // Handle click-away to clear search
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Prevent closing if clicking within the search container, dropdown, search button, input, or a Link
       if (
         (searchRef.current && searchRef.current.contains(event.target)) ||
         (dropdownRef.current && dropdownRef.current.contains(event.target)) ||
-        event.target.closest('button[aria-label="Open search"]') ||
+        event.target.closest('button[aria-label="Toggle search"]') ||
         event.target.closest("input") ||
-        event.target.closest("a") // Ignore clicks on Link components
+        event.target.closest("a")
       ) {
-        // console.log("Click within search, dropdown, or Link, not closing");
         return;
       }
-      // console.log("Click outside detected, closing search");
       setSearchQuery("");
       setSearchResults([]);
       setIsSearchOpen(false);
@@ -148,9 +148,11 @@ export const HeroHeader = () => {
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
+        setUserName(user.displayName || "User");
       } else {
         setIsSignedIn(false);
         setUid(null);
+        setUserName("");
         setEntries([]);
       }
       setIsLoading(false);
@@ -181,7 +183,6 @@ export const HeroHeader = () => {
       );
       if (!response.ok) throw new Error(await response.text());
       const userData = await response.json();
-      console.log("User Data:", userData.uid);
 
       const userResponse = await fetch(
         "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
@@ -195,7 +196,6 @@ export const HeroHeader = () => {
       );
       if (!userResponse.ok) throw new Error(await userResponse.text());
       const resultOne = await userResponse.json();
-      console.log("Logged in as:", resultOne);
 
       setIsSignedIn(true);
     } catch (error) {
@@ -215,18 +215,11 @@ export const HeroHeader = () => {
     }
   };
 
-  // Handle profile click for mobile and desktop
-
   const handleProfileClick = (e, path) => {
     e.preventDefault();
     e.stopPropagation();
-    // console.log("Profile clicked, attempting navigation to:", path);
-
     navigate(path);
-    // Delay state cleanup to ensure navigation completes
-    setTimeout(() => {
-      console.log("Delayed cleanup triggered for path:", path);
-    }, 300);
+    setTimeout(() => {}, 300);
   };
 
   return (
@@ -240,12 +233,12 @@ export const HeroHeader = () => {
         >
           <motion.div
             className={cn(
-              "relative flex flex-wrap items-center justify-between gap-1 py-3 duration-200 lg:gap-ericsson lg:py-6",
+              "relative flex items-center justify-between gap-4 py-3 duration-200 lg:gap-4 lg:py-6",
               scrolled && "lg:py-4"
             )}
           >
-            {/* Logo, Search Icon, and Hamburger */}
-            <div className="flex w-full items-center justify-between gap-1 lg:w-auto md:w-auto">
+            {/* Logo and Hamburger */}
+            <div className="flex items-center gap-4">
               <a
                 href="/"
                 aria-label="home"
@@ -259,170 +252,17 @@ export const HeroHeader = () => {
                   Ethereal Gains
                 </span>
               </a>
-
-              <div className="flex items-center gap-4">
-                {/* Mobile Search Icon/Input */}
-                <div className="relative md:hidden" ref={searchRef}>
-                  {!isSearchOpen ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsSearchOpen(true)}
-                      className={cn(
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
-                      )}
-                      aria-label="Open search"
-                    >
-                      <Search className="h-5 w-5" />
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        borderRadius="16px"
-                        placeholder="Search Users..."
-                        value={searchQuery}
-                        onChange={(e) => {
-                          setSearchQuery(e.target.value);
-                          searchUsers(e.target.value);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        size="sm"
-                        autoFocus
-                        className={cn(
-                          colorMode === "light"
-                            ? "bg-gray-100 text-gray-700"
-                            : "bg-gray-700 text-gray-200",
-                          "w-[150px]"
-                        )}
-                      />
-                      {searchQuery && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSearchQuery("");
-                            setSearchResults([]);
-                            setIsSearchOpen(false);
-                          }}
-                          className={cn(
-                            "px-1",
-                            colorMode === "light"
-                              ? "text-gray-500 hover:text-gray-700"
-                              : "text-gray-400 hover:text-gray-200"
-                          )}
-                          aria-label="Clear search"
-                        >
-                          <X className="h-1 w-1" />
-                        </Button>
-                      )}
-                      {isSearching && <Spinner size="sm" className="ml-2" />}
-                    </div>
-                  )}
-                  {/* Search Results Dropdown */}
-                  {(searchResults.length > 0 ||
-                    (searchQuery &&
-                      !isSearching &&
-                      searchResults.length === 0)) && (
-                    <VStack
-                      align="start"
-                      spacing={2}
-                      w="full"
-                      maxW="calc(100vw - 2rem)"
-                      bg={colorMode === "light" ? "white" : "gray.800"}
-                      p={4}
-                      borderRadius="md"
-                      boxShadow="md"
-                      position="absolute"
-                      top="100%"
-                      left="0"
-                      zIndex="50"
-                      ref={dropdownRef}
-                    >
-                      {searchResults.length > 0 ? (
-                        searchResults.map((user) => {
-                          const path =
-                            auth.currentUser &&
-                            user.uid === auth.currentUser.uid
-                              ? "/profile"
-                              : `/user/${user.uid}`;
-                          return (
-                            <Link
-                              key={user.uid}
-                              to={path}
-                              onClick={(e) => handleProfileClick(e, path)}
-                              aria-label={`View ${user.name}'s profile`}
-                              style={{ display: "block", width: "100%" }}
-                            >
-                              <Flex
-                                align="center"
-                                _hover={{ bg: "gray.100" }}
-                                p={2}
-                                w="full"
-                              >
-                                <Avatar src={user.picture} size="sm" mr={2} />
-                                <Text
-                                  fontWeight={
-                                    auth.currentUser &&
-                                    user.uid === auth.currentUser.uid
-                                      ? "bold"
-                                      : "normal"
-                                  }
-                                >
-                                  {user.name}
-                                </Text>
-                              </Flex>
-                            </Link>
-                          );
-                        })
-                      ) : (
-                        <Text w="full">No users found</Text>
-                      )}
-                    </VStack>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => setMenuState(!menuState)}
-                  aria-label={menuState ? "Close Menu" : "Open Menu"}
-                  className="relative z-20 -m-2.5 block cursor-pointer p-2.5 md:hidden"
-                >
-                  <span className="relative block size-6">
-                    <Menu
-                      className={cn(
-                        "absolute inset-0 m-auto size-6 transition-transform duration-300 ease-in-out",
-                        menuState
-                          ? "rotate-90 opacity-0 scale-0"
-                          : "rotate-0 opacity-100 scale-100"
-                      )}
-                    />
-                    <X
-                      className={cn(
-                        "absolute inset-0 m-auto size-6 transition-transform duration-300 ease-in-out",
-                        menuState
-                          ? "rotate-0 opacity-100 scale-100"
-                          : "-rotate-90 opacity-0 scale-0"
-                      )}
-                    />
-                  </span>
-                </button>
-              </div>
             </div>
 
-            {/* Desktop Buttons and Search */}
-            <div className="hidden md:flex items-center">
-              {/* Desktop Search Icon/Input */}
-              {/* Desktop Search Icon/Input */}
-              <div className="relative" ref={searchRef}>
+            <div className="flex items-center gap-4">
+              {/* Mobile Search and Create */}
+              <div className="flex items-center gap-2 md:hidden">
                 {!isSearchOpen ? (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsSearchOpen(true)}
                     className={cn(
-                      "py-0 px-[8px]",
                       colorMode === "light"
                         ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                         : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
@@ -432,48 +272,26 @@ export const HeroHeader = () => {
                     <Search className="h-5 w-5" />
                   </Button>
                 ) : (
-                  <Flex align="center" position="relative">
+                  <div className="flex items-center gap-2" ref={searchRef}>
                     <Input
                       borderRadius="16px"
-                      placeholder="Search Users..."
+                      placeholder="Search..."
                       value={searchQuery}
                       onChange={(e) => {
                         setSearchQuery(e.target.value);
                         searchUsers(e.target.value);
                       }}
+                      onClick={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
                       size="sm"
-                      minWidth="90px"
-                      maxWidth={{
-                        base: "99px",
-                        sm: "99px",
-                        md: "108px",
-                        lg: "300px",
-                      }}
-                      width="full"
                       autoFocus
                       className={cn(
                         colorMode === "light"
                           ? "bg-gray-100 text-gray-700"
                           : "bg-gray-700 text-gray-200",
-                        "pr-10" // Add padding-right to reserve space for clear button
+                        "!w-[111px]"
                       )}
                     />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setIsSearchOpen(isSearchOpen ? false : isSearchOpen)
-                      }
-                      className={cn(
-                        "py-0 px-[8px] ml-2", // Add margin-left to separate from input
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
-                      )}
-                      aria-label="Open search"
-                    >
-                      <Search className="h-5 w-5" />
-                    </Button>
                     {searchQuery && (
                       <Button
                         variant="ghost"
@@ -481,193 +299,300 @@ export const HeroHeader = () => {
                         onClick={() => {
                           setSearchQuery("");
                           setSearchResults([]);
+                          setIsSearchOpen(false);
                         }}
                         className={cn(
-                          "absolute right-12 top-1/2 -translate-y-1/2 py-[0px] px-1", // Adjust right to avoid overlap with search button
+                          "px-1",
                           colorMode === "light"
                             ? "text-gray-500 hover:text-gray-700"
                             : "text-gray-400 hover:text-gray-200"
                         )}
+                        aria-label="Clear search"
                       >
-                        <X className="h-1 w-2" />
+                        <X className="h-1 w-1" />
                       </Button>
                     )}
-                    {isSearching && (
-                      <Spinner
-                        size="sm"
-                        position="absolute"
-                        right="16px" // Adjust to align with clear button
-                        top="50%"
-                        transform="translateY(-50%)"
-                      />
-                    )}
-                    {(searchResults.length > 0 ||
-                      (searchQuery &&
-                        !isSearching &&
-                        searchResults.length === 0)) && (
-                      <VStack
-                        align="start"
-                        spacing={2}
-                        w="200px"
-                        bg={colorMode === "light" ? "white" : "gray.800"}
-                        p={4}
-                        borderRadius="md"
-                        boxShadow="md"
-                        position="absolute"
-                        top="40px"
-                        left="0"
-                        zIndex="50"
-                        ref={dropdownRef}
-                      >
-                        {searchResults.length > 0 ? (
-                          searchResults.map((user) => {
-                            const path =
-                              auth.currentUser &&
-                              user.uid === auth.currentUser.uid
-                                ? "/profile"
-                                : `/user/${user.uid}`;
-                            return (
-                              <Link
-                                key={user.uid}
-                                to={path}
-                                onClick={(e) => handleProfileClick(e, path)}
-                                aria-label={`View ${user.name}'s profile`}
-                                style={{ display: "block", width: "100%" }}
-                              >
-                                <Flex
-                                  align="center"
-                                  _hover={{ bg: "gray.100" }}
-                                  p={2}
-                                  w="full"
-                                >
-                                  <Avatar src={user.picture} size="sm" mr={2} />
-                                  <Text
-                                    fontWeight={
-                                      auth.currentUser &&
-                                      user.uid === auth.currentUser.uid
-                                        ? "bold"
-                                        : "normal"
-                                    }
-                                  >
-                                    {user.name}
-                                  </Text>
-                                </Flex>
-                              </Link>
-                            );
-                          })
-                        ) : (
-                          <Text w="full">No users found</Text>
-                        )}
-                      </VStack>
-                    )}
-                  </Flex>
+                    {isSearching && <Spinner size="sm" className="ml-2" />}
+                  </div>
                 )}
-              </div>
-
-              {/* Desktop Buttons */}
-              <div className="flex flex-row gap-2">
-                {isLoading ? (
+                {isSignedIn && (
                   <Button
-                    disabled
+                    asChild
+                    variant="ghost"
                     size="sm"
                     className={cn(
                       colorMode === "light"
-                        ? "bg-gray-200 text-gray-700"
-                        : "bg-gray-700 text-gray-200"
+                        ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                        : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
                     )}
                   >
-                    Loading...
+                    <Link to="/create">
+                      <PlusSquareIcon className="h-4 w-4" />
+                    </Link>
                   </Button>
-                ) : isSignedIn ? (
-                  <>
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-300 hover:bg-gray-800"
-                      )}
-                    >
-                      <Link to="/profile" className="flex items-center gap-2">
-                        <RxAvatar className="!w-5 !h-5" />
-                        <span>Profile</span>
-                      </Link>
-                    </Button>
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "border-gray-800 bg-inherit text-gray-400 hover:text-blue-300 hover:bg-zinc-800"
-                      )}
-                    >
-                      <Link to="/create">
-                        <PlusSquareIcon className="h-4 w-4" />
-                        <span>Create</span>
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleSignOut}
-                      className={cn(
-                        colorMode === "light"
-                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "border-gray-800 text-gray-500 bg-slate-900 hover:bg-gray-500 hover:text-blue-300"
-                      )}
-                    >
-                      <PiSignOutThin />
-                      <span>Sign Out</span>
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleGoogleSignIn}
-                      className={cn(
-                        colorMode === "light"
-                          ? "border-gray-300 text-gray-700 hover:bg-gray-100 bg-stone-100"
-                          : "border-gray-600 text-gray-200 hover:bg-gray-700"
-                      )}
-                    >
-                      Login
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleGoogleSignIn}
-                      className={cn(
-                        colorMode === "light"
-                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200 bg-stone-100"
-                          : "border-gray-800 text-gray-200 hover:text-blue-400 hover:bg-gray-200"
-                      )}
-                    >
-                      Sign Up
-                    </Button>
-                  </>
                 )}
-                <Button
+              </div>
+
+              <button
+                onClick={() => setMenuState(!menuState)}
+                aria-label={menuState ? "Close Menu" : "Open Menu"}
+                className="relative z-20 -m-2.5 block cursor-pointer p-2.5 md:hidden"
+              >
+                <span className="relative block size-6">
+                  <Menu
+                    className={cn(
+                      "absolute inset-0 m-auto size-6 transition-transform duration-300 ease-in-out",
+                      menuState
+                        ? "rotate-90 opacity-0 scale-0"
+                        : "rotate-0 opacity-100 scale-100"
+                    )}
+                  />
+                  <X
+                    className={cn(
+                      "absolute inset-0 m-auto size-6 transition-transform duration-300 ease-in-out",
+                      menuState
+                        ? "rotate-0 opacity-100 scale-100"
+                        : "-rotate-90 opacity-0 scale-0"
+                    )}
+                  />
+                </span>
+              </button>
+            </div>
+
+            {/* Desktop Centered Search */}
+            <div className="hidden md:flex flex-1 justify-center items-center">
+              <div className="relative flex items-center" ref={searchRef}>
+                <Input
+                  borderRadius="16px"
+                  placeholder="Search Users..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    searchUsers(e.target.value);
+                  }}
                   size="sm"
-                  onClick={toggleColorMode}
+                  minWidth="90px"
+                  maxWidth={{
+                    base: "99px",
+                    sm: "99px",
+                    md: "300px",
+                    lg: "300px",
+                  }}
+                  width="full"
                   className={cn(
                     colorMode === "light"
-                      ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                      ? "bg-gray-100 text-gray-700"
+                      : "bg-gray-700 text-gray-200",
+                    "pr-8"
+                  )}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "py-0 px-[8px] ml-2",
+                    colorMode === "light"
+                      ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                      : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
+                  )}
+                  aria-label="Search"
+                >
+                  <Search className="h-5 w-5" />
+                </Button>
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSearchResults([]);
+                    }}
+                    className={cn(
+                      "absolute right-10 top-1/2 -translate-y-1/2 py-[0px] px-1",
+                      colorMode === "light"
+                        ? "text-gray-500 hover:text-gray-700"
+                        : "text-gray-400 hover:text-gray-200"
+                    )}
+                  >
+                    <X className="h-1 w-2" />
+                  </Button>
+                )}
+                {isSearching && (
+                  <Spinner
+                    size="sm"
+                    position="absolute"
+                    right="14px"
+                    top="50%"
+                    transform="translateY(-50%)"
+                  />
+                )}
+                {(searchResults.length > 0 ||
+                  (searchQuery &&
+                    !isSearching &&
+                    searchResults.length === 0)) && (
+                  <VStack
+                    align="start"
+                    spacing={2}
+                    w="200px"
+                    bg={colorMode === "light" ? "white" : "gray.800"}
+                    p={4}
+                    borderRadius="md"
+                    boxShadow="md"
+                    position="absolute"
+                    top="40px"
+                    left="0"
+                    zIndex="50"
+                    ref={dropdownRef}
+                  >
+                    {searchResults.length > 0 ? (
+                      searchResults.map((user) => {
+                        const path =
+                          auth.currentUser && user.uid === auth.currentUser.uid
+                            ? "/profile"
+                            : `/user/${user.uid}`;
+                        return (
+                          <Link
+                            key={user.uid}
+                            to={path}
+                            onClick={(e) => handleProfileClick(e, path)}
+                            aria-label={`View ${user.name}'s profile`}
+                            style={{ display: "block", width: "100%" }}
+                          >
+                            <Flex
+                              align="center"
+                              _hover={{ bg: "gray.100" }}
+                              p={2}
+                              w="full"
+                            >
+                              <Avatar src={user.picture} size="sm" mr={2} />
+                              <Text
+                                fontWeight={
+                                  auth.currentUser &&
+                                  user.uid === auth.currentUser.uid
+                                    ? "bold"
+                                    : "normal"
+                                }
+                              >
+                                {user.name}
+                              </Text>
+                            </Flex>
+                          </Link>
+                        );
+                      })
+                    ) : (
+                      <Text w="full">No users found</Text>
+                    )}
+                  </VStack>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop Create and User Dropdown (Right-Aligned) */}
+            <div className="hidden md:flex items-center gap-2">
+              {isSignedIn && (
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    colorMode === "light"
+                      ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                      : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
                   )}
                 >
-                  {colorMode === "light" ? (
-                    <IoMoon size={20} />
-                  ) : (
-                    <LuSun size={20} />
-                  )}
+                  <Link to="/create">
+                    <PlusSquareIcon className="h-4 w-4" />
+                  </Link>
                 </Button>
-              </div>
+              )}
+              {isLoading ? (
+                <Button
+                  disabled
+                  size="sm"
+                  className={cn(
+                    colorMode === "light"
+                      ? "bg-gray-200 text-gray-700"
+                      : "bg-gray-700 text-gray-200"
+                  )}
+                >
+                  Loading...
+                </Button>
+              ) : isSignedIn ? (
+                <ChakraMenu>
+                  <MenuButton
+                    as={Button}
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      colorMode === "light"
+                        ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                        : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
+                    )}
+                  >
+                    @{userName}
+                  </MenuButton>
+                  <MenuList
+                    bg={colorMode === "light" ? "white" : "gray.800"}
+                    borderColor={
+                      colorMode === "light" ? "gray.200" : "gray.700"
+                    }
+                  >
+                    <MenuItem
+                      as={Link}
+                      to="/profile"
+                      className="flex items-center gap-2"
+                    >
+                      <RxAvatar className="!w-5 !h-5" />
+                      Profile
+                    </MenuItem>
+                    <MenuItem
+                      onClick={handleSignOut}
+                      className="flex items-center gap-2"
+                    >
+                      <PiSignOutThin />
+                      Sign Out
+                    </MenuItem>
+                    <MenuItem
+                      onClick={toggleColorMode}
+                      className="flex items-center gap-2"
+                    >
+                      {colorMode === "light" ? (
+                        <IoMoon size={20} />
+                      ) : (
+                        <LuSun size={20} />
+                      )}
+                      {colorMode === "light" ? "Dark Mode" : "Light Mode"}
+                    </MenuItem>
+                  </MenuList>
+                </ChakraMenu>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleGoogleSignIn}
+                    className={cn(
+                      colorMode === "light"
+                        ? "text-gray-700 hover:bg-gray-100 bg-stone-100"
+                        : "text-gray-200 hover:bg-gray-700"
+                    )}
+                  >
+                    Login
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleGoogleSignIn}
+                    className={cn(
+                      colorMode === "light"
+                        ? "text-gray-500 bg-inherit hover:bg-gray-200 bg-stone-100"
+                        : "text-gray-200 hover:text-blue-400 hover:bg-gray-200"
+                    )}
+                  >
+                    Sign Up
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu */}
@@ -676,13 +601,12 @@ export const HeroHeader = () => {
               initial="closed"
               animate={menuState ? "open" : "closed"}
               className={cn(
-                "w-full lg:hidden md:hidden",
+                "w-full md:hidden",
                 menuState
                   ? "block bg-background mb-6 rounded-xl border p-6 shadow-2xl shadow-zinc-400/20 mt-4"
                   : "hidden"
               )}
             >
-              {/* Mobile Buttons */}
               <div className="mt-1 flex flex-col space-y-3">
                 {isLoading ? (
                   <Button
@@ -705,7 +629,7 @@ export const HeroHeader = () => {
                       className={cn(
                         colorMode === "light"
                           ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
                       )}
                       onClick={closeMenu}
                     >
@@ -715,35 +639,34 @@ export const HeroHeader = () => {
                       </Link>
                     </Button>
                     <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
-                      )}
-                      onClick={closeMenu}
-                    >
-                      <Link to="/create" className="flex items-center gap-2">
-                        <PlusSquareIcon className="h-4 w-4" />
-                        <span>Create</span>
-                      </Link>
-                    </Button>
-                    <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleSignOutAndClose}
                       className={cn(
                         colorMode === "light"
-                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          ? "text-gray-500 bg-inherit hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
                       )}
                     >
                       <div className="flex items-center gap-2">
                         <PiSignOutThin />
                         <span>Sign Out</span>
                       </div>
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleToggleColorModeAndClose}
+                      className={cn(
+                        colorMode === "light"
+                          ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                      )}
+                    >
+                      {colorMode === "light" ? (
+                        <IoMoon size={20} />
+                      ) : (
+                        <LuSun size={20} />
+                      )}
                     </Button>
                   </>
                 ) : (
@@ -754,8 +677,8 @@ export const HeroHeader = () => {
                       onClick={handleGoogleSignInAndClose}
                       className={cn(
                         colorMode === "light"
-                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          ? "text-gray-500 bg-inherit hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
                       )}
                     >
                       Login
@@ -766,29 +689,14 @@ export const HeroHeader = () => {
                       onClick={handleGoogleSignInAndClose}
                       className={cn(
                         colorMode === "light"
-                          ? "border-gray-200 text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "border-gray-800 bg-inherit text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          ? "text-gray-500 bg-inherit hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
                       )}
                     >
                       Sign Up
                     </Button>
                   </>
                 )}
-                <Button
-                  size="sm"
-                  onClick={handleToggleColorModeAndClose}
-                  className={cn(
-                    colorMode === "light"
-                      ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      : "bg-gray-700 text-gray-200 hover:bg-gray-600"
-                  )}
-                >
-                  {colorMode === "light" ? (
-                    <IoMoon size={20} />
-                  ) : (
-                    <LuSun size={20} />
-                  )}
-                </Button>
               </div>
             </motion.div>
           </motion.div>
