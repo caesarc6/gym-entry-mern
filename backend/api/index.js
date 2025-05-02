@@ -10,7 +10,7 @@ import entryRoutes from "../routes/entry.route.js";
 import userRoutes from "../routes/user.route.js";
 
 import mongoose from "mongoose";
-import User from "../models/user.model.js";
+import { User } from "../models/user.model.js";
 import bodyParser from "body-parser";
 // const bodyParser = require("body-parser");
 

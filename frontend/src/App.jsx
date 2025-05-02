@@ -8,6 +8,7 @@ import ModifyProfile from "./pages/ModifyProfile";
 import { HeroHeader } from "@/components/hero9-header";
 import "./index.css";
 import UserProfilePage from "./pages/UserProfilePage";
+import PrivacySettings from "./components/PrivacySettings";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/user/:userId" element={<UserProfilePage />} />
         <Route path="/signup" element={<SignUpFlow />} />
+        <Route path="/privacy" element={<PrivacySettings />} />
       </Routes>
     </Box>
   );
