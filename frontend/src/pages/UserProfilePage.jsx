@@ -23,11 +23,13 @@ import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
+
 const UserProfilePage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState({
     name: "",
+    username: "",
     goal: "",
     gymName: "",
     postsCount: 0,
@@ -36,10 +38,11 @@ const UserProfilePage = () => {
     bio: "",
     followers: 0,
     following: 0,
+    isPrivate: false,
   });
   const [entries, setEntries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthLoading, setIsAuthLoading] = useState(true); // New state for auth loading
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowingLoading, setIsFollowingLoading] = useState(false);
   const [isFollowingLoadingInitial, setIsFollowingLoadingInitial] =
@@ -58,7 +61,6 @@ const UserProfilePage = () => {
   const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
   const bgColor = useColorModeValue("white", "gray.800");
 
-  // Memoized fetchUserProfile function
   const fetchUserProfile = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -84,17 +86,24 @@ const UserProfilePage = () => {
       if (!profileResponse.ok) throw new Error(await profileResponse.text());
 
       const profileData = await profileResponse.json();
+      const userData = profileData.data.user;
+
       setUserProfile({
-        name: profileData.data.user.name || "Anonymous",
-        goal: profileData.data.user.goal || "Not set…",
-        gymName: profileData.data.user.gymName || "Not specified",
+        name: userData.name || "Anonymous",
+        username: userData.username || userData.name || "Anonymous",
+        goal: userData.goal || "Not set",
+        gymName: userData.gymName || "Not specified",
         postsCount: profileData.data.postsCount || 0,
-        bio: profileData.data.user.bio || "No bio available",
-        profileImage: profileData.data.user.picture || profileColorMode,
-        backgroundPicture:
-          profileData.data.user.backgroundPicture || bgColorMode,
-        followers: profileData.data.user.followers?.length || 0,
-        following: profileData.data.user.following?.length || 0,
+        bio: userData.bio || "No bio available",
+        profileImage: userData.picture || profileColorMode,
+        backgroundPicture: userData.backgroundPicture || bgColorMode,
+        followers: Array.isArray(userData.followers)
+          ? userData.followers.length
+          : 0, // Count of followers
+        following: Array.isArray(userData.following)
+          ? userData.following.length
+          : 0, // Count of following
+        isPrivate: userData.isPrivate || false,
       });
 
       // Check if current user is following this profile
@@ -136,7 +145,17 @@ const UserProfilePage = () => {
 
       const postsData = await postsResponse.json();
       if (postsData.success) {
-        setEntries(postsData.data);
+        // Normalize posts to match ProductCard expectations
+        const normalizedEntries = postsData.data.map((post) => ({
+          _id: post._id,
+          name: post.name || "Untitled",
+          description: post.description || "No description",
+          image: post.image || null,
+          likes: post.likes || 0,
+          comments: Array.isArray(post.comments) ? post.comments : [],
+          createdAt: post.createdAt || new Date().toISOString(),
+        }));
+        setEntries(normalizedEntries);
         setPagination(postsData.pagination);
       }
     } catch (error) {
@@ -148,7 +167,6 @@ const UserProfilePage = () => {
         duration: 5000,
         isClosable: true,
       });
-      // Redirect to login if not authenticated
       if (error.message === "User not authenticated") {
         navigate("/login");
       }
@@ -157,16 +175,13 @@ const UserProfilePage = () => {
     }
   }, [userId, currentPage, limit, toast, profileColorMode, navigate]);
 
-  // Use onAuthStateChanged to wait for auth state
   useEffect(() => {
     let isMounted = true;
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (isMounted) {
         if (user) {
-          // User is authenticated, fetch profile
           fetchUserProfile();
         } else {
-          // No user, redirect to login or handle unauthenticated state
           setIsLoading(false);
           toast({
             title: "Authentication Required",
@@ -177,7 +192,7 @@ const UserProfilePage = () => {
           });
           navigate("/login");
         }
-        setIsAuthLoading(false); // Auth state resolved
+        setIsAuthLoading(false);
       }
     });
 
@@ -281,7 +296,6 @@ const UserProfilePage = () => {
 
   const totalPages = pagination.totalPages;
 
-  // Show spinner while checking auth state
   if (isAuthLoading) {
     return (
       <Box
@@ -289,7 +303,7 @@ const UserProfilePage = () => {
         justifyContent="center"
         alignItems="center"
         height="100vh"
-        bg={useColorModeValue("gray.50", "gray.900")} // Match app's background
+        bg={useColorModeValue("gray.50", "gray.900")}
       >
         <Spinner
           size="lg"
@@ -301,148 +315,191 @@ const UserProfilePage = () => {
     );
   }
 
-  return (
-    <Container maxW="container.xl" py={12}>
-      <Center py={6} mt={10}>
-        <Box
-          maxW={"580px"}
+  // Always render profile information, even for private profiles
+  const renderProfile = () => (
+    <Center py={6} mt={10}>
+      <Box
+        maxW={"580px"}
+        w={"full"}
+        bg={bgColor}
+        boxShadow={"2xl"}
+        rounded={"md"}
+        overflow={"hidden"}
+      >
+        <Image
+          h={"120px"}
           w={"full"}
-          bg={bgColor}
-          boxShadow={"2xl"}
-          rounded={"md"}
-          overflow={"hidden"}
-        >
-          <Image
-            h={"120px"}
-            w={"full"}
-            src={userProfile.backgroundPicture}
-            objectFit="cover"
-            alt="Background"
+          src={userProfile.backgroundPicture}
+          objectFit="cover"
+          alt="Background"
+        />
+        <Flex justify={"center"} mt={-12}>
+          <Avatar
+            size={"xl"}
+            src={userProfile.profileImage}
+            css={{ border: "2px solid white" }}
           />
-          <Flex justify={"center"} mt={-12}>
-            <Avatar
-              size={"xl"}
-              src={userProfile.profileImage}
-              css={{ border: "2px solid white" }}
-            />
-          </Flex>
-          <Box p={6}>
-            <Stack spacing={0} align={"center"} mb={3}>
-              <Heading fontSize={"2xl"} fontWeight={500}>
-                @{userProfile.name}
-              </Heading>
-            </Stack>
-            <Stack spacing={0} align={"center"} mb={4}>
-              <Text color={"gray.500"}>
-                {userProfile.goal} | {userProfile.gymName}
+        </Flex>
+        <Box p={6}>
+          <Stack spacing={0} align={"center"} mb={3}>
+            <Heading fontSize={"2xl"} fontWeight={500}>
+              @{userProfile.username}
+            </Heading>
+          </Stack>
+          <Stack spacing={0} align={"center"} mb={4}>
+            <Text color={"gray.500"}>
+              {userProfile.goal} | {userProfile.gymName}
+            </Text>
+          </Stack>
+          <Stack spacing={0} align={"center"} mt={4}>
+            <Text color={"gray.500"}>{userProfile.bio}</Text>
+          </Stack>
+          <Stack direction={"row"} justify={"center"} spacing={6} mt={8}>
+            <Stack spacing={0} align={"center"}>
+              <Text fontWeight={600}>{userProfile.followers}</Text>
+              <Text fontSize={"sm"} color={"gray.500"}>
+                Followers
               </Text>
             </Stack>
-            <Stack spacing={0} align={"center"} mt={4}>
-              <Text color={"gray.500"}>{userProfile.bio}</Text>
+            <Stack spacing={0} align={"center"}>
+              <Text fontWeight={600}>{userProfile.following}</Text>
+              <Text fontSize={"sm"} color={"gray.500"}>
+                Following
+              </Text>
             </Stack>
-            <Stack direction={"row"} justify={"center"} spacing={6} mt={8}>
-              <Stack spacing={0} align={"center"}>
-                <Text fontWeight={600}>{userProfile.followers}</Text>
-                <Text fontSize={"sm"} color={"gray.500"}>
-                  Followers
-                </Text>
-              </Stack>
-              <Stack spacing={0} align={"center"}>
-                <Text fontWeight={600}>{userProfile.following}</Text>
-                <Text fontSize={"sm"} color={"gray.500"}>
-                  Following
-                </Text>
-              </Stack>
-              <Stack spacing={0} align={"center"}>
-                <Text fontWeight={600}>{userProfile.postsCount || 0}</Text>
-                <Text fontSize={"sm"} color={"gray.500"}>
-                  Posts
-                </Text>
-              </Stack>
+            <Stack spacing={0} align={"center"}>
+              <Text fontWeight={600}>{userProfile.postsCount || 0}</Text>
+              <Text fontSize={"sm"} color={"gray.500"}>
+                Posts
+              </Text>
             </Stack>
-            {auth.currentUser?.uid !== userId && (
-              <Stack direction={"row"} spacing={4} mt={6}>
-                <Button
-                  onClick={handleFollow}
-                  colorScheme={isFollowing ? "whiteAlpha" : "blue"}
-                  w={"full"}
-                  isLoading={isFollowingLoading}
-                  isDisabled={isFollowingLoadingInitial}
-                  loadingText={isFollowing ? "Unfollowing..." : "Following..."}
-                >
-                  {isFollowingLoadingInitial
-                    ? "Loading..."
-                    : isFollowing
-                    ? "Following"
-                    : "Follow"}
-                </Button>
-              </Stack>
-            )}
-          </Box>
+          </Stack>
+          {auth.currentUser?.uid !== userId && (
+            <Stack direction={"row"} spacing={4} mt={6}>
+              <Button
+                onClick={handleFollow}
+                colorScheme={isFollowing ? "whiteAlpha" : "blue"}
+                w={"full"}
+                isLoading={isFollowingLoading}
+                isDisabled={isFollowingLoadingInitial}
+                loadingText={isFollowing ? "Unfollowing..." : "Following..."}
+              >
+                {isFollowingLoadingInitial
+                  ? "Loading..."
+                  : isFollowing
+                  ? "Following"
+                  : "Follow"}
+              </Button>
+            </Stack>
+          )}
         </Box>
-      </Center>
+      </Box>
+    </Center>
+  );
 
-      <VStack spacing={8} mt={6}>
-        <Text
-          fontSize={"22"}
-          fontWeight={"bold"}
-          bgGradient={"linear(to-r, blue.200, gray.400)"}
-          bgClip={"text"}
+  // Render posts section only if profile is not private or viewer is a follower/owner
+  const renderPosts = () => (
+    <VStack spacing={8} mt={6}>
+      <Text
+        fontSize={"22"}
+        fontWeight={"bold"}
+        bgGradient={"linear(to-r, blue.200, gray.400)"}
+        bgClip={"text"}
+      >
+        Workout Posts
+      </Text>
+      {isLoading ? (
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          height="200px"
         >
-          Workout Posts
-        </Text>
-        {isLoading ? (
+          <Spinner
+            size="lg"
+            thickness="4px"
+            speed="1.2s"
+            color={useColorModeValue("gray.700", "gray.400")}
+          />
+        </Box>
+      ) : entries.length > 0 ? (
+        <>
+          <SimpleGrid
+            columns={{ base: 1, md: 2, lg: 3 }}
+            spacing={10}
+            w={"full"}
+          >
+            {entries.map((entry) => (
+              <ProductCard key={entry._id} entry={entry} />
+            ))}
+          </SimpleGrid>
           <Box
+            mt={6}
             display="flex"
             justifyContent="center"
             alignItems="center"
-            height="200px"
           >
-            <Spinner
-              size="lg"
-              thickness="4px"
-              speed="1.2s"
-              color={useColorModeValue("gray.700", "gray.400")}
-            />
+            <Button
+              onClick={() => handlePageChange(currentPage - 1)}
+              isDisabled={currentPage === 1}
+              mr={2}
+            >
+              <SlArrowLeft />
+            </Button>
+            <Text mx={2}>
+              {currentPage} • {totalPages}
+            </Text>
+            <Button
+              onClick={() => handlePageChange(currentPage + 1)}
+              isDisabled={currentPage === totalPages || totalPages === 0}
+              ml={2}
+            >
+              <SlArrowRight />
+            </Button>
           </Box>
-        ) : (
-          <>
-            <SimpleGrid
-              columns={{ base: 1, md: 2, lg: 3 }}
-              spacing={10}
-              w={"full"}
-            >
-              {entries.map((entry) => (
-                <ProductCard key={entry._id} entry={entry} />
-              ))}
-            </SimpleGrid>
-            <Box
-              mt={6}
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-            >
+        </>
+      ) : (
+        <Text>No posts available.</Text>
+      )}
+    </VStack>
+  );
+
+  return (
+    <Container maxW="container.xl" py={12}>
+      {renderProfile()}
+      {userProfile.isPrivate &&
+      !isFollowing &&
+      auth.currentUser?.uid !== userId ? (
+        <Center py={6}>
+          <Box
+            maxW={"580px"}
+            w={"full"}
+            bg={bgColor}
+            boxShadow={"2xl"}
+            rounded={"md"}
+            p={6}
+            textAlign="center"
+          >
+            <Text fontSize={"lg"} color={"gray.500"} mb={4}>
+              This profile's posts are private. Follow to view their workout
+              posts.
+            </Text>
+            {auth.currentUser && (
               <Button
-                onClick={() => handlePageChange(currentPage - 1)}
-                isDisabled={currentPage === 1}
-                mr={2}
+                onClick={handleFollow}
+                colorScheme="blue"
+                isLoading={isFollowingLoading}
+                isDisabled={isFollowingLoadingInitial}
+                loadingText="Following..."
               >
-                <SlArrowLeft />
+                {isFollowingLoadingInitial ? "Loading..." : "Follow"}
               </Button>
-              <Text mx={2}>
-                {currentPage} • {totalPages}
-              </Text>
-              <Button
-                onClick={() => handlePageChange(currentPage + 1)}
-                isDisabled={currentPage === totalPages || totalPages === 0}
-                ml={2}
-              >
-                <SlArrowRight />
-              </Button>
-            </Box>
-          </>
-        )}
-      </VStack>
+            )}
+          </Box>
+        </Center>
+      ) : (
+        renderPosts()
+      )}
     </Container>
   );
 };

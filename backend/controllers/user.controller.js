@@ -90,44 +90,32 @@ export const updateUserPrivacy = async (req, res) => {
 export const getUserProfileByUsername = async (req, res) => {
   try {
     const { username } = req.params;
-
-    // Get the requesting user (if authenticated)
     let viewerUser = null;
     if (req.user && req.user.uid) {
       viewerUser = await User.findOne({ uid: req.user.uid });
     }
-
-    // Find the requested user profile
     const user = await User.findOne({ username }).populate(
       "followers following"
     );
-
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Filter user data based on privacy settings
     const { filterUserDataForPublicView, filterEntriesForPublicView } =
       await import("../utils/userUtils.js");
     const filteredUserData = filterUserDataForPublicView(user, viewerUser);
 
-    // Get user entries if appropriate
-    let entries = [];
-    if (
-      !user.privacy.isPrivate ||
-      (viewerUser &&
-        user.followers.some(
-          (f) => f._id.toString() === viewerUser._id.toString()
-        )) ||
-      (viewerUser && viewerUser._id.toString() === user._id.toString())
-    ) {
-      entries = await Entry.find({ uid: user.uid });
-      entries = filterEntriesForPublicView(entries, user, viewerUser);
-    }
+    // Fetch all entries and let filterEntriesForPublicView handle restrictions
+    const entries = await Entry.find({ uid: user.uid });
+    const filteredEntries = filterEntriesForPublicView(
+      entries,
+      user,
+      viewerUser
+    );
 
-    return res.status(200).json({
+    return res.set("Cache-Control", "no-store").status(200).json({
       user: filteredUserData,
-      entries: entries,
+      entries: filteredEntries,
     });
   } catch (error) {
     console.error("Error fetching user profile:", error);
@@ -306,6 +294,8 @@ export const createPost = async (req, res) => {
   }
 };
 
+// user.controller.jsx
+
 export const getPostsByUID = async (req, res) => {
   try {
     const { uid } = req.params;
@@ -318,18 +308,56 @@ export const getPostsByUID = async (req, res) => {
         .json({ success: false, error: "Invalid page or limit value" });
     }
 
+    // Fetch the user to get privacy settings
+    const user = await User.findOne({ uid }).populate("followers");
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Determine the viewer
+    let viewerUser = null;
+    if (req.user && req.user.uid) {
+      viewerUser = await User.findOne({ uid: req.user.uid });
+    }
+
+    // Fetch posts with pagination
     const skip = (page - 1) * limit;
     const posts = await Entry.find({ uid })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .populate("likes", "username");
 
+    // Normalize posts to match ProductCard expectations
+    const normalizedPosts = posts.map((post) => ({
+      _id: post._id.toString(),
+      name: post.name || "Untitled",
+      description: post.description || "No description",
+      image: post.image || null,
+      likes: post.likes?.length || 0,
+      comments: post.comments || [], // Ensure comments is an array
+      createdAt: post.createdAt || new Date().toISOString(),
+    }));
+
+    // Filter posts based on privacy settings
+    const { filterEntriesForPublicView } = await import(
+      "../utils/userUtils.js"
+    );
+    const filteredPosts = filterEntriesForPublicView(
+      normalizedPosts,
+      user,
+      viewerUser
+    );
+
+    // Count total posts (before filtering for accurate pagination)
     const totalPosts = await Entry.countDocuments({ uid });
     const totalPages = Math.ceil(totalPosts / limit);
 
     res.json({
       success: true,
-      data: posts,
+      data: filteredPosts,
       pagination: {
         currentPage: page,
         totalPages: totalPages,
@@ -627,9 +655,16 @@ export const commentOnPost = async (req, res) => {
   }
 };
 
+// user.controller.jsx
+
 export const getUserProfile = async (req, res) => {
   try {
     const { uid } = req.params;
+    let viewerUser = null;
+    if (req.user && req.user.uid) {
+      viewerUser = await User.findOne({ uid: req.user.uid });
+    }
+
     const user = await User.findOne({ uid })
       .populate("followers", "username name picture")
       .populate("following", "username name picture");
@@ -638,19 +673,39 @@ export const getUserProfile = async (req, res) => {
         .status(404)
         .json({ success: false, message: "User not found" });
     }
+
+    // Prepare user data to always include required fields
+    const userData = {
+      uid: user.uid,
+      username: user.username || user.name, // Fallback to name if username is not set
+      name: user.name || "username",
+      picture: user.picture || null,
+      backgroundPicture: user.backgroundPicture || null,
+      bio: user.bio || "No bio available",
+      goal: user.goal || "Not set",
+      gymName: user.gymName || "Not specified",
+      followers: Array.isArray(user.followers) ? user.followers.length : 0,
+      following: Array.isArray(user.following) ? user.following.length : 0,
+      isPrivate: user.privacy?.isPrivate || false,
+    };
+
+    // Fetch posts and filter based on privacy settings
+    const { filterEntriesForPublicView } = await import(
+      "../utils/userUtils.js"
+    );
     const posts = await Entry.find({ uid }).populate("likes", "username");
-    const comments = await Comment.find({ user: user._id }).populate("post");
+    const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
 
     res.status(200).json({
       success: true,
       data: {
-        user,
-        posts,
-        postsCount: posts.length,
-        comments,
+        user: userData,
+        posts: filteredPosts,
+        postsCount: filteredPosts.length,
       },
     });
   } catch (error) {
+    console.error("Error fetching user profile:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

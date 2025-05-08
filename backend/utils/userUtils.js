@@ -6,6 +6,8 @@
  * @param {Object|null} viewerUser - User viewing the profile (null if not logged in)
  * @returns {Object} - Filtered user data
  */
+// utils/userUtils.js
+
 export const filterUserDataForPublicView = (user, viewerUser = null) => {
   // If the profile is the viewer's own profile, return full data
   if (viewerUser && viewerUser._id.toString() === user._id.toString()) {
@@ -30,6 +32,7 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
     gymName: user.gymName,
     followersCount: user.followers.length,
     followingCount: user.following.length,
+    isPrivate: user.privacy.isPrivate, // Include isPrivate flag
   };
 
   // If the profile is not private or viewer is a follower, return more data
@@ -37,15 +40,10 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
     return publicUserData;
   }
 
-  // For private profiles where the viewer is not a follower,
-  // return a more limited set of data
+  // For private profiles where the viewer is not a follower, return minimal data
   return {
-    _id: user._id,
     username: user.username,
-    name: user.name,
-    picture: user.picture,
-    followersCount: user.followers.length,
-    followingCount: user.following.length,
+    isPrivate: true, // Explicitly indicate the profile is private
   };
 };
 
@@ -78,8 +76,8 @@ export const filterEntriesForPublicView = (
     return [];
   }
 
-  // If showEntries is false and the viewer is not a follower, return empty array
-  if (!entryOwner.privacy.showEntries && !isFollower) {
+  // If showEntries is false, return empty array (even for followers)
+  if (!entryOwner.privacy.showEntries) {
     return [];
   }
 

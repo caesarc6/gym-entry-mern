@@ -28,21 +28,20 @@ const PrivacySettings = () => {
   const { colorMode } = useColorMode();
 
   useEffect(() => {
-    const fetchPrivacySettings = async () => {
-      try {
-        const user = auth.currentUser;
-        if (!user) {
-          toast({
-            title: "Error",
-            description: "You must be signed in to view this page.",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-          navigate("/login");
-          return;
-        }
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be signed in to view this page.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        navigate("/login");
+        return;
+      }
 
+      try {
         const token = await user.getIdToken();
         const response = await fetch(
           "http://localhost:5001/api/getCurrentMongoDBUser",
@@ -74,9 +73,10 @@ const PrivacySettings = () => {
       } finally {
         setIsLoading(false);
       }
-    };
+    });
 
-    fetchPrivacySettings();
+    // Cleanup the listener on component unmount
+    return () => unsubscribe();
   }, [navigate, toast]);
 
   const handleChange = (e) => {
@@ -144,7 +144,8 @@ const PrivacySettings = () => {
     <Box
       maxW="md"
       mx="auto"
-      mt={10}
+      position="relative"
+      top="130px"
       p={6}
       borderWidth={1}
       borderRadius="lg"

@@ -28,7 +28,15 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 
 const ProductCard = ({ entry }) => {
-  const [updatedEntry, setUpdatedEntry] = useState(entry);
+  const [updatedEntry, setUpdatedEntry] = useState({
+    _id: entry._id || "",
+    name: entry.name || "Untitled",
+    description: entry.description || "No description",
+    image: entry.image || "default-image-url",
+    likes: entry.likes || 0,
+    comments: Array.isArray(entry.comments) ? entry.comments : [],
+    createdAt: entry.createdAt || new Date().toISOString(),
+  });
   const [comment, setComment] = useState("");
   const textColorTitle = useColorModeValue("gray.600", "gray.500");
   const textColor = useColorModeValue("gray.200", "gray.200");
@@ -618,15 +626,16 @@ ProductCard.propTypes = {
   entry: PropTypes.shape({
     _id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
-    description: PropTypes.string.isRequired,
-    image: PropTypes.string.isRequired,
-    likes: PropTypes.number.isRequired,
+    description: PropTypes.string, // Make optional if it might be missing
+    image: PropTypes.string, // Make optional
+    likes: PropTypes.number, // Make optional
     comments: PropTypes.arrayOf(
       PropTypes.shape({
         text: PropTypes.string.isRequired,
         createdAt: PropTypes.string.isRequired,
       })
-    ).isRequired,
+    ), // Make optional
+    createdAt: PropTypes.string, // Make optional
   }).isRequired,
 };
 

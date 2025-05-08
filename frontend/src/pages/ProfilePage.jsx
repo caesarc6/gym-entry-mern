@@ -174,8 +174,8 @@ const ProfilePage = () => {
         bio: data.data.user.bio || "No bio available",
         profileImage: data.data.user.picture || profileColorMode,
         backgroundPicture: data.data.user.backgroundPicture || bgColorMode,
-        followers: data.data.user.followers?.length || 0,
-        following: data.data.user.following?.length || 0,
+        followers: data.data.user.followers ?? 0, // Number, use nullish coalescing
+        following: data.data.user.following ?? 0, // Number, use nullish coalescing
       });
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -857,16 +857,16 @@ const ProfilePage = () => {
                   placeholder="Bio"
                 />
                 <select
-                  value={userProfile.gymName}
+                  value={userProfile.gymName || "Select a location"}
                   onChange={(e) =>
                     setUserProfile((prev) => ({
                       ...prev,
                       gymName: e.target.value,
                     }))
                   }
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2 border rounded bg-inherit"
                 >
-                  <option value="">Select a location</option>
+                  {/* <option value="">Select a location</option> */}
                   <option value="Blink Fitness">Blink Fitness</option>
                   <option value="Planet Fitness">Planet Fitness</option>
                   <option value="Retro Fitness">Retro Fitness</option>

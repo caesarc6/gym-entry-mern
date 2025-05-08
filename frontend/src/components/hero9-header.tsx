@@ -13,6 +13,7 @@ import { useColorMode } from "@chakra-ui/react";
 import { RxAvatar } from "react-icons/rx";
 import { PiSignOutThin } from "react-icons/pi";
 import { MdPrivacyTip } from "react-icons/md"; // Added for privacy icon
+import { MdArrowDropDown } from "react-icons/md";
 import {
   Input,
   VStack,
@@ -25,6 +26,7 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Box,
 } from "@chakra-ui/react";
 import { debounce } from "lodash";
 
@@ -525,16 +527,36 @@ export const HeroHeader = () => {
                     as={Button}
                     variant="ghost"
                     size="sm"
+                    display="flex"
+                    // alignItems="center"
+                    // justifyContent="center"
+                    // whiteSpace="nowrap"
+                    px={2}
+                    border="1px solid red" // Debug: Visualize button boundaries
                     className={cn(
                       colorMode === "light"
                         ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                         : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
                     )}
                   >
-                    @{userName}
+                    <Box
+                      display="flex"
+                      // alignItems="center"
+                      // whiteSpace="nowrap"
+                      // border="none " // Debug: Visualize inner container
+                    >
+                      <Text as="span" fontSize="sm">
+                        @{userName}
+                      </Text>
+                      <MdArrowDropDown
+                        size="1.2rem"
+                        style={{ marginLeft: "4px" }}
+                      />
+                    </Box>
                   </MenuButton>
+
                   <MenuList
-                    bg={colorMode === "light" ? "white" : "gray.800"}
+                    bg={colorMode === "light" ? "white" : "gray.700"}
                     borderColor={
                       colorMode === "light" ? "gray.200" : "gray.700"
                     }
