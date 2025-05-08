@@ -21,10 +21,12 @@ const entrySchema = new mongoose.Schema(
       default:
         "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
     },
-    likes: {
-      type: Number,
-      default: 0,
-    },
+    // likes: {
+    //   type: Number,
+    //   default: 0,
+    // },
+
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Changed to array
     // add timestamps for comments
     comments: [
       {

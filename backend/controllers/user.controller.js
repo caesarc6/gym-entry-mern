@@ -3,6 +3,10 @@ import Entry from "../models/entry.model.js";
 import { supabase } from "../supabase/supabase.js";
 import multer from "multer";
 import path from "path";
+import {
+  filterEntriesForPublicView,
+  filterUserDataForPublicView,
+} from "../utils/userUtils.js";
 
 // Multer configuration
 const fileFilter = (req, file, cb) => {
@@ -693,7 +697,8 @@ export const getUserProfile = async (req, res) => {
     const { filterEntriesForPublicView } = await import(
       "../utils/userUtils.js"
     );
-    const posts = await Entry.find({ uid }).populate("likes", "username");
+    // const posts = await Entry.find({ uid }).populate("likes", "username");
+    const posts = await Entry.find({ uid });
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
 
     res.status(200).json({
@@ -709,6 +714,56 @@ export const getUserProfile = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ERROR on this code
+// export const getUserProfile = async (req, res) => {
+//   try {
+//     const { uid } = req.params;
+
+//     // Fetch viewer user (if authenticated)
+//     let viewerUser = null;
+//     if (req.user?.uid) {
+//       viewerUser = await User.findOne({ uid: req.user.uid });
+//       if (!viewerUser) {
+//         console.warn(`Viewer user not found for uid: ${req.user.uid}`);
+//       }
+//     }
+
+//     // Fetch target user and populate followers/following
+//     const user = await User.findOne({ uid })
+//       .populate("followers", "username name picture")
+//       .populate("following", "username name picture");
+//     if (!user) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "User not found" });
+//     }
+
+//     // Ensure privacy object exists
+//     user.privacy = user.privacy || { isPrivate: false, showEntries: true };
+
+//     // Filter user data based on privacy settings
+//     const userData = filterUserDataForPublicView(user, viewerUser);
+
+//     // Fetch and filter posts
+//     // const posts = await Entry.find({ uid });
+//     const posts = await Entry.find({ uid }).populate("likes", "username");
+//     console.log(`Retrieved ${posts.length} posts for user ${uid}`); // Debug
+//     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
+
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         user: userData,
+//         posts: filteredPosts,
+//         postsCount: filteredPosts.length,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error fetching user profile:", error);
+//     res.status(500).json({ success: false, message: "Internal server error" });
+//   }
+// };
 
 export const getUsers = async (req, res) => {
   try {
