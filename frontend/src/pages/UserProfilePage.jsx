@@ -88,9 +88,11 @@ const UserProfilePage = () => {
       const profileData = await profileResponse.json();
       const userData = profileData.data.user;
 
+      console.log(profileData.data);
+
       setUserProfile({
-        name: userData.name || "Anonymous",
-        username: userData.username || userData.name || "Anonymous",
+        name: userData.name || "Name",
+        username: userData.name || "Username",
         goal: userData.goal || "Not set",
         gymName: userData.gymName || "Not specified",
         postsCount: profileData.data.postsCount || 0,

@@ -152,8 +152,19 @@ export const filterEntriesForPublicView = (
   entryOwner,
   viewerUser = null
 ) => {
+  // console.log("Filtering entries for:", entryOwner.username);
+  // console.log("Viewer _id:", viewerUser?._id?.toString());
+  // console.log("Owner privacy:", entryOwner.privacy);
+  // console.log("Entries count:", entries.length);
+  // console.log("EntryOwner followers:", entryOwner.followers);
+  // console.log(
+  //   "EntryOwner followers _ids:",
+  //   entryOwner.followers?.map((f) => f._id?.toString() || f.toString())
+  // );
+
   // If viewing own profile, return all entries
   if (viewerUser && viewerUser._id.toString() === entryOwner._id.toString()) {
+    // console.log("Returning all entries for owner");
     return entries;
   }
 
@@ -161,29 +172,40 @@ export const filterEntriesForPublicView = (
   const isFollower =
     viewerUser &&
     entryOwner.followers &&
-    entryOwner.followers.some(
-      (followerId) => followerId.toString() === viewerUser._id.toString()
-    );
+    entryOwner.followers.some((followerId) => {
+      const followerStr = followerId._id
+        ? followerId._id.toString()
+        : followerId.toString();
+      const viewerStr = viewerUser._id.toString();
+      // console.log(
+      //   `Comparing followerId: ${followerStr} with viewer _id: ${viewerStr}`
+      // );
+      return followerStr === viewerStr;
+    });
+  // console.log("Is viewer a follower in filterEntries:", isFollower);
 
   // If profile is private and viewer is not a follower, return empty array
-  if (entryOwner.privacy.isPrivate && !isFollower) {
+  if (entryOwner.privacy?.isPrivate && !isFollower) {
+    // console.log("Returning no entries for private profile");
     return [];
   }
 
   // If showEntries is false, return empty array (even for followers)
-  if (!entryOwner.privacy.showEntries) {
+  if (!entryOwner.privacy?.showEntries) {
+    // console.log("Returning no entries due to showEntries: false");
     return [];
   }
 
   // For public entries or followers, return limited data
+  // console.log("Returning filtered entries");
   return entries.map((entry) => ({
     _id: entry._id,
     name: entry.name,
-    description: entry.description, // Include description
+    description: entry.description,
     image: entry.image,
-    likes: entry.likes, // Number, not an array
+    likes: entry.likes,
     createdAt: entry.createdAt,
     uid: entry.uid,
-    comments: entry.comments, // Include comments if needed
+    comments: entry.comments,
   }));
 };

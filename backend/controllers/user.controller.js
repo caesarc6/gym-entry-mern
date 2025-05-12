@@ -664,9 +664,17 @@ export const commentOnPost = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     const { uid } = req.params;
+    // console.log("Requested UID:", uid);
+
     let viewerUser = null;
-    if (req.user && req.user.uid) {
+    if (req.user?.uid) {
       viewerUser = await User.findOne({ uid: req.user.uid });
+      // console.log(
+      //   "Viewer UID:",
+      //   viewerUser?.uid,
+      //   "Viewer _id:",
+      //   viewerUser?._id
+      // );
     }
 
     const user = await User.findOne({ uid })
@@ -677,29 +685,30 @@ export const getUserProfile = async (req, res) => {
         .status(404)
         .json({ success: false, message: "User not found" });
     }
+    console.log("user info", user);
+    // console.log("User privacy:", user.privacy);
+    // console.log(
+    //   "User followers _ids:",
+    //   user.followers.map((f) => f._id.toString())
+    // );
+    // console.log(
+    //   "Is viewer a follower:",
+    //   viewerUser &&
+    //     user.followers.some(
+    //       (follower) => follower._id.toString() === viewerUser._id.toString()
+    //     )
+    // );
 
-    // Prepare user data to always include required fields
-    const userData = {
-      uid: user.uid,
-      username: user.username || user.name, // Fallback to name if username is not set
-      name: user.name || "username",
-      picture: user.picture || null,
-      backgroundPicture: user.backgroundPicture || null,
-      bio: user.bio || "No bio available",
-      goal: user.goal || "Not set",
-      gymName: user.gymName || "Not specified",
-      followers: Array.isArray(user.followers) ? user.followers.length : 0,
-      following: Array.isArray(user.following) ? user.following.length : 0,
-      isPrivate: user.privacy?.isPrivate || false,
-    };
+    const userData = filterUserDataForPublicView(user, viewerUser);
 
-    // Fetch posts and filter based on privacy settings
-    const { filterEntriesForPublicView } = await import(
-      "../utils/userUtils.js"
-    );
-    // const posts = await Entry.find({ uid }).populate("likes", "username");
-    const posts = await Entry.find({ uid });
+    const posts = await Entry.find({ uid }).populate("likes", "username");
+    // console.log("Retrieved posts:", posts.length);
+    // console.log("Posts sample:", posts.slice(0, 2));
+
+    // Ensure user object retains populated followers
+    // console.log("User followers before filtering posts:", user.followers);
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
+    // console.log("Filtered posts:", filteredPosts.length);
 
     res.status(200).json({
       success: true,
@@ -711,10 +720,9 @@ export const getUserProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
 // ERROR on this code
 // export const getUserProfile = async (req, res) => {
 //   try {
