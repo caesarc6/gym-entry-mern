@@ -339,7 +339,7 @@ const ProfilePage = () => {
     };
 
     if (uid) fetchPosts();
-  }, [uid, currentPage, limit]);
+  }, [uid, currentPage, limit, auth.currentUser]);
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
@@ -349,10 +349,10 @@ const ProfilePage = () => {
 
   // Get followers list
   const getFollowers = async (userId) => {
+    console.log("get followers");
     try {
       const user = auth.currentUser;
       if (!user) throw new Error("User not authenticated");
-
       const token = await user.getIdToken();
       const response = await fetch(
         `http://localhost:5001/api/users/${userId}/followers`,
@@ -366,6 +366,7 @@ const ProfilePage = () => {
       );
       if (!response.ok) throw new Error("Failed to fetch followers");
       const data = await response.json();
+      console.log("Followers response:", data.data); // Debug
       return data.data || [];
     } catch (error) {
       console.error("Error fetching followers:", error);
@@ -379,6 +380,37 @@ const ProfilePage = () => {
       return [];
     }
   };
+  // const getFollowers = async (userId) => {
+  //   try {
+  //     const user = auth.currentUser;
+  //     if (!user) throw new Error("User not authenticated");
+
+  //     const token = await user.getIdToken();
+  //     const response = await fetch(
+  //       `http://localhost:5001/api/users/${userId}/followers`,
+  //       {
+  //         method: "GET",
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //           "Content-Type": "application/json",
+  //         },
+  //       }
+  //     );
+  //     if (!response.ok) throw new Error("Failed to fetch followers");
+  //     const data = await response.json();
+  //     return data.data || [];
+  //   } catch (error) {
+  //     console.error("Error fetching followers:", error);
+  //     toast({
+  //       title: "Error",
+  //       description: error.message,
+  //       status: "error",
+  //       duration: 5000,
+  //       isClosable: true,
+  //     });
+  //     return [];
+  //   }
+  // };
 
   // Get following list
   const getFollowing = async (userId) => {
@@ -387,6 +419,7 @@ const ProfilePage = () => {
       if (!user) throw new Error("User not authenticated");
 
       const token = await user.getIdToken();
+      console.log("yeerr get following");
       const response = await fetch(
         `http://localhost:5001/api/users/${userId}/following`,
         {
@@ -397,7 +430,7 @@ const ProfilePage = () => {
           },
         }
       );
-
+      console.log(response);
       if (!response.ok) throw new Error("Failed to fetch following");
 
       const data = await response.json();
@@ -512,6 +545,7 @@ const ProfilePage = () => {
         setFollowersList(followers);
       }
       if (isFollowingOpen) {
+        console.log("frontend get following");
         const following = await getFollowing(uid);
         setFollowingList(following);
       }
@@ -553,6 +587,7 @@ const ProfilePage = () => {
         if (!user) return;
 
         const token = await user.getIdToken();
+        console.log("yes effect ******");
         const response = await fetch(
           `http://localhost:5001/api/users/${user.uid}/following`,
           {
@@ -563,7 +598,7 @@ const ProfilePage = () => {
             },
           }
         );
-
+        console.log(response);
         if (!response.ok) return;
 
         const data = await response.json();
@@ -664,6 +699,7 @@ const ProfilePage = () => {
                 spacing={0}
                 align={"center"}
                 onClick={async () => {
+                  console.log("frontend get following");
                   const following = await getFollowing(uid);
                   setFollowingList(following);
                   setIsFollowingOpen(true);
@@ -709,13 +745,13 @@ const ProfilePage = () => {
           <ModalHeader>Followers</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            {followersList.length === 0 ? (
+            {/* {followersList.length === 0 ? (
               <Text>No followers yet</Text>
             ) : (
               <VStack align="start" spacing={4} pb={4}>
                 {followersList.map((user) => (
                   <Flex
-                    key={user.uid}
+                    key={user.uid || user._id} // Use uid or _id
                     align="center"
                     justify="space-between"
                     w="full"
@@ -740,18 +776,20 @@ const ProfilePage = () => {
                         onClick={() => handleFollow(user.uid)}
                         isLoading={loadingStates[user.uid]}
                         loadingText={
-                          followingStatus[user.uid]
+                          followingStatus[user.uid || user._id]
                             ? "Unfollowing..."
                             : "Following..."
                         }
                       >
-                        {followingStatus[user.uid] ? "Unfollow" : "Follow"}
+                        {followingStatus[user.uid || user._id]
+                          ? "Unfollow"
+                          : "Follow"}
                       </Button>
                     )}
                   </Flex>
                 ))}
               </VStack>
-            )}
+            )} */}
           </ModalBody>
         </ModalContent>
       </Modal>
@@ -767,7 +805,7 @@ const ProfilePage = () => {
               <Text>Not following anyone yet</Text>
             ) : (
               <VStack align="start" spacing={4} pb={4}>
-                {followingList.map((user) => (
+                {/* {followingList.map((user) => (
                   <Flex
                     key={user.uid}
                     align="center"
@@ -797,7 +835,7 @@ const ProfilePage = () => {
                       </Button>
                     )}
                   </Flex>
-                ))}
+                ))} */}
               </VStack>
             )}
           </ModalBody>

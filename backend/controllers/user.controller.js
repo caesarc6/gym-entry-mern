@@ -829,14 +829,12 @@ export const getFollowing = async (req, res) => {
       path: "following",
       select: "uid name picture bio",
     });
-
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
-
     res.status(200).json({
       success: true,
       data: user.following || [],
