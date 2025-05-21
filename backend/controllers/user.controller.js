@@ -685,7 +685,7 @@ export const getUserProfile = async (req, res) => {
         .status(404)
         .json({ success: false, message: "User not found" });
     }
-    console.log("user info", user);
+    // console.log("user info", user);
     // console.log("User privacy:", user.privacy);
     // console.log(
     //   "User followers _ids:",

@@ -174,8 +174,12 @@ const ProfilePage = () => {
         bio: data.data.user.bio || "No bio available",
         profileImage: data.data.user.picture || profileColorMode,
         backgroundPicture: data.data.user.backgroundPicture || bgColorMode,
-        followers: data.data.user.followers ?? 0, // Number, use nullish coalescing
-        following: data.data.user.following ?? 0, // Number, use nullish coalescing
+        followers: Array.isArray(data.data.user.followers)
+          ? data.data.user.followers.length
+          : 0,
+        following: Array.isArray(data.data.user.following)
+          ? data.data.user.following.length
+          : 0,
       });
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -366,8 +370,11 @@ const ProfilePage = () => {
       );
       if (!response.ok) throw new Error("Failed to fetch followers");
       const data = await response.json();
-      console.log("Followers response:", data.data); // Debug
-      return data.data || [];
+      // console.log("Followers response:", data.data); // Debug
+      // return data.data || [];
+      console.log("Followers data:", data); // Debug the response
+      // Ensure data.data is an array; adjust if the API returns a different structure
+      return Array.isArray(data.data) ? data.data : [];
     } catch (error) {
       console.error("Error fetching followers:", error);
       toast({
@@ -419,7 +426,6 @@ const ProfilePage = () => {
       if (!user) throw new Error("User not authenticated");
 
       const token = await user.getIdToken();
-      console.log("yeerr get following");
       const response = await fetch(
         `http://localhost:5001/api/users/${userId}/following`,
         {
@@ -434,7 +440,9 @@ const ProfilePage = () => {
       if (!response.ok) throw new Error("Failed to fetch following");
 
       const data = await response.json();
-      return data.data || [];
+      console.log("Following data:", data); // Debug to confirm structure
+      // return data.data || [];
+      return Array.isArray(data.data) ? data.data : [];
     } catch (error) {
       console.error("Error fetching following:", error);
       toast({
@@ -456,8 +464,7 @@ const ProfilePage = () => {
 
       const token = await user.getIdToken();
       const isCurrentlyFollowing = followingStatus[userIdToFollow];
-      const endpoint = isCurrentlyFollowing ? "follow" : "unfollow";
-      console.log(endpoint);
+      const endpoint = isCurrentlyFollowing ? "unfollow" : "follow";
 
       const response = await fetch(
         `http://localhost:5001/api/${endpoint}/${userIdToFollow}`,
@@ -545,7 +552,6 @@ const ProfilePage = () => {
         setFollowersList(followers);
       }
       if (isFollowingOpen) {
-        console.log("frontend get following");
         const following = await getFollowing(uid);
         setFollowingList(following);
       }
@@ -587,7 +593,6 @@ const ProfilePage = () => {
         if (!user) return;
 
         const token = await user.getIdToken();
-        console.log("yes effect ******");
         const response = await fetch(
           `http://localhost:5001/api/users/${user.uid}/following`,
           {
@@ -602,10 +607,11 @@ const ProfilePage = () => {
         if (!response.ok) return;
 
         const data = await response.json();
+        console.log("Initialize following data:", data); // Debug
         if (data.success && data.data) {
           const followingMap = {};
-          data.data.forEach((uid) => {
-            followingMap[uid] = true;
+          data.data.forEach((user) => {
+            followingMap[user.uid] = true;
           });
           setFollowingStatus(followingMap);
         }
@@ -745,13 +751,13 @@ const ProfilePage = () => {
           <ModalHeader>Followers</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            {/* {followersList.length === 0 ? (
+            {followersList.length === 0 ? (
               <Text>No followers yet</Text>
             ) : (
               <VStack align="start" spacing={4} pb={4}>
                 {followersList.map((user) => (
                   <Flex
-                    key={user.uid || user._id} // Use uid or _id
+                    key={user.uid} // Use uid or _id
                     align="center"
                     justify="space-between"
                     w="full"
@@ -760,7 +766,7 @@ const ProfilePage = () => {
                       <Link to={`/user/${user.uid}`}>
                         <Avatar src={user.picture} size="sm" mr={2} />
                       </Link>
-                      <Link to={`/user/${user.uid}`}>
+                      <Link to={`/user/${user._id}`}>
                         <Text _hover={{ textDecoration: "underline" }}>
                           {user.name}
                         </Text>
@@ -776,20 +782,18 @@ const ProfilePage = () => {
                         onClick={() => handleFollow(user.uid)}
                         isLoading={loadingStates[user.uid]}
                         loadingText={
-                          followingStatus[user.uid || user._id]
+                          followingStatus[user.uid]
                             ? "Unfollowing..."
                             : "Following..."
                         }
                       >
-                        {followingStatus[user.uid || user._id]
-                          ? "Unfollow"
-                          : "Follow"}
+                        {followingStatus[user.uid] ? "Unfollow" : "Follow"}
                       </Button>
                     )}
                   </Flex>
                 ))}
               </VStack>
-            )} */}
+            )}
           </ModalBody>
         </ModalContent>
       </Modal>
@@ -805,7 +809,7 @@ const ProfilePage = () => {
               <Text>Not following anyone yet</Text>
             ) : (
               <VStack align="start" spacing={4} pb={4}>
-                {/* {followingList.map((user) => (
+                {followingList.map((user) => (
                   <Flex
                     key={user.uid}
                     align="center"
@@ -835,7 +839,7 @@ const ProfilePage = () => {
                       </Button>
                     )}
                   </Flex>
-                ))} */}
+                ))}
               </VStack>
             )}
           </ModalBody>
