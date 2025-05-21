@@ -663,21 +663,21 @@ export const commentOnPost = async (req, res) => {
 
 export const getUserProfile = async (req, res) => {
   try {
-    const { uid } = req.params;
-    // console.log("Requested UID:", uid);
+    const { userId } = req.params;
+    console.log("Requested UID:", req.params);
 
     let viewerUser = null;
     if (req.user?.uid) {
       viewerUser = await User.findOne({ uid: req.user.uid });
-      // console.log(
-      //   "Viewer UID:",
-      //   viewerUser?.uid,
-      //   "Viewer _id:",
-      //   viewerUser?._id
-      // );
+      console.log(
+        "Viewer UID:",
+        viewerUser?.uid,
+        "Viewer _id:",
+        viewerUser?._id
+      );
     }
 
-    const user = await User.findOne({ uid })
+    const user = await User.findOne({ uid: userId })
       .populate("followers", "username name picture")
       .populate("following", "username name picture");
     if (!user) {
@@ -685,30 +685,24 @@ export const getUserProfile = async (req, res) => {
         .status(404)
         .json({ success: false, message: "User not found" });
     }
-    // console.log("user info", user);
-    // console.log("User privacy:", user.privacy);
-    // console.log(
-    //   "User followers _ids:",
-    //   user.followers.map((f) => f._id.toString())
-    // );
-    // console.log(
-    //   "Is viewer a follower:",
-    //   viewerUser &&
-    //     user.followers.some(
-    //       (follower) => follower._id.toString() === viewerUser._id.toString()
-    //     )
-    // );
+    console.log("User info:", {
+      uid: user.uid,
+      username: user.username,
+      name: user.name,
+      bio: user.bio,
+      description: user.description,
+      isPrivate: user.isPrivate,
+    });
 
     const userData = filterUserDataForPublicView(user, viewerUser);
-
-    const posts = await Entry.find({ uid }).populate("likes", "username");
-    // console.log("Retrieved posts:", posts.length);
-    // console.log("Posts sample:", posts.slice(0, 2));
-
-    // Ensure user object retains populated followers
-    // console.log("User followers before filtering posts:", user.followers);
+    console.log("Filtered user data:", userData);
+    const posts = await Entry.find({ uid: userId }).populate(
+      "likes",
+      "username"
+    );
+    console.log("Retrieved posts:", posts.length);
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
-    // console.log("Filtered posts:", filteredPosts.length);
+    console.log("Filtered posts:", filteredPosts.length);
 
     res.status(200).json({
       success: true,

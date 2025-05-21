@@ -88,7 +88,7 @@ const UserProfilePage = () => {
       const profileData = await profileResponse.json();
       const userData = profileData.data.user;
 
-      console.log(profileData.data);
+      console.log("profile", profileData.data);
 
       setUserProfile({
         name: userData.name || "Name",
