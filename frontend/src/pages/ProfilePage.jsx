@@ -166,6 +166,7 @@ const ProfilePage = () => {
       if (!response.ok) throw new Error(await response.text());
 
       const data = await response.json();
+      console.log(data.data);
       setUserProfile({
         name: data.data.user.name || "Name",
         goal: data.data.user.goal || "Not set…",

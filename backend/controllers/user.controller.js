@@ -663,10 +663,14 @@ export const commentOnPost = async (req, res) => {
 
 export const getUserProfile = async (req, res) => {
   try {
-    const { userId } = req.params;
-    console.log("Requested UID:", req.params);
+    const userId = req.user.uid;
+    // const req1 = req;
+    // console.log("Requested UID:", req.params);
+    console.log("userId", userId);
 
     let viewerUser = null;
+    const user1 = User.findOne({ uid: userId });
+    // console.log("user", user1);
     if (req.user?.uid) {
       viewerUser = await User.findOne({ uid: req.user.uid });
       console.log(
@@ -683,7 +687,7 @@ export const getUserProfile = async (req, res) => {
     if (!user) {
       return res
         .status(404)
-        .json({ success: false, message: "User not found" });
+        .json({ success: false, message: `${userId} not found` });
     }
     console.log("User info:", {
       uid: user.uid,
@@ -692,6 +696,7 @@ export const getUserProfile = async (req, res) => {
       bio: user.bio,
       description: user.description,
       isPrivate: user.isPrivate,
+      backgroundPicture: user.backgroundPicture,
     });
 
     const userData = filterUserDataForPublicView(user, viewerUser);

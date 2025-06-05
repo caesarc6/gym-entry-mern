@@ -17,6 +17,7 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
     bio: user.bio,
     goal: user.goal,
     gymName: user.gymName,
+    backgroundPicture: user.backgroundPicture,
     followersCount: user.followers ? user.followers.length : 0,
     followingCount: user.following ? user.following.length : 0,
     isPrivate: user.privacy?.isPrivate || false,
