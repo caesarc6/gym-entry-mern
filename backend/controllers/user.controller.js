@@ -663,22 +663,22 @@ export const commentOnPost = async (req, res) => {
 
 export const getUserProfile = async (req, res) => {
   try {
-    const userId = req.user.uid;
+    const userId = req.params.uid;
     // const req1 = req;
-    // console.log("Requested UID:", req.params);
-    console.log("userId", userId);
+    // console.log("Requested UID:", req);
+    // console.log("userId", userId);
 
     let viewerUser = null;
     const user1 = User.findOne({ uid: userId });
     // console.log("user", user1);
     if (req.user?.uid) {
       viewerUser = await User.findOne({ uid: req.user.uid });
-      console.log(
-        "Viewer UID:",
-        viewerUser?.uid,
-        "Viewer _id:",
-        viewerUser?._id
-      );
+      // console.log(
+      //   "Viewer UID:",
+      //   viewerUser?.uid,
+      //   "Viewer _id:",
+      //   viewerUser?._id
+      // );
     }
 
     const user = await User.findOne({ uid: userId })
@@ -689,25 +689,25 @@ export const getUserProfile = async (req, res) => {
         .status(404)
         .json({ success: false, message: `${userId} not found` });
     }
-    console.log("User info:", {
-      uid: user.uid,
-      username: user.username,
-      name: user.name,
-      bio: user.bio,
-      description: user.description,
-      isPrivate: user.isPrivate,
-      backgroundPicture: user.backgroundPicture,
-    });
+    // console.log("User info:", {
+    //   uid: user.uid,
+    //   username: user.username,
+    //   name: user.name,
+    //   bio: user.bio,
+    //   description: user.description,
+    //   isPrivate: user.isPrivate,
+    //   backgroundPicture: user.backgroundPicture,
+    // });
 
     const userData = filterUserDataForPublicView(user, viewerUser);
-    console.log("Filtered user data:", userData);
+    // console.log("Filtered user data:", userData);
     const posts = await Entry.find({ uid: userId }).populate(
       "likes",
       "username"
     );
-    console.log("Retrieved posts:", posts.length);
+    // console.log("Retrieved posts:", posts.length);
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
-    console.log("Filtered posts:", filteredPosts.length);
+    // console.log("Filtered posts:", filteredPosts.length);
 
     res.status(200).json({
       success: true,
@@ -715,6 +715,8 @@ export const getUserProfile = async (req, res) => {
         user: userData,
         posts: filteredPosts,
         postsCount: filteredPosts.length,
+        followersCount: user.followers ? user.followers.length : 0,
+        followingCount: user.following ? user.following.length : 0,
       },
     });
   } catch (error) {

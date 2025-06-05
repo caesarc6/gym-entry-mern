@@ -166,7 +166,7 @@ const ProfilePage = () => {
       if (!response.ok) throw new Error(await response.text());
 
       const data = await response.json();
-      console.log(data.data);
+      // console.log(data.data);
       setUserProfile({
         name: data.data.user.name || "Name",
         goal: data.data.user.goal || "Not set…",
@@ -604,11 +604,11 @@ const ProfilePage = () => {
             },
           }
         );
-        console.log(response);
+        // console.log(response);
         if (!response.ok) return;
 
         const data = await response.json();
-        console.log("Initialize following data:", data); // Debug
+        // console.log("Initialize following data:", data); // Debug
         if (data.success && data.data) {
           const followingMap = {};
           data.data.forEach((user) => {

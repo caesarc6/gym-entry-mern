@@ -36,8 +36,8 @@ const UserProfilePage = () => {
     profileImage: "",
     backgroundPicture: "",
     bio: "",
-    followers: 0,
-    following: 0,
+    followersCount: 0,
+    followingCount: 0,
     isPrivate: false,
   });
   const [entries, setEntries] = useState([]);
@@ -62,6 +62,7 @@ const UserProfilePage = () => {
   const bgColor = useColorModeValue("white", "gray.800");
 
   const fetchUserProfile = useCallback(async () => {
+    console.log("userID from frontend req", userId);
     try {
       setIsLoading(true);
       const user = auth.currentUser;
@@ -99,13 +100,8 @@ const UserProfilePage = () => {
         bio: userData.bio || "No bio available",
         profileImage: userData.picture || profileColorMode,
         backgroundPicture: userData.backgroundPicture || bgColorMode,
-        followers: Array.isArray(userData.followers)
-          ? userData.followers.length
-          : 0, // Count of followers
-        following: Array.isArray(userData.following)
-          ? userData.following.length
-          : 0, // Count of following
-        isPrivate: userData.isPrivate || false,
+        followersCount: profileData.data.followersCount,
+        followingCount: profileData.data.followingCount,
       });
 
       // Check if current user is following this profile
@@ -234,7 +230,7 @@ const UserProfilePage = () => {
         setIsFollowing(true);
         setUserProfile((prev) => ({
           ...prev,
-          followers: prev.followers + 1,
+          followersCount: prev.followersCount + 1,
         }));
         toast({
           title: "Success",
@@ -256,7 +252,7 @@ const UserProfilePage = () => {
         setIsFollowing(false);
         setUserProfile((prev) => ({
           ...prev,
-          followers: prev.followers - 1,
+          followersCount: prev.followersCount - 1,
         }));
         toast({
           title: "Success",
@@ -358,13 +354,13 @@ const UserProfilePage = () => {
           </Stack>
           <Stack direction={"row"} justify={"center"} spacing={6} mt={8}>
             <Stack spacing={0} align={"center"}>
-              <Text fontWeight={600}>{userProfile.followers}</Text>
+              <Text fontWeight={600}>{userProfile.followersCount}</Text>
               <Text fontSize={"sm"} color={"gray.500"}>
                 Followers
               </Text>
             </Stack>
             <Stack spacing={0} align={"center"}>
-              <Text fontWeight={600}>{userProfile.following}</Text>
+              <Text fontWeight={600}>{userProfile.followingCount}</Text>
               <Text fontSize={"sm"} color={"gray.500"}>
                 Following
               </Text>
