@@ -62,7 +62,7 @@ const UserProfilePage = () => {
   const bgColor = useColorModeValue("white", "gray.800");
 
   const fetchUserProfile = useCallback(async () => {
-    console.log("userID from frontend req", userId);
+    // console.log("userID from frontend req", userId);
     try {
       setIsLoading(true);
       const user = auth.currentUser;

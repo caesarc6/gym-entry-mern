@@ -12,7 +12,11 @@ import PrivacySettings from "./components/PrivacySettings";
 
 function App() {
   return (
-    <Box minH={"100vh"} bg={useColorModeValue("gray.200", "gray.900")}>
+    <Box
+      minH={"100vh"}
+      bg={useColorModeValue("gray.200", "gray.900")}
+      pb={"55px"}
+    >
       <HeroHeader />
       {/* <Navbar /> */}
       <Routes>

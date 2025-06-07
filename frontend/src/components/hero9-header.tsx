@@ -12,7 +12,7 @@ import { LuSun } from "react-icons/lu";
 import { useColorMode } from "@chakra-ui/react";
 import { RxAvatar } from "react-icons/rx";
 import { PiSignOutThin } from "react-icons/pi";
-import { MdPrivacyTip } from "react-icons/md"; // Added for privacy icon
+import { MdPrivacyTip } from "react-icons/md";
 import { MdArrowDropDown } from "react-icons/md";
 import {
   Input,
@@ -222,7 +222,9 @@ export const HeroHeader = () => {
     e.preventDefault();
     e.stopPropagation();
     navigate(path);
-    setTimeout(() => {}, 300);
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearchOpen(false);
   };
 
   return (
@@ -275,11 +277,13 @@ export const HeroHeader = () => {
                     <Search className="h-5 w-5" />
                   </Button>
                 ) : (
-                  <div className="flex items-center gap-2" ref={searchRef}>
+                  <div
+                    className="relative flex items-center gap-2"
+                    ref={searchRef}
+                  >
                     <Input
                       borderRadius="16px"
-                      placeholder
-                      tuber
+                      placeholder="Search Users..."
                       value={searchQuery}
                       onChange={(e) => {
                         setSearchQuery(e.target.value);
@@ -317,6 +321,66 @@ export const HeroHeader = () => {
                       </Button>
                     )}
                     {isSearching && <Spinner size="sm" className="ml-2" />}
+                    {(searchResults.length > 0 ||
+                      (searchQuery &&
+                        !isSearching &&
+                        searchResults.length === 0)) && (
+                      <VStack
+                        align="start"
+                        spacing={2}
+                        w={{ base: "full", md: "200px" }} // Full width on mobile
+                        bg={colorMode === "light" ? "white" : "gray.800"}
+                        p={4}
+                        borderRadius="md"
+                        boxShadow="md"
+                        position="absolute"
+                        top="40px"
+                        left="0"
+                        right="0" // Ensure it spans the available width
+                        zIndex="50"
+                        ref={dropdownRef}
+                      >
+                        {searchResults.length > 0 ? (
+                          searchResults.map((user) => {
+                            const path =
+                              auth.currentUser &&
+                              user.uid === auth.currentUser.uid
+                                ? "/profile"
+                                : `/user/${user.uid}`;
+                            return (
+                              <Link
+                                key={user.uid}
+                                to={path}
+                                onClick={(e) => handleProfileClick(e, path)}
+                                aria-label={`View ${user.name}'s profile`}
+                                style={{ display: "block", width: "100%" }}
+                              >
+                                <Flex
+                                  align="center"
+                                  _hover={{ bg: "gray.100" }}
+                                  p={2}
+                                  w="full"
+                                >
+                                  <Avatar src={user.picture} size="sm" mr={2} />
+                                  <Text
+                                    fontWeight={
+                                      auth.currentUser &&
+                                      user.uid === auth.currentUser.uid
+                                        ? "bold"
+                                        : "normal"
+                                    }
+                                  >
+                                    {user.name}
+                                  </Text>
+                                </Flex>
+                              </Link>
+                            );
+                          })
+                        ) : (
+                          <Text w="full">No users found</Text>
+                        )}
+                      </VStack>
+                    )}
                   </div>
                 )}
                 {isSignedIn && (
@@ -437,7 +501,7 @@ export const HeroHeader = () => {
                   <VStack
                     align="start"
                     spacing={2}
-                    w="200px"
+                    w={{ base: "full", md: "200px" }}
                     bg={colorMode === "light" ? "white" : "gray.800"}
                     p={4}
                     borderRadius="md"
@@ -528,9 +592,6 @@ export const HeroHeader = () => {
                     variant="ghost"
                     size="sm"
                     display="flex"
-                    // alignItems="center"
-                    // justifyContent="center"
-                    // whiteSpace="nowrap"
                     px={2}
                     border="1px solid red" // Debug: Visualize button boundaries
                     className={cn(
@@ -539,12 +600,7 @@ export const HeroHeader = () => {
                         : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
                     )}
                   >
-                    <Box
-                      display="flex"
-                      // alignItems="center"
-                      // whiteSpace="nowrap"
-                      // border="none " // Debug: Visualize inner container
-                    >
+                    <Box display="flex">
                       <Text as="span" fontSize="sm">
                         @{userName}
                       </Text>
@@ -554,7 +610,6 @@ export const HeroHeader = () => {
                       />
                     </Box>
                   </MenuButton>
-
                   <MenuList
                     bg={colorMode === "light" ? "white" : "gray.700"}
                     borderColor={
@@ -753,6 +808,9 @@ export const HeroHeader = () => {
     </header>
   );
 };
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // import { Link, useLocation, useNavigate } from "react-router-dom";
 // import { Menu, X, Search } from "lucide-react";
