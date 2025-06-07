@@ -238,7 +238,7 @@ export const HeroHeader = () => {
         >
           <motion.div
             className={cn(
-              "relative flex items-center justify-between gap-4 py-3 duration-200 lg:gap-4 lg:py-6",
+              "relative flex items-center justify-between gap-4 py-3 duration-200 lg:gap-4 lg:py-6  xs:flex-wrap sm:flex-wrap",
               scrolled && "lg:py-4"
             )}
           >
