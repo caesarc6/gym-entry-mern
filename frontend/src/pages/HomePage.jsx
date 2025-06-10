@@ -33,6 +33,7 @@ const HomePage = () => {
     totalPosts: 0,
     limit: 6,
   });
+  const [CurrentUser, setCurrentUser] = useState(null);
 
   // Define spinner color at the top level
   const spinnerColor = useColorModeValue("gray.700", "gray.400");

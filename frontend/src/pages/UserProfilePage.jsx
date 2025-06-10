@@ -62,10 +62,11 @@ const UserProfilePage = () => {
   const bgColor = useColorModeValue("white", "gray.800");
 
   const fetchUserProfile = useCallback(async () => {
-    // console.log("userID from frontend req", userId);
+    console.log("userID from frontend req", userId);
     try {
       setIsLoading(true);
       const user = auth.currentUser;
+      console.log(auth.currentUser.uid);
       if (!user) {
         throw new Error("User not authenticated");
       }
@@ -428,7 +429,11 @@ const UserProfilePage = () => {
             w={"full"}
           >
             {entries.map((entry) => (
-              <ProductCard key={entry._id} entry={entry} />
+              <ProductCard
+                key={entry._id}
+                entry={entry}
+                isOwner={auth.currentUser?.uid === userId}
+              />
             ))}
           </SimpleGrid>
           <Box
