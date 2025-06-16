@@ -25,7 +25,7 @@ import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
 
 const UserProfilePage = () => {
-  const { userId } = useParams();
+  const { userId: paramUserId } = useParams(); // Rename to avoid confusion
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState({
     name: "",
@@ -61,12 +61,14 @@ const UserProfilePage = () => {
   const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
   const bgColor = useColorModeValue("white", "gray.800");
 
+  // Determine userId: use paramUserId if available, otherwise use current user's UID
+  const userId = paramUserId || auth.currentUser?.uid;
+
   const fetchUserProfile = useCallback(async () => {
     console.log("userID from frontend req", userId);
     try {
       setIsLoading(true);
       const user = auth.currentUser;
-      console.log(auth.currentUser.uid);
       if (!user) {
         throw new Error("User not authenticated");
       }
@@ -153,6 +155,7 @@ const UserProfilePage = () => {
           likes: post.likes || 0,
           comments: Array.isArray(post.comments) ? post.comments : [],
           createdAt: post.createdAt || new Date().toISOString(),
+          ownerId: post.uid || userId, // Add ownerId, assuming the post belongs to the profile user
         }));
         setEntries(normalizedEntries);
         setPagination(postsData.pagination);
@@ -314,7 +317,85 @@ const UserProfilePage = () => {
     );
   }
 
-  // Always render profile information, even for private profiles
+  const handlePostUpdate = (postId, updatedPost) => {
+    setEntries((prevEntries) =>
+      prevEntries.map((entry) =>
+        entry._id === postId ? { ...entry, ...updatedPost } : entry
+      )
+    );
+  };
+
+  const renderPosts = () => (
+    <VStack spacing={8} mt={6}>
+      <Text
+        fontSize={"22"}
+        fontWeight={"bold"}
+        bgGradient={"linear(to-r, blue.200, gray.400)"}
+        bgClip={"text"}
+      >
+        Workout Posts
+      </Text>
+      {isLoading ? (
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          height="200px"
+        >
+          <Spinner
+            size="lg"
+            thickness="4px"
+            speed="1.2s"
+            color={useColorModeValue("gray.700", "gray.400")}
+          />
+        </Box>
+      ) : entries.length > 0 ? (
+        <>
+          <SimpleGrid
+            columns={{ base: 1, md: 2, lg: 3 }}
+            spacing={10}
+            w={"full"}
+          >
+            {entries.map((entry) => (
+              <ProductCard
+                key={entry._id}
+                entry={entry}
+                isOwner={auth.currentUser?.uid === entry.ownerId}
+                onUpdate={handlePostUpdate}
+              />
+            ))}
+          </SimpleGrid>
+          <Box
+            mt={6}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Button
+              onClick={() => handlePageChange(currentPage - 1)}
+              isDisabled={currentPage === 1}
+              mr={2}
+            >
+              <SlArrowLeft />
+            </Button>
+            <Text mx={2}>
+              {currentPage} • {totalPages}
+            </Text>
+            <Button
+              onClick={() => handlePageChange(currentPage + 1)}
+              isDisabled={currentPage === totalPages || totalPages === 0}
+              ml={2}
+            >
+              <SlArrowRight />
+            </Button>
+          </Box>
+        </>
+      ) : (
+        <Text>No posts available.</Text>
+      )}
+    </VStack>
+  );
+
   const renderProfile = () => (
     <Center py={6} mt={10}>
       <Box
@@ -373,8 +454,17 @@ const UserProfilePage = () => {
               </Text>
             </Stack>
           </Stack>
-          {auth.currentUser?.uid !== userId && (
-            <Stack direction={"row"} spacing={4} mt={6}>
+          <Stack direction={"row"} spacing={4} mt={6}>
+            {auth.currentUser?.uid === userId ? (
+              <Button
+                onClick={() => navigate("/edit-profile")}
+                colorScheme="blue"
+                variant="outline"
+                w={"full"}
+              >
+                Edit Profile
+              </Button>
+            ) : (
               <Button
                 onClick={handleFollow}
                 colorScheme={isFollowing ? "whiteAlpha" : "blue"}
@@ -389,82 +479,11 @@ const UserProfilePage = () => {
                   ? "Following"
                   : "Follow"}
               </Button>
-            </Stack>
-          )}
+            )}
+          </Stack>
         </Box>
       </Box>
     </Center>
-  );
-
-  // Render posts section only if profile is not private or viewer is a follower/owner
-  const renderPosts = () => (
-    <VStack spacing={8} mt={6}>
-      <Text
-        fontSize={"22"}
-        fontWeight={"bold"}
-        bgGradient={"linear(to-r, blue.200, gray.400)"}
-        bgClip={"text"}
-      >
-        Workout Posts
-      </Text>
-      {isLoading ? (
-        <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          height="200px"
-        >
-          <Spinner
-            size="lg"
-            thickness="4px"
-            speed="1.2s"
-            color={useColorModeValue("gray.700", "gray.400")}
-          />
-        </Box>
-      ) : entries.length > 0 ? (
-        <>
-          <SimpleGrid
-            columns={{ base: 1, md: 2, lg: 3 }}
-            spacing={10}
-            w={"full"}
-          >
-            {entries.map((entry) => (
-              <ProductCard
-                key={entry._id}
-                entry={entry}
-                isOwner={auth.currentUser?.uid === userId}
-              />
-            ))}
-          </SimpleGrid>
-          <Box
-            mt={6}
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Button
-              onClick={() => handlePageChange(currentPage - 1)}
-              isDisabled={currentPage === 1}
-              mr={2}
-            >
-              <SlArrowLeft />
-            </Button>
-            <Text mx={2}>
-              {currentPage} • {totalPages}
-            </Text>
-            <Button
-              onClick={() => handlePageChange(currentPage + 1)}
-              isDisabled={currentPage === totalPages || totalPages === 0}
-              ml={2}
-            >
-              <SlArrowRight />
-            </Button>
-          </Box>
-        </>
-      ) : (
-        <Text>No posts available.</Text>
-      )}
-    </VStack>
   );
 
   return (

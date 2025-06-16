@@ -336,6 +336,7 @@ export const getPostsByUID = async (req, res) => {
 
     // Normalize posts to match ProductCard expectations
     const normalizedPosts = posts.map((post) => ({
+      ownerId: uid, // Owner of the post
       _id: post._id.toString(),
       name: post.name || "Untitled",
       description: post.description || "No description",
@@ -344,7 +345,7 @@ export const getPostsByUID = async (req, res) => {
       comments: post.comments || [], // Ensure comments is an array
       createdAt: post.createdAt || new Date().toISOString(),
     }));
-
+    console.log("isowner id controller", normalizedPosts);
     // Filter posts based on privacy settings
     const { filterEntriesForPublicView } = await import(
       "../utils/userUtils.js"
@@ -664,21 +665,9 @@ export const commentOnPost = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     const userId = req.params.uid;
-    // const req1 = req;
-    // console.log("Requested UID:", req);
-    // console.log("userId", userId);
-
     let viewerUser = null;
-    const user1 = User.findOne({ uid: userId });
-    // console.log("user", user1);
     if (req.user?.uid) {
       viewerUser = await User.findOne({ uid: req.user.uid });
-      // console.log(
-      //   "Viewer UID:",
-      //   viewerUser?.uid,
-      //   "Viewer _id:",
-      //   viewerUser?._id
-      // );
     }
 
     const user = await User.findOne({ uid: userId })
@@ -689,32 +678,32 @@ export const getUserProfile = async (req, res) => {
         .status(404)
         .json({ success: false, message: `${userId} not found` });
     }
-    // console.log("User info:", {
-    //   uid: user.uid,
-    //   username: user.username,
-    //   name: user.name,
-    //   bio: user.bio,
-    //   description: user.description,
-    //   isPrivate: user.isPrivate,
-    //   backgroundPicture: user.backgroundPicture,
-    // });
 
     const userData = filterUserDataForPublicView(user, viewerUser);
-    // console.log("Filtered user data:", userData);
     const posts = await Entry.find({ uid: userId }).populate(
       "likes",
       "username"
     );
-    // console.log("Retrieved posts:", posts.length);
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
-    // console.log("Filtered posts:", filteredPosts.length);
+
+    // Normalize posts to include ownerId
+    const normalizedPosts = filteredPosts.map((post) => ({
+      ownerId: userId, // Ensure ownerId is included
+      _id: post._id.toString(),
+      name: post.name || "Untitled",
+      description: post.description || "No description",
+      image: post.image || null,
+      likes: post.likes?.length || 0,
+      comments: post.comments || [],
+      createdAt: post.createdAt || new Date().toISOString(),
+    }));
 
     res.status(200).json({
       success: true,
       data: {
         user: userData,
-        posts: filteredPosts,
-        postsCount: filteredPosts.length,
+        posts: normalizedPosts,
+        postsCount: normalizedPosts.length,
         followersCount: user.followers ? user.followers.length : 0,
         followingCount: user.following ? user.following.length : 0,
       },
@@ -724,6 +713,7 @@ export const getUserProfile = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
 // ERROR on this code
 // export const getUserProfile = async (req, res) => {
 //   try {

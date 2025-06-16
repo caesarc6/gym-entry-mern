@@ -51,11 +51,13 @@ const HomePage = () => {
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
+        useProductStore.getState().setCurrentUser(user); // Set currentUser in store
       } else {
         setIsSignedIn(false);
         setUid(null);
         setEntries([]);
         clearEntrys();
+        useProductStore.getState().setCurrentUser(null); // Clear currentUser
       }
       setIsLoading(false);
     });

@@ -26,8 +26,14 @@ import { FileUploader } from "./FileUploader";
 import { useProductStore } from "../store/product";
 import { useState } from "react";
 import PropTypes from "prop-types";
+import { auth } from "../firebase"; // Import Firebase auth
 
-const ProductCard = ({ entry, isOwner }) => {
+const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
+  console.log(entry);
+  const currentUser = auth.currentUser;
+  const isOwner = propIsOwner ?? currentUser?.uid === entry.ownerId;
+  console.log("ProductCard entry:", entry);
+  console.log("ProductCard isOwner:", isOwner);
   const [updatedEntry, setUpdatedEntry] = useState({
     _id: entry._id || "",
     name: entry.name || "Untitled",
@@ -87,6 +93,7 @@ const ProductCard = ({ entry, isOwner }) => {
         duration: 5000,
         isClosable: true,
       });
+      onDeleteClose();
     }
   };
 
@@ -107,18 +114,19 @@ const ProductCard = ({ entry, isOwner }) => {
       });
     } else {
       if (data && data.data) {
-        const { title, description, likes, comments } = data.data;
+        const { name, description, likes, comments } = data.data; // Fixed: use `name` instead of `title`
         setUpdatedEntry((prevEntry) => ({
           ...prevEntry,
-          title,
+          name,
           description,
           likes,
           comments,
         }));
+        onUpdate(pid, data.data); // Update parent state
       }
       toast({
         title: "Success",
-        description: "Product updated successfully",
+        description: "Entry updated successfully",
         status: "success",
         duration: 5000,
         isClosable: true,
@@ -357,7 +365,6 @@ const ProductCard = ({ entry, isOwner }) => {
         <ModalOverlay />
         <ModalContent>
           <ModalHeader fontFamily="Arial, sans-serif">Update Entry</ModalHeader>
-          /home/user/projects/fitness-app/src/components/ProductCard.jsx
           <ModalCloseButton />
           <ModalBody>
             <VStack spacing={4}>
@@ -451,8 +458,10 @@ ProductCard.propTypes = {
       })
     ),
     createdAt: PropTypes.string,
+    ownerId: PropTypes.string, // Ensure ownerId is included
   }).isRequired,
-  isOwner: PropTypes.bool.isRequired, // Add isOwner to PropTypes
+  isOwner: PropTypes.bool, // Make isOwner optional
+  onUpdate: PropTypes.func.isRequired,
 };
 
 export default ProductCard;

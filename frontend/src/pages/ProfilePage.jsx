@@ -333,11 +333,29 @@ const ProfilePage = () => {
 
         const data = await response.json();
         if (data.success) {
-          setEntries(data.data);
+          // Normalize posts to ensure ownerId is included
+          const normalizedEntries = data.data.map((post) => ({
+            _id: post._id,
+            name: post.name || "Untitled",
+            description: post.description || "No description",
+            image: post.image || null,
+            likes: post.likes || 0,
+            comments: Array.isArray(post.comments) ? post.comments : [],
+            createdAt: post.createdAt || new Date().toISOString(),
+            ownerId: post.ownerId || uid, // Ensure ownerId is set
+          }));
+          setEntries(normalizedEntries);
           setPagination(data.pagination);
         }
       } catch (error) {
         console.error("Error fetching posts:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load posts",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
       } finally {
         setIsLoading(false);
       }
@@ -986,7 +1004,7 @@ const ProfilePage = () => {
               color={useColorModeValue("gray.700", "gray.400")}
             />
           </Box>
-        ) : (
+        ) : entries.length > 0 ? (
           <>
             <SimpleGrid
               columns={{ base: 1, md: 2, lg: 3 }}
@@ -1022,6 +1040,8 @@ const ProfilePage = () => {
               </Button>
             </Box>
           </>
+        ) : (
+          <Text>No posts available.</Text>
         )}
       </VStack>
     </Container>

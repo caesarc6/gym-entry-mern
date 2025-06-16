@@ -7,6 +7,8 @@ import { getAuth, signInWithPopup } from "firebase/auth";
 // Production URL is https://gym-tracker-brown.vercel.app/api/entrys/
 
 export const useProductStore = create((set) => ({
+  currentUser: null,
+  setCurrentUser: (user) => set({ currentUser: user }),
   entrys: [],
   setEntrys: (entrys) => set({ entrys }),
 
