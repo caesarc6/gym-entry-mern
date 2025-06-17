@@ -7,6 +7,7 @@ import {
   Box,
   Spinner,
   useColorModeValue,
+  useToast,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -15,15 +16,13 @@ import ProductCard from "../components/ProductCard";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
 import { Hero } from "../components/Hero";
-import { SlArrowRight } from "react-icons/sl";
-import { SlArrowLeft } from "react-icons/sl";
+import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 
 const HomePage = () => {
-  const { fetchEntrys, entrys, clearEntrys, updateEntry } = useProductStore();
+  const { clearEntrys, updateEntry } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [uid, setUid] = useState(null);
-  const [posts, setPosts] = useState([]);
   const [entries, setEntries] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(6);
@@ -33,14 +32,13 @@ const HomePage = () => {
     totalPosts: 0,
     limit: 6,
   });
-  const [CurrentUser, setCurrentUser] = useState(null);
-
-  // Define spinner color at the top level
+  const [followingUids, setFollowingUids] = useState([]);
+  const toast = useToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
 
   // Handle page change
   const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages && totalPages > 0) {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
       setCurrentPage(newPage);
     }
   };
@@ -51,13 +49,15 @@ const HomePage = () => {
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
-        useProductStore.getState().setCurrentUser(user); // Set currentUser in store
+        console.log("Current user UID:", user.uid); // Debug
+        useProductStore.getState().setCurrentUser(user);
       } else {
         setIsSignedIn(false);
         setUid(null);
         setEntries([]);
+        setFollowingUids([]);
         clearEntrys();
-        useProductStore.getState().setCurrentUser(null); // Clear currentUser
+        useProductStore.getState().setCurrentUser(null);
       }
       setIsLoading(false);
     });
@@ -65,176 +65,15 @@ const HomePage = () => {
     return () => unsubscribe();
   }, [clearEntrys]);
 
-  // Fetch posts
+  // Fetch following UIDs
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchFollowing = async () => {
+      if (!uid) return;
       try {
-        setIsLoading(true);
-        if (!uid) return;
-
         const user = auth.currentUser;
-        if (!user) return;
-
         const token = await user.getIdToken();
         const response = await fetch(
-          `https://gym-tracker-brown.vercel.app/api/posts/${uid}?page=${currentPage}&limit=${limit}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const data = await response.json();
-        if (data.success) {
-          setEntries(data.data);
-          setPagination({
-            ...data.pagination,
-            totalPages: data.data.length === 0 ? 0 : data.pagination.totalPages,
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching posts:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (uid) {
-      fetchPosts();
-    }
-  }, [uid, currentPage, limit]);
-
-  const totalPages = pagination.totalPages;
-
-  const handleUpdateEntry = async (pid, updatedEntry) => {
-    const previousEntries = [...entries];
-    const updatedEntries = entries.map((entry) =>
-      entry._id === pid ? { ...entry, ...updatedEntry } : entry
-    );
-    setEntries(updatedEntries);
-
-    try {
-      const { success, message, data } = await updateEntry(pid, updatedEntry);
-      if (!success) {
-        setEntries(previousEntries);
-        console.error("Failed to update entry:", message);
-      } else {
-        setEntries((prevEntries) =>
-          prevEntries.map((entry) =>
-            entry._id === pid ? { ...entry, ...data.data } : entry
-          )
-        );
-      }
-    } catch (error) {
-      setEntries(previousEntries);
-      console.error("Error updating entry:", error);
-    }
-  };
-
-  const searchPostsByUID = async () => {
-    try {
-      const user = auth.currentUser;
-      const token = await user.getIdToken();
-      const uid = user.uid;
-      const response = await fetch(
-        `https://gym-tracker-brown.vercel.app/api/posts/${uid}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      const result = await response.json();
-      console.log("Search result:", result);
-      setPosts(result);
-    } catch (error) {
-      console.error("Error searching posts by UID:", error);
-    }
-  };
-
-  const getAllUID = async () => {
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const response = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/getUsers",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const result = await response.json();
-      const users = result.data.map((user) => ({
-        name: user.name,
-        uid: user.uid,
-      }));
-      console.log("All UIDs:", users);
-    } catch (error) {
-      console.error("Error fetching all UID:", error);
-    }
-  };
-
-  const getCurrentUser = async () => {
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const response = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const result = await response.json();
-      console.log("Current User:", result);
-      return result;
-    } catch (error) {
-      console.error("Error fetching current user:", error);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdToken();
-      const response = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/protected",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const userData = await response.json();
-      console.log("User Data:", userData.uid);
-      try {
-        const token = await auth.currentUser.getIdToken();
-        const response = await fetch(
-          "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
+          `http://localhost:5001/api/users/${uid}/following`,
           {
             method: "GET",
             headers: {
@@ -246,14 +85,236 @@ const HomePage = () => {
         if (!response.ok) {
           throw new Error(await response.text());
         }
-        const resultOne = await response.json();
-        console.log("Logged in as:", resultOne);
+        const data = await response.json();
+        console.log("Following API response:", data); // Debug
+        if (data.success) {
+          const uids = data.data.map((user) => user.uid);
+          setFollowingUids(uids);
+          console.log("Following UIDs:", uids); // Debug
+          if (uids.length === 0) {
+            toast({
+              title: "No followed users",
+              description: "Follow users to see their posts in your feed.",
+              status: "info",
+              duration: 5000,
+              isClosable: true,
+            });
+          }
+        } else {
+          throw new Error(data.message || "Failed to fetch following");
+        }
       } catch (error) {
-        console.error("Error fetching current user:", error);
+        console.error("Error fetching following UIDs:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load followed users",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
       }
+    };
+
+    if (uid) {
+      fetchFollowing();
+    }
+  }, [uid, toast]);
+
+  // Fetch posts for following feed
+  useEffect(() => {
+    const fetchFeedPosts = async () => {
+      try {
+        setIsLoading(true);
+        if (!uid) {
+          setEntries([]);
+          setPagination({
+            currentPage: 1,
+            totalPages: 0,
+            totalPosts: 0,
+            limit,
+          });
+          return;
+        }
+
+        const user = auth.currentUser;
+        const token = await user.getIdToken();
+        let allPosts = [];
+        let totalPosts = 0;
+        const uidsToFetch = [...new Set([uid, ...followingUids])]; // Include own UID
+        console.log("Fetching posts for UIDs:", uidsToFetch); // Debug
+
+        // Calculate posts needed for the current page
+        const postsNeeded = currentPage * limit;
+        const postsPerUser = Math.ceil(postsNeeded / uidsToFetch.length); // Distribute posts across users
+        const userPage = Math.ceil(postsPerUser / limit); // Backend page per user
+
+        // Fetch posts for each UID
+        for (const fetchUid of uidsToFetch) {
+          const response = await fetch(
+            `http://localhost:5001/api/posts/${fetchUid}?page=${userPage}&limit=${limit}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          const data = await response.json();
+          console.log(`Posts for UID ${fetchUid}:`, data); // Debug
+          if (data.success && Array.isArray(data.data)) {
+            const normalizedPosts = data.data.map((post) => ({
+              _id: post._id,
+              name: post.name || "Untitled",
+              description: post.description || "No description",
+              image: post.image || null,
+              likes: post.likes || 0,
+              comments: Array.isArray(post.comments) ? post.comments : [],
+              createdAt: post.createdAt || new Date().toISOString(),
+              ownerId: post.uid || fetchUid,
+              uid: post.uid || fetchUid, // Preserve uid for debugging
+            }));
+            allPosts = [...allPosts, ...normalizedPosts];
+            totalPosts += data.pagination.totalPosts; // Aggregate total posts
+          } else {
+            console.log(`No posts or error for UID ${fetchUid}:`, data);
+          }
+        }
+
+        // Sort by createdAt (newest first) and apply pagination
+        allPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const startIndex = (currentPage - 1) * limit;
+        const paginatedPosts = allPosts.slice(startIndex, startIndex + limit);
+        const totalPages = Math.ceil(totalPosts / limit) || 1;
+
+        console.log("All normalized posts:", allPosts); // Debug
+        console.log("Paginated posts:", paginatedPosts); // Debug
+        setEntries(paginatedPosts);
+        setPagination({
+          currentPage,
+          totalPages,
+          totalPosts,
+          limit,
+        });
+
+        if (allPosts.length === 0) {
+          console.log("No posts found for feed"); // Debug
+          toast({
+            title: "Empty feed",
+            description:
+              "No posts available. Create or follow users to see more.",
+            status: "info",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching feed posts:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load feed",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (uid) {
+      fetchFeedPosts();
+    }
+  }, [uid, followingUids, currentPage, limit, toast]);
+
+  const handleUpdateEntry = async (pid, updatedEntry) => {
+    const previousEntries = [...entries];
+    const updatedEntries = entries.map((entry) =>
+      entry._id === pid ? { ...entry, ...updatedEntry } : entry
+    );
+    setEntries(updatedEntries);
+
+    try {
+      console.log("Updating entry:", pid, updatedEntry); // Debug
+      const { success, message, data } = await updateEntry(pid, updatedEntry);
+      if (!success) {
+        setEntries(previousEntries);
+        console.error("Failed to update entry:", message);
+        toast({
+          title: "Error",
+          description: message || "Failed to update post",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        setEntries((prevEntries) =>
+          prevEntries.map((entry) =>
+            entry._id === pid ? { ...entry, ...data.data } : entry
+          )
+        );
+        toast({
+          title: "Success",
+          description: "Post updated successfully",
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      setEntries(previousEntries);
+      console.error("Error updating entry:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update post",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const token = await result.user.getIdToken();
+      const response = await fetch(`http://localhost:5001/api/protected`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const userData = await response.json();
+      console.log("User Data:", userData.uid);
+      const currentUserResponse = await fetch(
+        `http://localhost:5001/api/getCurrentUser`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const currentUserData = await currentUserResponse.json();
+      console.log("Logged in as:", currentUserData);
     } catch (error) {
       console.error("Error during sign-in:", error);
       handleSignOutUser();
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign in",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
@@ -264,8 +325,16 @@ const HomePage = () => {
       setUid(null);
       setIsSignedIn(false);
       setEntries([]);
+      setFollowingUids([]);
     } catch (error) {
       console.error("Error during sign-out:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign out",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
@@ -281,7 +350,7 @@ const HomePage = () => {
               bgClip={"text"}
               textAlign={"center"}
             >
-              Workout Page
+              Following Feed
             </Text>
             {isLoading ? (
               <Box
@@ -294,7 +363,7 @@ const HomePage = () => {
                   size="lg"
                   thickness="4px"
                   speed="1.2s"
-                  color={spinnerColor} // Use the precomputed color
+                  color={spinnerColor}
                 />
               </Box>
             ) : (
@@ -312,6 +381,9 @@ const HomePage = () => {
                     <ProductCard
                       key={entry._id}
                       entry={entry}
+                      isOwner={
+                        auth.currentUser?.uid === (entry.ownerId || entry.uid)
+                      }
                       onUpdate={handleUpdateEntry}
                     />
                   ))}
@@ -324,19 +396,24 @@ const HomePage = () => {
                 >
                   <Button
                     onClick={() => handlePageChange(currentPage - 1)}
-                    isDisabled={currentPage === 1 || totalPages === 0}
+                    isDisabled={
+                      currentPage === 1 || pagination.totalPages === 0
+                    }
                     mr={2}
                   >
                     <SlArrowLeft />
                   </Button>
                   <Text mx={2}>
-                    {totalPages === 0
+                    {pagination.totalPages === 0
                       ? "0 • 0"
-                      : `${currentPage} • ${totalPages}`}
+                      : `${currentPage} • ${pagination.totalPages}`}
                   </Text>
                   <Button
                     onClick={() => handlePageChange(currentPage + 1)}
-                    isDisabled={currentPage === totalPages || totalPages === 0}
+                    isDisabled={
+                      currentPage === pagination.totalPages ||
+                      pagination.totalPages === 0
+                    }
                     ml={2}
                   >
                     <SlArrowRight />
@@ -349,14 +426,24 @@ const HomePage = () => {
                     fontWeight="bold"
                     color="gray.500"
                   >
-                    No entries found 😢{" "}
+                    No posts to show 😢{" "}
+                    <Link to={"/profile"}>
+                      <Text
+                        as="span"
+                        color="blue.500"
+                        _hover={{ textDecoration: "underline" }}
+                      >
+                        Follow some users
+                      </Text>
+                    </Link>{" "}
+                    or{" "}
                     <Link to={"/create"}>
                       <Text
                         as="span"
                         color="blue.500"
                         _hover={{ textDecoration: "underline" }}
                       >
-                        Create an entry
+                        create a post
                       </Text>
                     </Link>
                   </Text>

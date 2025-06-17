@@ -26,6 +26,7 @@ import {
   getUsers,
   getFollowers,
   getFollowing,
+  getFeedPosts,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -68,6 +69,7 @@ router.post("/posts/:postId/like", verifyIdToken, likePost);
 router.post("/posts/:postId/comment", verifyIdToken, commentOnPost);
 router.get("/users/:userId/followers", verifyIdToken, getFollowers);
 router.get("/users/:userId/following", verifyIdToken, getFollowing);
+router.post("/posts/feed", verifyIdToken, getFeedPosts);
 
 export default router;
 

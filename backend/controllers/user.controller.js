@@ -303,76 +303,68 @@ export const createPost = async (req, res) => {
 export const getPostsByUID = async (req, res) => {
   try {
     const { uid } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 6;
-
-    if (page < 1 || limit < 1) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid page or limit value" });
-    }
-
-    // Fetch the user to get privacy settings
-    const user = await User.findOne({ uid }).populate("followers");
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    // Determine the viewer
-    let viewerUser = null;
-    if (req.user && req.user.uid) {
-      viewerUser = await User.findOne({ uid: req.user.uid });
-    }
-
-    // Fetch posts with pagination
+    const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
+
+    // Get requester's UID from Firebase token
+    const requesterUid = req.user.uid; // Set by verifyIdToken middleware
+    const user = await User.findOne({ uid });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if profile is private and requester is a follower
+    const isFollower = user.followers.some((followerId) =>
+      followerId.equals(req.user._id)
+    );
+    if (user.isPrivate && !isFollower && requesterUid !== uid) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Private profile: You must follow this user to see their posts",
+      });
+    }
+
     const posts = await Entry.find({ uid })
+      .populate("likes", "username")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .populate("likes", "username");
+      .limit(parseInt(limit));
 
-    // Normalize posts to match ProductCard expectations
+    const totalPosts = await Entry.countDocuments({ uid });
+    const totalPages = Math.ceil(totalPosts / limit);
+
     const normalizedPosts = posts.map((post) => ({
-      ownerId: uid, // Owner of the post
       _id: post._id.toString(),
+      uid: post.uid,
       name: post.name || "Untitled",
       description: post.description || "No description",
       image: post.image || null,
       likes: post.likes?.length || 0,
-      comments: post.comments || [], // Ensure comments is an array
+      comments: post.comments || [],
       createdAt: post.createdAt || new Date().toISOString(),
     }));
-    console.log("isowner id controller", normalizedPosts);
-    // Filter posts based on privacy settings
-    const { filterEntriesForPublicView } = await import(
-      "../utils/userUtils.js"
-    );
-    const filteredPosts = filterEntriesForPublicView(
-      normalizedPosts,
-      user,
-      viewerUser
-    );
 
-    // Count total posts (before filtering for accurate pagination)
-    const totalPosts = await Entry.countDocuments({ uid });
-    const totalPages = Math.ceil(totalPosts / limit);
-
-    res.json({
+    res.status(200).json({
       success: true,
-      data: filteredPosts,
+      data: normalizedPosts,
       pagination: {
-        currentPage: page,
-        totalPages: totalPages,
-        totalPosts: totalPosts,
-        limit: limit,
+        currentPage: parseInt(page),
+        totalPages,
+        totalPosts,
+        limit: parseInt(limit),
       },
     });
   } catch (error) {
-    console.error("Error fetching posts:", error);
-    res.status(500).json({ success: false, error: "Failed to retrieve posts" });
+    console.error("Error fetching posts by UID:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
 
@@ -763,6 +755,59 @@ export const getUserProfile = async (req, res) => {
 //     res.status(500).json({ success: false, message: "Internal server error" });
 //   }
 // };
+
+// In controller.js
+export const getFeedPosts = async (req, res) => {
+  try {
+    const { uids } = req.body;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    if (!uids || !Array.isArray(uids) || uids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No UIDs provided",
+      });
+    }
+
+    const posts = await Entry.find({ uid: { $in: uids } })
+      .populate("likes", "username")
+      .sort({ createdAt: -1 }) // Newest first
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const totalPosts = await Entry.countDocuments({ uid: { $in: uids } });
+    const totalPages = Math.ceil(totalPosts / limit);
+
+    const normalizedPosts = posts.map((post) => ({
+      ownerId: post.uid,
+      _id: post._id.toString(),
+      name: post.name || "Untitled",
+      description: post.description || "No description",
+      image: post.image || null,
+      likes: post.likes?.length || 0,
+      comments: post.comments || [],
+      createdAt: post.createdAt || new Date().toISOString(),
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: normalizedPosts,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalPosts,
+        limit: parseInt(limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching feed posts:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
 
 export const getUsers = async (req, res) => {
   try {

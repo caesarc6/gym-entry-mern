@@ -31,9 +31,19 @@ import { auth } from "../firebase"; // Import Firebase auth
 const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
   console.log(entry);
   const currentUser = auth.currentUser;
-  const isOwner = propIsOwner ?? currentUser?.uid === entry.ownerId;
-  console.log("ProductCard entry:", entry);
-  console.log("ProductCard isOwner:", isOwner);
+  const isOwner =
+    propIsOwner ?? currentUser?.uid === (entry.ownerId || entry.uid);
+  // console.log(
+  //   "ProductCard isOwner:",
+  //   isOwner,
+  //   "entry.ownerId:",
+  //   entry.ownerId,
+  //   "entry.uid:",
+  //   entry.uid,
+  //   "currentUser.uid:",
+  //   currentUser?.uid
+  // ); // Debug
+  // console.log("ProductCard isOwner:", isOwner);
   const [updatedEntry, setUpdatedEntry] = useState({
     _id: entry._id || "",
     name: entry.name || "Untitled",
