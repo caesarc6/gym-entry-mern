@@ -86,11 +86,11 @@ const HomePage = () => {
           throw new Error(await response.text());
         }
         const data = await response.json();
-        console.log("Following API response:", data); // Debug
+        console.log("Following API response:", data);
         if (data.success) {
           const uids = data.data.map((user) => user.uid);
-          setFollowingUids(uids);
-          console.log("Following UIDs:", uids); // Debug
+          setFollowingUids(uids.length > 0 ? uids : []);
+          console.log("Following UIDs:", uids);
           if (uids.length === 0) {
             toast({
               title: "No followed users",
@@ -105,6 +105,7 @@ const HomePage = () => {
         }
       } catch (error) {
         console.error("Error fetching following UIDs:", error);
+        setFollowingUids([]);
         toast({
           title: "Error",
           description: error.message || "Failed to load followed users",
@@ -125,7 +126,7 @@ const HomePage = () => {
     const fetchFeedPosts = async () => {
       try {
         setIsLoading(true);
-        if (!uid) {
+        if (!uid || followingUids === null) {
           setEntries([]);
           setPagination({
             currentPage: 1,
@@ -140,55 +141,88 @@ const HomePage = () => {
         const token = await user.getIdToken();
         let allPosts = [];
         let totalPosts = 0;
-        const uidsToFetch = [...new Set([uid, ...followingUids])]; // Include own UID
-        console.log("Fetching posts for UIDs:", uidsToFetch); // Debug
+        const uidsToFetch = [...new Set([uid, ...followingUids])];
+        console.log("Fetching posts for UIDs:", uidsToFetch);
 
-        // Calculate posts needed for the current page
-        const postsNeeded = currentPage * limit;
-        const postsPerUser = Math.ceil(postsNeeded / uidsToFetch.length); // Distribute posts across users
-        const userPage = Math.ceil(postsPerUser / limit); // Backend page per user
+        // Calculate the number of posts needed for the current page
+        const startIndex = (currentPage - 1) * limit;
+        const endIndex = startIndex + limit;
 
-        // Fetch posts for each UID
-        for (const fetchUid of uidsToFetch) {
-          const response = await fetch(
-            `http://localhost:5001/api/posts/${fetchUid}?page=${userPage}&limit=${limit}`,
-            {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
+        // Map to track pages fetched for each user
+        const userPages = new Map(uidsToFetch.map((uid) => [uid, 1]));
+        let postsNeeded = endIndex;
+
+        // Fetch posts until we have enough or all users are exhausted
+        while (postsNeeded > allPosts.length && userPages.size > 0) {
+          for (const fetchUid of [...userPages.keys()]) {
+            const userPage = userPages.get(fetchUid);
+            try {
+              const response = await fetch(
+                `http://localhost:5001/api/posts/${fetchUid}?page=${userPage}&limit=${limit}`,
+                {
+                  method: "GET",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              const data = await response.json();
+              console.log(
+                `Response for UID ${fetchUid} (page ${userPage}):`,
+                data
+              );
+
+              if (data.success && Array.isArray(data.data)) {
+                const normalizedPosts = data.data.map((post) => ({
+                  _id: post._id,
+                  name: post.name || "Untitled",
+                  description: post.description || "No description",
+                  image: post.image || null,
+                  likes: post.likes || 0,
+                  comments: Array.isArray(post.comments) ? post.comments : [],
+                  createdAt: post.createdAt || new Date().toISOString(),
+                  ownerId: post.uid || fetchUid,
+                  uid: post.uid || fetchUid,
+                }));
+                allPosts = [...allPosts, ...normalizedPosts];
+                totalPosts += data.pagination.totalPosts || 0;
+
+                // Update pagination for this user
+                if (userPage >= (data.pagination.totalPages || 1)) {
+                  userPages.delete(fetchUid); // No more posts for this user
+                } else {
+                  userPages.set(fetchUid, userPage + 1); // Fetch next page later
+                }
+              } else {
+                console.warn(`No posts or error for UID ${fetchUid}:`, data);
+                userPages.delete(fetchUid); // Stop fetching for this user
+              }
+            } catch (error) {
+              console.error(`Error fetching posts for UID ${fetchUid}:`, error);
+              userPages.delete(fetchUid); // Stop fetching for this user
             }
-          );
-          const data = await response.json();
-          console.log(`Posts for UID ${fetchUid}:`, data); // Debug
-          if (data.success && Array.isArray(data.data)) {
-            const normalizedPosts = data.data.map((post) => ({
-              _id: post._id,
-              name: post.name || "Untitled",
-              description: post.description || "No description",
-              image: post.image || null,
-              likes: post.likes || 0,
-              comments: Array.isArray(post.comments) ? post.comments : [],
-              createdAt: post.createdAt || new Date().toISOString(),
-              ownerId: post.uid || fetchUid,
-              uid: post.uid || fetchUid, // Preserve uid for debugging
-            }));
-            allPosts = [...allPosts, ...normalizedPosts];
-            totalPosts += data.pagination.totalPosts; // Aggregate total posts
-          } else {
-            console.log(`No posts or error for UID ${fetchUid}:`, data);
           }
         }
 
+        // Remove duplicates by _id
+        allPosts = [
+          ...new Map(allPosts.map((post) => [post._id, post])).values(),
+        ];
+
         // Sort by createdAt (newest first) and apply pagination
         allPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        const startIndex = (currentPage - 1) * limit;
-        const paginatedPosts = allPosts.slice(startIndex, startIndex + limit);
+        const paginatedPosts = allPosts.slice(startIndex, endIndex);
         const totalPages = Math.ceil(totalPosts / limit) || 1;
 
-        console.log("All normalized posts:", allPosts); // Debug
-        console.log("Paginated posts:", paginatedPosts); // Debug
+        console.log("All normalized posts:", allPosts);
+        console.log("Paginated posts:", paginatedPosts);
+        console.log("Pagination state:", {
+          currentPage,
+          totalPages,
+          totalPosts,
+          limit,
+        });
         setEntries(paginatedPosts);
         setPagination({
           currentPage,
@@ -198,7 +232,7 @@ const HomePage = () => {
         });
 
         if (allPosts.length === 0) {
-          console.log("No posts found for feed"); // Debug
+          console.log("No posts found for feed");
           toast({
             title: "Empty feed",
             description:
@@ -409,7 +443,9 @@ const HomePage = () => {
                       : `${currentPage} • ${pagination.totalPages}`}
                   </Text>
                   <Button
-                    onClick={() => handlePageChange(currentPage + 1)}
+                    onClick={() => {
+                      handlePageChange(currentPage + 1);
+                    }}
                     isDisabled={
                       currentPage === pagination.totalPages ||
                       pagination.totalPages === 0

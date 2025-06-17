@@ -29,7 +29,7 @@ import PropTypes from "prop-types";
 import { auth } from "../firebase"; // Import Firebase auth
 
 const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
-  console.log(entry);
+  // console.log(entry);
   const currentUser = auth.currentUser;
   const isOwner =
     propIsOwner ?? currentUser?.uid === (entry.ownerId || entry.uid);
