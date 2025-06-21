@@ -49,7 +49,7 @@ const HomePage = () => {
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
-        console.log("Current user UID:", user.uid); // Debug
+        // console.log("Current user UID:", user.uid); // Debug
         useProductStore.getState().setCurrentUser(user);
       } else {
         setIsSignedIn(false);
@@ -86,11 +86,11 @@ const HomePage = () => {
           throw new Error(await response.text());
         }
         const data = await response.json();
-        console.log("Following API response:", data);
+        // console.log("Following API response:", data);
         if (data.success) {
           const uids = data.data.map((user) => user.uid);
           setFollowingUids(uids.length > 0 ? uids : []);
-          console.log("Following UIDs:", uids);
+          // console.log("Following UIDs:", uids);
           if (uids.length === 0) {
             toast({
               title: "No followed users",
@@ -142,7 +142,7 @@ const HomePage = () => {
         let allPosts = [];
         let totalPosts = 0;
         const uidsToFetch = [...new Set([uid, ...followingUids])];
-        console.log("Fetching posts for UIDs:", uidsToFetch);
+        // console.log("Fetching posts for UIDs:", uidsToFetch);
 
         // Calculate the number of posts needed for the current page
         const startIndex = (currentPage - 1) * limit;
@@ -168,10 +168,10 @@ const HomePage = () => {
                 }
               );
               const data = await response.json();
-              console.log(
-                `Response for UID ${fetchUid} (page ${userPage}):`,
-                data
-              );
+              // console.log(
+              //   `Response for UID ${fetchUid} (page ${userPage}):`,
+              //   data
+              // );
 
               if (data.success && Array.isArray(data.data)) {
                 const normalizedPosts = data.data.map((post) => ({
@@ -215,14 +215,14 @@ const HomePage = () => {
         const paginatedPosts = allPosts.slice(startIndex, endIndex);
         const totalPages = Math.ceil(totalPosts / limit) || 1;
 
-        console.log("All normalized posts:", allPosts);
-        console.log("Paginated posts:", paginatedPosts);
-        console.log("Pagination state:", {
-          currentPage,
-          totalPages,
-          totalPosts,
-          limit,
-        });
+        // console.log("All normalized posts:", allPosts);
+        // console.log("Paginated posts:", paginatedPosts);
+        // console.log("Pagination state:", {
+        //   currentPage,
+        //   totalPages,
+        //   totalPosts,
+        //   limit,
+        // });
         setEntries(paginatedPosts);
         setPagination({
           currentPage,

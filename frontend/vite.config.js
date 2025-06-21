@@ -7,11 +7,19 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/entrys/": {
-        target: "https://gym-tracker-brown.vercel.app/",
-        // target: "http://localhost:5001",
+        target: "http://localhost:5001",
         changeOrigin: true,
         secure: false,
-        // rewrite:(path)=>path.replace(/^\/api/,"")
+      },
+      "/api/users/": {
+        target: "http://localhost:5001",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/api/profile-image/": {
+        target: "http://localhost:5001",
+        changeOrigin: true,
+        secure: false,
       },
     },
   },

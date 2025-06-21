@@ -44,6 +44,7 @@ const UserProfilePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [hasFollowRequest, setHasFollowRequest] = useState(false);
   const [isFollowingLoading, setIsFollowingLoading] = useState(false);
   const [isFollowingLoadingInitial, setIsFollowingLoadingInitial] =
     useState(true);
@@ -65,7 +66,6 @@ const UserProfilePage = () => {
   const userId = paramUserId || auth.currentUser?.uid;
 
   const fetchUserProfile = useCallback(async () => {
-    console.log("userID from frontend req", userId);
     try {
       setIsLoading(true);
       const user = auth.currentUser;
@@ -92,11 +92,9 @@ const UserProfilePage = () => {
       const profileData = await profileResponse.json();
       const userData = profileData.data.user;
 
-      console.log("profile", profileData.data);
-
       setUserProfile({
         name: userData.name || "Name",
-        username: userData.name || "Username",
+        username: userData.username || "Username",
         goal: userData.goal || "Not set",
         gymName: userData.gymName || "Not specified",
         postsCount: profileData.data.postsCount || 0,
@@ -105,12 +103,13 @@ const UserProfilePage = () => {
         backgroundPicture: userData.backgroundPicture || bgColorMode,
         followersCount: profileData.data.followersCount,
         followingCount: profileData.data.followingCount,
+        isPrivate: userData.isPrivate || false,
       });
 
-      // Check if current user is following this profile
+      // Check if current user is following this profile and follow request status
       if (user && user.uid !== userId) {
-        const isFollowingResponse = await fetch(
-          `http://localhost:5001/api/isFollowing/${userId}`,
+        const followStatusResponse = await fetch(
+          `http://localhost:5001/api/follow-request/status/${userId}`,
           {
             method: "GET",
             headers: {
@@ -120,15 +119,15 @@ const UserProfilePage = () => {
           }
         );
 
-        if (!isFollowingResponse.ok) {
-          throw new Error("Failed to check follow status");
+        if (followStatusResponse.ok) {
+          const followStatusData = await followStatusResponse.json();
+          setIsFollowing(followStatusData.isFollowing || false);
+          setHasFollowRequest(followStatusData.hasRequest || false);
         }
-
-        const isFollowingData = await isFollowingResponse.json();
-        setIsFollowing(isFollowingData.isFollowing || false);
         setIsFollowingLoadingInitial(false);
       } else {
         setIsFollowing(false);
+        setHasFollowRequest(false);
         setIsFollowingLoadingInitial(false);
       }
 
@@ -169,40 +168,24 @@ const UserProfilePage = () => {
         duration: 5000,
         isClosable: true,
       });
-      if (error.message === "User not authenticated") {
-        navigate("/login");
-      }
     } finally {
       setIsLoading(false);
     }
-  }, [userId, currentPage, limit, toast, profileColorMode, navigate]);
+  }, [userId, currentPage, limit, toast, profileColorMode, bgColorMode]);
 
   useEffect(() => {
-    let isMounted = true;
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (isMounted) {
-        if (user) {
-          fetchUserProfile();
-        } else {
-          setIsLoading(false);
-          toast({
-            title: "Authentication Required",
-            description: "Please sign in to view this profile",
-            status: "warning",
-            duration: 5000,
-            isClosable: true,
-          });
-          navigate("/login");
-        }
+      if (user) {
         setIsAuthLoading(false);
+        fetchUserProfile();
+      } else {
+        setIsAuthLoading(false);
+        setIsLoading(false);
       }
     });
 
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, [fetchUserProfile, navigate, toast]);
+    return () => unsubscribe();
+  }, [fetchUserProfile]);
 
   const handleFollow = async () => {
     try {
@@ -211,69 +194,87 @@ const UserProfilePage = () => {
       if (!user) throw new Error("You need to sign in to follow users");
 
       const token = await user.getIdToken();
-      const endpoint = isFollowing ? "unfollow" : "follow";
 
-      const response = await fetch(
-        `http://localhost:5001/api/${endpoint}/${userId}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+      if (isFollowing) {
+        // Unfollow logic
+        const response = await fetch(
+          `http://localhost:5001/api/unfollow/${userId}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to unfollow user");
         }
-      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${endpoint} user`);
-      }
+        const data = await response.json();
+        if (data.message === "Unfollowed successfully") {
+          setIsFollowing(false);
+          setHasFollowRequest(false);
+          setUserProfile((prev) => ({
+            ...prev,
+            followersCount: prev.followersCount - 1,
+          }));
+          toast({
+            title: "Success",
+            description: `You have unfollowed ${userProfile.name}`,
+            status: "success",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      } else {
+        // Send follow request
+        const response = await fetch(
+          `http://localhost:5001/api/follow-request/${userId}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
-      const data = await response.json();
-      if (data.message === "Followed successfully") {
-        setIsFollowing(true);
-        setUserProfile((prev) => ({
-          ...prev,
-          followersCount: prev.followersCount + 1,
-        }));
-        toast({
-          title: "Success",
-          description: `You are now following ${userProfile.name}`,
-          status: "success",
-          duration: 5000,
-          isClosable: true,
-        });
-      } else if (data.message === "Already following") {
-        setIsFollowing(true);
-        toast({
-          title: "Info",
-          description: `You are already following ${userProfile.name}`,
-          status: "info",
-          duration: 5000,
-          isClosable: true,
-        });
-      } else if (data.message === "Unfollowed successfully") {
-        setIsFollowing(false);
-        setUserProfile((prev) => ({
-          ...prev,
-          followersCount: prev.followersCount - 1,
-        }));
-        toast({
-          title: "Success",
-          description: `You have unfollowed ${userProfile.name}`,
-          status: "success",
-          duration: 5000,
-          isClosable: true,
-        });
-      } else if (data.message === "Not following") {
-        setIsFollowing(false);
-        toast({
-          title: "Info",
-          description: `You are not following ${userProfile.name}`,
-          status: "info",
-          duration: 5000,
-          isClosable: true,
-        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to send follow request");
+        }
+
+        const data = await response.json();
+
+        if (data.isFollowing) {
+          // Direct follow (public profile)
+          setIsFollowing(true);
+          setHasFollowRequest(false);
+          setUserProfile((prev) => ({
+            ...prev,
+            followersCount: prev.followersCount + 1,
+          }));
+          toast({
+            title: "Success",
+            description: `You are now following ${userProfile.name}`,
+            status: "success",
+            duration: 5000,
+            isClosable: true,
+          });
+        } else if (data.hasRequest) {
+          // Follow request sent (private profile)
+          setHasFollowRequest(true);
+          toast({
+            title: "Follow Request Sent",
+            description: `Follow request sent to ${userProfile.name}`,
+            status: "info",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
       }
     } catch (error) {
       console.error(
@@ -324,77 +325,6 @@ const UserProfilePage = () => {
       )
     );
   };
-
-  const renderPosts = () => (
-    <VStack spacing={8} mt={6}>
-      <Text
-        fontSize={"22"}
-        fontWeight={"bold"}
-        bgGradient={"linear(to-r, blue.200, gray.400)"}
-        bgClip={"text"}
-      >
-        Workout Posts
-      </Text>
-      {isLoading ? (
-        <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          height="200px"
-        >
-          <Spinner
-            size="lg"
-            thickness="4px"
-            speed="1.2s"
-            color={useColorModeValue("gray.700", "gray.400")}
-          />
-        </Box>
-      ) : entries.length > 0 ? (
-        <>
-          <SimpleGrid
-            columns={{ base: 1, md: 2, lg: 3 }}
-            spacing={10}
-            w={"full"}
-          >
-            {entries.map((entry) => (
-              <ProductCard
-                key={entry._id}
-                entry={entry}
-                isOwner={auth.currentUser?.uid === entry.ownerId}
-                onUpdate={handlePostUpdate}
-              />
-            ))}
-          </SimpleGrid>
-          <Box
-            mt={6}
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Button
-              onClick={() => handlePageChange(currentPage - 1)}
-              isDisabled={currentPage === 1}
-              mr={2}
-            >
-              <SlArrowLeft />
-            </Button>
-            <Text mx={2}>
-              {currentPage} • {totalPages}
-            </Text>
-            <Button
-              onClick={() => handlePageChange(currentPage + 1)}
-              isDisabled={currentPage === totalPages || totalPages === 0}
-              ml={2}
-            >
-              <SlArrowRight />
-            </Button>
-          </Box>
-        </>
-      ) : (
-        <Text>No posts available.</Text>
-      )}
-    </VStack>
-  );
 
   const renderProfile = () => (
     <Center py={6} mt={10}>
@@ -477,6 +407,8 @@ const UserProfilePage = () => {
                   ? "Loading..."
                   : isFollowing
                   ? "Following"
+                  : hasFollowRequest
+                  ? "Request Sent"
                   : "Follow"}
               </Button>
             )}
@@ -486,11 +418,61 @@ const UserProfilePage = () => {
     </Center>
   );
 
+  const renderPosts = () => (
+    <Container maxW="container.xl" py={8}>
+      {isLoading ? (
+        <Center>
+          <Spinner size="lg" />
+        </Center>
+      ) : entries.length === 0 ? (
+        <Center>
+          <Text fontSize="lg" color="gray.500">
+            No posts yet
+          </Text>
+        </Center>
+      ) : (
+        <>
+          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+            {entries.map((entry) => (
+              <ProductCard
+                key={entry._id}
+                entry={entry}
+                onUpdate={handlePostUpdate}
+              />
+            ))}
+          </SimpleGrid>
+          {totalPages > 1 && (
+            <Flex justify="center" mt={8} gap={2}>
+              <Button
+                onClick={() => handlePageChange(currentPage - 1)}
+                isDisabled={currentPage === 1}
+                leftIcon={<SlArrowLeft />}
+              >
+                Previous
+              </Button>
+              <Text alignSelf="center" px={4}>
+                Page {currentPage} of {totalPages}
+              </Text>
+              <Button
+                onClick={() => handlePageChange(currentPage + 1)}
+                isDisabled={currentPage === totalPages}
+                rightIcon={<SlArrowRight />}
+              >
+                Next
+              </Button>
+            </Flex>
+          )}
+        </>
+      )}
+    </Container>
+  );
+
   return (
     <Container maxW="container.xl" py={12}>
       {renderProfile()}
       {userProfile.isPrivate &&
       !isFollowing &&
+      !hasFollowRequest &&
       auth.currentUser?.uid !== userId ? (
         <Center py={6}>
           <Box
@@ -503,8 +485,8 @@ const UserProfilePage = () => {
             textAlign="center"
           >
             <Text fontSize={"lg"} color={"gray.500"} mb={4}>
-              This profile's posts are private. Follow to view their workout
-              posts.
+              This profile is private. Send a follow request to view their
+              workout posts.
             </Text>
             {auth.currentUser && (
               <Button
@@ -512,11 +494,39 @@ const UserProfilePage = () => {
                 colorScheme="blue"
                 isLoading={isFollowingLoading}
                 isDisabled={isFollowingLoadingInitial}
-                loadingText="Following..."
+                loadingText="Sending Request..."
               >
-                {isFollowingLoadingInitial ? "Loading..." : "Follow"}
+                {isFollowingLoadingInitial
+                  ? "Loading..."
+                  : "Send Follow Request"}
               </Button>
             )}
+          </Box>
+        </Center>
+      ) : hasFollowRequest && !isFollowing ? (
+        <Center py={6}>
+          <Box
+            maxW={"580px"}
+            w={"full"}
+            bg={bgColor}
+            boxShadow={"2xl"}
+            rounded={"md"}
+            p={6}
+            textAlign="center"
+          >
+            <Text fontSize={"lg"} color={"gray.500"} mb={4}>
+              Follow request sent! You'll be able to see their posts once they
+              accept your request.
+            </Text>
+            <Button
+              onClick={handleFollow}
+              colorScheme="whiteAlpha"
+              variant="outline"
+              isLoading={isFollowingLoading}
+              loadingText="Canceling Request..."
+            >
+              Cancel Request
+            </Button>
           </Box>
         </Center>
       ) : (

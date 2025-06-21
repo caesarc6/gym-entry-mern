@@ -27,6 +27,11 @@ import {
   getFollowers,
   getFollowing,
   getFeedPosts,
+  sendFollowRequest,
+  acceptFollowRequest,
+  rejectFollowRequest,
+  getPendingFollowRequests,
+  checkFollowRequestStatus,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -39,6 +44,38 @@ router.put("/privacy", verifyIdToken, updateUserPrivacy);
 
 // Check if a user is following another user
 router.get("/following/:targetUserId", verifyIdToken, checkFollowing);
+
+// Get user profile image by UID (for ProductCard)
+router.get("/users/:uid", getUser);
+
+// Get user profile image by UID (public endpoint for ProductCard)
+router.get("/profile-image/:uid", async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const user = await User.findOne({ uid }).select("picture name");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        profileImage: user.picture || null,
+        name: user.name || "Unknown User",
+      },
+    });
+  } catch (error) {
+    console.error("Error retrieving user profile image:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve user profile image",
+    });
+  }
+});
 
 // Additional routes
 router.get("/getCurrentMongoDBUser", verifyIdToken, getCurrentMongoDBUser);
@@ -53,7 +90,6 @@ router.post("/posts", verifyIdToken, createPost);
 router.get("/posts/:uid", verifyIdToken, getPostsByUID);
 router.get("/isFollowing/:userId", verifyIdToken, isFollowing);
 router.get("/getCurrentUser", verifyIdToken, getCurrentUser);
-router.get("/getUser/:uid", getUser);
 router.get("/getUserProfile/:uid", verifyIdToken, getUserProfile);
 router.get("/getUsers", verifyIdToken, getUsers);
 router.get("/searchUsers", searchUsers);
@@ -70,6 +106,25 @@ router.post("/posts/:postId/comment", verifyIdToken, commentOnPost);
 router.get("/users/:userId/followers", verifyIdToken, getFollowers);
 router.get("/users/:userId/following", verifyIdToken, getFollowing);
 router.post("/posts/feed", verifyIdToken, getFeedPosts);
+
+// Follow request routes
+router.post("/follow-request/:userId", verifyIdToken, sendFollowRequest);
+router.post(
+  "/follow-request/:requestId/accept",
+  verifyIdToken,
+  acceptFollowRequest
+);
+router.post(
+  "/follow-request/:requestId/reject",
+  verifyIdToken,
+  rejectFollowRequest
+);
+router.get("/follow-requests/pending", verifyIdToken, getPendingFollowRequests);
+router.get(
+  "/follow-request/status/:userId",
+  verifyIdToken,
+  checkFollowRequestStatus
+);
 
 export default router;
 

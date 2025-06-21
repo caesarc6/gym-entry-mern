@@ -25,6 +25,32 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Follow Request Schema
+const followRequestSchema = new mongoose.Schema(
+  {
+    requester: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    recipient: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true }
+);
+
+// Ensure unique follow requests (one pending request per requester-recipient pair)
+followRequestSchema.index({ requester: 1, recipient: 1 }, { unique: true });
+
 const postSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   content: { type: String, required: true },
@@ -41,7 +67,8 @@ const commentSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model("User", userSchema);
+const FollowRequest = mongoose.model("FollowRequest", followRequestSchema);
 const Post = mongoose.model("Post", postSchema);
 const Comment = mongoose.model("Comment", commentSchema);
 
-export { User, Post, Comment };
+export { User, FollowRequest, Post, Comment };
