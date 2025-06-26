@@ -27,7 +27,7 @@ import {
   Badge,
   HStack,
 } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
@@ -38,6 +38,7 @@ import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -73,11 +74,13 @@ const ProfilePage = () => {
   const [followRequests, setFollowRequests] = useState([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
 
-  const toast = useToast();
+  const toast = useCustomToast();
   const bgColor = useColorModeValue("white", "gray.800");
   const profileColorMode = useColorModeValue(light, night);
   const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
   const colorEditButton = useColorModeValue("gray.400", "gray.900");
+  const spinnerColor = useColorModeValue("gray.700", "gray.400");
+  const modalBgColor = useColorModeValue("gray.50", "gray.700");
 
   const {
     isOpen: isProfileOpen,
@@ -156,13 +159,10 @@ const ProfilePage = () => {
       setFollowRequests(data.data || []);
     } catch (error) {
       console.error("Error fetching follow requests:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(
+        "Failed to load requests",
+        "Unable to fetch follow requests at this time."
+      );
     } finally {
       setIsLoadingRequests(false);
     }
@@ -201,22 +201,10 @@ const ProfilePage = () => {
         }));
       }
 
-      toast({
-        title: "Success",
-        description: data.message,
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.success("Request updated", data.message);
     } catch (error) {
       console.error(`Error ${action}ing follow request:`, error);
-      toast({
-        title: "Error",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Action failed", error.message);
     }
   };
 
@@ -260,13 +248,10 @@ const ProfilePage = () => {
       });
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load profile",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(
+        "Profile load failed",
+        error.message || "Unable to load profile data."
+      );
     }
   };
 
@@ -304,13 +289,10 @@ const ProfilePage = () => {
       }
     } catch (error) {
       console.error("Error fetching posts:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load posts",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(
+        "Posts load failed",
+        error.message || "Unable to load posts at this time."
+      );
     }
   };
 
@@ -334,13 +316,7 @@ const ProfilePage = () => {
       if (!success) {
         setEntries(previousEntries);
         console.error("Failed to update entry:", message);
-        toast({
-          title: "Error",
-          description: message || "Failed to update post",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.error("Update failed", message || "Unable to update post.");
       } else {
         setEntries((prevEntries) =>
           prevEntries.map((entry) =>
@@ -351,13 +327,7 @@ const ProfilePage = () => {
     } catch (error) {
       setEntries(previousEntries);
       console.error("Error updating entry:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update post",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Update failed", error.message || "Unable to update post.");
     }
   };
 
@@ -394,9 +364,33 @@ const ProfilePage = () => {
     const user = auth.currentUser;
     const token = await user.getIdToken();
 
+    // Basic validation
+    if (!userProfile.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Name is required",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (userProfile.username && userProfile.username.includes(" ")) {
+      toast({
+        title: "Error",
+        description: "Username cannot contain spaces",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     try {
       const profileFormData = new FormData();
       profileFormData.append("name", userProfile.name);
+      profileFormData.append("username", userProfile.username);
       profileFormData.append("goal", userProfile.goal);
       profileFormData.append("gymName", userProfile.gymName);
       profileFormData.append("bio", userProfile.bio);
@@ -418,6 +412,12 @@ const ProfilePage = () => {
 
       if (!profileResponse.ok) {
         const errorData = await profileResponse.json();
+        // Handle specific username uniqueness error
+        if (errorData.message && errorData.message.includes("username")) {
+          throw new Error(
+            "Username is already taken. Please choose a different one."
+          );
+        }
         throw new Error(errorData.message || "Failed to update profile");
       }
 
@@ -427,23 +427,17 @@ const ProfilePage = () => {
         ...profileData.data,
       }));
 
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.success(
+        "Profile updated",
+        "Your profile has been successfully updated."
+      );
       setProfileImage(null);
       onProfileClose();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update profile",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(
+        "Update failed",
+        error.message || "Unable to update profile."
+      );
     }
   };
 
@@ -485,23 +479,17 @@ const ProfilePage = () => {
         backgroundPicture: backgroundData.data.backgroundPicture,
       }));
 
-      toast({
-        title: "Success",
-        description: "Background picture updated successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.success(
+        "Background updated",
+        "Your background image has been successfully updated."
+      );
       setBackgroundImage(null);
       onBackgroundClose();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update background picture",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(
+        "Update failed",
+        error.message || "Unable to update background image."
+      );
     }
   };
 
@@ -745,7 +733,7 @@ const ProfilePage = () => {
               size="lg"
               thickness="4px"
               speed="1.2s"
-              color={useColorModeValue("gray.700", "gray.400")}
+              color={spinnerColor}
             />
           </Box>
         ) : entries.length > 0 ? (
@@ -826,24 +814,38 @@ const ProfilePage = () => {
                       p={3}
                       borderWidth={1}
                       borderRadius="md"
-                      bg={useColorModeValue("gray.50", "gray.700")}
+                      bg={modalBgColor}
                     >
-                      <Flex align="center">
+                      <Flex align="center" flex={1}>
                         <Avatar
                           src={request.requester.picture}
                           size="sm"
                           mr={3}
                         />
-                        <Box>
-                          <Text fontWeight="medium">
-                            {request.requester.name}
+                        <Box flex={1}>
+                          <Text fontWeight="medium" fontSize="md">
+                            {request.requester.name ||
+                              request.requester.username}
                           </Text>
-                          <Text fontSize="sm" color="gray.500">
-                            @{request.requester.username}
-                          </Text>
+                          {request.requester.username &&
+                            request.requester.name && (
+                              <Text fontSize="sm" color="gray.500">
+                                @{request.requester.username}
+                              </Text>
+                            )}
+                          {request.requester.bio && (
+                            <Text
+                              fontSize="xs"
+                              color="gray.400"
+                              mt={1}
+                              noOfLines={2}
+                            >
+                              {request.requester.bio}
+                            </Text>
+                          )}
                         </Box>
                       </Flex>
-                      <HStack spacing={2}>
+                      <HStack spacing={2} ml={4}>
                         <Button
                           size="sm"
                           colorScheme="green"
@@ -883,15 +885,33 @@ const ProfilePage = () => {
                     align="center"
                     justify="space-between"
                     w="full"
+                    p={2}
+                    borderRadius="md"
+                    _hover={{ bg: modalBgColor }}
                   >
-                    <Flex align="center">
+                    <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
-                        <Avatar src={user.picture} size="sm" mr={2} />
+                        <Avatar src={user.picture} size="sm" mr={3} />
                       </Link>
                       <Link to={`/user/${user.uid}`}>
-                        <Text _hover={{ textDecoration: "underline" }}>
-                          {user.name}
-                        </Text>
+                        <Box>
+                          <Text
+                            fontWeight="medium"
+                            _hover={{ textDecoration: "underline" }}
+                          >
+                            {user.name || user.username}
+                          </Text>
+                          {user.username && user.name && (
+                            <Text fontSize="sm" color="gray.500">
+                              @{user.username}
+                            </Text>
+                          )}
+                          {user.bio && (
+                            <Text fontSize="xs" color="gray.400" noOfLines={1}>
+                              {user.bio}
+                            </Text>
+                          )}
+                        </Box>
                       </Link>
                     </Flex>
                   </Flex>
@@ -919,15 +939,33 @@ const ProfilePage = () => {
                     align="center"
                     justify="space-between"
                     w="full"
+                    p={2}
+                    borderRadius="md"
+                    _hover={{ bg: modalBgColor }}
                   >
-                    <Flex align="center">
+                    <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
-                        <Avatar src={user.picture} size="sm" mr={2} />
+                        <Avatar src={user.picture} size="sm" mr={3} />
                       </Link>
                       <Link to={`/user/${user.uid}`}>
-                        <Text _hover={{ textDecoration: "underline" }}>
-                          {user.name}
-                        </Text>
+                        <Box>
+                          <Text
+                            fontWeight="medium"
+                            _hover={{ textDecoration: "underline" }}
+                          >
+                            {user.name || user.username}
+                          </Text>
+                          {user.username && user.name && (
+                            <Text fontSize="sm" color="gray.500">
+                              @{user.username}
+                            </Text>
+                          )}
+                          {user.bio && (
+                            <Text fontSize="xs" color="gray.400" noOfLines={1}>
+                              {user.bio}
+                            </Text>
+                          )}
+                        </Box>
                       </Link>
                     </Flex>
                   </Flex>
@@ -970,6 +1008,21 @@ const ProfilePage = () => {
                   }
                   placeholder="Name"
                 />
+                <Input
+                  type="text"
+                  name="username"
+                  value={userProfile.username}
+                  onChange={(e) =>
+                    setUserProfile((prev) => ({
+                      ...prev,
+                      username: e.target.value,
+                    }))
+                  }
+                  placeholder="Username"
+                />
+                <Text fontSize="xs" color="gray.500" textAlign="center">
+                  Username must be unique and cannot contain spaces
+                </Text>
                 <Input
                   type="text"
                   name="goal"

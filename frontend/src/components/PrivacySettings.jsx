@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { auth } from "../firebase";
 import {
   Box,
@@ -25,6 +25,7 @@ const PrivacySettings = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const { colorMode } = useColorMode();
 
   useEffect(() => {
@@ -105,13 +106,40 @@ const PrivacySettings = () => {
       if (!response.ok) throw new Error("Failed to update privacy settings");
       const result = await response.json();
 
-      toast({
-        title: "Success",
-        description: result.message,
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      // Check if any follow requests were auto-approved
+      if (result.autoApprovedRequests > 0) {
+        toast({
+          title: "Profile Updated & Follow Requests Approved",
+          description: `Your profile is now public and ${
+            result.autoApprovedRequests
+          } pending follow request${
+            result.autoApprovedRequests > 1 ? "s" : ""
+          } ${
+            result.autoApprovedRequests > 1 ? "have" : "has"
+          } been automatically approved!`,
+          status: "success",
+          duration: 7000,
+          isClosable: true,
+        });
+
+        // Notify other components that privacy settings were updated
+        localStorage.setItem("privacySettingsUpdated", "true");
+        // Trigger storage event for current window
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: "privacySettingsUpdated",
+            newValue: "true",
+          })
+        );
+      } else {
+        toast({
+          title: "Success",
+          description: result.message,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     } catch (error) {
       console.error("Error updating privacy settings:", error);
       toast({

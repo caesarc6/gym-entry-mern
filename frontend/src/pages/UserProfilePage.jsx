@@ -65,6 +65,49 @@ const UserProfilePage = () => {
   // Determine userId: use paramUserId if available, otherwise use current user's UID
   const userId = paramUserId || auth.currentUser?.uid;
 
+  // Check follow status and request status
+  const checkFollowStatus = useCallback(async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user || user.uid === userId) return;
+
+      const token = await user.getIdToken();
+      const followStatusResponse = await fetch(
+        `http://localhost:5001/api/follow-request/status/${userId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (followStatusResponse.ok) {
+        const followStatusData = await followStatusResponse.json();
+        setIsFollowing(followStatusData.isFollowing || false);
+        setHasFollowRequest(followStatusData.hasRequest || false);
+      }
+    } catch (error) {
+      console.error("Error checking follow status:", error);
+    }
+  }, [userId]);
+
+  // Listen for storage events to refresh follow status when privacy settings change
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === "privacySettingsUpdated" && e.newValue === "true") {
+        // Privacy settings were updated, refresh follow status
+        checkFollowStatus();
+        // Clear the flag
+        localStorage.removeItem("privacySettingsUpdated");
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [checkFollowStatus]);
+
   const fetchUserProfile = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -90,15 +133,26 @@ const UserProfilePage = () => {
       if (!profileResponse.ok) throw new Error(await profileResponse.text());
 
       const profileData = await profileResponse.json();
+      console.log("Profile response data:", profileData);
+
       const userData = profileData.data.user;
+      console.log("User data from response:", userData);
 
       setUserProfile({
-        name: userData.name || "Name",
-        username: userData.username || "Username",
-        goal: userData.goal || "Not set",
-        gymName: userData.gymName || "Not specified",
+        name:
+          userData.name || (userData.isPrivate ? "Private Profile" : "Name"),
+        username:
+          userData.username || (userData.isPrivate ? "Private" : "Username"),
+        goal: userData.goal || (userData.isPrivate ? "Private" : "Not set"),
+        gymName:
+          userData.gymName ||
+          (userData.isPrivate ? "Private" : "Not specified"),
         postsCount: profileData.data.postsCount || 0,
-        bio: userData.bio || "No bio available",
+        bio:
+          userData.bio ||
+          (userData.isPrivate
+            ? "This profile is private. Follow this user to see their content."
+            : "No bio available"),
         profileImage: userData.picture || profileColorMode,
         backgroundPicture: userData.backgroundPicture || bgColorMode,
         followersCount: profileData.data.followersCount,
@@ -229,6 +283,37 @@ const UserProfilePage = () => {
             isClosable: true,
           });
         }
+      } else if (hasFollowRequest) {
+        // Cancel follow request
+        const response = await fetch(
+          `http://localhost:5001/api/follow-request/${userId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.message || "Failed to cancel follow request"
+          );
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          setHasFollowRequest(false);
+          toast({
+            title: "Follow Request Cancelled",
+            description: `Follow request to ${userProfile.name} has been cancelled`,
+            status: "info",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
       } else {
         // Send follow request
         const response = await fetch(
@@ -278,7 +363,13 @@ const UserProfilePage = () => {
       }
     } catch (error) {
       console.error(
-        `Error ${isFollowing ? "unfollowing" : "following"} user:`,
+        `Error ${
+          isFollowing
+            ? "unfollowing"
+            : hasFollowRequest
+            ? "cancelling follow request"
+            : "following"
+        } user:`,
         error
       );
       toast({
@@ -401,14 +492,20 @@ const UserProfilePage = () => {
                 w={"full"}
                 isLoading={isFollowingLoading}
                 isDisabled={isFollowingLoadingInitial}
-                loadingText={isFollowing ? "Unfollowing..." : "Following..."}
+                loadingText={
+                  isFollowing
+                    ? "Unfollowing..."
+                    : hasFollowRequest
+                    ? "Canceling Request..."
+                    : "Following..."
+                }
               >
                 {isFollowingLoadingInitial
                   ? "Loading..."
                   : isFollowing
                   ? "Following"
                   : hasFollowRequest
-                  ? "Request Sent"
+                  ? "Cancel Request"
                   : "Follow"}
               </Button>
             )}

@@ -7,6 +7,22 @@
  * @returns {Object} - Filtered user data
  */
 export const filterUserDataForPublicView = (user, viewerUser = null) => {
+  console.log("filterUserDataForPublicView called with:", {
+    user: {
+      _id: user._id,
+      uid: user.uid,
+      username: user.username,
+      name: user.name,
+      isPrivate: user.privacy?.isPrivate,
+    },
+    viewerUser: viewerUser
+      ? {
+          _id: viewerUser._id,
+          uid: viewerUser.uid,
+        }
+      : null,
+  });
+
   // Ensure privacy object exists
   const privacy = user.privacy || {
     isPrivate: false,
@@ -17,7 +33,7 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
   // Create a base public user object with allowed fields
   const publicUserData = {
     _id: user._id,
-    username: user.username,
+    username: user.username || user.name || "User", // Fallback to name or "User" if username is undefined
     name: user.name,
     picture: user.picture,
     bio: user.bio,
@@ -31,6 +47,7 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
 
   // If the viewer is the profile owner, include additional fields
   if (viewerUser && viewerUser._id.toString() === user._id.toString()) {
+    console.log("Viewer is profile owner, returning full data");
     return {
       ...publicUserData,
       email: privacy.showEmail ? user.email : undefined, // Only show email if privacy setting allows
@@ -66,17 +83,27 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
       return followerStr === viewerStr;
     });
 
+  console.log("Privacy check:", {
+    isPrivate: privacy.isPrivate,
+    isFollower,
+    viewerUser: !!viewerUser,
+  });
+
   // If the profile is not private or viewer is a follower, return public data
   if (!privacy.isPrivate || isFollower) {
+    console.log("Returning public data");
     return publicUserData;
   }
 
   // For private profiles where the viewer is not a follower, return minimal data
-  return {
+  console.log("Returning minimal data for private profile");
+  const minimalData = {
     _id: user._id,
-    username: user.username,
+    username: user.username || user.name || "User", // Fallback to name or "User" if username is undefined
     isPrivate: true,
   };
+  console.log("Minimal data:", minimalData);
+  return minimalData;
 };
 
 /**

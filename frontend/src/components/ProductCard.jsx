@@ -45,6 +45,7 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
   const [profileImage, setProfileImage] = useState(
     "https://cataas.com/cat" // Valid fallback image
   );
+  const [userDisplayName, setUserDisplayName] = useState("");
 
   const [comment, setComment] = useState("");
 
@@ -73,6 +74,7 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         if (!token) {
           console.log("No auth token available");
           setProfileImage("https://cataas.com/cat");
+          setUserDisplayName("Unknown User");
           return;
         }
 
@@ -89,15 +91,25 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         // console.log("API Response:", response.data);
 
         // Check if the response has the expected structure
-        if (response.data?.success && response.data?.data?.profileImage) {
-          setProfileImage(response.data.data.profileImage);
+        if (response.data?.success && response.data?.data) {
+          if (response.data.data.profileImage) {
+            setProfileImage(response.data.data.profileImage);
+          }
+          // Set display name: username if available, otherwise name, otherwise fallback
+          const displayName =
+            response.data.data.username ||
+            response.data.data.name ||
+            "Unknown User";
+          setUserDisplayName(displayName);
         } else {
-          console.log("No profile image found in response, using fallback");
+          console.log("No profile data found in response, using fallback");
           setProfileImage("https://cataas.com/cat");
+          setUserDisplayName("Unknown User");
         }
       } catch (error) {
         console.error("Error fetching profile image:", error);
         setProfileImage("https://cataas.com/cat");
+        setUserDisplayName("Unknown User");
         toast({
           title: "Error",
           description: "Failed to load profile image.",
@@ -115,7 +127,8 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
 
   useEffect(() => {
     // console.log("Updated profileImage:", profileImage);
-  }, [profileImage]);
+    // console.log("Updated userDisplayName:", userDisplayName);
+  }, [profileImage, userDisplayName]);
 
   const handleFileUpload = (file) => {
     const reader = new FileReader();
@@ -304,21 +317,39 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
           e.target.src = "https://cataas.com/cat";
         }}
       />
-      <Image
-        src={profileImage}
-        alt="User Profile"
-        boxSize="40px"
-        borderRadius="full"
-        objectFit="cover"
+      <HStack
         position="absolute"
         top="2.5"
         left="2.5"
-        border="2px solid white"
+        spacing={2}
+        bg="rgba(255, 255, 255, 0.9)"
+        px={2}
+        py={1}
+        borderRadius="full"
         shadow="md"
-        onError={(e) => {
-          e.target.src = "https://cataas.com/cat";
-        }}
-      />
+      >
+        <Image
+          src={profileImage}
+          alt="User Profile"
+          boxSize="32px"
+          borderRadius="full"
+          objectFit="cover"
+          border="2px solid white"
+          onError={(e) => {
+            e.target.src = "https://cataas.com/cat";
+          }}
+        />
+        <Text
+          fontSize="sm"
+          fontWeight="medium"
+          color={textColorTitle}
+          fontFamily="Arial, sans-serif"
+          maxW="120px"
+          noOfLines={1}
+        >
+          {userDisplayName}
+        </Text>
+      </HStack>
       <VStack className="px-8" spacing={4} p="8px 8px 8px 8px">
         <HStack w="full" justify="center" align="center">
           <Heading

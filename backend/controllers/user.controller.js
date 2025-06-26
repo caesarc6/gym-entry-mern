@@ -49,6 +49,25 @@ export const handleFileUpload = (req, res, next) => {
   });
 };
 
+// Middleware to handle optional file uploads (for profile updates)
+export const handleOptionalFileUpload = (req, res, next) => {
+  upload.single("profileImage")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          message: "File too large. Please upload a smaller image (max 20MB).",
+        });
+      }
+    } else if (err) {
+      return res.status(400).json({
+        error: err.message,
+      });
+    }
+    // Allow the request to proceed even if no file is uploaded
+    next();
+  });
+};
+
 // Update user privacy settings
 export const updateUserPrivacy = async (req, res) => {
   try {
@@ -80,9 +99,70 @@ export const updateUserPrivacy = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // If profile is being changed from private to public, auto-approve pending follow requests
+    if (isPrivate === false) {
+      console.log(
+        "Profile changed to public, checking for pending follow requests..."
+      );
+
+      // Find all pending follow requests for this user
+      const pendingRequests = await FollowRequest.find({
+        recipient: updatedUser._id,
+        status: "pending",
+      }).populate("requester", "uid name username picture");
+
+      console.log(`Found ${pendingRequests.length} pending follow requests`);
+
+      const autoApprovedRequests = [];
+
+      if (pendingRequests.length > 0) {
+        // Auto-approve all pending requests
+        for (const request of pendingRequests) {
+          const requester = await User.findById(request.requester._id);
+
+          if (requester) {
+            // Add to followers/following
+            if (!updatedUser.followers.includes(requester._id)) {
+              updatedUser.followers.push(requester._id);
+            }
+            if (!requester.following.includes(updatedUser._id)) {
+              requester.following.push(updatedUser._id);
+            }
+
+            // Update the follow request status
+            request.status = "approved";
+            await request.save();
+            await requester.save();
+
+            autoApprovedRequests.push({
+              requesterId: requester.uid,
+              requesterName: requester.name || requester.username,
+              requestId: request._id,
+            });
+
+            console.log(
+              `Auto-approved follow request from ${requester.name} (${requester.uid})`
+            );
+          }
+        }
+
+        // Save the updated user with new followers
+        await updatedUser.save();
+        console.log(`Auto-approved ${pendingRequests.length} follow requests`);
+      }
+
+      return res.status(200).json({
+        message: "Privacy settings updated successfully",
+        privacy: updatedUser.privacy,
+        autoApprovedRequests: autoApprovedRequests.length,
+        autoApprovedDetails: autoApprovedRequests,
+      });
+    }
+
     return res.status(200).json({
       message: "Privacy settings updated successfully",
       privacy: updatedUser.privacy,
+      autoApprovedRequests: 0,
     });
   } catch (error) {
     console.error("Error updating privacy settings:", error);
@@ -163,10 +243,31 @@ export const getCurrentMongoDBUser = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
   try {
     const { uid } = req.user;
-    const { name, goal, gymName, bio, profileImageName, profileImage } =
-      req.body;
+    console.log("UpdateUserProfile - Request body:", req.body);
+    console.log("UpdateUserProfile - Request file:", req.file);
 
-    if (!name && !goal && !gymName && !bio && !profileImage) {
+    const {
+      name,
+      username,
+      goal,
+      gymName,
+      bio,
+      profileImageName,
+      profileImage,
+    } = req.body;
+
+    console.log("UpdateUserProfile - Extracted fields:", {
+      name,
+      username,
+      goal,
+      gymName,
+      bio,
+      profileImageName,
+      profileImage: profileImage ? "present" : "not present",
+    });
+
+    if (!name && !username && !goal && !gymName && !bio && !profileImage) {
+      console.log("UpdateUserProfile - No data provided for update");
       return res.status(400).json({
         success: false,
         message: "No data provided for update",
@@ -215,6 +316,7 @@ export const updateUserProfile = async (req, res) => {
 
     const updateData = {};
     if (name) updateData.name = name;
+    if (username) updateData.username = username;
     if (goal) updateData.goal = goal;
     if (gymName) updateData.gymName = gymName;
     if (bio) updateData.bio = bio;
@@ -302,7 +404,8 @@ export const createPost = async (req, res) => {
 
 export const getPostsByUID = async (req, res) => {
   try {
-    const { uid } = req.params;
+    // Handle both uid and userId parameters
+    const uid = req.params.uid || req.params.userId;
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
@@ -668,7 +771,10 @@ export const commentOnPost = async (req, res) => {
 
 export const getUserProfile = async (req, res) => {
   try {
-    const userId = req.params.uid;
+    // Handle both uid and userId parameters
+    const userId = req.params.uid || req.params.userId;
+    console.log("getUserProfile called with userId:", userId);
+
     let viewerUser = null;
     if (req.user?.uid) {
       viewerUser = await User.findOne({ uid: req.user.uid });
@@ -680,10 +786,26 @@ export const getUserProfile = async (req, res) => {
     const user = await User.findOne({ uid: userId })
       .populate("followers", "username name picture")
       .populate("following", "username name picture");
+
+    console.log(
+      "Found user:",
+      user
+        ? {
+            _id: user._id,
+            uid: user.uid,
+            name: user.name,
+            username: user.username,
+            bio: user.bio,
+            goal: user.goal,
+            gymName: user.gymName,
+          }
+        : "User not found"
+    );
+
     if (!user) {
       return res
         .status(404)
-        .json({ success: false, message: `${userId} not found` });
+        .json({ success: false, message: `User with uid ${userId} not found` });
     }
 
     // Ensure privacy object exists
@@ -712,6 +834,8 @@ export const getUserProfile = async (req, res) => {
     const userData = filterUserDataForPublicView(user, viewerUser);
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
 
+    console.log("Filtered user data:", userData);
+
     // Normalize posts to include ownerId
     const normalizedPosts = filteredPosts.map((post) => ({
       ownerId: userId, // Ensure ownerId is included
@@ -724,7 +848,7 @@ export const getUserProfile = async (req, res) => {
       createdAt: post.createdAt || new Date().toISOString(),
     }));
 
-    res.status(200).json({
+    const responseData = {
       success: true,
       data: {
         user: userData,
@@ -733,7 +857,10 @@ export const getUserProfile = async (req, res) => {
         followersCount: user.followers ? user.followers.length : 0,
         followingCount: user.following ? user.following.length : 0,
       },
-    });
+    };
+
+    console.log("Sending response:", responseData);
+    res.status(200).json(responseData);
   } catch (error) {
     console.error("Error fetching user profile:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -746,8 +873,15 @@ export const sendFollowRequest = async (req, res) => {
     const { uid } = req.user;
     const { userId } = req.params;
 
+    console.log("sendFollowRequest called with:", { uid, userId });
+
     const requester = await User.findOne({ uid });
     const recipient = await User.findOne({ uid: userId });
+
+    console.log("Found users:", {
+      requester: requester ? { _id: requester._id, uid: requester.uid } : null,
+      recipient: recipient ? { _id: recipient._id, uid: recipient.uid } : null,
+    });
 
     if (!requester || !recipient) {
       return res.status(404).json({
@@ -771,6 +905,11 @@ export const sendFollowRequest = async (req, res) => {
       });
     }
 
+    console.log("Profile privacy check:", {
+      recipientPrivacy: recipient.privacy,
+      isPrivate: recipient.privacy?.isPrivate,
+    });
+
     // Check if profile is private
     if (!recipient.privacy?.isPrivate) {
       // If public profile, follow directly
@@ -786,39 +925,43 @@ export const sendFollowRequest = async (req, res) => {
       });
     }
 
-    // Check if follow request already exists
-    const existingRequest = await FollowRequest.findOne({
-      requester: requester._id,
-      recipient: recipient._id,
-    });
+    console.log("Creating follow request...");
 
-    if (existingRequest) {
-      if (existingRequest.status === "pending") {
-        return res.status(400).json({
-          success: false,
-          message: "Follow request already sent",
-        });
-      } else if (existingRequest.status === "rejected") {
-        // Update rejected request to pending
-        existingRequest.status = "pending";
-        existingRequest.createdAt = new Date();
-        await existingRequest.save();
-
-        return res.status(200).json({
-          success: true,
-          message: "Follow request sent",
-          isFollowing: false,
-          hasRequest: true,
-        });
+    // Use findOneAndUpdate with upsert to handle existing requests properly
+    const followRequest = await FollowRequest.findOneAndUpdate(
+      {
+        requester: requester._id,
+        recipient: recipient._id,
+      },
+      {
+        $setOnInsert: {
+          requester: requester._id,
+          recipient: recipient._id,
+          createdAt: new Date(),
+        },
+        $set: {
+          status: "pending",
+          updatedAt: new Date(),
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
       }
-    }
+    );
 
-    // Create new follow request
-    const followRequest = new FollowRequest({
-      requester: requester._id,
-      recipient: recipient._id,
-    });
-    await followRequest.save();
+    console.log("Follow request result:", followRequest);
+
+    // Check if this was an existing request that was updated
+    if (
+      followRequest.createdAt.getTime() !== followRequest.updatedAt.getTime()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Follow request already sent",
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -1180,6 +1323,76 @@ export const getFollowing = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+// Cancel follow request
+export const cancelFollowRequest = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const { userId } = req.params;
+
+    console.log("cancelFollowRequest called with:", { uid, userId });
+
+    const requester = await User.findOne({ uid });
+    const recipient = await User.findOne({ uid: userId });
+
+    console.log("Found users:", {
+      requester: requester ? { _id: requester._id, uid: requester.uid } : null,
+      recipient: recipient ? { _id: recipient._id, uid: recipient.uid } : null,
+    });
+
+    if (!requester || !recipient) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (requester._id.equals(recipient._id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot cancel follow request to yourself",
+      });
+    }
+
+    // Check if already following
+    if (requester.following.includes(recipient._id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Already following this user",
+      });
+    }
+
+    // Find and delete the follow request
+    const deletedRequest = await FollowRequest.findOneAndDelete({
+      requester: requester._id,
+      recipient: recipient._id,
+      status: "pending",
+    });
+
+    if (!deletedRequest) {
+      return res.status(404).json({
+        success: false,
+        message: "No pending follow request found",
+      });
+    }
+
+    console.log("Follow request cancelled:", deletedRequest);
+
+    res.status(200).json({
+      success: true,
+      message: "Follow request cancelled",
+      isFollowing: false,
+      hasRequest: false,
+    });
+  } catch (error) {
+    console.error("Error cancelling follow request:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
     });
   }
 };

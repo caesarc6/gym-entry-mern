@@ -9,6 +9,7 @@ import {
   getCurrentMongoDBUser,
   updateUserProfile,
   handleFileUpload,
+  handleOptionalFileUpload,
   createUser,
   createPost,
   getPostsByUID,
@@ -32,6 +33,7 @@ import {
   rejectFollowRequest,
   getPendingFollowRequests,
   checkFollowRequestStatus,
+  cancelFollowRequest,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -52,7 +54,7 @@ router.get("/users/:uid", getUser);
 router.get("/profile-image/:uid", async (req, res) => {
   try {
     const { uid } = req.params;
-    const user = await User.findOne({ uid }).select("picture name");
+    const user = await User.findOne({ uid }).select("picture name username");
 
     if (!user) {
       return res.status(404).json({
@@ -66,6 +68,7 @@ router.get("/profile-image/:uid", async (req, res) => {
       data: {
         profileImage: user.picture || null,
         name: user.name || "Unknown User",
+        username: user.username || null,
       },
     });
   } catch (error) {
@@ -82,15 +85,17 @@ router.get("/getCurrentMongoDBUser", verifyIdToken, getCurrentMongoDBUser);
 router.post(
   "/updateUserProfile",
   verifyIdToken,
-  handleFileUpload,
+  handleOptionalFileUpload,
   updateUserProfile
 );
 router.get("/createUsers", verifyIdToken, createUser);
 router.post("/posts", verifyIdToken, createPost);
 router.get("/posts/:uid", verifyIdToken, getPostsByUID);
+router.get("/posts/userId/:userId", verifyIdToken, getPostsByUID);
 router.get("/isFollowing/:userId", verifyIdToken, isFollowing);
 router.get("/getCurrentUser", verifyIdToken, getCurrentUser);
 router.get("/getUserProfile/:uid", verifyIdToken, getUserProfile);
+router.get("/getUserProfile/userId/:userId", verifyIdToken, getUserProfile);
 router.get("/getUsers", verifyIdToken, getUsers);
 router.get("/searchUsers", searchUsers);
 router.post(
@@ -109,6 +114,7 @@ router.post("/posts/feed", verifyIdToken, getFeedPosts);
 
 // Follow request routes
 router.post("/follow-request/:userId", verifyIdToken, sendFollowRequest);
+router.delete("/follow-request/:userId", verifyIdToken, cancelFollowRequest);
 router.post(
   "/follow-request/:requestId/accept",
   verifyIdToken,

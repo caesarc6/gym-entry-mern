@@ -13,7 +13,7 @@ import { LuSun } from "react-icons/lu";
 import { useState, useEffect } from "react";
 import { auth, googleProvider } from "../firebase";
 
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, signOut } from "firebase/auth";
 
 const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -39,28 +39,65 @@ const Navbar = () => {
     return () => unsubscribe(); // Cleanup subscription
   }, []);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (mode = "login") => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       console.log(result);
       const token = await result.user.getIdToken();
 
-      const response = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/protected",
+      // First, check if user already exists in our database
+      const userCheckResponse = await fetch(
+        "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
         {
-          method: "POST",
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         }
       );
-      if (!response.ok) {
-        throw new Error(await response.text());
+
+      const userExists = userCheckResponse.ok;
+
+      if (mode === "login" && !userExists) {
+        // User tried to login but doesn't have an account
+        alert(
+          "No account found with this Google account. Please use Sign Up instead."
+        );
+        // Sign out the user since they don't have an account
+        await signOut(auth);
+        return;
       }
-      const userData = await response.json();
-      console.log("User Data:", userData.uid);
-      // console.log("User Data:", userData);
+
+      if (mode === "signup" && userExists) {
+        // User tried to signup but already has an account
+        alert(
+          "An account already exists with this Google account. Please use Login instead."
+        );
+        // Don't sign out, let them stay logged in
+        setIsSignedIn(true);
+        return;
+      }
+
+      // If it's a signup, create the user account
+      if (mode === "signup") {
+        const response = await fetch(
+          "https://gym-tracker-brown.vercel.app/api/protected",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+        const userData = await response.json();
+        console.log("New user created:", userData.uid);
+      }
+
       try {
         const token = await auth.currentUser.getIdToken();
         const response = await fetch(
@@ -149,7 +186,7 @@ const Navbar = () => {
                   size={"xs"}
                   // variant={"outline"}
                   onClick={async () => {
-                    await handleGoogleSignIn();
+                    await handleGoogleSignIn("signup");
                     setIsSignedIn(true);
                   }}
                   className="p-3  rounded-md"
@@ -162,7 +199,7 @@ const Navbar = () => {
                   size={"xs"}
                   variant={"outline"}
                   onClick={async () => {
-                    await handleGoogleSignIn();
+                    await handleGoogleSignIn("login");
                     setIsSignedIn(true);
                   }}
                   className="p-0 m-0  rounded-md"

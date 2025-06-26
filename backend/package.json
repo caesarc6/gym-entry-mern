@@ -4,10 +4,10 @@
   "description": "I am following this two hour tutorial about the mern stack. This is video is on youtube and I am looking forward to learning more on the backend of things wiht mongoDB and just see what I can learn about it.",
   "main": "index.js",
   "scripts": {
-    "dev": "NODE_ENV=development nodemon backend/server.js",
-    "devenv": "nodemon backend/server.js",
+    "dev": "NODE_ENV=development nodemon api/index.js",
+    "devenv": "nodemon api/index.js",
     "build": "npm install && npm install --prefix frontend && npm run build --prefix frontend",
-    "start": "NODE_ENV=production node backend/server.js",
+    "start": "NODE_ENV=production node api/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "module",
