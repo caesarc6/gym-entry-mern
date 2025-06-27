@@ -39,6 +39,7 @@ import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
 import { useCustomToast } from "../hooks/useCustomToast";
+import { API_ENDPOINTS, apiClient } from "../config/api";
 
 const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -141,16 +142,8 @@ const ProfilePage = () => {
       const user = auth.currentUser;
       if (!user) throw new Error("User not authenticated");
 
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `http://localhost:5001/api/follow-requests/pending`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+      const response = await apiClient.get(
+        API_ENDPOINTS.FOLLOW_REQUESTS_PENDING
       );
 
       if (!response.ok) throw new Error("Failed to fetch follow requests");
@@ -169,42 +162,44 @@ const ProfilePage = () => {
   };
 
   // Handle follow request actions
-  const handleFollowRequest = async (requestId, action) => {
+  const handleFollowRequestAction = async (requestId, action) => {
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("User not authenticated");
-
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `http://localhost:5001/api/follow-request/${requestId}/${action}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+      const response = await apiClient.post(
+        API_ENDPOINTS.FOLLOW_REQUEST_ACTION(requestId, action)
       );
 
-      if (!response.ok) throw new Error(`Failed to ${action} follow request`);
+      if (!response.ok) throw new Error("Failed to process request");
 
       const data = await response.json();
 
-      // Remove the request from the list
-      setFollowRequests((prev) => prev.filter((req) => req._id !== requestId));
+      // Remove the processed request from the list
+      setFollowRequests((prev) =>
+        prev.filter((request) => request._id !== requestId)
+      );
 
-      // Update follower count if accepted
-      if (action === "accept") {
-        setUserProfile((prev) => ({
-          ...prev,
-          followersCount: prev.followersCount + 1,
-        }));
+      toast({
+        title: "Success",
+        description: `Request ${
+          action === "accept" ? "accepted" : "rejected"
+        } successfully`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // Refresh user profile to update follower count
+      if (uid) {
+        fetchUserProfile(auth.currentUser);
       }
-
-      toast.success("Request updated", data.message);
     } catch (error) {
-      console.error(`Error ${action}ing follow request:`, error);
-      toast.error("Action failed", error.message);
+      console.error("Error processing follow request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process request",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
@@ -217,16 +212,8 @@ const ProfilePage = () => {
 
   const fetchUserProfile = async (user) => {
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `http://localhost:5001/api/getUserProfile/${user.uid}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await apiClient.get(
+        API_ENDPOINTS.GET_USER_PROFILE(user.uid)
       );
 
       if (!response.ok) throw new Error(await response.text());
@@ -255,44 +242,39 @@ const ProfilePage = () => {
     }
   };
 
-  const fetchUserPosts = async (userId) => {
+  const fetchUserPosts = async (userId, page = 1) => {
     try {
-      if (!userId) return;
-
-      const user = auth.currentUser;
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `http://localhost:5001/api/posts/${userId}?page=${currentPage}&limit=${limit}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await apiClient.get(
+        API_ENDPOINTS.POSTS(userId, page, limit)
       );
+
+      if (!response.ok) throw new Error(await response.text());
 
       const data = await response.json();
+      console.log("Posts data:", data);
+
       if (data.success) {
-        const normalizedEntries = data.data.map((post) => ({
-          _id: post._id,
-          name: post.name || "Untitled",
-          description: post.description || "No description",
-          image: post.image || null,
-          likes: post.likes || 0,
-          comments: Array.isArray(post.comments) ? post.comments : [],
-          createdAt: post.createdAt || new Date().toISOString(),
-          ownerId: post.uid || userId,
-        }));
-        setEntries(normalizedEntries);
+        setEntries(data.data.posts || []);
         setPagination(data.pagination);
+      } else {
+        console.error("Failed to fetch posts:", data.message);
+        toast({
+          title: "Error",
+          description: data.message || "Failed to fetch posts",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
       }
     } catch (error) {
-      console.error("Error fetching posts:", error);
-      toast.error(
-        "Posts load failed",
-        error.message || "Unable to load posts at this time."
-      );
+      console.error("Error fetching user posts:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to fetch posts",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
@@ -362,7 +344,6 @@ const ProfilePage = () => {
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     const user = auth.currentUser;
-    const token = await user.getIdToken();
 
     // Basic validation
     if (!userProfile.name.trim()) {
@@ -399,14 +380,13 @@ const ProfilePage = () => {
         profileFormData.append("profileImageName", profileImage.name);
       }
 
-      const profileResponse = await fetch(
-        "http://localhost:5001/api/updateUserProfile",
+      const profileResponse = await apiClient.post(
+        API_ENDPOINTS.UPDATE_USER_PROFILE,
+        profileFormData,
         {
-          method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
           },
-          body: profileFormData,
         }
       );
 
@@ -850,7 +830,7 @@ const ProfilePage = () => {
                           size="sm"
                           colorScheme="green"
                           onClick={() =>
-                            handleFollowRequest(request._id, "accept")
+                            handleFollowRequestAction(request._id, "accept")
                           }
                         >
                           Accept
@@ -860,7 +840,7 @@ const ProfilePage = () => {
                           colorScheme="red"
                           variant="outline"
                           onClick={() =>
-                            handleFollowRequest(request._id, "reject")
+                            handleFollowRequestAction(request._id, "reject")
                           }
                         >
                           Reject

@@ -14,9 +14,10 @@ import { User } from "../models/user.model.js";
 import bodyParser from "body-parser";
 // const bodyParser = require("body-parser");
 
-connectDB();
-
+// Load environment variables first
 dotenv.config();
+
+connectDB();
 
 // connectAuth();
 
@@ -33,9 +34,24 @@ app.use(express.json()); // allows to use json data in the body
 app.use(bodyParser.urlencoded({ extended: true }));
 // app.use(express.urlencoded({ extended: true }));
 
+// Configure CORS with environment variables
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
+  : ["http://localhost:5173"];
+
 app.use(
   cors({
-    origin: ["https://gym-track-frontend.vercel.app", "http://localhost:5173"],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
   })
 );
 
@@ -72,25 +88,27 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
 app.use("/api/entrys", entryRoutes);
 app.use("/api/", userRoutes);
 
-app.get("/", (req, res) => {
+app.get("/api", (req, res) => {
   res.send("Server deployed and running on vercel.");
 });
 
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
-  });
-} /* else if (process.env.NODE_ENV === "development") {
-//   app.use(express.static(path.join(__dirname, "/frontend/public")));
-//   app.get("*", (req, res) => {
-//     res.sendFile(path.resolve(__dirname, "frontend", "public", "index.html"));
-//   });
- } */
+// For Vercel deployment, we don't serve static files here
+// Vercel handles the frontend routing separately
 
-// console.log(process.env.MONGO_URI);
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  // connectDB();
-  console.log("Server https://localhost:" + PORT);
-});
+
+// Only start the server if we're not in Vercel
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    // connectDB();
+    console.log(
+      `Server running on port ${PORT} in ${
+        process.env.NODE_ENV || "development"
+      } mode`
+    );
+    console.log(`Allowed origins: ${allowedOrigins.join(", ")}`);
+  });
+}
+
+// Export for Vercel
+export default app;

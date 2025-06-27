@@ -27,7 +27,7 @@ import { useProductStore } from "../store/product";
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { auth } from "../firebase"; // Import Firebase auth
-import axios from "axios"; // Import axios for API calls
+import { API_ENDPOINTS, apiClient } from "../config/api"; // Import API configuration
 
 const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
   const currentUser = auth.currentUser;
@@ -78,17 +78,9 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
           return;
         }
 
-        const response = await axios.get(
-          `http://localhost:5001/api/profile-image/${
-            entry.ownerId || entry.uid
-          }`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+        const response = await apiClient.get(
+          API_ENDPOINTS.PROFILE_IMAGE(entry.ownerId || entry.uid)
         );
-        // console.log("API Response:", response.data);
 
         // Check if the response has the expected structure
         if (response.data?.success && response.data?.data) {

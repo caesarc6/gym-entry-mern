@@ -17,6 +17,7 @@ import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
 import { Hero } from "../components/Hero";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
+import { API_ENDPOINTS, apiClient } from "../config/api";
 
 const HomePage = () => {
   const { clearEntrys, updateEntry } = useProductStore();
@@ -72,15 +73,8 @@ const HomePage = () => {
       try {
         const user = auth.currentUser;
         const token = await user.getIdToken();
-        const response = await fetch(
-          `http://localhost:5001/api/users/${uid}/following`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
+        const response = await apiClient.get(
+          API_ENDPOINTS.USERS_FOLLOWING(uid)
         );
         if (!response.ok) {
           throw new Error(await response.text());
@@ -157,15 +151,8 @@ const HomePage = () => {
           for (const fetchUid of [...userPages.keys()]) {
             const userPage = userPages.get(fetchUid);
             try {
-              const response = await fetch(
-                `http://localhost:5001/api/posts/${fetchUid}?page=${userPage}&limit=${limit}`,
-                {
-                  method: "GET",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
+              const response = await apiClient.get(
+                API_ENDPOINTS.POSTS(fetchUid, userPage, limit)
               );
               const data = await response.json();
               // console.log(
@@ -312,28 +299,17 @@ const HomePage = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const token = await result.user.getIdToken();
-      const response = await fetch(`http://localhost:5001/api/protected`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
+
       if (!response.ok) {
         throw new Error(await response.text());
       }
       const userData = await response.json();
       console.log("User Data:", userData.uid);
-      const currentUserResponse = await fetch(
-        `http://localhost:5001/api/getCurrentUser`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const currentUserResponse = await apiClient.get(
+        API_ENDPOINTS.GET_CURRENT_USER
       );
+
       if (!response.ok) {
         throw new Error(await response.text());
       }

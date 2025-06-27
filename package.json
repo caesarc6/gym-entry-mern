@@ -1,17 +1,31 @@
 {
-  "name": "mern-crash-course-2024",
+  "name": "gym-entry-mern",
   "version": "1.0.0",
-  "description": "I am following this two hour tutorial about the mern stack. This is video is on youtube and I am looking forward to learning more on the backend of things wiht mongoDB and just see what I can learn about it.",
+  "description": "MERN Stack Gym Entry Application",
   "main": "index.js",
   "scripts": {
-    "dev": "NODE_ENV=development nodemon backend/api/index.js",
-    "devenv": "nodemon backend/server.js",
-    "build": "npm install && npm install --prefix frontend && npm run build --prefix frontend",
-    "start": "NODE_ENV=production node backend/server.js",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:frontend:local": "cd frontend && npm run dev:local",
+    "dev:frontend:prod": "cd frontend && npm run dev:prod",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "cd backend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "module",
-  "keywords": [],
+  "keywords": [
+    "mern",
+    "gym",
+    "fitness",
+    "react",
+    "node",
+    "express",
+    "mongodb"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -27,6 +41,7 @@
     "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "nodemon": "^3.1.4"
   }
 }

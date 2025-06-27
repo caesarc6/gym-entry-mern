@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { auth } from "../firebase";
 import { getAuth, signInWithPopup } from "firebase/auth";
+import { API_ENDPOINTS, apiClient } from "../config/api";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
 // change fetch URL in dev mode to http://localhost:5173/api/entrys
@@ -20,7 +21,6 @@ export const useProductStore = create((set) => ({
 
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
-    // console.log("New Post:", newPost);
     const token = await auth.currentUser.getIdToken();
     if (!newPost.name || !newPost.description) {
       return { success: false, message: "Please fill in all fields." };
@@ -31,25 +31,15 @@ export const useProductStore = create((set) => ({
         "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
     }
 
-    const res = await fetch("https://gym-tracker-brown.vercel.app/api/posts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(newPost),
-    });
-    if (!res.ok) {
-      const errorData = await res.json();
-      // console.error("Error creating post:", errorData);
-      throw new Error(errorData.error || "Failed to create post");
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.CREATE_POST, newPost);
+      const data = response.data;
+      set((state) => ({ posts: [...state.posts, data.data] }));
+      return { success: true, message: "Post created successfully" };
+    } catch (error) {
+      console.error("Error creating post:", error);
+      throw new Error(error.response?.data?.error || "Failed to create post");
     }
-    // console.log("New Post:", newPost);
-    // console.log("Response:", res);
-    const data = await res.json();
-    set((state) => ({ posts: [...state.posts, data.data] }));
-    // console.log("New Post:", newPost);
-    return { success: true, message: "Post created successfully" };
   },
 
   createEntry: async (newEntry) => {
@@ -62,32 +52,35 @@ export const useProductStore = create((set) => ({
         "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
     }
 
-    const res = await fetch("https://gym-tracker-brown.vercel.app/api/entrys", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(newEntry),
-    });
-    const data = await res.json();
-    set((state) => ({ entrys: [...state.entrys, data.data] }));
-    return { success: true, message: "Entry created successfully" };
+    try {
+      const response = await apiClient.post(
+        API_ENDPOINTS.CREATE_ENTRY,
+        newEntry
+      );
+      const data = response.data;
+      set((state) => ({ entrys: [...state.entrys, data.data] }));
+      return { success: true, message: "Entry created successfully" };
+    } catch (error) {
+      console.error("Error creating entry:", error);
+      throw new Error(error.response?.data?.error || "Failed to create entry");
+    }
   },
 
   deleteEntry: async (pid) => {
-    const res = await fetch(
-      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
-      {
-        method: "DELETE",
-      }
-    );
-    const data = await res.json();
-    if (!data.success) return { success: false, message: data.message };
+    try {
+      const response = await apiClient.delete(API_ENDPOINTS.DELETE_ENTRY(pid));
+      const data = response.data;
 
-    set((state) => ({
-      entrys: state.entrys.filter((entry) => entry._id !== pid),
-    }));
-    return { success: true, message: data.message };
+      if (!data.success) return { success: false, message: data.message };
+
+      set((state) => ({
+        entrys: state.entrys.filter((entry) => entry._id !== pid),
+      }));
+      return { success: true, message: data.message };
+    } catch (error) {
+      console.error("Error deleting entry:", error);
+      throw new Error(error.response?.data?.error || "Failed to delete entry");
+    }
   },
 
   updateBackgroundProfile: async (newBackgroundProfile) => {
@@ -97,115 +90,121 @@ export const useProductStore = create((set) => ({
     const formData = new FormData();
     formData.append("backgroundProfile", newBackgroundProfile);
 
-    const res = await fetch(
-      `https://locahost:5001/api/updateUserBackgroundPicture`,
-      // `https://gym-tracker-brown.vercel.app/api/uploadBackgroundProfile`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      }
-    );
+    try {
+      const response = await apiClient.post(
+        API_ENDPOINTS.UPDATE_USER_BACKGROUND,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-    const data = await res.json();
-    console.log("Response:", data);
+      const data = response.data;
+      console.log("Response:", data);
 
-    if (!res.ok) {
-      throw new Error(data.message || "Failed to update background profile");
+      return { success: true, message: data.message };
+    } catch (error) {
+      console.error("Error updating background profile:", error);
+      throw new Error(
+        error.response?.data?.message || "Failed to update background profile"
+      );
     }
-
-    return { success: true, message: data.message };
   },
 
-  // Update workout entry
   updateEntry: async (pid, updatedEntry) => {
+    try {
+      const response = await apiClient.put(
+        API_ENDPOINTS.UPDATE_ENTRY(pid),
+        updatedEntry
+      );
+      const data = response.data;
+
+      if (!data.success) return { success: false, message: data.message };
+
+      set((state) => ({
+        entrys: state.entrys.map((entry) =>
+          entry._id === pid ? { ...entry, ...updatedEntry } : entry
+        ),
+      }));
+      return { success: true, message: data.message };
+    } catch (error) {
+      console.error("Error updating entry:", error);
+      throw new Error(error.response?.data?.error || "Failed to update entry");
+    }
+  },
+
+  likeEntry: async (pid) => {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.LIKE_ENTRY(pid));
+      const data = response.data;
+
+      if (!data.success) return { success: false, message: data.message };
+
+      set((state) => ({
+        entrys: state.entrys.map((entry) =>
+          entry._id === pid ? { ...entry, likes: data.likes } : entry
+        ),
+      }));
+      return { success: true, message: data.message };
+    } catch (error) {
+      console.error("Error liking entry:", error);
+      throw new Error(error.response?.data?.error || "Failed to like entry");
+    }
+  },
+
+  commentEntry: async (pid, comment) => {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.COMMENT_ENTRY(pid), {
+        comment,
+      });
+      const data = response.data;
+
+      if (!data.success) return { success: false, message: data.message };
+
+      set((state) => ({
+        entrys: state.entrys.map((entry) =>
+          entry._id === pid ? { ...entry, comments: data.comments } : entry
+        ),
+      }));
+      return { success: true, message: data.message };
+    } catch (error) {
+      console.error("Error commenting on entry:", error);
+      throw new Error(
+        error.response?.data?.error || "Failed to comment on entry"
+      );
+    }
+  },
+
+  uploadProfilePic: async (profilePic) => {
     const auth = getAuth();
     const user = auth.currentUser;
     const token = await user.getIdToken();
     const formData = new FormData();
+    formData.append("profilePic", profilePic);
 
-    Object.entries(updatedEntry).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") {
-        formData.append(key, value);
-        console.log("key:", key, "value:", value);
-      }
-    });
+    try {
+      const response = await apiClient.post(
+        API_ENDPOINTS.UPLOAD_PROFILE_PIC,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-    formData.append("pid", pid);
-    console.log("formData:", ...formData);
-    const res = await fetch(
-      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      }
-    );
+      const data = response.data;
+      console.log("Profile pic upload response:", data);
 
-    const data = await res.json();
-    console.log("Response:", data);
-
-    if (!res.ok) {
-      throw new Error(data.message || "Failed to update entry");
+      return { success: true, message: data.message };
+    } catch (error) {
+      console.error("Error uploading profile picture:", error);
+      throw new Error(
+        error.response?.data?.message || "Failed to upload profile picture"
+      );
     }
-
-    set((state) => ({
-      entrys: state.entrys.map((entry) =>
-        entry._id === pid ? data.data : entry
-      ),
-    }));
-
-    return { success: true, message: data.message };
-  },
-
-  // Like a product
-  likeEntry: async (pid) => {
-    const res = await fetch(
-      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}/like`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    const data = await res.json();
-    if (!data.success) return { success: false, message: data.message };
-    // Updates the 'like' UI immediately without needing to fetch all products again or a refresh
-    set((state) => ({
-      entrys: state.entrys.map((entry) =>
-        entry._id === pid ? { ...entry, likes: entry.likes + 1 } : entry
-      ),
-    }));
-
-    return { success: true, message: "Entry Liked!" };
-  },
-
-  commentEntry: async (pid, comment) => {
-    const res = await fetch(
-      `https://gym-tracker-brown.vercel.app/api/entrys/${pid}/comment`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ comment }),
-      }
-    );
-    const data = await res.json();
-    if (!data.success) return { success: false, message: data.message };
-    // Updates the 'comment' UI immediately without needing to fetch all products again or a refresh
-    set((state) => ({
-      entrys: state.entrys.map((entry) =>
-        entry._id === pid ? data.data : entry
-      ),
-    }));
-
-    return { success: true, message: "Comment added!" };
   },
 
   clearEntrys: () => set({ entrys: [] }),

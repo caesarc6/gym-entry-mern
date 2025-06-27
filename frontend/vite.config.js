@@ -4,25 +4,6 @@ import path from "path"; // Import the path module
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  server: {
-    proxy: {
-      "/api/entrys/": {
-        target: "http://localhost:5001",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/api/users/": {
-        target: "http://localhost:5001",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/api/profile-image/": {
-        target: "http://localhost:5001",
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
   plugins: [react()],
   resolve: {
     alias: {
@@ -32,4 +13,6 @@ export default defineConfig({
       ), // Map '@' to the 'src' directory
     },
   },
+  // Note: Proxy configuration removed since we're now using environment variables
+  // for API URLs. The proxy was only needed for development with localhost URLs.
 });

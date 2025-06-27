@@ -1,0 +1,107 @@
+// API Configuration
+const getApiBaseUrl = () => {
+  // Check if we're in development mode
+  if (import.meta.env.DEV) {
+    return import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+  }
+
+  // In production, use the environment variable or fallback to the deployed URL
+  return (
+    import.meta.env.VITE_API_BASE_URL || "https://gym-tracker-brown.vercel.app"
+  );
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+
+// Helper function to build API endpoints
+export const buildApiUrl = (endpoint) => {
+  // Remove leading slash if present to avoid double slashes
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
+  return `${API_BASE_URL}/api/${cleanEndpoint}`;
+};
+
+// Common API endpoints
+export const API_ENDPOINTS = {
+  // Auth endpoints
+  PROTECTED: buildApiUrl("protected"),
+  GET_CURRENT_USER: buildApiUrl("getCurrentUser"),
+
+  // User endpoints
+  GET_USER_PROFILE: (uid) => buildApiUrl(`getUserProfile/${uid}`),
+  UPDATE_USER_PROFILE: buildApiUrl("updateUserProfile"),
+  UPDATE_USER_BACKGROUND: buildApiUrl("updateUserBackgroundPicture"),
+  GET_CURRENT_MONGODB_USER: buildApiUrl("getCurrentMongoDBUser"),
+
+  // Profile image endpoints
+  PROFILE_IMAGE: (uid) => buildApiUrl(`profile-image/${uid}`),
+  UPLOAD_PROFILE_PIC: buildApiUrl("upload/uploadProfilePic"),
+
+  // Posts/Entries endpoints
+  POSTS: (uid, page = 1, limit = 10) =>
+    buildApiUrl(`posts/${uid}?page=${page}&limit=${limit}`),
+  CREATE_POST: buildApiUrl("posts"),
+  CREATE_ENTRY: buildApiUrl("entrys"),
+  DELETE_ENTRY: (id) => buildApiUrl(`entrys/${id}`),
+  UPDATE_ENTRY: (id) => buildApiUrl(`entrys/${id}`),
+  LIKE_ENTRY: (id) => buildApiUrl(`entrys/${id}/like`),
+  COMMENT_ENTRY: (id) => buildApiUrl(`entrys/${id}/comment`),
+
+  // Follow endpoints
+  FOLLOW_REQUEST: (userId) => buildApiUrl(`follow-request/${userId}`),
+  FOLLOW_REQUEST_STATUS: (userId) =>
+    buildApiUrl(`follow-request/status/${userId}`),
+  FOLLOW_REQUESTS_PENDING: buildApiUrl("follow-requests/pending"),
+  FOLLOW_REQUEST_ACTION: (requestId, action) =>
+    buildApiUrl(`follow-request/${requestId}/${action}`),
+  UNFOLLOW: (userId) => buildApiUrl(`unfollow/${userId}`),
+  USERS_FOLLOWERS: (userId) => buildApiUrl(`users/${userId}/followers`),
+  USERS_FOLLOWING: (userId) => buildApiUrl(`users/${userId}/following`),
+
+  // Privacy endpoints
+  PRIVACY: buildApiUrl("privacy"),
+
+  // Search endpoints
+  SEARCH_USERS: (query) =>
+    buildApiUrl(`searchUsers?query=${encodeURIComponent(query)}`),
+};
+
+// Axios instance with default configuration
+import axios from "axios";
+
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Request interceptor to add auth token
+apiClient.interceptors.request.use(
+  async (config) => {
+    // Import auth dynamically to avoid circular dependencies
+    const { auth } = await import("../firebase");
+
+    if (auth.currentUser) {
+      try {
+        const token = await auth.currentUser.getIdToken();
+        config.headers.Authorization = `Bearer ${token}`;
+      } catch (error) {
+        console.error("Error getting auth token:", error);
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for error handling
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error("API Error:", error);
+    return Promise.reject(error);
+  }
+);
