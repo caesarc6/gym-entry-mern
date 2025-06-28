@@ -5,10 +5,16 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
   }
 
-  // In production, use the environment variable or fallback to the deployed URL
-  return (
-    import.meta.env.VITE_API_BASE_URL || "https://gym-tracker-brown.vercel.app"
-  );
+  // In production, use the environment variable or fallback to the current deployment URL
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+
+  // Debug logging
+  console.log("Environment:", import.meta.env.MODE);
+  console.log("VITE_API_BASE_URL:", import.meta.env.VITE_API_BASE_URL);
+  console.log("Window location origin:", window.location.origin);
+  console.log("Final API Base URL:", apiUrl);
+
+  return apiUrl;
 };
 
 export const API_BASE_URL = getApiBaseUrl();
@@ -70,7 +76,7 @@ import axios from "axios";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // Increased timeout to 30 seconds
   headers: {
     "Content-Type": "application/json",
   },
@@ -90,6 +96,10 @@ apiClient.interceptors.request.use(
         console.error("Error getting auth token:", error);
       }
     }
+
+    // Debug logging for requests
+    console.log("API Request:", config.method?.toUpperCase(), config.url);
+
     return config;
   },
   (error) => {
@@ -99,9 +109,17 @@ apiClient.interceptors.request.use(
 
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log("API Response:", response.status, response.config.url);
+    return response;
+  },
   (error) => {
-    console.error("API Error:", error);
+    console.error("API Error:", {
+      message: error.message,
+      status: error.response?.status,
+      url: error.config?.url,
+      data: error.response?.data,
+    });
     return Promise.reject(error);
   }
 );
