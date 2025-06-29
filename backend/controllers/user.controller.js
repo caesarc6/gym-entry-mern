@@ -372,7 +372,18 @@ export const createUser = async (req, res) => {
   try {
     let user = await User.findOne({ uid });
     if (!user) {
-      user = new User({ uid, name, email, picture });
+      // Generate username from name: remove spaces and convert to lowercase
+      const generatedUsername = name
+        ? name.replace(/\s+/g, "").toLowerCase()
+        : `user${Date.now()}`;
+
+      user = new User({
+        uid,
+        name,
+        email,
+        picture,
+        username: generatedUsername,
+      });
       await user.save();
     }
     res.status(201).json(user);
@@ -562,16 +573,61 @@ export const searchUsers = async (req, res) => {
   }
 
   try {
+    // Get the current user (viewer) for privacy filtering
+    let viewerUser = null;
+    if (req.user?.uid) {
+      viewerUser = await User.findOne({ uid: req.user.uid });
+    }
+
+    // Find users matching the search query
     const users = await User.find({
       $or: [
         { name: { $regex: query, $options: "i" } },
         { username: { $regex: query, $options: "i" } },
       ],
     })
-      .select("name username picture uid")
+      .populate("followers", "uid")
       .limit(10);
 
-    res.status(200).json({ success: true, data: users });
+    // Apply privacy filtering to search results
+    const filteredUsers = users.map((user) => {
+      // Ensure privacy object exists
+      const privacy = user.privacy || {
+        isPrivate: false,
+        showEntries: true,
+        showEmail: false,
+      };
+
+      // Check if viewer is a follower
+      const isFollower =
+        viewerUser &&
+        user.followers &&
+        user.followers.some((follower) => follower.uid === viewerUser.uid);
+
+      // Check if viewer is the profile owner
+      const isOwner = viewerUser && viewerUser.uid === user.uid;
+
+      // For search results, always show basic info (name, username, picture)
+      // but indicate if the profile is private
+      const searchResult = {
+        uid: user.uid,
+        name: user.name || "User",
+        username: user.username || user.name || "User",
+        picture: user.picture,
+        isPrivate: privacy.isPrivate,
+        // Only show bio if profile is public or viewer is follower/owner
+        bio: !privacy.isPrivate || isFollower || isOwner ? user.bio || "" : "",
+        // Only show goal/gymName if profile is public or viewer is follower/owner
+        goal:
+          !privacy.isPrivate || isFollower || isOwner ? user.goal || "" : "",
+        gymName:
+          !privacy.isPrivate || isFollower || isOwner ? user.gymName || "" : "",
+      };
+
+      return searchResult;
+    });
+
+    res.status(200).json({ success: true, data: filteredUsers });
   } catch (error) {
     console.error("Error searching users:", error);
     res.status(500).json({ success: false, message: "Failed to search users" });
@@ -831,6 +887,9 @@ export const getUserProfile = async (req, res) => {
       posts = await Entry.find({ uid: userId }).populate("likes", "username");
     }
 
+    // Get total posts count (unfiltered) for display purposes
+    const totalPostsCount = await Entry.countDocuments({ uid: userId });
+
     const userData = filterUserDataForPublicView(user, viewerUser);
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
 
@@ -853,7 +912,7 @@ export const getUserProfile = async (req, res) => {
       data: {
         user: userData,
         posts: normalizedPosts,
-        postsCount: normalizedPosts.length,
+        postsCount: totalPostsCount, // Use total posts count, not filtered count
         followersCount: user.followers ? user.followers.length : 0,
         followingCount: user.following ? user.following.length : 0,
       },

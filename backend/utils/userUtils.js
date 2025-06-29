@@ -95,15 +95,24 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
     return publicUserData;
   }
 
-  // For private profiles where the viewer is not a follower, return minimal data
-  console.log("Returning minimal data for private profile");
-  const minimalData = {
+  // For private profiles where the viewer is not a follower, return basic profile data
+  // (but not posts - those are handled separately)
+  console.log("Returning basic profile data for private profile");
+  const basicProfileData = {
     _id: user._id,
     username: user.username || user.name || "User", // Fallback to name or "User" if username is undefined
+    name: user.name,
+    picture: user.picture,
+    bio: user.bio,
+    goal: user.goal,
+    gymName: user.gymName,
+    backgroundPicture: user.backgroundPicture,
+    followersCount: user.followers ? user.followers.length : 0,
+    followingCount: user.following ? user.following.length : 0,
     isPrivate: true,
   };
-  console.log("Minimal data:", minimalData);
-  return minimalData;
+  console.log("Basic profile data:", basicProfileData);
+  return basicProfileData;
 };
 
 /**

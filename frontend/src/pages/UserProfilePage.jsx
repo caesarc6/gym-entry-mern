@@ -23,6 +23,7 @@ import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
+import { API_ENDPOINTS, apiClient } from "../config/api";
 
 const UserProfilePage = () => {
   const { userId: paramUserId } = useParams(); // Rename to avoid confusion
@@ -71,23 +72,12 @@ const UserProfilePage = () => {
       const user = auth.currentUser;
       if (!user || user.uid === userId) return;
 
-      const token = await user.getIdToken();
-      const followStatusResponse = await fetch(
-        `http://localhost:5001/api/follow-request/status/${userId}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await apiClient.get(
+        API_ENDPOINTS.FOLLOW_REQUEST_STATUS(userId)
       );
-
-      if (followStatusResponse.ok) {
-        const followStatusData = await followStatusResponse.json();
-        setIsFollowing(followStatusData.isFollowing || false);
-        setHasFollowRequest(followStatusData.hasRequest || false);
-      }
+      const followStatusData = response.data;
+      setIsFollowing(followStatusData.isFollowing || false);
+      setHasFollowRequest(followStatusData.hasRequest || false);
     } catch (error) {
       console.error("Error checking follow status:", error);
     }
@@ -116,68 +106,38 @@ const UserProfilePage = () => {
         throw new Error("User not authenticated");
       }
 
-      const token = await user.getIdToken();
-
       // Fetch user profile data
-      const profileResponse = await fetch(
-        `http://localhost:5001/api/getUserProfile/${userId}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const profileResponse = await apiClient.get(
+        API_ENDPOINTS.GET_USER_PROFILE(userId)
       );
-
-      if (!profileResponse.ok) throw new Error(await profileResponse.text());
-
-      const profileData = await profileResponse.json();
+      const profileData = profileResponse.data;
       console.log("Profile response data:", profileData);
 
       const userData = profileData.data.user;
       console.log("User data from response:", userData);
 
       setUserProfile({
-        name:
-          userData.name || (userData.isPrivate ? "Private Profile" : "Name"),
-        username:
-          userData.username || (userData.isPrivate ? "Private" : "Username"),
-        goal: userData.goal || (userData.isPrivate ? "Private" : "Not set"),
-        gymName:
-          userData.gymName ||
-          (userData.isPrivate ? "Private" : "Not specified"),
+        name: userData.name || "Name",
+        username: userData.username || userData.name || "Username",
+        goal: userData.goal || "Not set",
+        gymName: userData.gymName || "Not specified",
         postsCount: profileData.data.postsCount || 0,
-        bio:
-          userData.bio ||
-          (userData.isPrivate
-            ? "This profile is private. Follow this user to see their content."
-            : "No bio available"),
+        bio: userData.bio || "No bio available",
         profileImage: userData.picture || profileColorMode,
         backgroundPicture: userData.backgroundPicture || bgColorMode,
-        followersCount: profileData.data.followersCount,
-        followingCount: profileData.data.followingCount,
+        followersCount: profileData.data.followersCount || 0,
+        followingCount: profileData.data.followingCount || 0,
         isPrivate: userData.isPrivate || false,
       });
 
       // Check if current user is following this profile and follow request status
       if (user && user.uid !== userId) {
-        const followStatusResponse = await fetch(
-          `http://localhost:5001/api/follow-request/status/${userId}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
+        const followStatusResponse = await apiClient.get(
+          API_ENDPOINTS.FOLLOW_REQUEST_STATUS(userId)
         );
-
-        if (followStatusResponse.ok) {
-          const followStatusData = await followStatusResponse.json();
-          setIsFollowing(followStatusData.isFollowing || false);
-          setHasFollowRequest(followStatusData.hasRequest || false);
-        }
+        const followStatusData = followStatusResponse.data;
+        setIsFollowing(followStatusData.isFollowing || false);
+        setHasFollowRequest(followStatusData.hasRequest || false);
         setIsFollowingLoadingInitial(false);
       } else {
         setIsFollowing(false);
@@ -185,33 +145,40 @@ const UserProfilePage = () => {
         setIsFollowingLoadingInitial(false);
       }
 
-      // Fetch user's posts
-      const postsResponse = await fetch(
-        `http://localhost:5001/api/posts/${userId}?page=${currentPage}&limit=${limit}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      // Only fetch posts if the profile is public OR if the current user is following OR if it's the user's own profile
+      const shouldFetchPosts =
+        !userData.isPrivate || isFollowing || user.uid === userId;
 
-      const postsData = await postsResponse.json();
-      if (postsData.success) {
-        // Normalize posts to match ProductCard expectations
-        const normalizedEntries = postsData.data.map((post) => ({
-          _id: post._id,
-          name: post.name || "Untitled",
-          description: post.description || "No description",
-          image: post.image || null,
-          likes: post.likes || 0,
-          comments: Array.isArray(post.comments) ? post.comments : [],
-          createdAt: post.createdAt || new Date().toISOString(),
-          ownerId: post.uid || userId, // Add ownerId, assuming the post belongs to the profile user
-        }));
-        setEntries(normalizedEntries);
-        setPagination(postsData.pagination);
+      if (shouldFetchPosts) {
+        const postsResponse = await apiClient.get(
+          API_ENDPOINTS.POSTS(userId, currentPage, limit)
+        );
+        const postsData = postsResponse.data;
+
+        if (postsData.success) {
+          // Normalize posts to match ProductCard expectations
+          const normalizedEntries = postsData.data.map((post) => ({
+            _id: post._id,
+            name: post.name || "Untitled",
+            description: post.description || "No description",
+            image: post.image || null,
+            likes: post.likes || 0,
+            comments: Array.isArray(post.comments) ? post.comments : [],
+            createdAt: post.createdAt || new Date().toISOString(),
+            ownerId: post.uid || userId,
+          }));
+          setEntries(normalizedEntries);
+          setPagination(postsData.pagination);
+        }
+      } else {
+        // For private profiles that we can't see posts for, set empty entries
+        setEntries([]);
+        setPagination({
+          currentPage: 1,
+          totalPages: 0,
+          totalPosts: 0,
+          limit: 6,
+        });
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -225,7 +192,15 @@ const UserProfilePage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [userId, currentPage, limit, toast, profileColorMode, bgColorMode]);
+  }, [
+    userId,
+    currentPage,
+    limit,
+    toast,
+    profileColorMode,
+    bgColorMode,
+    isFollowing,
+  ]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -247,27 +222,11 @@ const UserProfilePage = () => {
       const user = auth.currentUser;
       if (!user) throw new Error("You need to sign in to follow users");
 
-      const token = await user.getIdToken();
-
       if (isFollowing) {
         // Unfollow logic
-        const response = await fetch(
-          `http://localhost:5001/api/unfollow/${userId}`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        const response = await apiClient.post(API_ENDPOINTS.UNFOLLOW(userId));
+        const data = response.data;
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to unfollow user");
-        }
-
-        const data = await response.json();
         if (data.message === "Unfollowed successfully") {
           setIsFollowing(false);
           setHasFollowRequest(false);
@@ -285,25 +244,11 @@ const UserProfilePage = () => {
         }
       } else if (hasFollowRequest) {
         // Cancel follow request
-        const response = await fetch(
-          `http://localhost:5001/api/follow-request/${userId}`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
+        const response = await apiClient.delete(
+          API_ENDPOINTS.FOLLOW_REQUEST(userId)
         );
+        const data = response.data;
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.message || "Failed to cancel follow request"
-          );
-        }
-
-        const data = await response.json();
         if (data.success) {
           setHasFollowRequest(false);
           toast({
@@ -316,23 +261,10 @@ const UserProfilePage = () => {
         }
       } else {
         // Send follow request
-        const response = await fetch(
-          `http://localhost:5001/api/follow-request/${userId}`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
+        const response = await apiClient.post(
+          API_ENDPOINTS.FOLLOW_REQUEST(userId)
         );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to send follow request");
-        }
-
-        const data = await response.json();
+        const data = response.data;
 
         if (data.isFollowing) {
           // Direct follow (public profile)
@@ -385,29 +317,10 @@ const UserProfilePage = () => {
   };
 
   const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setCurrentPage(newPage);
+    }
   };
-
-  const totalPages = pagination.totalPages;
-
-  if (isAuthLoading) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        height="100vh"
-        bg={useColorModeValue("gray.50", "gray.900")}
-      >
-        <Spinner
-          size="lg"
-          thickness="4px"
-          speed="1.4s"
-          color={useColorModeValue("gray.700", "gray.400")}
-        />
-      </Box>
-    );
-  }
 
   const handlePostUpdate = (postId, updatedPost) => {
     setEntries((prevEntries) =>
@@ -418,7 +331,7 @@ const UserProfilePage = () => {
   };
 
   const renderProfile = () => (
-    <Center py={6} mt={10}>
+    <Center py={6}>
       <Box
         maxW={"580px"}
         w={"full"}
@@ -431,8 +344,7 @@ const UserProfilePage = () => {
           h={"120px"}
           w={"full"}
           src={userProfile.backgroundPicture}
-          objectFit="cover"
-          alt="Background"
+          objectFit={"cover"}
         />
         <Flex justify={"center"} mt={-12}>
           <Avatar
@@ -444,8 +356,11 @@ const UserProfilePage = () => {
         <Box p={6}>
           <Stack spacing={0} align={"center"} mb={3}>
             <Heading fontSize={"2xl"} fontWeight={500}>
-              @{userProfile.username}
+              {userProfile.name}
             </Heading>
+          </Stack>
+          <Stack spacing={0} align={"center"} mb={3}>
+            <Text color={"gray.500"}>@{userProfile.username}</Text>
           </Stack>
           <Stack spacing={0} align={"center"} mb={4}>
             <Text color={"gray.500"}>
@@ -524,7 +439,11 @@ const UserProfilePage = () => {
       ) : entries.length === 0 ? (
         <Center>
           <Text fontSize="lg" color="gray.500">
-            No posts yet
+            {userProfile.isPrivate &&
+            !isFollowing &&
+            auth.currentUser?.uid !== userId
+              ? "This profile is private. Follow to see their posts."
+              : "No posts yet"}
           </Text>
         </Center>
       ) : (
@@ -538,7 +457,7 @@ const UserProfilePage = () => {
               />
             ))}
           </SimpleGrid>
-          {totalPages > 1 && (
+          {pagination.totalPages > 1 && (
             <Flex justify="center" mt={8} gap={2}>
               <Button
                 onClick={() => handlePageChange(currentPage - 1)}
@@ -548,11 +467,11 @@ const UserProfilePage = () => {
                 Previous
               </Button>
               <Text alignSelf="center" px={4}>
-                Page {currentPage} of {totalPages}
+                Page {currentPage} of {pagination.totalPages}
               </Text>
               <Button
                 onClick={() => handlePageChange(currentPage + 1)}
-                isDisabled={currentPage === totalPages}
+                isDisabled={currentPage === pagination.totalPages}
                 rightIcon={<SlArrowRight />}
               >
                 Next

@@ -301,6 +301,7 @@ export const deleteEntry = async (req, res) => {
 // like product
 export const likeEntry = async (req, res) => {
   const { id } = req.params;
+  const { uid } = req.user; // Get the current user's ID
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -316,12 +317,41 @@ export const likeEntry = async (req, res) => {
         .json({ success: false, message: "Entry not found" });
     }
 
-    entry.likes = (entry.likes || 0) + 1;
-    await entry.save();
+    // Ensure likes is always an array (handle legacy data where likes was a number)
+    if (!Array.isArray(entry.likes)) {
+      entry.likes = [];
+    }
 
-    res.status(200).json({ success: true, data: entry });
+    // Check if user has already liked the post
+    const userLikedIndex = entry.likes.findIndex((likeId) => likeId === uid);
+
+    if (userLikedIndex > -1) {
+      // User has already liked the post, so unlike it
+      entry.likes.splice(userLikedIndex, 1);
+      await entry.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Post unliked successfully",
+        liked: false,
+        likes: entry.likes.length,
+        data: entry,
+      });
+    } else {
+      // User hasn't liked the post, so like it
+      entry.likes.push(uid);
+      await entry.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Post liked successfully",
+        liked: true,
+        likes: entry.likes.length,
+        data: entry,
+      });
+    }
   } catch (error) {
-    // console.error("Error in liking entry:", error.message);
+    console.error("Error in liking/unliking entry:", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };

@@ -29,6 +29,7 @@ import {
   Box,
 } from "@chakra-ui/react";
 import { debounce } from "lodash";
+import { API_ENDPOINTS, apiClient } from "../config/api";
 
 export const HeroHeader = () => {
   const [menuState, setMenuState] = React.useState(false);
@@ -91,27 +92,15 @@ export const HeroHeader = () => {
     try {
       const user = auth.currentUser;
       if (!user) throw new Error("User not authenticated");
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `http://localhost:5001/api/searchUsers?query=${encodeURIComponent(
-          query
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      if (!response.ok) throw new Error("Failed to search users");
-      const data = await response.json();
+
+      const response = await apiClient.get(API_ENDPOINTS.SEARCH_USERS(query));
+      const data = response.data;
       setSearchResults(data.data || []);
     } catch (error) {
       console.error("Error searching users:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to search users",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -184,18 +173,11 @@ export const HeroHeader = () => {
       const token = await result.user.getIdToken();
 
       // First, check if user already exists in our database
-      const userCheckResponse = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const userCheckResponse = await apiClient.get(
+        API_ENDPOINTS.GET_CURRENT_USER
       );
 
-      const userExists = userCheckResponse.ok;
+      const userExists = userCheckResponse.status === 200;
 
       if (mode === "login" && !userExists) {
         // User tried to login but doesn't have an account
@@ -229,34 +211,14 @@ export const HeroHeader = () => {
 
       // If it's a signup, create the user account
       if (mode === "signup") {
-        const response = await fetch(
-          "https://gym-tracker-brown.vercel.app/api/protected",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        if (!response.ok) throw new Error(await response.text());
-        const userData = await response.json();
+        const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
+        const userData = response.data;
         console.log("New user created:", userData);
       }
 
       // Get current user data
-      const userResponse = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (!userResponse.ok) throw new Error(await userResponse.text());
-      const resultOne = await userResponse.json();
+      const userResponse = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
+      const resultOne = userResponse.data;
 
       setIsSignedIn(true);
 
@@ -280,16 +242,14 @@ export const HeroHeader = () => {
         });
       }
     } catch (error) {
-      console.error("Error during sign-in:", error);
+      console.error("Google sign-in error:", error);
       toast({
-        title: "Authentication Error",
-        description:
-          error.message || "Failed to authenticate. Please try again.",
+        title: "Sign-in Failed",
+        description: error.message || "Failed to sign in with Google",
         status: "error",
         duration: 5000,
         isClosable: true,
       });
-      handleSignOut();
     }
   };
 
@@ -439,16 +399,29 @@ export const HeroHeader = () => {
                                   w="full"
                                 >
                                   <Avatar src={user.picture} size="sm" mr={2} />
-                                  <Text
-                                    fontWeight={
-                                      auth.currentUser &&
-                                      user.uid === auth.currentUser.uid
-                                        ? "bold"
-                                        : "normal"
-                                    }
-                                  >
-                                    {user.name}
-                                  </Text>
+                                  <Box flex={1}>
+                                    <Text
+                                      fontWeight={
+                                        auth.currentUser &&
+                                        user.uid === auth.currentUser.uid
+                                          ? "bold"
+                                          : "normal"
+                                      }
+                                    >
+                                      {user.name}
+                                    </Text>
+                                    {user.username &&
+                                      user.username !== user.name && (
+                                        <Text fontSize="xs" color="gray.500">
+                                          @{user.username}
+                                        </Text>
+                                      )}
+                                    {user.isPrivate && (
+                                      <Text fontSize="xs" color="gray.400">
+                                        Private Profile
+                                      </Text>
+                                    )}
+                                  </Box>
                                 </Flex>
                               </Link>
                             );
@@ -610,16 +583,29 @@ export const HeroHeader = () => {
                               w="full"
                             >
                               <Avatar src={user.picture} size="sm" mr={2} />
-                              <Text
-                                fontWeight={
-                                  auth.currentUser &&
-                                  user.uid === auth.currentUser.uid
-                                    ? "bold"
-                                    : "normal"
-                                }
-                              >
-                                {user.name}
-                              </Text>
+                              <Box flex={1}>
+                                <Text
+                                  fontWeight={
+                                    auth.currentUser &&
+                                    user.uid === auth.currentUser.uid
+                                      ? "bold"
+                                      : "normal"
+                                  }
+                                >
+                                  {user.name}
+                                </Text>
+                                {user.username &&
+                                  user.username !== user.name && (
+                                    <Text fontSize="xs" color="gray.500">
+                                      @{user.username}
+                                    </Text>
+                                  )}
+                                {user.isPrivate && (
+                                  <Text fontSize="xs" color="gray.400">
+                                    Private Profile
+                                  </Text>
+                                )}
+                              </Box>
                             </Flex>
                           </Link>
                         );

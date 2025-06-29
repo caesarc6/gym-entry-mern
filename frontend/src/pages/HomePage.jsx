@@ -76,10 +76,8 @@ const HomePage = () => {
         const response = await apiClient.get(
           API_ENDPOINTS.USERS_FOLLOWING(uid)
         );
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-        const data = await response.json();
+
+        const data = response.data;
         // console.log("Following API response:", data);
         if (data.success) {
           const uids = data.data.map((user) => user.uid);
@@ -154,7 +152,7 @@ const HomePage = () => {
               const response = await apiClient.get(
                 API_ENDPOINTS.POSTS(fetchUid, userPage, limit)
               );
-              const data = await response.json();
+              const data = response.data;
               // console.log(
               //   `Response for UID ${fetchUid} (page ${userPage}):`,
               //   data
@@ -301,19 +299,13 @@ const HomePage = () => {
       const token = await result.user.getIdToken();
       const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
 
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const userData = await response.json();
+      const userData = response.data;
       console.log("User Data:", userData.uid);
       const currentUserResponse = await apiClient.get(
         API_ENDPOINTS.GET_CURRENT_USER
       );
 
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const currentUserData = await currentUserResponse.json();
+      const currentUserData = currentUserResponse.data;
       console.log("Logged in as:", currentUserData);
     } catch (error) {
       console.error("Error during sign-in:", error);

@@ -1,4 +1,5 @@
 import { DeleteIcon, EditIcon, StarIcon } from "@chakra-ui/icons";
+import { HamburgerIcon } from "@chakra-ui/icons";
 import {
   Box,
   Button,
@@ -21,7 +22,12 @@ import {
   useToast,
   VStack,
   useColorMode,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from "@chakra-ui/react";
+import { Link } from "react-router-dom";
 import { FileUploader } from "./FileUploader";
 import { useProductStore } from "../store/product";
 import { useState, useEffect } from "react";
@@ -46,6 +52,8 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
     "https://cataas.com/cat" // Valid fallback image
   );
   const [userDisplayName, setUserDisplayName] = useState("");
+  const [isUsername, setIsUsername] = useState(false);
+  const [isLiked, setIsLiked] = useState(false); // Track if current user has liked this post
 
   const [comment, setComment] = useState("");
 
@@ -92,7 +100,9 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
             response.data.data.username ||
             response.data.data.name ||
             "Unknown User";
+          const isUsernameValue = !!response.data.data.username;
           setUserDisplayName(displayName);
+          setIsUsername(isUsernameValue);
         } else {
           console.log("No profile data found in response, using fallback");
           setProfileImage("https://cataas.com/cat");
@@ -121,6 +131,16 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
     // console.log("Updated profileImage:", profileImage);
     // console.log("Updated userDisplayName:", userDisplayName);
   }, [profileImage, userDisplayName]);
+
+  // Check if current user has liked this post
+  useEffect(() => {
+    if (currentUser && entry.likes && Array.isArray(entry.likes)) {
+      const userLiked = entry.likes.some(
+        (likeId) => likeId === currentUser.uid
+      );
+      setIsLiked(userLiked);
+    }
+  }, [currentUser, entry.likes]);
 
   const handleFileUpload = (file) => {
     const reader = new FileReader();
@@ -196,7 +216,7 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
   };
 
   const handleLikeEntry = async (pid) => {
-    const { success, message } = await likeEntry(pid);
+    const { success, message, liked, likes } = await likeEntry(pid);
     if (!success) {
       toast({
         title: "Error",
@@ -206,15 +226,16 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         isClosable: true,
       });
     } else {
+      setIsLiked(liked);
       setUpdatedEntry((prevEntry) => ({
         ...prevEntry,
-        likes: prevEntry.likes + 1,
+        likes: likes,
       }));
       toast({
         title: "Success",
-        description: "Entry liked successfully",
+        description: message,
         status: "success",
-        duration: 5000,
+        duration: 2000,
         isClosable: true,
       });
     }
@@ -339,7 +360,11 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
           maxW="120px"
           noOfLines={1}
         >
-          {userDisplayName}
+          <Link to={`/user/${entry.ownerId || entry.uid}`}>
+            <Text _hover={{ textDecoration: "underline" }} cursor="pointer">
+              {isUsername ? `@${userDisplayName}` : userDisplayName}
+            </Text>
+          </Link>
         </Text>
       </HStack>
       <VStack className="px-8" spacing={4} p="8px 8px 8px 8px">
@@ -374,58 +399,27 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         <Text color={textColorOne} fontFamily="Arial, sans-serif">
           Likes: {updatedEntry.likes}
         </Text>
-        <HStack
-          style={{
-            display: "flex",
-            padding: "0px 12px 0px 12px",
-            justifyContent: isOwner ? "space-between" : "flex-start",
-            width: "100%",
-          }}
-        >
-          <IconButton
-            onClick={() => handleLikeEntry(entry._id)}
-            icon={<StarIcon />}
-            colorScheme="purple"
-            style={{ width: "40px", height: "33px" }}
-          />
-          {isOwner && (
-            <>
-              <IconButton
-                onClick={onOpen}
-                icon={<EditIcon />}
-                style={{ width: "235px", height: "55px" }}
-                bg={useColorModeValue("gray.300", "gray.900")}
-                color={"white"}
-                rounded={"md"}
-                _hover={{
-                  boxShadow: "lg",
-                }}
-              />
-              <IconButton
-                onClick={onDeleteOpen}
-                icon={<DeleteIcon />}
-                colorScheme="red"
-                bg={useColorModeValue("red.200", "red.800")}
-                style={{ width: "40px", height: "29px" }}
-              />
-            </>
-          )}
-        </HStack>
-        <HStack spacing={2}>
-          <Input
-            placeholder="Comment here.."
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-          <Button
-            style={{ bottom: "8px" }}
-            colorScheme="gray"
-            onClick={() => handleCommentEntry(entry._id, comment)}
-            mt={4}
-          >
-            Comment
-          </Button>
-        </HStack>
+
+        {/* Comment Section - Only show for owner */}
+        {isOwner && (
+          <HStack spacing={2} w="full">
+            <Input
+              placeholder="Comment here.."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
+            <Button
+              colorScheme="gray"
+              onClick={() => handleCommentEntry(entry._id, comment)}
+              px={4}
+              py={2}
+            >
+              Comment
+            </Button>
+          </HStack>
+        )}
+
+        {/* Comments Display */}
         <VStack
           style={{
             maxWidth: "360px",
@@ -460,6 +454,108 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
             </Box>
           ))}
         </VStack>
+
+        {/* Action Buttons - Restructured layout */}
+        {isOwner ? (
+          // Owner view: Favorite icon, edit button, and delete menu all in one row
+          <HStack w="full" justify="space-between" spacing={1} pt={1} pb={0}>
+            <IconButton
+              onClick={() => handleLikeEntry(entry._id)}
+              icon={<StarIcon />}
+              bg={
+                isLiked
+                  ? useColorModeValue("yellow.400", "yellow.500")
+                  : useColorModeValue("", "gray.800")
+              }
+              color={isLiked ? "white" : "inherit"}
+              boxShadow={useColorModeValue("lg", "lg")}
+              size="md"
+              rounded="lg"
+              _hover={{
+                boxShadow: "lg",
+                bg: isLiked
+                  ? useColorModeValue("yellow.500", "yellow.600")
+                  : useColorModeValue("gray.100", "gray.700"),
+              }}
+            />
+            <IconButton
+              onClick={onOpen}
+              icon={<EditIcon />}
+              bg={useColorModeValue("gray.200", "gray.800")}
+              color={"white"}
+              rounded="lg"
+              size="md"
+              flex={1}
+              boxShadow={useColorModeValue("lg", "md")}
+              _hover={{
+                boxShadow: "lg",
+                bg: useColorModeValue("gray.300", "gray.700"),
+              }}
+            />
+            <Menu>
+              <MenuButton
+                as={IconButton}
+                icon={<HamburgerIcon />}
+                variant="ghost"
+                size="md"
+                rounded="lg"
+                boxShadow={useColorModeValue("lg", "lg")}
+                _hover={{
+                  bg: useColorModeValue("gray.100", "gray.700"),
+                }}
+              />
+              <MenuList>
+                <MenuItem
+                  icon={<DeleteIcon />}
+                  onClick={onDeleteOpen}
+                  color="red.500"
+                  _hover={{
+                    bg: useColorModeValue("red.50", "red.900"),
+                  }}
+                >
+                  Delete Post
+                </MenuItem>
+              </MenuList>
+            </Menu>
+          </HStack>
+        ) : (
+          // Non-owner view: Favorite icon, comment input, and comment button in one row
+          <HStack w="full" spacing={2} pt={1} pb={0}>
+            <IconButton
+              onClick={() => handleLikeEntry(entry._id)}
+              icon={<StarIcon />}
+              bg={
+                isLiked
+                  ? useColorModeValue("yellow.400", "yellow.500")
+                  : useColorModeValue("", "gray.800")
+              }
+              color={isLiked ? "white" : "inherit"}
+              boxShadow={useColorModeValue("lg", "lg")}
+              size="md"
+              rounded="lg"
+              _hover={{
+                boxShadow: "lg",
+                bg: isLiked
+                  ? useColorModeValue("yellow.500", "yellow.600")
+                  : useColorModeValue("gray.100", "gray.700"),
+              }}
+            />
+            <Input
+              placeholder="Comment here.."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              flex={1}
+            />
+            <Button
+              colorScheme="gray"
+              onClick={() => handleCommentEntry(entry._id, comment)}
+              px={4}
+              py={2}
+            >
+              Comment
+            </Button>
+          </HStack>
+        )}
       </VStack>
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
@@ -550,7 +646,10 @@ ProductCard.propTypes = {
     name: PropTypes.string.isRequired,
     description: PropTypes.string,
     image: PropTypes.string,
-    likes: PropTypes.number,
+    likes: PropTypes.oneOfType([
+      PropTypes.number,
+      PropTypes.arrayOf(PropTypes.string),
+    ]),
     comments: PropTypes.arrayOf(
       PropTypes.shape({
         text: PropTypes.string.isRequired,

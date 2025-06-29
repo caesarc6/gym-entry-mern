@@ -5,6 +5,7 @@ import {
   Button,
   HStack,
   useColorMode,
+  useToast,
 } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 import { PlusSquareIcon } from "@chakra-ui/icons";
@@ -12,8 +13,8 @@ import { IoMoon } from "react-icons/io5";
 import { LuSun } from "react-icons/lu";
 import { useState, useEffect } from "react";
 import { auth, googleProvider } from "../firebase";
-
 import { signInWithPopup, signOut } from "firebase/auth";
+import { API_ENDPOINTS, apiClient } from "../config/api";
 
 const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -21,6 +22,7 @@ const Navbar = () => {
   const [entries, setEntries] = useState([]);
   const [uid, setUid] = useState(null);
   const [isLoading, setIsLoading] = useState(true); // Add loading state
+  const toast = useToast();
 
   // Add this useEffect to handle initial auth state
   useEffect(() => {
@@ -39,6 +41,74 @@ const Navbar = () => {
     return () => unsubscribe(); // Cleanup subscription
   }, []);
 
+  const checkUserExists = async () => {
+    try {
+      const userCheckResponse = await apiClient.get(
+        API_ENDPOINTS.GET_CURRENT_USER
+      );
+      const userExists = userCheckResponse.status === 200;
+      return userExists;
+    } catch (error) {
+      console.error("Error checking user existence:", error);
+      return false;
+    }
+  };
+
+  const handleSignIn = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const token = await result.user.getIdToken();
+      const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
+
+      const userData = response.data;
+      console.log("User Data:", userData.uid);
+      const currentUserResponse = await apiClient.get(
+        API_ENDPOINTS.GET_CURRENT_USER
+      );
+
+      const currentUserData = currentUserResponse.data;
+      console.log("Logged in as:", currentUserData);
+    } catch (error) {
+      console.error("Error during sign-in:", error);
+      handleSignOut();
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign in",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      console.log("Signed out");
+      setUid(null);
+      setIsSignedIn(false);
+    } catch (error) {
+      console.error("Error during sign-out:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign out",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const checkCurrentUser = async () => {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
+      const currentUserData = response.data;
+      console.log("Current user data:", currentUserData);
+    } catch (error) {
+      console.error("Error checking current user:", error);
+    }
+  };
+
   const handleGoogleSignIn = async (mode = "login") => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -46,18 +116,7 @@ const Navbar = () => {
       const token = await result.user.getIdToken();
 
       // First, check if user already exists in our database
-      const userCheckResponse = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const userExists = userCheckResponse.ok;
+      const userExists = await checkUserExists();
 
       if (mode === "login" && !userExists) {
         // User tried to login but doesn't have an account
@@ -81,47 +140,19 @@ const Navbar = () => {
 
       // If it's a signup, create the user account
       if (mode === "signup") {
-        const response = await fetch(
-          "https://gym-tracker-brown.vercel.app/api/protected",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        if (!response.ok) {
+        const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
+        if (response.status !== 200) {
           throw new Error(await response.text());
         }
-        const userData = await response.json();
+        const userData = response.data;
         console.log("New user created:", userData.uid);
       }
 
-      try {
-        const token = await auth.currentUser.getIdToken();
-        const response = await fetch(
-          "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-        const resultOne = await response.json();
-        console.log("Logged in as:", resultOne);
-      } catch (error) {
-        console.error("Error fetching all UID:", error);
-      }
+      await checkCurrentUser();
     } catch (error) {
       // clear feed and user sign in state to sign out
       console.error("Error during sign-in:", error);
-      handleSignOutUser();
+      handleSignOut();
     }
   };
 

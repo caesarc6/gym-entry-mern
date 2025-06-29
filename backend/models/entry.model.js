@@ -26,7 +26,7 @@ const entrySchema = new mongoose.Schema(
     //   default: 0,
     // },
 
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Changed to array
+    likes: [{ type: String }], // Array of Firebase UIDs
     // add timestamps for comments
     comments: [
       {

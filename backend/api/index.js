@@ -67,11 +67,17 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
   let user = await User.findOne({ uid });
 
   if (!user) {
+    // Generate username from name: remove spaces and convert to lowercase
+    const generatedUsername = name
+      ? name.replace(/\s+/g, "").toLowerCase()
+      : `user${Date.now()}`;
+
     user = new User({
       uid,
       name,
       email,
       picture,
+      username: generatedUsername,
       profileImage: null, // Additional field initialized with null
       bio: null, // Additional field initialized with null
       goal: null, // Additional field initialized with null

@@ -63,7 +63,7 @@ router.get("/", getEntrys);
 router.post("/", createEntry);
 
 router.delete("/:id", deleteEntry);
-router.post("/:id/like", likeEntry);
+router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", commentEntry);
 
 router.post(

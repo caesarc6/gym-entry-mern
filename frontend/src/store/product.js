@@ -147,7 +147,12 @@ export const useProductStore = create((set) => ({
           entry._id === pid ? { ...entry, likes: data.likes } : entry
         ),
       }));
-      return { success: true, message: data.message };
+      return {
+        success: true,
+        message: data.message,
+        liked: data.liked,
+        likes: data.likes,
+      };
     } catch (error) {
       console.error("Error liking entry:", error);
       throw new Error(error.response?.data?.error || "Failed to like entry");

@@ -146,9 +146,7 @@ const ProfilePage = () => {
         API_ENDPOINTS.FOLLOW_REQUESTS_PENDING
       );
 
-      if (!response.ok) throw new Error("Failed to fetch follow requests");
-
-      const data = await response.json();
+      const data = response.data;
       setFollowRequests(data.data || []);
     } catch (error) {
       console.error("Error fetching follow requests:", error);
@@ -168,9 +166,7 @@ const ProfilePage = () => {
         API_ENDPOINTS.FOLLOW_REQUEST_ACTION(requestId, action)
       );
 
-      if (!response.ok) throw new Error("Failed to process request");
-
-      const data = await response.json();
+      const data = response.data;
 
       // Remove the processed request from the list
       setFollowRequests((prev) =>
@@ -216,9 +212,7 @@ const ProfilePage = () => {
         API_ENDPOINTS.GET_USER_PROFILE(user.uid)
       );
 
-      if (!response.ok) throw new Error(await response.text());
-
-      const data = await response.json();
+      const data = response.data;
       //   console.log("Profile data:", data.data);
 
       setUserProfile({
@@ -248,13 +242,11 @@ const ProfilePage = () => {
         API_ENDPOINTS.POSTS(userId, page, limit)
       );
 
-      if (!response.ok) throw new Error(await response.text());
-
-      const data = await response.json();
+      const data = response.data;
       console.log("Posts data:", data);
 
       if (data.success) {
-        setEntries(data.data.posts || []);
+        setEntries(data.data || []);
         setPagination(data.pagination);
       } else {
         console.error("Failed to fetch posts:", data.message);
@@ -390,18 +382,7 @@ const ProfilePage = () => {
         }
       );
 
-      if (!profileResponse.ok) {
-        const errorData = await profileResponse.json();
-        // Handle specific username uniqueness error
-        if (errorData.message && errorData.message.includes("username")) {
-          throw new Error(
-            "Username is already taken. Please choose a different one."
-          );
-        }
-        throw new Error(errorData.message || "Failed to update profile");
-      }
-
-      const profileData = await profileResponse.json();
+      const profileData = profileResponse.data;
       setUserProfile((prev) => ({
         ...prev,
         ...profileData.data,
@@ -797,33 +778,41 @@ const ProfilePage = () => {
                       bg={modalBgColor}
                     >
                       <Flex align="center" flex={1}>
-                        <Avatar
-                          src={request.requester.picture}
-                          size="sm"
-                          mr={3}
-                        />
-                        <Box flex={1}>
-                          <Text fontWeight="medium" fontSize="md">
-                            {request.requester.name ||
-                              request.requester.username}
-                          </Text>
-                          {request.requester.username &&
-                            request.requester.name && (
-                              <Text fontSize="sm" color="gray.500">
-                                @{request.requester.username}
+                        <Link to={`/user/${request.requester.uid}`}>
+                          <Avatar
+                            src={request.requester.picture}
+                            size="sm"
+                            mr={3}
+                          />
+                        </Link>
+                        <Link to={`/user/${request.requester.uid}`}>
+                          <Box flex={1}>
+                            <Text
+                              fontWeight="medium"
+                              fontSize="md"
+                              _hover={{ textDecoration: "underline" }}
+                            >
+                              {request.requester.name ||
+                                request.requester.username}
+                            </Text>
+                            {request.requester.username &&
+                              request.requester.name && (
+                                <Text fontSize="sm" color="gray.500">
+                                  @{request.requester.username}
+                                </Text>
+                              )}
+                            {request.requester.bio && (
+                              <Text
+                                fontSize="xs"
+                                color="gray.400"
+                                mt={1}
+                                noOfLines={2}
+                              >
+                                {request.requester.bio}
                               </Text>
                             )}
-                          {request.requester.bio && (
-                            <Text
-                              fontSize="xs"
-                              color="gray.400"
-                              mt={1}
-                              noOfLines={2}
-                            >
-                              {request.requester.bio}
-                            </Text>
-                          )}
-                        </Box>
+                          </Box>
+                        </Link>
                       </Flex>
                       <HStack spacing={2} ml={4}>
                         <Button
