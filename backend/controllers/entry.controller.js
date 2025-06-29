@@ -157,127 +157,50 @@ export const updateEntry = async (req, res) => {
   }
 };
 
-// Update Post
-// export const updateEntry = async (req, res) => {
-//   // console.log("Request received");
-//   // console.log("req.body", req.body);
-//   const imageUrl = req.imageUrl; // Get the image URL from handleFileUpload
-//   const { pid, name, description, image } = req.body; // Extract fields directly from req.body
-//   const { uid } = req.user;
+// PUT route handler for updating entries
+export const updateEntryPut = async (req, res) => {
+  const { id } = req.params; // Get ID from URL params
+  const { name, description, image } = req.body; // Extract fields from req.body
+  const { uid } = req.user;
 
-//   if (!name && !description) {
-//     // console.log("Missing fields:", { name, description });
-//     return res.status(400).json({ error: "Missing required fields" });
-//   }
-//   await new Promise((resolve, reject) => {
-//     uploadMiddleware(req, res, (err) => {
-//       if (err) {
-//         reject(err);
-//       }
-//       resolve();
-//     });
-//   });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Invalid Entry Id" });
+  }
 
-//   try {
-//     let postImageUrl = null;
+  // Check if at least one of the fields (name or description) is provided
+  if (!name) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Missing required fields" });
+  }
 
-//     if (image) {
-//       const base64Data = image.split(";base64,").pop();
-//       const imageBuffer = Buffer.from(base64Data, "base64");
-//       const timestamp = Date.now();
-//       const filePath = `images/image_${uid}_${timestamp}.jpg`;
+  try {
+    // Prepare the update object
+    const updateData = {
+      ...(name && { name }), // Only include name if it's provided
+      ...(description && { description }), // Only include description if it's provided
+      ...(image && { image }), // Only include image if it's provided
+    };
 
-//       const { data: file, error } = await supabase.storage
-//         .from("post_images")
-//         .upload(filePath, imageBuffer, {
-//           contentType: "image/jpeg",
-//           cacheControl: "3600",
-//           upsert: true,
-//         });
+    // Update the entry in the database
+    const entryData = await Entry.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
 
-//       if (error) {
-//         // console.error("Supabase upload error details:", error);
-//         return res.status(500).json({
-//           error: "Failed to upload image",
-//           details: error.message,
-//         });
-//       }
+    if (!entryData) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
 
-//       postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
-//       // console.log("Generated URL:", postImageUrl);
-//     }
-//     // console.log("post URL", entryData.postImageUrl);
-//     // Update the entry in the database
-//     const entryData = await Entry.findByIdAndUpdate(
-//       pid,
-//       {
-//         name,
-//         description,
-//         ...(postImageUrl && { image: postImageUrl }),
-//       },
-//       { new: true }
-//     );
-
-//     res.status(200).json({ success: true, data: entryData });
-//   } catch (error) {
-//     // console.error("Error in updating entry:", error.message);
-//     res.status(500).json({ success: false, message: "Server Error" });
-//   }
-// };
-
-// update product
-// export const updateEntry = async (req, res) => {
-//   const { id } = req.params;
-//   const { uid } = req.user;
-//   console.log("req.body", req.body);
-//   console.log("req.file", req.file);
-//   // if req body is empty return error
-//   if (!req.body) {
-//     return res
-//       .status(400)
-//       .json({ success: false, message: "Please provide all fields" });
-//   }
-
-//   if (!mongoose.Types.ObjectId.isValid(id)) {
-//     return res
-//       .status(404)
-//       .json({ success: false, message: "Invalid Entry Id" });
-//   }
-
-//   try {
-//     const entry = JSON.parse(req.body.entry);
-//     console.log("data form data", entry);
-
-//     let imageUrl = null;
-//     if (req.file) {
-//       const { data, error } = await supabase.storage
-//         .from("post_images")
-//         .upload(`post_images/${req.file.originalname}`, req.file.buffer);
-
-//       if (error) {
-//         console.log("Error uploading image", error.message);
-//         return res
-//           .status(500)
-//           .json({ success: false, message: "Server Error" });
-//       }
-
-//       imageUrl = data.Key;
-//     }
-
-//     if (imageUrl) {
-//       entry.image = imageUrl;
-//     }
-
-//     const updatedEntry = await Entry.findOneAndUpdate(uid, entry, {
-//       new: true,
-//     });
-
-//     res.status(200).json({ success: true, data: updatedEntry });
-//   } catch (error) {
-//     console.error("Error in updating entry:", error.message, req.body);
-//     res.status(500).json({ success: false, message: "Server Error" });
-//   }
-// };
+    res.status(200).json({ success: true, data: entryData });
+  } catch (error) {
+    console.error("Error in updating entry:", error.message);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
 
 // delete product
 export const deleteEntry = async (req, res) => {

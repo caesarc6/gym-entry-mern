@@ -5,6 +5,7 @@ import {
   deleteEntry,
   getEntrys,
   updateEntry,
+  updateEntryPut,
   likeEntry,
   commentEntry,
 } from "../controllers/entry.controller.js";
@@ -65,6 +66,9 @@ router.post("/", createEntry);
 router.delete("/:id", deleteEntry);
 router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", commentEntry);
+
+// Add PUT route for updating entries (frontend expects this)
+router.put("/:id", verifyIdToken, updateEntryPut);
 
 router.post(
   "/:id",
