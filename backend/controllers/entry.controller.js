@@ -163,6 +163,14 @@ export const updateEntryPut = async (req, res) => {
   const { name, description, image } = req.body; // Extract fields from req.body
   const { uid } = req.user;
 
+  console.log("updateEntryPut called with:", {
+    id,
+    uid,
+    name,
+    description,
+    hasImage: !!image,
+  });
+
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
       .status(404)
@@ -184,6 +192,8 @@ export const updateEntryPut = async (req, res) => {
       ...(image && { image }), // Only include image if it's provided
     };
 
+    console.log("Update data:", updateData);
+
     // Update the entry in the database
     const entryData = await Entry.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -195,9 +205,12 @@ export const updateEntryPut = async (req, res) => {
         .json({ success: false, message: "Entry not found" });
     }
 
+    console.log("Entry updated successfully:", entryData._id);
+
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
     console.error("Error in updating entry:", error.message);
+    console.error("Full error:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -226,6 +239,8 @@ export const likeEntry = async (req, res) => {
   const { id } = req.params;
   const { uid } = req.user; // Get the current user's ID
 
+  console.log("likeEntry called with:", { id, uid });
+
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
       .status(400)
@@ -240,18 +255,27 @@ export const likeEntry = async (req, res) => {
         .json({ success: false, message: "Entry not found" });
     }
 
+    console.log("Found entry:", {
+      entryId: entry._id,
+      currentLikes: entry.likes,
+    });
+
     // Ensure likes is always an array (handle legacy data where likes was a number)
     if (!Array.isArray(entry.likes)) {
+      console.log("Converting likes from non-array to array:", entry.likes);
       entry.likes = [];
     }
 
     // Check if user has already liked the post
     const userLikedIndex = entry.likes.findIndex((likeId) => likeId === uid);
+    console.log("User liked index:", userLikedIndex);
 
     if (userLikedIndex > -1) {
       // User has already liked the post, so unlike it
       entry.likes.splice(userLikedIndex, 1);
       await entry.save();
+
+      console.log("Post unliked, new likes count:", entry.likes.length);
 
       res.status(200).json({
         success: true,
@@ -265,6 +289,8 @@ export const likeEntry = async (req, res) => {
       entry.likes.push(uid);
       await entry.save();
 
+      console.log("Post liked, new likes count:", entry.likes.length);
+
       res.status(200).json({
         success: true,
         message: "Post liked successfully",
@@ -275,6 +301,7 @@ export const likeEntry = async (req, res) => {
     }
   } catch (error) {
     console.error("Error in liking/unliking entry:", error.message);
+    console.error("Full error:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
