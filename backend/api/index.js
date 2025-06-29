@@ -98,6 +98,35 @@ app.get("/api", (req, res) => {
   res.send("Server deployed and running on vercel.");
 });
 
+// Test route to check if the server is working
+app.get("/api/test", (req, res) => {
+  res.json({ success: true, message: "API is working" });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error("Global error handler:", err);
+  res.status(500).json({
+    success: false,
+    message: "Internal Server Error",
+    error:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : "Something went wrong",
+  });
+});
+
+// 404 handler for unmatched routes
+app.use((req, res) => {
+  console.log("404 - Route not found:", req.method, req.url);
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+    method: req.method,
+    url: req.url,
+  });
+});
+
 // For Vercel deployment, we don't serve static files here
 // Vercel handles the frontend routing separately
 

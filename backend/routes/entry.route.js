@@ -63,6 +63,11 @@ export const handleFileUpload = (req, res, next) => {
 router.get("/", getEntrys);
 router.post("/", createEntry);
 
+// Test route to check if entry routes are working
+router.get("/test", (req, res) => {
+  res.json({ success: true, message: "Entry routes are working" });
+});
+
 router.delete("/:id", deleteEntry);
 router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", commentEntry);
