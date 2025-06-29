@@ -107,7 +107,7 @@ router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", commentEntry);
 
 // PUT route for updating entries (frontend expects this)
-router.put("/:id", verifyIdToken, async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     console.log("Simple PUT route called with:", {
       id: req.params.id,
@@ -141,6 +141,17 @@ router.put("/:id", verifyIdToken, async (req, res) => {
       stack: error.stack,
     });
   }
+});
+
+// Completely basic PUT route without any database operations
+router.put("/:id/basic", (req, res) => {
+  console.log("Basic PUT route called");
+  res.json({
+    success: true,
+    message: "Basic PUT route is working",
+    id: req.params.id,
+    body: req.body,
+  });
 });
 
 // Simple test PUT route to check if PUT routing works
