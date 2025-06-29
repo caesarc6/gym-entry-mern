@@ -160,7 +160,7 @@ export const updateEntry = async (req, res) => {
 // PUT route handler for updating entries
 export const updateEntryPut = async (req, res) => {
   const { id } = req.params; // Get ID from URL params
-  const { name, description, image } = req.body; // Extract fields from req.body
+  const { name, description, image, imageName } = req.body; // Extract fields from req.body
   const { uid } = req.user;
 
   console.log("updateEntryPut called with:", {
@@ -169,6 +169,7 @@ export const updateEntryPut = async (req, res) => {
     name,
     description,
     hasImage: !!image,
+    imageName,
   });
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -185,11 +186,44 @@ export const updateEntryPut = async (req, res) => {
   }
 
   try {
+    let postImageUrl = null;
+
+    // Handle image upload if provided
+    if (imageName && imageName !== "undefined" && image) {
+      console.log("Processing image upload");
+      const base64Data = image.split(";base64,").pop();
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      const timestamp = Date.now();
+      const filePath = `images/image_${uid}/${imageName}_${timestamp}.jpg`;
+
+      // Upload the new image to Supabase storage
+      const { data: file, error } = await supabase.storage
+        .from("post_images")
+        .upload(filePath, imageBuffer, {
+          contentType: "image/jpeg",
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (error) {
+        console.error("Supabase upload error:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload image",
+          details: error.message,
+        });
+      }
+
+      // Generate the URL for the newly uploaded image
+      postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+      console.log("Image uploaded successfully:", postImageUrl);
+    }
+
     // Prepare the update object
     const updateData = {
       ...(name && { name }), // Only include name if it's provided
       ...(description && { description }), // Only include description if it's provided
-      ...(image && { image }), // Only include image if it's provided
+      ...(postImageUrl && { image: postImageUrl }), // Only include image URL if a new image is uploaded
     };
 
     console.log("Update data:", updateData);
