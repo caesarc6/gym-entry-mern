@@ -73,6 +73,27 @@ router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", commentEntry);
 
 // PUT route for updating entries (frontend expects this)
-router.put("/:id", verifyIdToken, updateEntryPut);
+router.put("/:id", verifyIdToken, (req, res) => {
+  console.log("Simple PUT route called with:", {
+    id: req.params.id,
+    body: req.body,
+  });
+  res.json({
+    success: true,
+    message: "Simple PUT route is working",
+    id: req.params.id,
+    body: req.body,
+  });
+});
+
+// Simple test PUT route to check if PUT routing works
+router.put("/:id/test", (req, res) => {
+  res.json({
+    success: true,
+    message: "PUT route is working",
+    id: req.params.id,
+    body: req.body,
+  });
+});
 
 export default router;
