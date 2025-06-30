@@ -128,7 +128,7 @@ export const useProductStore = create((set) => ({
           entry._id === pid ? { ...entry, ...updatedEntry } : entry
         ),
       }));
-      return { success: true, message: data.message };
+      return { success: true, message: data.message, data: data.data };
     } catch (error) {
       console.error("Error updating entry:", error);
       throw new Error(error.response?.data?.error || "Failed to update entry");

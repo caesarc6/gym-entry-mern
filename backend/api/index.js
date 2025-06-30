@@ -30,8 +30,11 @@ mongoose.connect(process.env.MONGO_URI, {
 verifyIdToken;
 
 const app = express();
-app.use(express.json()); // allows to use json data in the body
-app.use(bodyParser.urlencoded({ extended: true }));
+
+// Configure body parser with higher limits for image uploads
+app.use(express.json({ limit: "50mb" })); // allows to use json data in the body with 50MB limit
+app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
+app.use(bodyParser.json({ limit: "50mb" }));
 // app.use(express.urlencoded({ extended: true }));
 
 // Configure CORS with environment variables
@@ -106,6 +109,16 @@ app.get("/api/test", (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error("Global error handler:", err);
+
+  // Handle payload too large errors specifically
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({
+      success: false,
+      message: "File too large. Please upload a smaller image.",
+      error: "Payload too large",
+    });
+  }
+
   res.status(500).json({
     success: false,
     message: "Internal Server Error",

@@ -161,6 +161,16 @@ export const updateEntry = async (req, res) => {
 export const updateEntryPut = async (req, res) => {
   const { id } = req.params; // Get ID from URL params
   const { name, description, image, imageName } = req.body; // Extract fields from req.body
+
+  // Check if user is authenticated
+  if (!req.user || !req.user.uid) {
+    console.error("User not authenticated or missing uid:", req.user);
+    return res.status(401).json({
+      success: false,
+      message: "User not authenticated",
+    });
+  }
+
   const { uid } = req.user;
 
   console.log("updateEntryPut called with:", {

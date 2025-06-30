@@ -143,6 +143,32 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
   }, [currentUser, entry.likes]);
 
   const handleFileUpload = (file) => {
+    // Check file size (limit to 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast({
+        title: "Error",
+        description: "File too large. Please select an image smaller than 5MB.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    // Check file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Error",
+        description: "Please select a valid image file (JPEG, PNG, or GIF).",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setUpdatedEntry({
@@ -194,8 +220,8 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         isClosable: true,
       });
     } else {
-      if (data && data.data) {
-        const { name, description, likes, comments } = data.data;
+      if (data) {
+        const { name, description, likes, comments } = data;
         setUpdatedEntry((prevEntry) => ({
           ...prevEntry,
           name,
@@ -203,7 +229,7 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
           likes,
           comments,
         }));
-        onUpdate(pid, data.data);
+        onUpdate(pid, data);
       }
       toast({
         title: "Success",

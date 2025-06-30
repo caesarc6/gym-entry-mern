@@ -107,41 +107,7 @@ router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", commentEntry);
 
 // PUT route for updating entries (frontend expects this)
-router.put("/:id", async (req, res) => {
-  try {
-    console.log("Simple PUT route called with:", {
-      id: req.params.id,
-      body: req.body,
-    });
-
-    // Test MongoDB connection
-    const mongoose = await import("mongoose");
-    const Entry = await import("../models/entry.model.js");
-
-    console.log("MongoDB connection state:", mongoose.connection.readyState);
-
-    // Try to find the entry to test database access
-    const entry = await Entry.default.findById(req.params.id);
-    console.log("Entry found:", entry ? "Yes" : "No");
-
-    res.json({
-      success: true,
-      message: "Simple PUT route is working",
-      id: req.params.id,
-      body: req.body,
-      dbConnected: mongoose.connection.readyState === 1,
-      entryFound: !!entry,
-    });
-  } catch (error) {
-    console.error("Error in simple PUT route:", error);
-    res.status(500).json({
-      success: false,
-      message: "Database error",
-      error: error.message,
-      stack: error.stack,
-    });
-  }
-});
+router.put("/:id", verifyIdToken, updateEntryPut);
 
 // Completely basic PUT route without any database operations
 router.put("/:id/basic", (req, res) => {
