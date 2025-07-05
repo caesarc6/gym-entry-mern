@@ -61,7 +61,7 @@ export const handleFileUpload = (req, res, next) => {
 };
 
 router.get("/", getEntrys);
-router.post("/", createEntry);
+router.post("/", verifyIdToken, createEntry);
 
 // Test route to check if entry routes are working
 router.get("/test", (req, res) => {
@@ -102,7 +102,7 @@ router.get("/db-test", async (req, res) => {
   }
 });
 
-router.delete("/:id", deleteEntry);
+router.delete("/:id", verifyIdToken, deleteEntry);
 router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", commentEntry);
 

@@ -66,7 +66,7 @@ router.get("/profile-image/:uid", async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        profileImage: user.picture || null,
+        picture: user.picture || null,
         name: user.name || "Unknown User",
         username: user.username || null,
       },

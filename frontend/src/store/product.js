@@ -19,6 +19,9 @@ export const useProductStore = create((set) => ({
   post: [],
   setPost: (post) => set({ post }),
 
+  currentUserInfo: null,
+  setCurrentUserInfo: (info) => set({ currentUserInfo: info }),
+
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
     const token = await auth.currentUser.getIdToken();
@@ -102,7 +105,6 @@ export const useProductStore = create((set) => ({
       );
 
       const data = response.data;
-      console.log("Response:", data);
 
       return { success: true, message: data.message };
     } catch (error) {
@@ -151,7 +153,7 @@ export const useProductStore = create((set) => ({
         success: true,
         message: data.message,
         liked: data.liked,
-        likes: data.likes,
+        likes: data.likes, // now an array of user objects
       };
     } catch (error) {
       console.error("Error liking entry:", error);
@@ -201,7 +203,6 @@ export const useProductStore = create((set) => ({
       );
 
       const data = response.data;
-      console.log("Profile pic upload response:", data);
 
       return { success: true, message: data.message };
     } catch (error) {
@@ -223,7 +224,6 @@ export const useProductStore = create((set) => ({
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("profilePicture", file);
-      // console.log("executing code from Product.js (uploadProfilePic)");
       // Send to backend
       const res = await fetch(
         "https://gym-tracker-brown.vercel.app/api/upload/uploadProfilePic",
@@ -243,7 +243,7 @@ export const useProductStore = create((set) => ({
       }
 
       // Update UI with new image URL
-      setProfilePictureUrl(res.data.url);
+      // setProfilePictureUrl(res.data.url); // This line was removed as per the edit hint
     } catch (error) {
       console.error("Upload failed", error);
     }
@@ -251,11 +251,24 @@ export const useProductStore = create((set) => ({
 }));
 
 // Add an authentication state listener to ensure the user is authenticated
-auth.onAuthStateChanged((user) => {
+auth.onAuthStateChanged(async (user) => {
   if (user) {
-    // console.log("User authenticated:", user);
-    // Call fetchEntrys function here if needed
+    // Fetch full user info from backend
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
+      if (response.data && response.data.data) {
+        useProductStore.getState().setCurrentUserInfo(response.data.data);
+      }
+    } catch (e) {
+      // fallback: just store Firebase info
+      useProductStore.getState().setCurrentUserInfo({
+        uid: user.uid,
+        name: user.displayName || "User",
+        username: user.displayName || "user",
+        picture: user.photoURL || "",
+      });
+    }
   } else {
-    // console.error("User not authenticated");
+    useProductStore.getState().setCurrentUserInfo(null);
   }
 });

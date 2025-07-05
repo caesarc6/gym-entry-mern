@@ -73,7 +73,6 @@ export const getEntrys = async (req, res) => {
     const entrys = await Entry.find({});
     res.status(200).json({ success: true, data: entrys });
   } catch (error) {
-    console.log("Error in Fetching entries", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -81,12 +80,16 @@ export const getEntrys = async (req, res) => {
 // create product
 export const createEntry = async (req, res) => {
   const entry = req.body; // user will send this data
+  const { uid } = req.user; // Get the authenticated user's UID
 
   if (!entry.name && !entry.description) {
     return res
       .status(400)
       .json({ success: false, message: "Please provide Name and Description" });
   }
+
+  // Set the uid from the authenticated user
+  entry.uid = uid;
 
   const newEntry = new Entry(entry);
 
@@ -173,15 +176,6 @@ export const updateEntryPut = async (req, res) => {
 
   const { uid } = req.user;
 
-  console.log("updateEntryPut called with:", {
-    id,
-    uid,
-    name,
-    description,
-    hasImage: !!image,
-    imageName,
-  });
-
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
       .status(404)
@@ -196,11 +190,26 @@ export const updateEntryPut = async (req, res) => {
   }
 
   try {
+    // First, check if the entry exists and if the user is the owner
+    const existingEntry = await Entry.findById(id);
+
+    if (!existingEntry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+
+    // Check if the user is the owner of the entry
+    if (existingEntry.uid !== uid) {
+      return res
+        .status(403)
+        .json({ success: false, message: "You can only edit your own posts" });
+    }
+
     let postImageUrl = null;
 
     // Handle image upload if provided
     if (imageName && imageName !== "undefined" && image) {
-      console.log("Processing image upload");
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
       const timestamp = Date.now();
@@ -226,7 +235,6 @@ export const updateEntryPut = async (req, res) => {
 
       // Generate the URL for the newly uploaded image
       postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
-      console.log("Image uploaded successfully:", postImageUrl);
     }
 
     // Prepare the update object
@@ -236,20 +244,10 @@ export const updateEntryPut = async (req, res) => {
       ...(postImageUrl && { image: postImageUrl }), // Only include image URL if a new image is uploaded
     };
 
-    console.log("Update data:", updateData);
-
     // Update the entry in the database
     const entryData = await Entry.findByIdAndUpdate(id, updateData, {
       new: true,
     });
-
-    if (!entryData) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Entry not found" });
-    }
-
-    console.log("Entry updated successfully:", entryData._id);
 
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
@@ -262,6 +260,7 @@ export const updateEntryPut = async (req, res) => {
 // delete product
 export const deleteEntry = async (req, res) => {
   const { id } = req.params;
+  const { uid } = req.user;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -270,6 +269,23 @@ export const deleteEntry = async (req, res) => {
   }
 
   try {
+    // First, check if the entry exists and if the user is the owner
+    const existingEntry = await Entry.findById(id);
+
+    if (!existingEntry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+
+    // Check if the user is the owner of the entry
+    if (existingEntry.uid !== uid) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete your own posts",
+      });
+    }
+
     await Entry.findByIdAndDelete(id);
     res.status(200).json({ success: true, message: "Entry deleted" });
   } catch (error) {
@@ -282,8 +298,6 @@ export const deleteEntry = async (req, res) => {
 export const likeEntry = async (req, res) => {
   const { id } = req.params;
   const { uid } = req.user; // Get the current user's ID
-
-  console.log("likeEntry called with:", { id, uid });
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -299,47 +313,48 @@ export const likeEntry = async (req, res) => {
         .json({ success: false, message: "Entry not found" });
     }
 
-    console.log("Found entry:", {
-      entryId: entry._id,
-      currentLikes: entry.likes,
-    });
+    // Find the user by UID
+    const user = await mongoose.model("User").findOne({ uid });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
 
-    // Ensure likes is always an array (handle legacy data where likes was a number)
+    // Ensure likes is always an array
     if (!Array.isArray(entry.likes)) {
-      console.log("Converting likes from non-array to array:", entry.likes);
       entry.likes = [];
     }
 
-    // Check if user has already liked the post
-    const userLikedIndex = entry.likes.findIndex((likeId) => likeId === uid);
-    console.log("User liked index:", userLikedIndex);
+    // Check if user has already liked the post (by ObjectId)
+    const userLikedIndex = entry.likes.findIndex((likeId) =>
+      likeId.equals(user._id)
+    );
 
     if (userLikedIndex > -1) {
       // User has already liked the post, so unlike it
       entry.likes.splice(userLikedIndex, 1);
       await entry.save();
-
-      console.log("Post unliked, new likes count:", entry.likes.length);
-
+      // Populate likes with user info
+      await entry.populate("likes", "uid name username picture");
       res.status(200).json({
         success: true,
         message: "Post unliked successfully",
         liked: false,
-        likes: entry.likes.length,
+        likes: entry.likes,
         data: entry,
       });
     } else {
       // User hasn't liked the post, so like it
-      entry.likes.push(uid);
+      entry.likes.push(user._id);
       await entry.save();
-
-      console.log("Post liked, new likes count:", entry.likes.length);
-
+      // Populate likes with user info
+      await entry.populate("likes", "uid name username picture");
       res.status(200).json({
         success: true,
         message: "Post liked successfully",
         liked: true,
-        likes: entry.likes.length,
+        likes: entry.likes,
         data: entry,
       });
     }

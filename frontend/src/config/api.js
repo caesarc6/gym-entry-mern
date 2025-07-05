@@ -63,6 +63,29 @@ export const API_ENDPOINTS = {
   // Search endpoints
   SEARCH_USERS: (query) =>
     buildApiUrl(`searchUsers?query=${encodeURIComponent(query)}`),
+
+  // Workout analytics endpoints
+  GET_WORKOUTS: buildApiUrl("workouts"),
+  PROCESS_WORKOUT: (entryId) => buildApiUrl(`workouts/process/${entryId}`),
+  WORKOUT_ANALYTICS: (timeframe = "30d", exercise) => {
+    const params = new URLSearchParams({ timeframe });
+    if (exercise) params.append("exercise", exercise);
+    return buildApiUrl(`workouts/analytics?${params.toString()}`);
+  },
+  EXERCISE_PROGRESS: (exercise, timeframe = "30d") =>
+    buildApiUrl(
+      `workouts/progress?exercise=${encodeURIComponent(
+        exercise
+      )}&timeframe=${timeframe}`
+    ),
+  PERSONAL_RECORDS: buildApiUrl("workouts/prs"),
+  REPROCESS_ALL_WORKOUTS: buildApiUrl("workouts/reprocess-all"),
+  REPROCESS_ALL_WORKOUTS_WITH_GYM_NORMALIZATION: buildApiUrl(
+    "workouts/reprocess-all-with-gym-normalization"
+  ),
+  COMPLETELY_REPROCESS_ALL_WORKOUTS: buildApiUrl(
+    "workouts/completely-reprocess-all"
+  ),
 };
 
 // Axios instance with default configuration

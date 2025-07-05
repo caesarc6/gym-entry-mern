@@ -101,17 +101,11 @@ export const updateUserPrivacy = async (req, res) => {
 
     // If profile is being changed from private to public, auto-approve pending follow requests
     if (isPrivate === false) {
-      console.log(
-        "Profile changed to public, checking for pending follow requests..."
-      );
-
       // Find all pending follow requests for this user
       const pendingRequests = await FollowRequest.find({
         recipient: updatedUser._id,
         status: "pending",
       }).populate("requester", "uid name username picture");
-
-      console.log(`Found ${pendingRequests.length} pending follow requests`);
 
       const autoApprovedRequests = [];
 
@@ -139,16 +133,11 @@ export const updateUserPrivacy = async (req, res) => {
               requesterName: requester.name || requester.username,
               requestId: request._id,
             });
-
-            console.log(
-              `Auto-approved follow request from ${requester.name} (${requester.uid})`
-            );
           }
         }
 
         // Save the updated user with new followers
         await updatedUser.save();
-        console.log(`Auto-approved ${pendingRequests.length} follow requests`);
       }
 
       return res.status(200).json({
@@ -243,8 +232,6 @@ export const getCurrentMongoDBUser = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
   try {
     const { uid } = req.user;
-    console.log("UpdateUserProfile - Request body:", req.body);
-    console.log("UpdateUserProfile - Request file:", req.file);
 
     const {
       name,
@@ -256,18 +243,7 @@ export const updateUserProfile = async (req, res) => {
       profileImage,
     } = req.body;
 
-    console.log("UpdateUserProfile - Extracted fields:", {
-      name,
-      username,
-      goal,
-      gymName,
-      bio,
-      profileImageName,
-      profileImage: profileImage ? "present" : "not present",
-    });
-
     if (!name && !username && !goal && !gymName && !bio && !profileImage) {
-      console.log("UpdateUserProfile - No data provided for update");
       return res.status(400).json({
         success: false,
         message: "No data provided for update",
@@ -444,7 +420,7 @@ export const getPostsByUID = async (req, res) => {
     }
 
     const posts = await Entry.find({ uid })
-      .populate("likes", "username")
+      .populate("likes", "uid name username picture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -458,7 +434,13 @@ export const getPostsByUID = async (req, res) => {
       name: post.name || "Untitled",
       description: post.description || "No description",
       image: post.image || null,
-      likes: post.likes?.length || 0,
+      likes: (post.likes || []).map((user) => ({
+        _id: user._id,
+        uid: user.uid,
+        name: user.name,
+        username: user.username,
+        picture: user.picture,
+      })),
       comments: post.comments || [],
       createdAt: post.createdAt || new Date().toISOString(),
     }));
@@ -884,7 +866,10 @@ export const getUserProfile = async (req, res) => {
     // Fetch posts only if allowed
     let posts = [];
     if (canViewPosts && user.privacy.showEntries) {
-      posts = await Entry.find({ uid: userId }).populate("likes", "username");
+      posts = await Entry.find({ uid: userId }).populate(
+        "likes",
+        "uid name username picture"
+      );
     }
 
     // Get total posts count (unfiltered) for display purposes
@@ -902,7 +887,13 @@ export const getUserProfile = async (req, res) => {
       name: post.name || "Untitled",
       description: post.description || "No description",
       image: post.image || null,
-      likes: post.likes?.length || 0,
+      likes: (post.likes || []).map((user) => ({
+        _id: user._id,
+        uid: user.uid,
+        name: user.name,
+        username: user.username,
+        picture: user.picture,
+      })),
       comments: post.comments || [],
       createdAt: post.createdAt || new Date().toISOString(),
     }));
@@ -1273,7 +1264,7 @@ export const getFeedPosts = async (req, res) => {
     }
 
     const posts = await Entry.find({ uid: { $in: uids } })
-      .populate("likes", "username")
+      .populate("likes", "uid name username picture")
       .sort({ createdAt: -1 }) // Newest first
       .skip(skip)
       .limit(parseInt(limit));
@@ -1287,7 +1278,13 @@ export const getFeedPosts = async (req, res) => {
       name: post.name || "Untitled",
       description: post.description || "No description",
       image: post.image || null,
-      likes: post.likes?.length || 0,
+      likes: (post.likes || []).map((user) => ({
+        _id: user._id,
+        uid: user.uid,
+        name: user.name,
+        username: user.username,
+        picture: user.picture,
+      })),
       comments: post.comments || [],
       createdAt: post.createdAt || new Date().toISOString(),
     }));

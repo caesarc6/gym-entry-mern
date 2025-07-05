@@ -40,7 +40,6 @@ const SignUpFlow = () => {
       }
 
       const userData = await response.json();
-      console.log("User Data:", userData);
     } catch (error) {
       console.error("Error during sign-up:", error);
     }

@@ -34,22 +34,35 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { auth } from "../firebase"; // Import Firebase auth
 import { API_ENDPOINTS, apiClient } from "../config/api"; // Import API configuration
+import light from "../assets/light.jpg";
+import night from "../assets/night.jpg";
+import {
+  parseWorkoutDescription,
+  parseWorkoutTitle,
+} from "../utils/workoutParser.js";
+
+// Convert Vite asset imports to actual URLs
+const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
+const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
 
 const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
   const currentUser = auth.currentUser;
-  const isOwner =
-    propIsOwner ?? currentUser?.uid === (entry.ownerId || entry.uid);
+  const isOwner = propIsOwner ?? currentUser?.uid === entry.uid;
+  const { colorMode } = useColorMode();
+
   const [updatedEntry, setUpdatedEntry] = useState({
     _id: entry._id || "",
     name: entry.name || "Untitled",
     description: entry.description || "No description",
-    image: entry.image || "https://cataas.com/cat", // Fallback for entry image
-    likes: entry.likes || 0,
+    image:
+      entry.image ||
+      "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg", // Fallback for entry image
+    likes: Array.isArray(entry.likes) ? entry.likes : [],
     comments: Array.isArray(entry.comments) ? entry.comments : [],
     createdAt: entry.createdAt || new Date().toISOString(),
   });
   const [profileImage, setProfileImage] = useState(
-    "https://cataas.com/cat" // Valid fallback image
+    colorMode === "dark" ? night : light
   );
   const [userDisplayName, setUserDisplayName] = useState("");
   const [isUsername, setIsUsername] = useState(false);
@@ -62,9 +75,9 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
   const textColorDesc = useColorModeValue("gray.700", "gray.400");
   const textColorOne = useColorModeValue("gray.300", "gray.700");
   const bg = useColorModeValue("white", "gray.800");
-  const { colorMode } = useColorMode();
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
     useProductStore();
+  const currentUserInfo = useProductStore((state) => state.currentUserInfo);
 
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -81,19 +94,19 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         const token = await auth.currentUser?.getIdToken();
         if (!token) {
           console.log("No auth token available");
-          setProfileImage("https://cataas.com/cat");
+          setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
           setUserDisplayName("Unknown User");
           return;
         }
 
         const response = await apiClient.get(
-          API_ENDPOINTS.PROFILE_IMAGE(entry.ownerId || entry.uid)
+          API_ENDPOINTS.PROFILE_IMAGE(entry.uid)
         );
 
         // Check if the response has the expected structure
         if (response.data?.success && response.data?.data) {
-          if (response.data.data.profileImage) {
-            setProfileImage(response.data.data.profileImage);
+          if (response.data.data.picture) {
+            setProfileImage(response.data.data.picture);
           }
           // Set display name: username if available, otherwise name, otherwise fallback
           const displayName =
@@ -105,12 +118,12 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
           setIsUsername(isUsernameValue);
         } else {
           console.log("No profile data found in response, using fallback");
-          setProfileImage("https://cataas.com/cat");
+          setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
           setUserDisplayName("Unknown User");
         }
       } catch (error) {
         console.error("Error fetching profile image:", error);
-        setProfileImage("https://cataas.com/cat");
+        setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
         setUserDisplayName("Unknown User");
         toast({
           title: "Error",
@@ -122,25 +135,38 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
       }
     };
 
-    if (entry.ownerId || entry.uid) {
+    if (entry.uid) {
       fetchProfileImage();
     }
-  }, [entry.ownerId, entry.uid, toast]);
+  }, [entry.uid, toast]);
 
   useEffect(() => {
     // console.log("Updated profileImage:", profileImage);
     // console.log("Updated userDisplayName:", userDisplayName);
   }, [profileImage, userDisplayName]);
 
+  // Update profile image when color mode changes
+  useEffect(() => {
+    // If no custom profile image is set, update to the appropriate default
+    if (
+      !profileImage ||
+      profileImage === "https://cataas.com/cat" ||
+      profileImage ===
+        "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg"
+    ) {
+      setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+    }
+  }, [colorMode, profileImage]);
+
   // Check if current user has liked this post
   useEffect(() => {
-    if (currentUser && entry.likes && Array.isArray(entry.likes)) {
-      const userLiked = entry.likes.some(
-        (likeId) => likeId === currentUser.uid
+    if (currentUser && Array.isArray(updatedEntry.likes)) {
+      const userLiked = updatedEntry.likes.some(
+        (user) => user && user.uid === currentUser.uid
       );
       setIsLiked(userLiked);
     }
-  }, [currentUser, entry.likes]);
+  }, [currentUser, updatedEntry.likes]);
 
   const handleFileUpload = (file) => {
     // Check file size (limit to 5MB)
@@ -242,28 +268,64 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
   };
 
   const handleLikeEntry = async (pid) => {
-    const { success, message, liked, likes } = await likeEntry(pid);
-    if (!success) {
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+    // Save previous state for rollback
+    const prevIsLiked = isLiked;
+    const prevLikes = Array.isArray(updatedEntry.likes)
+      ? [...updatedEntry.likes]
+      : [];
+
+    // Optimistically update
+    let newLikes;
+    if (!isLiked) {
+      // Like: add current user
+      newLikes = [
+        ...prevLikes,
+        currentUserInfo && {
+          _id: currentUserInfo._id,
+          uid: currentUserInfo.uid,
+          name: currentUserInfo.name,
+          username: currentUserInfo.username,
+          picture: currentUserInfo.picture,
+        },
+      ].filter(Boolean);
     } else {
-      setIsLiked(liked);
+      // Unlike: remove current user
+      newLikes = prevLikes.filter(
+        (user) => user && user.uid !== currentUserInfo?.uid
+      );
+    }
+    setIsLiked(!isLiked);
+    setUpdatedEntry((prevEntry) => ({
+      ...prevEntry,
+      likes: newLikes,
+    }));
+
+    // Make API call
+    try {
+      const { success, message, liked, likes } = await likeEntry(pid);
+      if (!success) {
+        // Rollback on error
+        setIsLiked(prevIsLiked);
+        setUpdatedEntry((prevEntry) => ({
+          ...prevEntry,
+          likes: prevLikes,
+        }));
+        toast({ title: "Error", description: message, status: "error" });
+      } else if (Array.isArray(likes)) {
+        // Update with server response for consistency
+        setUpdatedEntry((prevEntry) => ({
+          ...prevEntry,
+          likes: likes,
+        }));
+      }
+    } catch (error) {
+      // Rollback on error
+      setIsLiked(prevIsLiked);
       setUpdatedEntry((prevEntry) => ({
         ...prevEntry,
-        likes: likes,
+        likes: prevLikes,
       }));
-      toast({
-        title: "Success",
-        description: message,
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
+      toast({ title: "Error", description: error.message, status: "error" });
     }
   };
 
@@ -290,6 +352,50 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         title: "Success",
         description: "Comment added successfully",
         status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleProcessWorkout = async () => {
+    try {
+      // Check if this looks like a workout post
+      const exercises = parseWorkoutDescription(updatedEntry.description);
+      const { split } = parseWorkoutTitle(updatedEntry.name);
+
+      if (exercises.length === 0) {
+        toast({
+          title: "Not a workout post",
+          description:
+            "This post doesn't contain workout data in the expected format.",
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      const response = await apiClient.post(
+        API_ENDPOINTS.PROCESS_WORKOUT(entry._id)
+      );
+
+      if (response.data.success) {
+        toast({
+          title: "Success",
+          description: `Workout data processed! Found ${exercises.length} exercises.`,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error processing workout:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to process workout data",
+        status: "error",
         duration: 5000,
         isClosable: true,
       });
@@ -353,7 +459,8 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         w="full"
         objectFit="cover"
         onError={(e) => {
-          e.target.src = "https://cataas.com/cat";
+          e.target.src =
+            "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
         }}
       />
       <HStack
@@ -375,23 +482,23 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
           objectFit="cover"
           border="2px solid white"
           onError={(e) => {
-            e.target.src = "https://cataas.com/cat";
+            e.target.src = colorMode === "dark" ? night : light;
           }}
         />
-        <Text
-          fontSize="sm"
-          fontWeight="medium"
-          color={textColorTitle}
-          fontFamily="Arial, sans-serif"
-          maxW="120px"
-          noOfLines={1}
-        >
-          <Link to={`/user/${entry.ownerId || entry.uid}`}>
-            <Text _hover={{ textDecoration: "underline" }} cursor="pointer">
-              {isUsername ? `@${userDisplayName}` : userDisplayName}
-            </Text>
-          </Link>
-        </Text>
+        <Link to={`/user/${entry.uid}`}>
+          <Text
+            fontSize="sm"
+            fontWeight="medium"
+            color={textColorTitle}
+            fontFamily="Arial, sans-serif"
+            maxW="120px"
+            noOfLines={1}
+            _hover={{ textDecoration: "underline" }}
+            cursor="pointer"
+          >
+            {isUsername ? `@${userDisplayName}` : userDisplayName}
+          </Text>
+        </Link>
       </HStack>
       <VStack className="px-8" spacing={4} p="8px 8px 8px 8px">
         <HStack w="full" justify="center" align="center">
@@ -422,9 +529,29 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
             {updatedEntry.description}
           </Box>
         </Box>
-        <Text color={textColorOne} fontFamily="Arial, sans-serif">
-          Likes: {updatedEntry.likes}
-        </Text>
+        {/* <Text color={textColorOne} fontFamily="Arial, sans-serif">
+          Likes:{" "}
+          {Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0}
+        </Text> */}
+        {Array.isArray(updatedEntry.likes) && updatedEntry.likes.length > 0 && (
+          <Box w="full" mt={1} mb={2}>
+            <Box
+              fontSize="sm"
+              color={textColorDesc}
+              fontFamily="Arial, sans-serif"
+            >
+              Liked by{" "}
+              {updatedEntry.likes.map((user, idx) => (
+                <span key={user.uid || user._id}>
+                  <Link to={`/user/${user.uid}`}>
+                    {user.username ? `@${user.username}` : user.name || "User"}
+                  </Link>
+                  {idx < updatedEntry.likes.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </Box>
+          </Box>
+        )}
 
         {/* Comment Section - Only show for owner */}
         {isOwner && (
@@ -446,40 +573,43 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         )}
 
         {/* Comments Display */}
-        <VStack
-          style={{
-            maxWidth: "360px",
-            width: "-webkit-fill-available",
-            padding: "0px 1em 0px 1em",
-          }}
-          spacing={2}
-          align="start"
-        >
-          {updatedEntry.comments.map((comment, index) => (
-            <Box
+        {Array.isArray(updatedEntry.comments) &&
+          updatedEntry.comments.length > 0 && (
+            <VStack
               style={{
-                width: "100%",
-                display: "inline-flex",
-                justifyContent: "space-between",
+                maxWidth: "360px",
+                width: "-webkit-fill-available",
+                padding: "0px 1em 0px 1em",
               }}
-              key={index}
-              p={2}
-              bg={colorMode === "dark" ? "gray.700" : "gray.100"}
-              rounded="md"
+              spacing={2}
+              align="start"
             >
-              <Text color={textColor} fontFamily="Arial, sans-serif">
-                {comment.text}
-              </Text>
-              <Text
-                color={colorMode === "dark" ? "gray.300" : "black"}
-                fontSize="sm"
-                fontFamily="Arial, sans-serif"
-              >
-                {formatDate(comment.createdAt)}
-              </Text>
-            </Box>
-          ))}
-        </VStack>
+              {updatedEntry.comments.map((comment, index) => (
+                <Box
+                  style={{
+                    width: "100%",
+                    display: "inline-flex",
+                    justifyContent: "space-between",
+                  }}
+                  key={index}
+                  p={2}
+                  bg={colorMode === "dark" ? "gray.700" : "gray.100"}
+                  rounded="md"
+                >
+                  <Text color={textColor} fontFamily="Arial, sans-serif">
+                    {comment.text}
+                  </Text>
+                  <Text
+                    color={colorMode === "dark" ? "gray.300" : "black"}
+                    fontSize="sm"
+                    fontFamily="Arial, sans-serif"
+                  >
+                    {formatDate(comment.createdAt)}
+                  </Text>
+                </Box>
+              ))}
+            </VStack>
+          )}
 
         {/* Action Buttons - Restructured layout */}
         {isOwner ? (
@@ -531,6 +661,15 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
                 }}
               />
               <MenuList>
+                <MenuItem
+                  onClick={handleProcessWorkout}
+                  color="blue.500"
+                  _hover={{
+                    bg: useColorModeValue("blue.50", "blue.900"),
+                  }}
+                >
+                  Process Workout Data
+                </MenuItem>
                 <MenuItem
                   icon={<DeleteIcon />}
                   onClick={onDeleteOpen}
@@ -675,6 +814,14 @@ ProductCard.propTypes = {
     likes: PropTypes.oneOfType([
       PropTypes.number,
       PropTypes.arrayOf(PropTypes.string),
+      PropTypes.arrayOf(
+        PropTypes.shape({
+          uid: PropTypes.string,
+          name: PropTypes.string,
+          username: PropTypes.string,
+          picture: PropTypes.string,
+        })
+      ),
     ]),
     comments: PropTypes.arrayOf(
       PropTypes.shape({
@@ -683,7 +830,7 @@ ProductCard.propTypes = {
       })
     ),
     createdAt: PropTypes.string,
-    ownerId: PropTypes.string,
+    uid: PropTypes.string,
   }).isRequired,
   isOwner: PropTypes.bool,
   onUpdate: PropTypes.func.isRequired,

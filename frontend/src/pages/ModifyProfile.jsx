@@ -26,6 +26,12 @@ import { useProductStore } from "../store/product";
 import { useState, useEffect } from "react";
 // import PropTypes from "prop-types";
 import { auth } from "../firebase";
+import light from "../assets/light.jpg";
+import night from "../assets/night.jpg";
+
+// Convert Vite asset imports to actual URLs
+const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
+const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
 
 const ModifyProfile = ({ entry }) => {
   const { editProfileData } = useProductStore();
@@ -38,6 +44,7 @@ const ModifyProfile = ({ entry }) => {
   const textColorOne = useColorModeValue("gray.300", "gray.700");
   const bg = useColorModeValue("white", "gray.800");
   const { colorMode } = useColorMode();
+  const profileColorMode = useColorModeValue(lightUrl, nightUrl);
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
     useProductStore();
 
@@ -380,7 +387,7 @@ const ModifyProfile = ({ entry }) => {
           <ModalBody className="min-w-[360px] max-w-[360px] mx-auto">
             <VStack spacing={4}>
               <Image
-                src={userProfile.profileImage || "default-profile-picture-url"}
+                src={userProfile.profileImage || profileColorMode}
                 alt="Profile Picture"
                 boxSize="150px"
                 objectFit="cover"

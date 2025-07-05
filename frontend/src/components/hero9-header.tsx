@@ -689,6 +689,14 @@ export const HeroHeader = () => {
                     </MenuItem>
                     <MenuItem
                       as={Link}
+                      to="/analytics"
+                      className="flex items-center gap-2"
+                    >
+                      <Search className="!w-5 !h-5" />
+                      Analytics
+                    </MenuItem>
+                    <MenuItem
+                      as={Link}
                       to="/privacy"
                       className="flex items-center gap-2"
                     >
@@ -786,6 +794,22 @@ export const HeroHeader = () => {
                       <Link to="/profile" className="flex items-center gap-2">
                         <RxAvatar className="!w-5 !h-5" />
                         <span>Profile</span>
+                      </Link>
+                    </Button>
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        colorMode === "light"
+                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                      )}
+                      onClick={closeMenu}
+                    >
+                      <Link to="/analytics" className="flex items-center gap-2">
+                        <Search className="!w-5 !h-5" />
+                        <span>Analytics</span>
                       </Link>
                     </Button>
                     <Button

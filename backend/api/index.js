@@ -8,6 +8,7 @@ import { admin } from "../firebase.js";
 import { verifyIdToken } from "../middleware/auth.js";
 import entryRoutes from "../routes/entry.route.js";
 import userRoutes from "../routes/user.route.js";
+import workoutRoutes from "../routes/workout.route.js";
 
 import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
@@ -90,12 +91,12 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
     await user.save();
   }
   res.send(user);
-  console.log("API INDEX - User:", user);
 });
 // Routes
 
 app.use("/api/entrys", entryRoutes);
 app.use("/api/", userRoutes);
+app.use("/api/workouts", workoutRoutes);
 
 app.get("/api", (req, res) => {
   res.send("Server deployed and running on vercel.");
@@ -131,7 +132,6 @@ app.use((err, req, res, next) => {
 
 // 404 handler for unmatched routes
 app.use((req, res) => {
-  console.log("404 - Route not found:", req.method, req.url);
   res.status(404).json({
     success: false,
     message: "Route not found",
@@ -149,12 +149,6 @@ const PORT = process.env.PORT || 5001;
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {
     // connectDB();
-    console.log(
-      `Server running on port ${PORT} in ${
-        process.env.NODE_ENV || "development"
-      } mode`
-    );
-    console.log(`Allowed origins: ${allowedOrigins.join(", ")}`);
   });
 }
 

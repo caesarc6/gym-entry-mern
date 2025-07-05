@@ -23,6 +23,15 @@ import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
+
+// Convert Vite asset imports to actual URLs
+const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
+const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
+const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
+const defaultBgNightUrl = new URL(
+  "../assets/defaultBgNight.jpg",
+  import.meta.url
+).href;
 import { API_ENDPOINTS, apiClient } from "../config/api";
 
 const UserProfilePage = () => {
@@ -59,8 +68,8 @@ const UserProfilePage = () => {
   });
 
   const toast = useToast();
-  const profileColorMode = useColorModeValue(light, night);
-  const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
+  const profileColorMode = useColorModeValue(lightUrl, nightUrl);
+  const bgColorMode = useColorModeValue(defaultBgUrl, defaultBgNightUrl);
   const bgColor = useColorModeValue("white", "gray.800");
 
   // Determine userId: use paramUserId if available, otherwise use current user's UID
@@ -111,10 +120,11 @@ const UserProfilePage = () => {
         API_ENDPOINTS.GET_USER_PROFILE(userId)
       );
       const profileData = profileResponse.data;
-      console.log("Profile response data:", profileData);
 
       const userData = profileData.data.user;
-      console.log("User data from response:", userData);
+
+      const finalProfileImage =
+        userData.picture || userData.profileImage || profileColorMode;
 
       setUserProfile({
         name: userData.name || "Name",
@@ -123,7 +133,7 @@ const UserProfilePage = () => {
         gymName: userData.gymName || "Not specified",
         postsCount: profileData.data.postsCount || 0,
         bio: userData.bio || "No bio available",
-        profileImage: userData.picture || profileColorMode,
+        profileImage: finalProfileImage,
         backgroundPicture: userData.backgroundPicture || bgColorMode,
         followersCount: profileData.data.followersCount || 0,
         followingCount: profileData.data.followingCount || 0,
@@ -162,9 +172,10 @@ const UserProfilePage = () => {
             name: post.name || "Untitled",
             description: post.description || "No description",
             image: post.image || null,
-            likes: post.likes || 0,
+            likes: Array.isArray(post.likes) ? post.likes : [],
             comments: Array.isArray(post.comments) ? post.comments : [],
             createdAt: post.createdAt || new Date().toISOString(),
+            uid: post.uid || userId, // ProductCard expects 'uid' field
             ownerId: post.uid || userId,
           }));
           setEntries(normalizedEntries);

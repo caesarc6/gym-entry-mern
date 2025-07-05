@@ -9,6 +9,7 @@ import { HeroHeader } from "@/components/hero9-header";
 import "./index.css";
 import UserProfilePage from "./pages/UserProfilePage";
 import PrivacySettings from "./components/PrivacySettings";
+import AnalyticsPage from "./pages/AnalyticsPage";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         <Route path="/user/:userId" element={<UserProfilePage />} />
         <Route path="/signup" element={<SignUpFlow />} />
         <Route path="/privacy" element={<PrivacySettings />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
       </Routes>
     </Box>
   );

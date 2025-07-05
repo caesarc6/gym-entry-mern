@@ -38,6 +38,15 @@ import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
+
+// Convert Vite asset imports to actual URLs
+const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
+const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
+const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
+const defaultBgNightUrl = new URL(
+  "../assets/defaultBgNight.jpg",
+  import.meta.url
+).href;
 import { useCustomToast } from "../hooks/useCustomToast";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 
@@ -77,8 +86,8 @@ const ProfilePage = () => {
 
   const toast = useCustomToast();
   const bgColor = useColorModeValue("white", "gray.800");
-  const profileColorMode = useColorModeValue(light, night);
-  const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
+  const profileColorMode = useColorModeValue(lightUrl, nightUrl);
+  const bgColorMode = useColorModeValue(defaultBgUrl, defaultBgNightUrl);
   const colorEditButton = useColorModeValue("gray.400", "gray.900");
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
   const modalBgColor = useColorModeValue("gray.50", "gray.700");
@@ -131,7 +140,7 @@ const ProfilePage = () => {
   // Fetch posts when page changes
   useEffect(() => {
     if (uid) {
-      fetchUserPosts(uid);
+      fetchUserPosts(uid, currentPage);
     }
   }, [currentPage, uid]);
 
@@ -243,7 +252,6 @@ const ProfilePage = () => {
       );
 
       const data = response.data;
-      console.log("Posts data:", data);
 
       if (data.success) {
         setEntries(data.data || []);
@@ -386,6 +394,10 @@ const ProfilePage = () => {
       setUserProfile((prev) => ({
         ...prev,
         ...profileData.data,
+        profileImage:
+          profileData.data.picture ||
+          profileData.data.profileImage ||
+          prev.profileImage,
       }));
 
       toast.success(
@@ -394,6 +406,11 @@ const ProfilePage = () => {
       );
       setProfileImage(null);
       onProfileClose();
+
+      // Refresh profile data to ensure everything is in sync
+      if (auth.currentUser) {
+        fetchUserProfile(auth.currentUser);
+      }
     } catch (error) {
       toast.error(
         "Update failed",
@@ -458,20 +475,23 @@ const ProfilePage = () => {
     try {
       const user = auth.currentUser;
       if (!user) throw new Error("User not authenticated");
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `http://localhost:5001/api/users/${userId}/followers`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+
+      const response = await apiClient.get(
+        API_ENDPOINTS.USERS_FOLLOWERS(userId)
       );
-      if (!response.ok) throw new Error("Failed to fetch followers");
-      const data = await response.json();
-      return Array.isArray(data.data) ? data.data : [];
+      const data = response.data;
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to fetch followers");
+      }
+
+      // Add fallback for profile pictures
+      const followersWithFallback = data.data.map((follower) => ({
+        ...follower,
+        picture: follower.picture || profileColorMode,
+      }));
+
+      return Array.isArray(followersWithFallback) ? followersWithFallback : [];
     } catch (error) {
       console.error("Error fetching followers:", error);
       toast({
@@ -489,20 +509,23 @@ const ProfilePage = () => {
     try {
       const user = auth.currentUser;
       if (!user) throw new Error("User not authenticated");
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `http://localhost:5001/api/users/${userId}/following`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+
+      const response = await apiClient.get(
+        API_ENDPOINTS.USERS_FOLLOWING(userId)
       );
-      if (!response.ok) throw new Error("Failed to fetch following");
-      const data = await response.json();
-      return Array.isArray(data.data) ? data.data : [];
+      const data = response.data;
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to fetch following");
+      }
+
+      // Add fallback for profile pictures
+      const followingWithFallback = data.data.map((following) => ({
+        ...following,
+        picture: following.picture || profileColorMode,
+      }));
+
+      return Array.isArray(followingWithFallback) ? followingWithFallback : [];
     } catch (error) {
       console.error("Error fetching following:", error);
       toast({
@@ -708,7 +731,7 @@ const ProfilePage = () => {
                 <ProductCard
                   key={entry._id}
                   entry={entry}
-                  isOwner={auth.currentUser?.uid === entry.ownerId}
+                  isOwner={auth.currentUser?.uid === entry.uid}
                   onUpdate={handlePostUpdate}
                 />
               ))}

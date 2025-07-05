@@ -26,13 +26,6 @@ function ProfilePictureUpload() {
       const formData = new FormData();
       formData.append("profileImage", file, file.name);
 
-      // Debug: Log the file details
-      console.log("File to upload:", {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      });
-      console.log("profilePictureUpload.js code - mytoken:", token);
       // Send to backend
       const res = await fetch(
         "https://gym-tracker-brown.vercel.app/api/upload/uploadProfilePic",
@@ -53,7 +46,6 @@ function ProfilePictureUpload() {
       }
 
       const data = await res.json();
-      console.log("data:", data);
       // Update state with new image URL
       setProfilePictureUrl(data.url);
       setError(null);

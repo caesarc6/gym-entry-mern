@@ -164,7 +164,7 @@ const HomePage = () => {
                   name: post.name || "Untitled",
                   description: post.description || "No description",
                   image: post.image || null,
-                  likes: post.likes || 0,
+                  likes: Array.isArray(post.likes) ? post.likes : [],
                   comments: Array.isArray(post.comments) ? post.comments : [],
                   createdAt: post.createdAt || new Date().toISOString(),
                   ownerId: post.uid || fetchUid,
