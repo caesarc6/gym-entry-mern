@@ -159,6 +159,46 @@ export const updateUserPrivacy = async (req, res) => {
   }
 };
 
+// Get batch profile images for multiple users (optimized for mobile)
+export const getBatchProfileImages = async (req, res) => {
+  try {
+    const { uids } = req.body;
+
+    if (!uids || !Array.isArray(uids) || uids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No UIDs provided",
+      });
+    }
+
+    // Limit the number of UIDs to prevent abuse
+    const limitedUids = uids.slice(0, 20);
+
+    const users = await User.find(
+      { uid: { $in: limitedUids } },
+      { uid: 1, name: 1, username: 1, picture: 1 }
+    );
+
+    const profileData = users.map((user) => ({
+      uid: user.uid,
+      profileImage: user.picture,
+      displayName: user.username || user.name || "Unknown User",
+      isUsername: !!user.username,
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: profileData,
+    });
+  } catch (error) {
+    console.error("Error fetching batch profile images:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 // Get user profile by username (for public viewing)
 export const getUserProfileByUsername = async (req, res) => {
   try {
@@ -811,7 +851,6 @@ export const getUserProfile = async (req, res) => {
   try {
     // Handle both uid and userId parameters
     const userId = req.params.uid || req.params.userId;
-    console.log("getUserProfile called with userId:", userId);
 
     let viewerUser = null;
     if (req.user?.uid) {
@@ -824,21 +863,6 @@ export const getUserProfile = async (req, res) => {
     const user = await User.findOne({ uid: userId })
       .populate("followers", "username name picture")
       .populate("following", "username name picture");
-
-    console.log(
-      "Found user:",
-      user
-        ? {
-            _id: user._id,
-            uid: user.uid,
-            name: user.name,
-            username: user.username,
-            bio: user.bio,
-            goal: user.goal,
-            gymName: user.gymName,
-          }
-        : "User not found"
-    );
 
     if (!user) {
       return res
@@ -878,8 +902,6 @@ export const getUserProfile = async (req, res) => {
     const userData = filterUserDataForPublicView(user, viewerUser);
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
 
-    console.log("Filtered user data:", userData);
-
     // Normalize posts to include ownerId
     const normalizedPosts = filteredPosts.map((post) => ({
       ownerId: userId, // Ensure ownerId is included
@@ -909,7 +931,6 @@ export const getUserProfile = async (req, res) => {
       },
     };
 
-    console.log("Sending response:", responseData);
     res.status(200).json(responseData);
   } catch (error) {
     console.error("Error fetching user profile:", error);

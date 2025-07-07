@@ -222,7 +222,6 @@ const ProfilePage = () => {
       );
 
       const data = response.data;
-      //   console.log("Profile data:", data.data);
 
       setUserProfile({
         name: data.data.user.name || "Name",

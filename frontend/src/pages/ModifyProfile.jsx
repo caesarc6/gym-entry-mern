@@ -288,7 +288,6 @@ const ModifyProfile = ({ entry }) => {
       }
 
       const data = await response.json();
-      // console.log("User profile data:", data);
 
       if (data.success) {
         setUserProfile({

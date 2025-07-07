@@ -34,6 +34,7 @@ export const API_ENDPOINTS = {
 
   // Profile image endpoints
   PROFILE_IMAGE: (uid) => buildApiUrl(`profile-image/${uid}`),
+  BATCH_PROFILE_IMAGES: buildApiUrl("batch-profile-images"),
   UPLOAD_PROFILE_PIC: buildApiUrl("upload/uploadProfilePic"),
 
   // Posts/Entries endpoints

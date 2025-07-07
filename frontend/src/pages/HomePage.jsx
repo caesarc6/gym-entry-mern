@@ -8,8 +8,10 @@ import {
   Spinner,
   useColorModeValue,
   useToast,
+  Skeleton,
+  SkeletonText,
 } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
@@ -19,6 +21,7 @@ import { Hero } from "../components/Hero";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 
+// Optimized feed loading with lazy loading and caching
 const HomePage = () => {
   const { clearEntrys, updateEntry } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -33,30 +36,52 @@ const HomePage = () => {
     totalPosts: 0,
     limit: 6,
   });
+  const [allPosts, setAllPosts] = useState([]);
   const [followingUids, setFollowingUids] = useState([]);
+  const [profileCache, setProfileCache] = useState(new Map()); // Cache for profile images
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const toast = useToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
 
-  // Handle page change
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
+  // Memoized function to handle page change
+  const handlePageChange = useCallback(
+    (newPage) => {
+      // console.log("Page change requested:", {
+      //   newPage,
+      //   currentPage,
+      //   totalPages: pagination.totalPages,
+      // });
+      if (newPage >= 1 && newPage <= pagination.totalPages) {
+        // console.log("Setting current page to:", newPage);
+        setCurrentPage(newPage);
+      } else {
+        // console.log("Page change rejected:", {
+        //   newPage,
+        //   totalPages: pagination.totalPages,
+        // });
+      }
+    },
+    [pagination.totalPages, currentPage]
+  );
 
-  // Handle auth state
+  // Reset to page 1 when following list changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [followingUids]);
+
+  // Optimized auth state handler
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
-        // console.log("Current user UID:", user.uid); // Debug
         useProductStore.getState().setCurrentUser(user);
       } else {
         setIsSignedIn(false);
         setUid(null);
         setEntries([]);
         setFollowingUids([]);
+        setProfileCache(new Map());
         clearEntrys();
         useProductStore.getState().setCurrentUser(null);
       }
@@ -66,23 +91,25 @@ const HomePage = () => {
     return () => unsubscribe();
   }, [clearEntrys]);
 
-  // Fetch following UIDs
+  // Optimized following UIDs fetch with caching
   useEffect(() => {
     const fetchFollowing = async () => {
       if (!uid) return;
+
       try {
-        const user = auth.currentUser;
-        const token = await user.getIdToken();
         const response = await apiClient.get(
           API_ENDPOINTS.USERS_FOLLOWING(uid)
         );
 
         const data = response.data;
-        // console.log("Following API response:", data);
         if (data.success) {
           const uids = data.data.map((user) => user.uid);
           setFollowingUids(uids.length > 0 ? uids : []);
-          // console.log("Following UIDs:", uids);
+
+          // Pre-cache profile images for followed users
+          const uidsToCache = [...new Set([uid, ...uids])];
+          await preloadProfileImages(uidsToCache);
+
           if (uids.length === 0) {
             toast({
               title: "No followed users",
@@ -113,13 +140,91 @@ const HomePage = () => {
     }
   }, [uid, toast]);
 
-  // Fetch posts for following feed
+  // Preload profile images to reduce individual API calls
+  const preloadProfileImages = useCallback(
+    async (uids) => {
+      const newCache = new Map(profileCache);
+      const uncachedUids = uids.filter((uid) => !newCache.has(uid));
+
+      if (uncachedUids.length === 0) return;
+
+      try {
+        // Use the new batch endpoint for better performance
+        const response = await apiClient.post(
+          API_ENDPOINTS.BATCH_PROFILE_IMAGES,
+          {
+            uids: uncachedUids,
+          }
+        );
+
+        if (response.data?.success && response.data?.data) {
+          response.data.data.forEach((profile) => {
+            newCache.set(profile.uid, {
+              uid: profile.uid,
+              profileImage: profile.profileImage,
+              displayName: profile.displayName,
+              isUsername: profile.isUsername,
+            });
+          });
+          setProfileCache(newCache);
+        }
+      } catch (error) {
+        console.error("Error preloading profile images:", error);
+        // Fallback to individual requests if batch fails
+        const batchSize = 5;
+        const batches = [];
+
+        for (let i = 0; i < uncachedUids.length; i += batchSize) {
+          batches.push(uncachedUids.slice(i, i + batchSize));
+        }
+
+        for (const batch of batches) {
+          const promises = batch.map(async (uid) => {
+            try {
+              const response = await apiClient.get(
+                API_ENDPOINTS.PROFILE_IMAGE(uid)
+              );
+              if (response.data?.success && response.data?.data) {
+                return {
+                  uid,
+                  profileImage: response.data.data.picture,
+                  displayName:
+                    response.data.data.username ||
+                    response.data.data.name ||
+                    "Unknown User",
+                  isUsername: !!response.data.data.username,
+                };
+              }
+              return null;
+            } catch (error) {
+              console.warn(`Failed to fetch profile for ${uid}:`, error);
+              return null;
+            }
+          });
+
+          const results = await Promise.allSettled(promises);
+          results.forEach((result) => {
+            if (result.status === "fulfilled" && result.value) {
+              newCache.set(result.value.uid, result.value);
+            }
+          });
+        }
+
+        setProfileCache(newCache);
+      }
+    },
+    [profileCache]
+  );
+
+  // Optimized feed posts fetch with better error handling
+  // Fetch all posts when following list changes
   useEffect(() => {
-    const fetchFeedPosts = async () => {
+    const fetchAllPosts = async () => {
       try {
         setIsLoading(true);
         if (!uid || followingUids === null) {
           setEntries([]);
+          setAllPosts([]);
           setPagination({
             currentPage: 1,
             totalPages: 0,
@@ -129,95 +234,64 @@ const HomePage = () => {
           return;
         }
 
-        const user = auth.currentUser;
-        const token = await user.getIdToken();
-        let allPosts = [];
-        let totalPosts = 0;
         const uidsToFetch = [...new Set([uid, ...followingUids])];
-        // console.log("Fetching posts for UIDs:", uidsToFetch);
 
-        // Calculate the number of posts needed for the current page
-        const startIndex = (currentPage - 1) * limit;
-        const endIndex = startIndex + limit;
+        // Fetch all posts from all users (no pagination limits)
+        const fetchPromises = uidsToFetch.map(async (fetchUid) => {
+          try {
+            const response = await apiClient.get(
+              API_ENDPOINTS.POSTS(fetchUid, 1, 100) // Get more posts to ensure we have all data
+            );
+            const data = response.data;
 
-        // Map to track pages fetched for each user
-        const userPages = new Map(uidsToFetch.map((uid) => [uid, 1]));
-        let postsNeeded = endIndex;
-
-        // Fetch posts until we have enough or all users are exhausted
-        while (postsNeeded > allPosts.length && userPages.size > 0) {
-          for (const fetchUid of [...userPages.keys()]) {
-            const userPage = userPages.get(fetchUid);
-            try {
-              const response = await apiClient.get(
-                API_ENDPOINTS.POSTS(fetchUid, userPage, limit)
-              );
-              const data = response.data;
-              // console.log(
-              //   `Response for UID ${fetchUid} (page ${userPage}):`,
-              //   data
-              // );
-
-              if (data.success && Array.isArray(data.data)) {
-                const normalizedPosts = data.data.map((post) => ({
-                  _id: post._id,
-                  name: post.name || "Untitled",
-                  description: post.description || "No description",
-                  image: post.image || null,
-                  likes: Array.isArray(post.likes) ? post.likes : [],
-                  comments: Array.isArray(post.comments) ? post.comments : [],
-                  createdAt: post.createdAt || new Date().toISOString(),
-                  ownerId: post.uid || fetchUid,
-                  uid: post.uid || fetchUid,
-                }));
-                allPosts = [...allPosts, ...normalizedPosts];
-                totalPosts += data.pagination.totalPosts || 0;
-
-                // Update pagination for this user
-                if (userPage >= (data.pagination.totalPages || 1)) {
-                  userPages.delete(fetchUid); // No more posts for this user
-                } else {
-                  userPages.set(fetchUid, userPage + 1); // Fetch next page later
-                }
-              } else {
-                console.warn(`No posts or error for UID ${fetchUid}:`, data);
-                userPages.delete(fetchUid); // Stop fetching for this user
-              }
-            } catch (error) {
-              console.error(`Error fetching posts for UID ${fetchUid}:`, error);
-              userPages.delete(fetchUid); // Stop fetching for this user
+            if (data.success && Array.isArray(data.data)) {
+              return data.data.map((post) => ({
+                _id: post._id,
+                name: post.name || "Untitled",
+                description: post.description || "No description",
+                image: post.image || null,
+                likes: Array.isArray(post.likes) ? post.likes : [],
+                comments: Array.isArray(post.comments) ? post.comments : [],
+                createdAt: post.createdAt || new Date().toISOString(),
+                ownerId: post.uid || fetchUid,
+                uid: post.uid || fetchUid,
+              }));
             }
+            return [];
+          } catch (error) {
+            console.warn(`Error fetching posts for UID ${fetchUid}:`, error);
+            return [];
           }
-        }
-
-        // Remove duplicates by _id
-        allPosts = [
-          ...new Map(allPosts.map((post) => [post._id, post])).values(),
-        ];
-
-        // Sort by createdAt (newest first) and apply pagination
-        allPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        const paginatedPosts = allPosts.slice(startIndex, endIndex);
-        const totalPages = Math.ceil(totalPosts / limit) || 1;
-
-        // console.log("All normalized posts:", allPosts);
-        // console.log("Paginated posts:", paginatedPosts);
-        // console.log("Pagination state:", {
-        //   currentPage,
-        //   totalPages,
-        //   totalPosts,
-        //   limit,
-        // });
-        setEntries(paginatedPosts);
-        setPagination({
-          currentPage,
-          totalPages,
-          totalPosts,
-          limit,
         });
 
-        if (allPosts.length === 0) {
-          console.log("No posts found for feed");
+        const results = await Promise.allSettled(fetchPromises);
+        let fetchedPosts = [];
+
+        results.forEach((result) => {
+          if (result.status === "fulfilled") {
+            fetchedPosts = [...fetchedPosts, ...result.value];
+          }
+        });
+
+        // Remove duplicates and sort
+        const sortedPosts = [
+          ...new Map(fetchedPosts.map((post) => [post._id, post])).values(),
+        ];
+        sortedPosts.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+
+        // Store all posts and calculate total pages
+        setAllPosts(sortedPosts);
+        const totalPages = Math.ceil(sortedPosts.length / limit) || 1;
+
+        setPagination((prev) => ({
+          ...prev,
+          totalPages,
+          totalPosts: sortedPosts.length,
+        }));
+
+        if (sortedPosts.length === 0) {
           toast({
             title: "Empty feed",
             description:
@@ -238,60 +312,38 @@ const HomePage = () => {
         });
       } finally {
         setIsLoading(false);
+        setIsInitialLoad(false);
       }
     };
 
-    if (uid) {
-      fetchFeedPosts();
+    if (uid && followingUids.length >= 0) {
+      fetchAllPosts();
     }
-  }, [uid, followingUids, currentPage, limit, toast]);
+  }, [uid, followingUids, limit, toast]);
 
-  const handleUpdateEntry = async (pid, updatedEntry) => {
-    const previousEntries = [...entries];
-    const updatedEntries = entries.map((entry) =>
-      entry._id === pid ? { ...entry, ...updatedEntry } : entry
+  // Apply pagination when currentPage or allPosts changes
+  useEffect(() => {
+    if (allPosts.length > 0) {
+      const startIndex = (currentPage - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedPosts = allPosts.slice(startIndex, endIndex);
+      setEntries(paginatedPosts);
+    } else {
+      setEntries([]);
+    }
+  }, [currentPage, allPosts, limit]);
+
+  // Memoized entries to prevent unnecessary re-renders
+  const memoizedEntries = useMemo(() => entries, [entries]);
+
+  // Optimized update handler
+  const handleUpdateEntry = useCallback((pid, updatedEntry) => {
+    setEntries((prevEntries) =>
+      prevEntries.map((entry) =>
+        entry._id === pid ? { ...entry, ...updatedEntry } : entry
+      )
     );
-    setEntries(updatedEntries);
-
-    try {
-      console.log("Updating entry:", pid, updatedEntry); // Debug
-      const { success, message, data } = await updateEntry(pid, updatedEntry);
-      if (!success) {
-        setEntries(previousEntries);
-        console.error("Failed to update entry:", message);
-        toast({
-          title: "Error",
-          description: message || "Failed to update post",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      } else {
-        setEntries((prevEntries) =>
-          prevEntries.map((entry) =>
-            entry._id === pid ? { ...entry, ...data.data } : entry
-          )
-        );
-        toast({
-          title: "Success",
-          description: "Post updated successfully",
-          status: "success",
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    } catch (error) {
-      setEntries(previousEntries);
-      console.error("Error updating entry:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update post",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
+  }, []);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -379,7 +431,7 @@ const HomePage = () => {
                   spacing={10}
                   w={"full"}
                 >
-                  {entries.map((entry) => (
+                  {memoizedEntries.map((entry) => (
                     <ProductCard
                       key={entry._id}
                       entry={entry}
@@ -387,6 +439,7 @@ const HomePage = () => {
                         auth.currentUser?.uid === (entry.ownerId || entry.uid)
                       }
                       onUpdate={handleUpdateEntry}
+                      profileCache={profileCache}
                     />
                   ))}
                 </SimpleGrid>
@@ -397,10 +450,14 @@ const HomePage = () => {
                   alignItems="center"
                 >
                   <Button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    isDisabled={
-                      currentPage === 1 || pagination.totalPages === 0
-                    }
+                    onClick={() => {
+                      // console.log(
+                      //   "Previous button clicked, current page:",
+                      //   currentPage
+                      // );
+                      handlePageChange(currentPage - 1);
+                    }}
+                    isDisabled={currentPage <= 1 || pagination.totalPages === 0}
                     mr={2}
                   >
                     <SlArrowLeft />
@@ -409,9 +466,23 @@ const HomePage = () => {
                     {pagination.totalPages === 0
                       ? "0 • 0"
                       : `${currentPage} • ${pagination.totalPages}`}
+                    {/* {console.log("Pagination state:", {
+                      currentPage,
+                      totalPages: pagination.totalPages,
+                      entriesCount: entries.length,
+                      prevButtonDisabled:
+                        currentPage <= 1 || pagination.totalPages === 0,
+                      nextButtonDisabled:
+                        currentPage >= pagination.totalPages ||
+                        pagination.totalPages === 0,
+                    })} */}
                   </Text>
                   <Button
                     onClick={() => {
+                      // console.log(
+                      //   "Next button clicked, current page:",
+                      //   currentPage
+                      // );
                       handlePageChange(currentPage + 1);
                     }}
                     isDisabled={

@@ -26,11 +26,12 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Skeleton,
 } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 import { FileUploader } from "./FileUploader";
 import { useProductStore } from "../store/product";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import PropTypes from "prop-types";
 import { auth } from "../firebase"; // Import Firebase auth
 import { API_ENDPOINTS, apiClient } from "../config/api"; // Import API configuration
@@ -45,7 +46,12 @@ import {
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
 const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
 
-const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
+const ProductCard = ({
+  entry,
+  isOwner: propIsOwner,
+  onUpdate,
+  profileCache,
+}) => {
   const currentUser = auth.currentUser;
   const isOwner = propIsOwner ?? currentUser?.uid === entry.uid;
   const { colorMode } = useColorMode();
@@ -56,17 +62,32 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
     description: entry.description || "No description",
     image:
       entry.image ||
-      "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg", // Fallback for entry image
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f0f0f0'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-family='Arial, sans-serif' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E", // Fallback for entry image
     likes: Array.isArray(entry.likes) ? entry.likes : [],
     comments: Array.isArray(entry.comments) ? entry.comments : [],
     createdAt: entry.createdAt || new Date().toISOString(),
   });
+
+  // Use profile cache if available, otherwise use defaults
+  const cachedProfile = useMemo(() => {
+    if (profileCache && profileCache.has(entry.uid)) {
+      return profileCache.get(entry.uid);
+    }
+    return null;
+  }, [profileCache, entry.uid]);
+
   const [profileImage, setProfileImage] = useState(
-    colorMode === "dark" ? night : light
+    cachedProfile?.profileImage || (colorMode === "dark" ? nightUrl : lightUrl)
   );
-  const [userDisplayName, setUserDisplayName] = useState("");
-  const [isUsername, setIsUsername] = useState(false);
+  const [userDisplayName, setUserDisplayName] = useState(
+    cachedProfile?.displayName || "Unknown User"
+  );
+  const [isUsername, setIsUsername] = useState(
+    cachedProfile?.isUsername || false
+  );
   const [isLiked, setIsLiked] = useState(false); // Track if current user has liked this post
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [profileImageLoaded, setProfileImageLoaded] = useState(false);
 
   const [comment, setComment] = useState("");
 
@@ -87,9 +108,26 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
     onClose: onDeleteClose,
   } = useDisclosure();
 
-  // Fetch profile image from MongoDB based on UID
+  // Update profile data when cache changes
+  useEffect(() => {
+    if (cachedProfile) {
+      setProfileImage(
+        cachedProfile.profileImage ||
+          (colorMode === "dark" ? nightUrl : lightUrl)
+      );
+      setUserDisplayName(cachedProfile.displayName || "Unknown User");
+      setIsUsername(cachedProfile.isUsername || false);
+    }
+  }, [cachedProfile, colorMode]);
+
+  // Fetch profile image only if not in cache
   useEffect(() => {
     const fetchProfileImage = async () => {
+      // If we have cached data, use it
+      if (cachedProfile) {
+        return;
+      }
+
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token) {
@@ -135,15 +173,10 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
       }
     };
 
-    if (entry.uid) {
+    if (entry.uid && !cachedProfile) {
       fetchProfileImage();
     }
-  }, [entry.uid, toast]);
-
-  useEffect(() => {
-    // console.log("Updated profileImage:", profileImage);
-    // console.log("Updated userDisplayName:", userDisplayName);
-  }, [profileImage, userDisplayName]);
+  }, [entry.uid, toast, cachedProfile, colorMode]);
 
   // Update profile image when color mode changes
   useEffect(() => {
@@ -167,6 +200,59 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
       setIsLiked(userLiked);
     }
   }, [currentUser, updatedEntry.likes]);
+
+  // Optimized image loading handlers
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true);
+  }, []);
+
+  const handleProfileImageLoad = useCallback(() => {
+    setProfileImageLoaded(true);
+  }, []);
+
+  const handleImageError = useCallback((e) => {
+    // Use a simple data URL for fallback instead of external image
+    e.target.src =
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f0f0f0'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-family='Arial, sans-serif' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E";
+    setImageLoaded(true);
+  }, []);
+
+  const handleProfileImageError = useCallback(
+    (e) => {
+      e.target.src = colorMode === "dark" ? nightUrl : lightUrl;
+      setProfileImageLoaded(true);
+    },
+    [colorMode]
+  );
+
+  // Reset image loading states when entry changes
+  useEffect(() => {
+    setImageLoaded(false);
+    setProfileImageLoaded(false);
+  }, [entry._id, entry.image, entry.uid]);
+
+  // Check if image is already loaded (for cached images)
+  useEffect(() => {
+    if (updatedEntry.image) {
+      // Use a simple timeout approach instead of Image constructor
+      const timeout = setTimeout(() => {
+        setImageLoaded(true);
+      }, 100); // Short timeout for cached images
+
+      return () => clearTimeout(timeout);
+    }
+  }, [updatedEntry.image]);
+
+  // Timeout fallback for profile images
+  useEffect(() => {
+    if (profileImage) {
+      const timeout = setTimeout(() => {
+        setProfileImageLoaded(true);
+      }, 3000); // 3 second timeout for profile images
+
+      return () => clearTimeout(timeout);
+    }
+  }, [profileImage]);
 
   const handleFileUpload = (file) => {
     // Check file size (limit to 5MB)
@@ -452,17 +538,34 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
       bg={bg}
       position="relative"
     >
-      <Image
-        src={updatedEntry.image || entry.image}
-        alt={entry.name}
-        h={48}
-        w="full"
-        objectFit="cover"
-        onError={(e) => {
-          e.target.src =
-            "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
-        }}
-      />
+      <Box position="relative" h={48} w="full">
+        {!imageLoaded && (
+          <Skeleton
+            h={48}
+            w="full"
+            startColor={useColorModeValue("gray.200", "gray.600")}
+            endColor={useColorModeValue("gray.300", "gray.500")}
+          />
+        )}
+        <Image
+          src={updatedEntry.image || entry.image}
+          alt={entry.name}
+          h={48}
+          w="full"
+          objectFit="cover"
+          onError={handleImageError}
+          onLoad={handleImageLoad}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            display: imageLoaded ? "block" : "none",
+            opacity: imageLoaded ? 1 : 0,
+            transition: "opacity 0.3s ease-in-out",
+          }}
+          loading="lazy"
+        />
+      </Box>
       <HStack
         position="absolute"
         top="2.5"
@@ -474,18 +577,36 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
         borderRadius="full"
         shadow="md"
       >
-        <Image
-          src={profileImage}
-          alt="User Profile"
-          boxSize="32px"
-          borderRadius="full"
-          objectFit="cover"
-          border="2px solid white"
-          onError={(e) => {
-            e.target.src = colorMode === "dark" ? night : light;
-          }}
-        />
-        <Link to={`/user/${entry.uid}`}>
+        <Box position="relative" boxSize="32px">
+          {!profileImageLoaded && (
+            <Skeleton
+              boxSize="32px"
+              borderRadius="full"
+              startColor={useColorModeValue("gray.200", "gray.600")}
+              endColor={useColorModeValue("gray.300", "gray.500")}
+            />
+          )}
+          <Image
+            src={profileImage}
+            alt="User Profile"
+            boxSize="32px"
+            borderRadius="full"
+            objectFit="cover"
+            border="2px solid white"
+            onError={handleProfileImageError}
+            onLoad={handleProfileImageLoad}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              display: profileImageLoaded ? "block" : "none",
+              opacity: profileImageLoaded ? 1 : 0,
+              transition: "opacity 0.3s ease-in-out",
+            }}
+            loading="lazy"
+          />
+        </Box>
+        <Link to={isOwner ? "/profile" : `/user/${entry.uid}`}>
           <Text
             fontSize="sm"
             fontWeight="medium"
@@ -543,7 +664,13 @@ const ProductCard = ({ entry, isOwner: propIsOwner, onUpdate }) => {
               Liked by{" "}
               {updatedEntry.likes.map((user, idx) => (
                 <span key={user.uid || user._id}>
-                  <Link to={`/user/${user.uid}`}>
+                  <Link
+                    to={
+                      user.uid === currentUser?.uid
+                        ? "/profile"
+                        : `/user/${user.uid}`
+                    }
+                  >
                     {user.username ? `@${user.username}` : user.name || "User"}
                   </Link>
                   {idx < updatedEntry.likes.length - 1 ? ", " : ""}
@@ -834,6 +961,7 @@ ProductCard.propTypes = {
   }).isRequired,
   isOwner: PropTypes.bool,
   onUpdate: PropTypes.func.isRequired,
+  profileCache: PropTypes.instanceOf(Map),
 };
 
 export default ProductCard;

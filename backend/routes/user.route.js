@@ -34,6 +34,7 @@ import {
   getPendingFollowRequests,
   checkFollowRequestStatus,
   cancelFollowRequest,
+  getBatchProfileImages,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -49,6 +50,9 @@ router.get("/following/:targetUserId", verifyIdToken, checkFollowing);
 
 // Get user profile image by UID (for ProductCard)
 router.get("/users/:uid", getUser);
+
+// Get batch profile images for multiple users (optimized for mobile)
+router.post("/batch-profile-images", verifyIdToken, getBatchProfileImages);
 
 // Get user profile image by UID (public endpoint for ProductCard)
 router.get("/profile-image/:uid", async (req, res) => {

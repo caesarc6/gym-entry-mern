@@ -7,22 +7,6 @@
  * @returns {Object} - Filtered user data
  */
 export const filterUserDataForPublicView = (user, viewerUser = null) => {
-  console.log("filterUserDataForPublicView called with:", {
-    user: {
-      _id: user._id,
-      uid: user.uid,
-      username: user.username,
-      name: user.name,
-      isPrivate: user.privacy?.isPrivate,
-    },
-    viewerUser: viewerUser
-      ? {
-          _id: viewerUser._id,
-          uid: viewerUser.uid,
-        }
-      : null,
-  });
-
   // Ensure privacy object exists
   const privacy = user.privacy || {
     isPrivate: false,
@@ -47,7 +31,6 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
 
   // If the viewer is the profile owner, include additional fields
   if (viewerUser && viewerUser._id.toString() === user._id.toString()) {
-    console.log("Viewer is profile owner, returning full data");
     return {
       ...publicUserData,
       email: privacy.showEmail ? user.email : undefined, // Only show email if privacy setting allows
@@ -83,21 +66,13 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
       return followerStr === viewerStr;
     });
 
-  console.log("Privacy check:", {
-    isPrivate: privacy.isPrivate,
-    isFollower,
-    viewerUser: !!viewerUser,
-  });
-
   // If the profile is not private or viewer is a follower, return public data
   if (!privacy.isPrivate || isFollower) {
-    console.log("Returning public data");
     return publicUserData;
   }
 
   // For private profiles where the viewer is not a follower, return basic profile data
   // (but not posts - those are handled separately)
-  console.log("Returning basic profile data for private profile");
   const basicProfileData = {
     _id: user._id,
     username: user.username || user.name || "User", // Fallback to name or "User" if username is undefined
@@ -111,7 +86,6 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
     followingCount: user.following ? user.following.length : 0,
     isPrivate: true,
   };
-  console.log("Basic profile data:", basicProfileData);
   return basicProfileData;
 };
 
