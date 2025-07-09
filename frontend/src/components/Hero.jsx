@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Container, SimpleGrid, Text, VStack, Button } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
@@ -16,10 +16,18 @@ export const Hero = () => {
     width: "90rem",
     height: "50rem",
   });
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Memoize blob sizes to prevent unnecessary re-renders
+  const memoizedBlobSize = useMemo(() => blobSize, [blobSize]);
+  const memoizedLargeBlobSize = useMemo(() => largeBlobSize, [largeBlobSize]);
 
   const updateBlobSize = () => {
     const screenWidth = window.innerWidth;
-    if (screenWidth < 640) {
+    const mobile = screenWidth < 640;
+    setIsMobile(mobile);
+
+    if (mobile) {
       setBlobSize({ width: "25vw", height: "35vh" });
       setLargeBlobSize({ width: "99vw", height: "52vh" });
     } else if (screenWidth < 1024) {
@@ -33,9 +41,36 @@ export const Hero = () => {
 
   useEffect(() => {
     updateBlobSize();
-    window.addEventListener("resize", updateBlobSize);
-    return () => window.removeEventListener("resize", updateBlobSize);
+    const debouncedResize = debounce(updateBlobSize, 100);
+    window.addEventListener("resize", debouncedResize);
+    return () => window.removeEventListener("resize", debouncedResize);
   }, []);
+
+  // Simple debounce function
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // Simple animation variants
+  const animationVariants = {
+    animate: {
+      y: [0, 20, -10, 0],
+      scale: [1, 1.1, 0.9, 1],
+      transition: {
+        duration: 6,
+        repeat: Infinity,
+        ease: "easeInOut",
+      },
+    },
+  };
 
   const handleGoogleSignIn = async (mode = "login") => {
     try {
@@ -145,113 +180,134 @@ export const Hero = () => {
       {/* Gradients */}
       <div aria-hidden="true" className="fixed inset-0 z-0">
         <div className="absolute inset-0 bg-[#051a2b] overflow-hidden">
-          <motion.div
-            className="absolute bg-gradient-to-r from-background/50 to-background blur-3xl bg-slate-700"
-            style={{
-              top: "-10%",
-              left: "50%",
-              rotate: -60,
-              x: "-5rem",
-              width: blobSize.width,
-              height: blobSize.height,
-            }}
-            animate={{
-              y: [0, 20, -10, 0],
-              scale: [1, 1.2, 0.9, 1],
-              borderRadius: ["50%", "30% 70%", "60% 40%", "50%"],
-              rotate: [-60, -55, -65, -60],
-            }}
-            transition={{
-              type: "tween", // Changed from spring to tween
-              duration: 6,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-          <motion.div
-            className="absolute bg-gradient-to-tl from-primary-foreground via-primary-foreground to-background blur-3xl rounded-full bg-[#cfe6ff]"
-            style={{
-              top: "-20%",
-              left: "50%",
-              rotate: -12,
-              x: "-7rem",
-              width: largeBlobSize.width,
-              height: largeBlobSize.height,
-            }}
-            animate={{
-              y: [0, 30, -15, 0],
-              scale: [1, 1.15, 0.85, 1],
-              borderRadius: ["50%", "40% 60%", "70% 30%", "50%"],
-              rotate: [-12, -10, -14, -12],
-            }}
-            transition={{
-              type: "tween", // Changed from spring to tween
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-          <motion.div
-            className="absolute bg-gradient-to-r from-background/50 to-background blur-3xl bg-slate-700"
-            style={{
-              bottom: "-30%",
-              left: "20%",
-              rotate: 60,
-              x: "5rem",
-              width: blobSize.width,
-              height: blobSize.height,
-            }}
-            animate={{
-              y: [0, -20, 10, 0],
-              scale: [1, 0.9, 1.1, 1],
-              borderRadius: ["50%", "60% 40%", "30% 70%", "50%"],
-              rotate: [60, 62, 58, 60],
-            }}
-            transition={{
-              type: "tween", // Changed from spring to tween
-              duration: 7,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-          <motion.div
-            className="absolute bg-gradient-to-tl from-primary-foreground via-primary-foreground to-background blur-3xl rounded-full bg-[#cfe6ff]"
-            style={{
-              bottom: "-36%",
-              right: "54%",
-              rotate: 12,
-              x: "7rem",
-              width: largeBlobSize.width,
-              height: largeBlobSize.height,
-            }}
-            animate={{
-              y: [0, -25, 15, 0],
-              scale: [1, 1.25, 0.95, 1],
-              borderRadius: ["50%", "70% 30%", "40% 60%", "50%"],
-              rotate: [12, 14, 10, 12],
-            }}
-            transition={{
-              type: "tween", // Changed from spring to tween
-              duration: 9,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
+          {isMobile ? (
+            // Mobile: Simple CSS animations
+            <>
+              <div
+                className="absolute bg-gradient-to-r from-slate-600 to-slate-500 blur-2xl rounded-full opacity-60"
+                style={{
+                  top: "0px",
+                  left: "30%",
+                  width: memoizedBlobSize.width,
+                  height: memoizedBlobSize.height,
+                  animation: "mobileFloat 8s ease-in-out infinite",
+                }}
+              />
+              <div
+                className="absolute bg-gradient-to-tl from-blue-300 to-blue-200 blur-2xl rounded-full opacity-50"
+                style={{
+                  bottom: "0px",
+                  left: "70%",
+                  width: memoizedLargeBlobSize.width,
+                  height: memoizedLargeBlobSize.height,
+                  animation: "mobileFloat 10s ease-in-out infinite",
+                  animationDelay: "2s",
+                }}
+              />
+            </>
+          ) : (
+            // Desktop: Framer motion animations
+            <>
+              <motion.div
+                className="absolute bg-gradient-to-r from-slate-600 to-slate-500 blur-3xl rounded-full"
+                style={{
+                  top: "-10%",
+                  left: "50%",
+                  width: memoizedBlobSize.width,
+                  height: memoizedBlobSize.height,
+                }}
+                variants={animationVariants}
+                animate="animate"
+              />
+              <motion.div
+                className="absolute bg-gradient-to-tl from-blue-300 to-blue-200 blur-3xl rounded-full"
+                style={{
+                  top: "-20%",
+                  left: "50%",
+                  width: memoizedLargeBlobSize.width,
+                  height: memoizedLargeBlobSize.height,
+                }}
+                variants={animationVariants}
+                animate="animate"
+                transition={{
+                  duration: 8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+              <motion.div
+                className="absolute bg-gradient-to-r from-slate-600 to-slate-500 blur-3xl rounded-full"
+                style={{
+                  bottom: "-30%",
+                  left: "20%",
+                  width: memoizedBlobSize.width,
+                  height: memoizedBlobSize.height,
+                }}
+                variants={animationVariants}
+                animate="animate"
+                transition={{
+                  duration: 7,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+              <motion.div
+                className="absolute bg-gradient-to-tl from-blue-300 to-blue-200 blur-3xl rounded-full"
+                style={{
+                  bottom: "-36%",
+                  right: "54%",
+                  width: memoizedLargeBlobSize.width,
+                  height: memoizedLargeBlobSize.height,
+                }}
+                variants={animationVariants}
+                animate="animate"
+                transition={{
+                  duration: 9,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+            </>
+          )}
         </div>
       </div>
+
+      {/* CSS Animation Keyframes */}
+      {/*
+      <style jsx>{`
+        @keyframes mobileFloat {
+          0%,
+          100% {
+            transform: translateY(0px) scale(1);
+          }
+          25% {
+            transform: translateY(10px) scale(1.05);
+          }
+          50% {
+            transform: translateY(-5px) scale(0.95);
+          }
+          75% {
+            transform: translateY(5px) scale(1.02);
+          }
+        }
+      `}</style>
+      */}
+
       {/* Hero */}
       <div className="relative top-36 h-[70vh] sm:h-[60vh] sm:top-48 lg:h-[50vh] content-center">
         <div className="relative justify-items-center">
           <div className="container py-10 lg:py-16">
             <div className="max-w-2xl text-center mx-auto">
-              <p>All your workouts. In one place.</p>
+              <p className="text-gray-300 text-lg">
+                All your workouts. In one place.
+              </p>
               <div className="mt-5 max-w-2xl">
-                <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
+                <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl text-white">
                   Track Your Progress Simply.
                 </h1>
               </div>
               <div className="mt-5 max-w-3xl">
-                <p className="text-xl text-muted-foreground">
+                <p className="text-xl text-gray-400">
                   Keep track of your workouts and progress with ease. Sign up
                   now to get started.
                 </p>

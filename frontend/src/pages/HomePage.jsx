@@ -11,7 +11,7 @@ import {
   Skeleton,
   SkeletonText,
 } from "@chakra-ui/react";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
@@ -43,6 +43,10 @@ const HomePage = () => {
   const toast = useToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
 
+  // Performance optimization refs
+  const resizeTimeoutRef = useRef(null);
+  const isMountedRef = useRef(true);
+
   // Memoized function to handle page change
   const handlePageChange = useCallback(
     (newPage) => {
@@ -72,6 +76,8 @@ const HomePage = () => {
   // Optimized auth state handler
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (!isMountedRef.current) return;
+
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
@@ -88,7 +94,10 @@ const HomePage = () => {
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      isMountedRef.current = false;
+      unsubscribe();
+    };
   }, [clearEntrys]);
 
   // Optimized following UIDs fetch with caching

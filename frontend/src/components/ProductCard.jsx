@@ -621,234 +621,249 @@ const ProductCard = ({
           </Text>
         </Link>
       </HStack>
-      <VStack className="px-8" spacing={4} p="8px 8px 8px 8px">
-        <HStack w="full" justify="center" align="center">
-          <Heading
-            as={"h2"}
-            size={"lg"}
-            color={textColorTitle}
-            fontFamily="Arial, sans-serif"
-          >
-            {updatedEntry.name}
-          </Heading>
-        </HStack>
-        <Text color={textColorOne} fontFamily="Arial, sans-serif">
-          {formatDateHour(updatedEntry.createdAt)}
-          {" - "}
-          {formatDateTitleTime(updatedEntry.createdAt)}
-        </Text>
-        <Box>
-          <Box
-            as="pre"
-            style={{
-              width: "100%",
-              whiteSpace: "pre-wrap",
-              fontFamily: "Arial, sans-serif",
-            }}
-            color={textColorDesc}
-          >
-            {updatedEntry.description}
-          </Box>
-        </Box>
-        {/* <Text color={textColorOne} fontFamily="Arial, sans-serif">
-          Likes:{" "}
-          {Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0}
-        </Text> */}
-        {Array.isArray(updatedEntry.likes) && updatedEntry.likes.length > 0 && (
-          <Box w="full" mt={1} mb={2}>
-            <Box
-              fontSize="sm"
-              color={textColorDesc}
+      <Box
+        className="px-8"
+        p="8px 8px 8px 8px"
+        display="flex"
+        flexDirection="column"
+        minHeight="300px"
+      >
+        {/* Content area */}
+        <VStack spacing={4} flex="1">
+          <HStack w="full" justify="center" align="center">
+            <Heading
+              as={"h2"}
+              size={"lg"}
+              color={textColorTitle}
               fontFamily="Arial, sans-serif"
             >
-              Liked by{" "}
-              {updatedEntry.likes.map((user, idx) => (
-                <span key={user.uid || user._id}>
-                  <Link
-                    to={
-                      user.uid === currentUser?.uid
-                        ? "/profile"
-                        : `/user/${user.uid}`
-                    }
-                  >
-                    {user.username ? `@${user.username}` : user.name || "User"}
-                  </Link>
-                  {idx < updatedEntry.likes.length - 1 ? ", " : ""}
-                </span>
-              ))}
+              {updatedEntry.name}
+            </Heading>
+          </HStack>
+          <Text color={textColorOne} fontFamily="Arial, sans-serif">
+            {formatDateHour(updatedEntry.createdAt)}
+            {" - "}
+            {formatDateTitleTime(updatedEntry.createdAt)}
+          </Text>
+          <Box>
+            <Box
+              as="pre"
+              style={{
+                width: "100%",
+                whiteSpace: "pre-wrap",
+                fontFamily: "Arial, sans-serif",
+              }}
+              color={textColorDesc}
+            >
+              {updatedEntry.description}
             </Box>
           </Box>
-        )}
-
-        {/* Comment Section - Only show for owner */}
-        {isOwner && (
-          <HStack spacing={2} w="full">
-            <Input
-              placeholder="Comment here.."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-            <Button
-              colorScheme="gray"
-              onClick={() => handleCommentEntry(entry._id, comment)}
-              px={4}
-              py={2}
-            >
-              Comment
-            </Button>
-          </HStack>
-        )}
-
-        {/* Comments Display */}
-        {Array.isArray(updatedEntry.comments) &&
-          updatedEntry.comments.length > 0 && (
-            <VStack
-              style={{
-                maxWidth: "360px",
-                width: "-webkit-fill-available",
-                padding: "0px 1em 0px 1em",
-              }}
-              spacing={2}
-              align="start"
-            >
-              {updatedEntry.comments.map((comment, index) => (
+          {/* <Text color={textColorOne} fontFamily="Arial, sans-serif">
+            Likes:{" "}
+            {Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0}
+          </Text> */}
+          {Array.isArray(updatedEntry.likes) &&
+            updatedEntry.likes.length > 0 && (
+              <Box w="full" mt={1} mb={2}>
                 <Box
-                  style={{
-                    width: "100%",
-                    display: "inline-flex",
-                    justifyContent: "space-between",
-                  }}
-                  key={index}
-                  p={2}
-                  bg={colorMode === "dark" ? "gray.700" : "gray.100"}
-                  rounded="md"
+                  fontSize="sm"
+                  color={textColorDesc}
+                  fontFamily="Arial, sans-serif"
                 >
-                  <Text color={textColor} fontFamily="Arial, sans-serif">
-                    {comment.text}
-                  </Text>
-                  <Text
-                    color={colorMode === "dark" ? "gray.300" : "black"}
-                    fontSize="sm"
-                    fontFamily="Arial, sans-serif"
-                  >
-                    {formatDate(comment.createdAt)}
-                  </Text>
+                  Liked by{" "}
+                  {updatedEntry.likes.map((user, idx) => (
+                    <span key={user.uid || user._id}>
+                      <Link
+                        to={
+                          user.uid === currentUser?.uid
+                            ? "/profile"
+                            : `/user/${user.uid}`
+                        }
+                      >
+                        {user.username
+                          ? `@${user.username}`
+                          : user.name || "User"}
+                      </Link>
+                      {idx < updatedEntry.likes.length - 1 ? ", " : ""}
+                    </span>
+                  ))}
                 </Box>
-              ))}
-            </VStack>
+              </Box>
+            )}
+
+          {/* Comments Display */}
+          {Array.isArray(updatedEntry.comments) &&
+            updatedEntry.comments.length > 0 && (
+              <VStack
+                style={{
+                  maxWidth: "360px",
+                  width: "-webkit-fill-available",
+                  padding: "0px 1em 0px 1em",
+                }}
+                spacing={2}
+                align="start"
+              >
+                {updatedEntry.comments.map((comment, index) => (
+                  <Box
+                    style={{
+                      width: "100%",
+                      display: "inline-flex",
+                      justifyContent: "space-between",
+                    }}
+                    key={index}
+                    p={2}
+                    bg={colorMode === "dark" ? "gray.700" : "gray.100"}
+                    rounded="md"
+                  >
+                    <Text color={textColor} fontFamily="Arial, sans-serif">
+                      {comment.text}
+                    </Text>
+                    <Text
+                      color={colorMode === "dark" ? "gray.300" : "black"}
+                      fontSize="sm"
+                      fontFamily="Arial, sans-serif"
+                    >
+                      {formatDate(comment.createdAt)}
+                    </Text>
+                  </Box>
+                ))}
+              </VStack>
+            )}
+        </VStack>
+
+        {/* Bottom section with buttons and comment box - falls to bottom */}
+        <VStack spacing={3} mt="auto" pt={4}>
+          {/* Comment Section - Only show for owner */}
+          {isOwner && (
+            <HStack spacing={2} w="full">
+              <Input
+                placeholder="Comment here.."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+              />
+              <Button
+                colorScheme="gray"
+                onClick={() => handleCommentEntry(entry._id, comment)}
+                px={4}
+                py={2}
+              >
+                Comment
+              </Button>
+            </HStack>
           )}
 
-        {/* Action Buttons - Restructured layout */}
-        {isOwner ? (
-          // Owner view: Favorite icon, edit button, and delete menu all in one row
-          <HStack w="full" justify="space-between" spacing={1} pt={1} pb={0}>
-            <IconButton
-              onClick={() => handleLikeEntry(entry._id)}
-              icon={<StarIcon />}
-              bg={
-                isLiked
-                  ? useColorModeValue("yellow.400", "yellow.500")
-                  : useColorModeValue("", "gray.800")
-              }
-              color={isLiked ? "white" : "inherit"}
-              boxShadow={useColorModeValue("lg", "lg")}
-              size="md"
-              rounded="lg"
-              _hover={{
-                boxShadow: "lg",
-                bg: isLiked
-                  ? useColorModeValue("yellow.500", "yellow.600")
-                  : useColorModeValue("gray.100", "gray.700"),
-              }}
-            />
-            <IconButton
-              onClick={onOpen}
-              icon={<EditIcon />}
-              bg={useColorModeValue("gray.200", "gray.800")}
-              color={"white"}
-              rounded="lg"
-              size="md"
-              flex={1}
-              boxShadow={useColorModeValue("lg", "md")}
-              _hover={{
-                boxShadow: "lg",
-                bg: useColorModeValue("gray.300", "gray.700"),
-              }}
-            />
-            <Menu>
-              <MenuButton
-                as={IconButton}
-                icon={<HamburgerIcon />}
-                variant="ghost"
+          {/* Action Buttons - Restructured layout */}
+          {isOwner ? (
+            // Owner view: Favorite icon, edit button, and delete menu all in one row
+            <HStack w="full" justify="space-between" spacing={1} pt={1} pb={0}>
+              <IconButton
+                onClick={() => handleLikeEntry(entry._id)}
+                icon={<StarIcon />}
+                bg={
+                  isLiked
+                    ? useColorModeValue("yellow.400", "yellow.500")
+                    : useColorModeValue("", "gray.800")
+                }
+                color={isLiked ? "white" : "inherit"}
+                boxShadow={useColorModeValue("lg", "lg")}
                 size="md"
                 rounded="lg"
-                boxShadow={useColorModeValue("lg", "lg")}
                 _hover={{
-                  bg: useColorModeValue("gray.100", "gray.700"),
+                  boxShadow: "lg",
+                  bg: isLiked
+                    ? useColorModeValue("yellow.500", "yellow.600")
+                    : useColorModeValue("gray.100", "gray.700"),
                 }}
               />
-              <MenuList>
-                <MenuItem
-                  onClick={handleProcessWorkout}
-                  color="blue.500"
+              <IconButton
+                onClick={onOpen}
+                icon={<EditIcon />}
+                bg={useColorModeValue("gray.200", "gray.800")}
+                color={"white"}
+                rounded="lg"
+                size="md"
+                flex={1}
+                boxShadow={useColorModeValue("lg", "md")}
+                _hover={{
+                  boxShadow: "lg",
+                  bg: useColorModeValue("gray.300", "gray.700"),
+                }}
+              />
+              <Menu>
+                <MenuButton
+                  as={IconButton}
+                  icon={<HamburgerIcon />}
+                  variant="ghost"
+                  size="md"
+                  rounded="lg"
+                  boxShadow={useColorModeValue("lg", "lg")}
                   _hover={{
-                    bg: useColorModeValue("blue.50", "blue.900"),
+                    bg: useColorModeValue("gray.100", "gray.700"),
                   }}
-                >
-                  Process Workout Data
-                </MenuItem>
-                <MenuItem
-                  icon={<DeleteIcon />}
-                  onClick={onDeleteOpen}
-                  color="red.500"
-                  _hover={{
-                    bg: useColorModeValue("red.50", "red.900"),
-                  }}
-                >
-                  Delete Post
-                </MenuItem>
-              </MenuList>
-            </Menu>
-          </HStack>
-        ) : (
-          // Non-owner view: Favorite icon, comment input, and comment button in one row
-          <HStack w="full" spacing={2} pt={1} pb={0}>
-            <IconButton
-              onClick={() => handleLikeEntry(entry._id)}
-              icon={<StarIcon />}
-              bg={
-                isLiked
-                  ? useColorModeValue("yellow.400", "yellow.500")
-                  : useColorModeValue("", "gray.800")
-              }
-              color={isLiked ? "white" : "inherit"}
-              boxShadow={useColorModeValue("lg", "lg")}
-              size="md"
-              rounded="lg"
-              _hover={{
-                boxShadow: "lg",
-                bg: isLiked
-                  ? useColorModeValue("yellow.500", "yellow.600")
-                  : useColorModeValue("gray.100", "gray.700"),
-              }}
-            />
-            <Input
-              placeholder="Comment here.."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              flex={1}
-            />
-            <Button
-              colorScheme="gray"
-              onClick={() => handleCommentEntry(entry._id, comment)}
-              px={4}
-              py={2}
-            >
-              Comment
-            </Button>
-          </HStack>
-        )}
-      </VStack>
+                />
+                <MenuList>
+                  <MenuItem
+                    onClick={handleProcessWorkout}
+                    color="blue.500"
+                    _hover={{
+                      bg: useColorModeValue("blue.50", "blue.900"),
+                    }}
+                  >
+                    Process Workout Data
+                  </MenuItem>
+                  <MenuItem
+                    icon={<DeleteIcon />}
+                    onClick={onDeleteOpen}
+                    color="red.500"
+                    _hover={{
+                      bg: useColorModeValue("red.50", "red.900"),
+                    }}
+                  >
+                    Delete Post
+                  </MenuItem>
+                </MenuList>
+              </Menu>
+            </HStack>
+          ) : (
+            // Non-owner view: Favorite icon, comment input, and comment button in one row
+            <HStack w="full" spacing={2} pt={1} pb={0}>
+              <IconButton
+                onClick={() => handleLikeEntry(entry._id)}
+                icon={<StarIcon />}
+                bg={
+                  isLiked
+                    ? useColorModeValue("yellow.400", "yellow.500")
+                    : useColorModeValue("", "gray.800")
+                }
+                color={isLiked ? "white" : "inherit"}
+                boxShadow={useColorModeValue("lg", "lg")}
+                size="md"
+                rounded="lg"
+                _hover={{
+                  boxShadow: "lg",
+                  bg: isLiked
+                    ? useColorModeValue("yellow.500", "yellow.600")
+                    : useColorModeValue("gray.100", "gray.700"),
+                }}
+              />
+              <Input
+                placeholder="Comment here.."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                flex={1}
+              />
+              <Button
+                colorScheme="gray"
+                onClick={() => handleCommentEntry(entry._id, comment)}
+                px={4}
+                py={2}
+              >
+                Comment
+              </Button>
+            </HStack>
+          )}
+        </VStack>
+      </Box>
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
