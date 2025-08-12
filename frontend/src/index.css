@@ -134,6 +134,8 @@
 
 /* Button styles */
 .button-upload {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: 1.3px solid #94949446;
+  padding: 5px 30px;
+  background: linear-gradient(135deg, #667eea0a 0%, #4344490d 100%);
+  border: 1.3px solid #94949405;
+  border-radius: 7px;
 }

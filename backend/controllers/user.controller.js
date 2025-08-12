@@ -7,6 +7,7 @@ import {
   filterEntriesForPublicView,
   filterUserDataForPublicView,
 } from "../utils/userUtils.js";
+import { generateSafeFilePath } from "../utils/fileUtils.js";
 
 // Multer configuration
 const fileFilter = (req, file, cb) => {
@@ -295,8 +296,11 @@ export const updateUserProfile = async (req, res) => {
       try {
         const base64Data = profileImage.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
-        const timestamp = Date.now();
-        const filePath = `profiles/profile_${uid}/${profileImageName}_${timestamp}.jpg`;
+        const filePath = generateSafeFilePath(
+          uid,
+          profileImageName,
+          "profiles"
+        );
 
         const { error } = await supabase.storage
           .from("user_profiles")
@@ -666,10 +670,12 @@ export const uploadBackgroundPicture = [
       }
 
       const user = req.user;
-      const fileName = `background_${user.uid}_${Date.now()}${path.extname(
-        req.file.originalname
-      )}`;
-      const filePath = `backgrounds/${fileName}`;
+      const fileName = generateSafeFilePath(
+        user.uid,
+        req.file.originalname,
+        "backgrounds"
+      );
+      const filePath = fileName;
 
       const { error } = await supabase.storage
         .from("user_backgrounds")
@@ -715,10 +721,12 @@ export const uploadProfilePic = [
       }
 
       const user = req.user;
-      const fileName = `profile_${user.uid}_${Date.now()}${path.extname(
-        req.file.originalname
-      )}`;
-      const filePath = `profiles/${fileName}`;
+      const fileName = generateSafeFilePath(
+        user.uid,
+        req.file.originalname,
+        "profiles"
+      );
+      const filePath = fileName;
 
       const { error } = await supabase.storage
         .from("user_profiles")

@@ -127,7 +127,7 @@ export const useProductStore = create((set) => ({
 
       set((state) => ({
         entrys: state.entrys.map((entry) =>
-          entry._id === pid ? { ...entry, ...updatedEntry } : entry
+          entry._id === pid ? { ...entry, ...data.data } : entry
         ),
       }));
       return { success: true, message: data.message, data: data.data };

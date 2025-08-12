@@ -8,6 +8,7 @@ import cors from "cors";
 import { supabase } from "../supabase/supabase.js";
 // import User from "../models/user.model.js";
 import { verifyIdToken } from "../middleware/auth.js"; //
+import { generateSafeFilePath } from "../utils/fileUtils.js";
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
@@ -119,8 +120,7 @@ export const updateEntry = async (req, res) => {
     if (imageName !== "undefined") {
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
-      const timestamp = Date.now();
-      const filePath = `images/image_${uid}/${imageName}_${timestamp}.jpg`;
+      const filePath = generateSafeFilePath(uid, imageName, "images");
 
       // Upload the new image to Supabase storage
       const { data: file, error } = await supabase.storage
@@ -154,6 +154,7 @@ export const updateEntry = async (req, res) => {
       new: true,
     });
 
+    console.log("Updated entry data:", entryData); // Debug log
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
@@ -212,8 +213,7 @@ export const updateEntryPut = async (req, res) => {
     if (imageName && imageName !== "undefined" && image) {
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
-      const timestamp = Date.now();
-      const filePath = `images/image_${uid}/${imageName}_${timestamp}.jpg`;
+      const filePath = generateSafeFilePath(uid, imageName, "images");
 
       // Upload the new image to Supabase storage
       const { data: file, error } = await supabase.storage
@@ -249,6 +249,8 @@ export const updateEntryPut = async (req, res) => {
       new: true,
     });
 
+    console.log("PUT Updated entry data:", entryData); // Debug log
+    console.log("PUT route - postImageUrl:", postImageUrl); // Debug log
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
     console.error("Error in updating entry:", error.message);

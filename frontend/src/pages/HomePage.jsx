@@ -76,8 +76,6 @@ const HomePage = () => {
   // Optimized auth state handler
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (!isMountedRef.current) return;
-
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
@@ -95,7 +93,6 @@ const HomePage = () => {
     });
 
     return () => {
-      isMountedRef.current = false;
       unsubscribe();
     };
   }, [clearEntrys]);
@@ -413,7 +410,7 @@ const HomePage = () => {
               bgClip={"text"}
               textAlign={"center"}
             >
-              Following Feed
+              Workout Posts
             </Text>
             {isLoading ? (
               <Box
@@ -439,6 +436,7 @@ const HomePage = () => {
                   }}
                   spacing={10}
                   w={"full"}
+                  alignItems="stretch"
                 >
                   {memoizedEntries.map((entry) => (
                     <ProductCard
@@ -538,7 +536,7 @@ const HomePage = () => {
         </>
       ) : (
         <div>
-          <Hero />
+          <Hero handleGoogleSignIn={handleGoogleSignIn} />
         </div>
       )}
     </Container>

@@ -9,8 +9,7 @@ import { signInWithPopup, signOut } from "firebase/auth";
 import { useColorModeValue } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 
-export const Hero = () => {
-  const [isSignedIn, setIsSignedIn] = useState(false);
+export const Hero = ({ handleGoogleSignIn }) => {
   const [blobSize, setBlobSize] = useState({ width: "25rem", height: "44rem" });
   const [largeBlobSize, setLargeBlobSize] = useState({
     width: "90rem",
@@ -70,107 +69,6 @@ export const Hero = () => {
         ease: "easeInOut",
       },
     },
-  };
-
-  const handleGoogleSignIn = async (mode = "login") => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log("User signed in:", result.user);
-      const token = await result.user.getIdToken();
-
-      // First, check if user already exists in our database
-      const userCheckResponse = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const userExists = userCheckResponse.ok;
-
-      if (mode === "login" && !userExists) {
-        // User tried to login but doesn't have an account
-        alert(
-          "No account found with this Google account. Please use Sign Up instead."
-        );
-        // Sign out the user since they don't have an account
-        await signOut(auth);
-        return;
-      }
-
-      if (mode === "signup" && userExists) {
-        // User tried to signup but already has an account
-        alert(
-          "An account already exists with this Google account. Please use Login instead."
-        );
-        // Don't sign out, let them stay logged in
-        setIsSignedIn(true);
-        return;
-      }
-
-      // If it's a signup, create the user account
-      if (mode === "signup") {
-        const response = await fetch(
-          "https://gym-tracker-brown.vercel.app/api/protected",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-
-        const userData = await response.json();
-        console.log("New user created:", userData.uid);
-      }
-
-      const tokenForCurrentUser = await auth.currentUser.getIdToken();
-      const currentUserResponse = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/getCurrentUser",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${tokenForCurrentUser}`,
-          },
-        }
-      );
-
-      if (!currentUserResponse.ok) {
-        throw new Error(await currentUserResponse.text());
-      }
-
-      const currentUserData = await currentUserResponse.json();
-      console.log("Logged in as:", currentUserData);
-
-      setIsSignedIn(true);
-
-      // Show appropriate success message
-      if (mode === "signup") {
-        alert(
-          "Welcome to Ethereal Gains! Your account has been created successfully."
-        );
-      } else {
-        alert("Successfully logged in to your account.");
-      }
-    } catch (error) {
-      console.error("Error during sign-in:", error);
-      alert("Authentication failed. Please try again.");
-      handleSignOutUser();
-    }
-  };
-
-  const handleSignOutUser = () => {
-    setIsSignedIn(false);
   };
 
   const textMode = useColorModeValue("#8aa2b7", "#f9fafb");

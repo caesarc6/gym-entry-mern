@@ -459,7 +459,11 @@ const UserProfilePage = () => {
         </Center>
       ) : (
         <>
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+          <SimpleGrid
+            columns={{ base: 1, md: 2, lg: 3 }}
+            spacing={6}
+            alignItems="stretch"
+          >
             {entries.map((entry) => (
               <ProductCard
                 key={entry._id}

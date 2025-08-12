@@ -203,6 +203,7 @@ const ProductCard = ({
 
   // Optimized image loading handlers
   const handleImageLoad = useCallback(() => {
+    // console.log("Image loaded successfully"); // Debug log
     setImageLoaded(true);
   }, []);
 
@@ -229,7 +230,7 @@ const ProductCard = ({
   useEffect(() => {
     setImageLoaded(false);
     setProfileImageLoaded(false);
-  }, [entry._id, entry.image, entry.uid]);
+  }, [entry._id, entry.image, entry.uid, updatedEntry.image]);
 
   // Check if image is already loaded (for cached images)
   useEffect(() => {
@@ -253,6 +254,11 @@ const ProductCard = ({
       return () => clearTimeout(timeout);
     }
   }, [profileImage]);
+
+  // Debug log when updatedEntry changes
+  useEffect(() => {
+    // console.log("updatedEntry changed:", updatedEntry);
+  }, [updatedEntry]);
 
   const handleFileUpload = (file) => {
     // Check file size (limit to 5MB)
@@ -321,6 +327,8 @@ const ProductCard = ({
     setUpdatedEntry((prevEntry) => ({ ...prevEntry, ...updatedEntry }));
     const { success, message, data } = await updateEntry(pid, updatedEntry);
 
+    console.log("Update response:", { success, message, data }); // Debug log
+
     onClose();
     if (!success) {
       setUpdatedEntry(previousEntry);
@@ -333,14 +341,26 @@ const ProductCard = ({
       });
     } else {
       if (data) {
-        const { name, description, likes, comments } = data;
-        setUpdatedEntry((prevEntry) => ({
-          ...prevEntry,
+        const { name, description, likes, comments, image } = data;
+        console.log("Updating entry with:", {
           name,
           description,
           likes,
           comments,
-        }));
+          image,
+        }); // Debug log
+        setUpdatedEntry((prevEntry) => {
+          const newUpdatedEntry = {
+            ...prevEntry,
+            name,
+            description,
+            likes,
+            comments,
+            image, // Add the image field to update the UI
+          };
+          console.log("Setting updatedEntry to:", newUpdatedEntry); // Debug log
+          return newUpdatedEntry;
+        });
         onUpdate(pid, data);
       }
       toast({
@@ -564,6 +584,9 @@ const ProductCard = ({
             transition: "opacity 0.3s ease-in-out",
           }}
           loading="lazy"
+          onLoadStart={() =>
+            console.log("Image loading:", updatedEntry.image || entry.image)
+          } // Debug log
         />
       </Box>
       <HStack
@@ -629,7 +652,7 @@ const ProductCard = ({
         minHeight="300px"
       >
         {/* Content area */}
-        <VStack spacing={4} flex="1">
+        <VStack spacing={4} flex="1" minHeight="0">
           <HStack w="full" justify="center" align="center">
             <Heading
               as={"h2"}
@@ -645,7 +668,7 @@ const ProductCard = ({
             {" - "}
             {formatDateTitleTime(updatedEntry.createdAt)}
           </Text>
-          <Box>
+          <Box flex="1" minHeight="0">
             <Box
               as="pre"
               style={{
@@ -732,7 +755,7 @@ const ProductCard = ({
         </VStack>
 
         {/* Bottom section with buttons and comment box - falls to bottom */}
-        <VStack spacing={3} mt="auto" pt={4}>
+        <VStack spacing={3} mt="auto" pt={4} flexShrink="0">
           {/* Comment Section - Only show for owner */}
           {isOwner && (
             <HStack spacing={2} w="full">
@@ -755,47 +778,52 @@ const ProductCard = ({
           {/* Action Buttons - Restructured layout */}
           {isOwner ? (
             // Owner view: Favorite icon, edit button, and delete menu all in one row
-            <HStack w="full" justify="space-between" spacing={1} pt={1} pb={0}>
+            <HStack w="full" justify="space-between" spacing={1} pt={0} pb={0}>
               <IconButton
                 onClick={() => handleLikeEntry(entry._id)}
                 icon={<StarIcon />}
                 bg={
                   isLiked
-                    ? useColorModeValue("yellow.400", "yellow.500")
+                    ? useColorModeValue("#fff1bfd4", "yellow.500")
                     : useColorModeValue("", "gray.800")
                 }
-                color={isLiked ? "white" : "inherit"}
+                // color={isLiked ? "white" : "inherit"}
                 boxShadow={useColorModeValue("lg", "lg")}
                 size="md"
                 rounded="lg"
+                py={"27px"}
+                color={isLiked ? "white" : "LightGray"}
                 _hover={{
                   boxShadow: "lg",
                   bg: isLiked
-                    ? useColorModeValue("yellow.500", "yellow.600")
+                    ? useColorModeValue("#ffedaed4", "yellow.600")
                     : useColorModeValue("gray.100", "gray.700"),
                 }}
               />
               <IconButton
                 onClick={onOpen}
                 icon={<EditIcon />}
-                bg={useColorModeValue("gray.200", "gray.800")}
-                color={"white"}
+                bg={useColorModeValue("", "gray.800")}
+                color={"GrayText"}
                 rounded="lg"
                 size="md"
                 flex={1}
                 boxShadow={useColorModeValue("lg", "md")}
+                py={"27px"}
                 _hover={{
                   boxShadow: "lg",
-                  bg: useColorModeValue("gray.300", "gray.700"),
+                  bg: useColorModeValue("gray.100", "gray.700"),
                 }}
               />
               <Menu>
                 <MenuButton
                   as={IconButton}
                   icon={<HamburgerIcon />}
+                  color={"GrayText"}
                   variant="ghost"
                   size="md"
                   rounded="lg"
+                  py={"27px"}
                   boxShadow={useColorModeValue("lg", "lg")}
                   _hover={{
                     bg: useColorModeValue("gray.100", "gray.700"),
@@ -894,8 +922,12 @@ const ProductCard = ({
                 fontFamily="Arial, sans-serif"
               />
               <Image
-                src={updatedEntry.image || "default-profile-picture-url"}
-                alt="Profile Picture"
+                src={
+                  updatedEntry.image ||
+                  entry.image ||
+                  "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg"
+                }
+                alt="Entry Image"
                 boxSize="150px"
                 objectFit="cover"
                 borderRadius="3xl"
