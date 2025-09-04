@@ -815,8 +815,7 @@ const ProductCard = ({
       position="relative"
       cursor="pointer"
       onClick={onDetailOpen}
-      // Fixed aspect ratio container - similar to Instagram posts (4:5 ratio)
-      aspectRatio="4/5"
+      // Container that adapts to content
       maxW="400px"
       w="100%"
       mx="auto"
@@ -825,11 +824,29 @@ const ProductCard = ({
       borderColor={useColorModeValue("gray.100", "gray.700")}
     >
       {/* Image container with fixed aspect ratio */}
-      <Box position="relative" w="full" h="60%" overflow="hidden">
+      <Box
+        position="relative"
+        w="full"
+        aspectRatio="4/5"
+        overflow="hidden"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        sx={{
+          "--aspect-ratio": "1.25", // 4:5 ratio (5/4 = 1.25)
+          "&::before": {
+            content: '""',
+            display: "block",
+            paddingTop: "calc(100% / var(--aspect-ratio))",
+            width: "100%",
+          },
+        }}
+      >
         {!imageLoaded && (
           <Skeleton
-            h="full"
             w="full"
+            h="auto"
+            aspectRatio="4/5"
             startColor={useColorModeValue("gray.200", "gray.600")}
             endColor={useColorModeValue("gray.300", "gray.500")}
           />
@@ -837,9 +854,10 @@ const ProductCard = ({
         <Image
           src={updatedEntry.image || entry.image}
           alt={entry.name}
-          h="full"
           w="full"
+          h="auto"
           objectFit="cover"
+          objectPosition="center"
           onError={handleImageError}
           onLoad={handleImageLoad}
           style={{
@@ -849,6 +867,9 @@ const ProductCard = ({
             display: imageLoaded ? "block" : "none",
             opacity: imageLoaded ? 1 : 0,
             transition: "opacity 0.3s ease-in-out",
+            aspectRatio: "4/5",
+            width: "100%",
+            height: "auto",
           }}
           loading="lazy"
           onLoadStart={() =>
@@ -1000,72 +1021,6 @@ const ProductCard = ({
                       </Badge>
                     )}
                 </HStack>
-
-                {/* Recent Comments Preview */}
-                {Array.isArray(updatedEntry.comments) &&
-                  updatedEntry.comments.length > 0 && (
-                    <Box w="full">
-                      {updatedEntry.comments.slice(-2).map((comment, index) => (
-                        <VStack
-                          key={comment._id || index}
-                          spacing={1}
-                          w="full"
-                          mb={1}
-                          opacity={0.8}
-                          align="start"
-                        >
-                          <HStack spacing={2} w="full">
-                            <Box
-                              position="relative"
-                              boxSize="16px"
-                              flexShrink={0}
-                            >
-                              <Image
-                                src={
-                                  comment.picture ||
-                                  getCurrentUserProfilePicture()
-                                }
-                                alt="Commenter"
-                                boxSize="16px"
-                                borderRadius="full"
-                                objectFit="cover"
-                              />
-                            </Box>
-                            <Text
-                              fontSize="10px"
-                              color={textColorDesc}
-                              noOfLines={1}
-                              flex={1}
-                            >
-                              <Text as="span" fontWeight="600" fontSize="10px">
-                                {comment.username
-                                  ? `@${comment.username}`
-                                  : comment.name || "User"}
-                              </Text>
-                              <Text as="span" fontSize="10px" ml={1}>
-                                {comment.text.length > 30
-                                  ? `${comment.text.substring(0, 30)}...`
-                                  : comment.text}
-                              </Text>
-                            </Text>
-                          </HStack>
-                          {/* Show interaction counts */}
-                          <HStack spacing={3} pl={6}>
-                            {comment.likes && comment.likes.length > 0 && (
-                              <Text fontSize="8px" color="gray.500">
-                                ❤️ {comment.likes.length}
-                              </Text>
-                            )}
-                            {comment.replies && comment.replies.length > 0 && (
-                              <Text fontSize="8px" color="gray.500">
-                                💬 {comment.replies.length}
-                              </Text>
-                            )}
-                          </HStack>
-                        </VStack>
-                      ))}
-                    </Box>
-                  )}
               </VStack>
             ) : null}
           </VStack>
@@ -1133,7 +1088,8 @@ const ProductCard = ({
               <IconButton
                 onClick={() => handleLikeEntry(entry._id)}
                 icon={<StarIcon />}
-                py={6}
+                py={7}
+                px={4}
                 bg={
                   isLiked
                     ? useColorModeValue("red.50", "red.900")
@@ -1160,7 +1116,7 @@ const ProductCard = ({
                 color={useColorModeValue("gray.600", "gray.400")}
                 borderRadius="0px"
                 size="sm"
-                py={6}
+                py={7}
                 flex={1}
                 _hover={{
                   bg: useColorModeValue("gray.100", "gray.700"),
@@ -1171,7 +1127,8 @@ const ProductCard = ({
                 <MenuButton
                   as={IconButton}
                   icon={<HamburgerIcon />}
-                  py={6}
+                  py={7}
+                  px={4}
                   color={useColorModeValue("gray.600", "gray.400")}
                   variant="ghost"
                   size="sm"
@@ -1301,15 +1258,25 @@ const ProductCard = ({
           >
             <VStack spacing={{ base: 3, md: 4 }} align="stretch">
               {/* Image Section */}
-              <Box>
+              <Box
+                w="full"
+                aspectRatio="4/5"
+                overflow="hidden"
+                borderRadius="4px"
+              >
                 <Image
                   src={updatedEntry.image || entry.image}
                   alt={entry.name}
                   w="full"
-                  h={{ base: "400px", md: "450px" }}
+                  h="auto"
                   objectFit="cover"
-                  borderRadius="4px"
-                  fallback={<Skeleton h={{ base: "400px", md: "450px" }} />}
+                  objectPosition="center"
+                  style={{
+                    aspectRatio: "4/5",
+                    width: "100%",
+                    height: "auto",
+                  }}
+                  fallback={<Skeleton h="auto" aspectRatio="4/5" />}
                 />
               </Box>
 
