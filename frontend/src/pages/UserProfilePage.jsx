@@ -33,6 +33,7 @@ const defaultBgNightUrl = new URL(
   import.meta.url
 ).href;
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import PaginationComponent from "../components/Pagination";
 
 const UserProfilePage = () => {
   const { userId: paramUserId } = useParams(); // Rename to avoid confusion
@@ -462,7 +463,8 @@ const UserProfilePage = () => {
           <SimpleGrid
             columns={{ base: 1, md: 2, lg: 3 }}
             spacing={6}
-            alignItems="stretch"
+            alignItems="center"
+            justifyItems="center"
           >
             {entries.map((entry) => (
               <ProductCard
@@ -472,27 +474,12 @@ const UserProfilePage = () => {
               />
             ))}
           </SimpleGrid>
-          {pagination.totalPages > 1 && (
-            <Flex justify="center" mt={8} gap={2}>
-              <Button
-                onClick={() => handlePageChange(currentPage - 1)}
-                isDisabled={currentPage === 1}
-                leftIcon={<SlArrowLeft />}
-              >
-                Previous
-              </Button>
-              <Text alignSelf="center" px={4}>
-                Page {currentPage} of {pagination.totalPages}
-              </Text>
-              <Button
-                onClick={() => handlePageChange(currentPage + 1)}
-                isDisabled={currentPage === pagination.totalPages}
-                rightIcon={<SlArrowRight />}
-              >
-                Next
-              </Button>
-            </Flex>
-          )}
+          <PaginationComponent
+            currentPage={currentPage}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+            maxVisiblePages={5}
+          />
         </>
       )}
     </Container>

@@ -148,8 +148,9 @@ DumbBell Curls 6lbs: 3 sets of 10 reps"
               borderRadius="md"
             />
             <FileUploader
-              // className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
               handleFile={handleFileUpload}
+              maxSizeMB={5}
+              showCompressionInfo={true}
             />
             {/* <Input
               className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"

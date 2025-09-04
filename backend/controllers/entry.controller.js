@@ -370,6 +370,7 @@ export const likeEntry = async (req, res) => {
 export const commentEntry = async (req, res) => {
   const { id } = req.params;
   const { comment } = req.body;
+  const { uid } = req.user;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -385,17 +386,260 @@ export const commentEntry = async (req, res) => {
         .json({ success: false, message: "Entry not found" });
     }
 
+    // Find the user by UID
+    const user = await mongoose.model("User").findOne({ uid });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
     const newComment = {
+      _id: new mongoose.Types.ObjectId(),
       text: comment,
-      timestamp: new Date(),
+      createdAt: new Date(),
+      uid: user.uid,
+      username: user.username,
+      name: user.name,
+      picture: user.picture,
+      likes: [],
+      replies: [],
     };
+
+    if (!Array.isArray(entry.comments)) {
+      entry.comments = [];
+    }
 
     entry.comments.push(newComment);
     await entry.save();
 
     res.status(200).json({ success: true, data: entry });
   } catch (error) {
-    // console.error("Error in commenting entry:", error.message);
+    console.error("Error in commenting entry:", error.message);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Like a comment
+export const likeComment = async (req, res) => {
+  const { entryId, commentId } = req.params;
+  const { uid } = req.user;
+
+  if (
+    !mongoose.Types.ObjectId.isValid(entryId) ||
+    !mongoose.Types.ObjectId.isValid(commentId)
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid Entry or Comment Id" });
+  }
+
+  try {
+    const entry = await Entry.findById(entryId);
+    if (!entry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+
+    const user = await mongoose.model("User").findOne({ uid });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const comment = entry.comments.id(commentId);
+    if (!comment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Comment not found" });
+    }
+
+    if (!Array.isArray(comment.likes)) {
+      comment.likes = [];
+    }
+
+    const userLikedIndex = comment.likes.findIndex((like) => like.uid === uid);
+
+    if (userLikedIndex > -1) {
+      // Unlike
+      comment.likes.splice(userLikedIndex, 1);
+    } else {
+      // Like
+      comment.likes.push({
+        uid: user.uid,
+        username: user.username,
+        name: user.name,
+        picture: user.picture,
+      });
+    }
+
+    await entry.save();
+    res.status(200).json({ success: true, data: entry });
+  } catch (error) {
+    console.error("Error liking comment:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Reply to a comment
+export const replyToComment = async (req, res) => {
+  const { entryId, commentId } = req.params;
+  const { text } = req.body;
+  const { uid } = req.user;
+
+  if (
+    !mongoose.Types.ObjectId.isValid(entryId) ||
+    !mongoose.Types.ObjectId.isValid(commentId)
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid Entry or Comment Id" });
+  }
+
+  try {
+    const entry = await Entry.findById(entryId);
+    if (!entry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+
+    const user = await mongoose.model("User").findOne({ uid });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const comment = entry.comments.id(commentId);
+    if (!comment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Comment not found" });
+    }
+
+    if (!Array.isArray(comment.replies)) {
+      comment.replies = [];
+    }
+
+    const newReply = {
+      _id: new mongoose.Types.ObjectId(),
+      text,
+      createdAt: new Date(),
+      uid: user.uid,
+      username: user.username,
+      name: user.name,
+      picture: user.picture,
+    };
+
+    comment.replies.push(newReply);
+    await entry.save();
+
+    res.status(200).json({ success: true, data: entry });
+  } catch (error) {
+    console.error("Error replying to comment:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Edit a comment
+export const editComment = async (req, res) => {
+  const { entryId, commentId } = req.params;
+  const { text } = req.body;
+  const { uid } = req.user;
+
+  if (
+    !mongoose.Types.ObjectId.isValid(entryId) ||
+    !mongoose.Types.ObjectId.isValid(commentId)
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid Entry or Comment Id" });
+  }
+
+  try {
+    const entry = await Entry.findById(entryId);
+    if (!entry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+
+    const comment = entry.comments.id(commentId);
+    if (!comment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Comment not found" });
+    }
+
+    // Check if user can edit this comment (comment owner or post owner)
+    if (comment.uid !== uid && entry.uid !== uid) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "Not authorized to edit this comment",
+        });
+    }
+
+    comment.text = text;
+    comment.edited = true;
+    await entry.save();
+
+    res.status(200).json({ success: true, data: entry });
+  } catch (error) {
+    console.error("Error editing comment:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Delete a comment
+export const deleteComment = async (req, res) => {
+  const { entryId, commentId } = req.params;
+  const { uid } = req.user;
+
+  if (
+    !mongoose.Types.ObjectId.isValid(entryId) ||
+    !mongoose.Types.ObjectId.isValid(commentId)
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid Entry or Comment Id" });
+  }
+
+  try {
+    const entry = await Entry.findById(entryId);
+    if (!entry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+
+    const comment = entry.comments.id(commentId);
+    if (!comment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Comment not found" });
+    }
+
+    // Check if user can delete this comment (comment owner or post owner)
+    if (comment.uid !== uid && entry.uid !== uid) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "Not authorized to delete this comment",
+        });
+    }
+
+    comment.remove();
+    await entry.save();
+
+    res.status(200).json({ success: true, data: entry });
+  } catch (error) {
+    console.error("Error deleting comment:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };

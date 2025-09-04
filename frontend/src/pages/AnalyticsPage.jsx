@@ -26,11 +26,17 @@ import {
   Center,
   Alert,
   AlertIcon,
+  Icon,
 } from "@chakra-ui/react";
+import { FiExternalLink } from "react-icons/fi";
 import { auth } from "../firebase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
 import GymNameHelper from "../components/GymNameHelper";
+import ExerciseProgressChart from "../components/ExerciseProgressChart";
+import MultiMetricProgressChart from "../components/MultiMetricProgressChart";
+import ProgressInsights from "../components/ProgressInsights";
+import WorkoutDetailsModal from "../components/WorkoutDetailsModal";
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -47,6 +53,9 @@ const AnalyticsPage = () => {
   const [autoProcessEnabled, setAutoProcessEnabled] = useState(false); // Changed to false by default
   const [skippedEntries, setSkippedEntries] = useState([]);
   const [hasAutoProcessed, setHasAutoProcessed] = useState(false); // New flag to prevent multiple auto-processing
+  const [chartType, setChartType] = useState("simple"); // 'simple' or 'multi'
+  const [selectedWorkout, setSelectedWorkout] = useState(null);
+  const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
 
   const { showToast } = useCustomToast();
   const bgColor = useColorModeValue("white", "gray.800");
@@ -1052,7 +1061,7 @@ const AnalyticsPage = () => {
             {/* Progress Tab */}
             <TabPanel>
               <VStack spacing={4} align="stretch">
-                <HStack>
+                <HStack spacing={4} wrap="wrap">
                   <Select
                     placeholder="Select exercise"
                     value={selectedExercise}
@@ -1065,6 +1074,21 @@ const AnalyticsPage = () => {
                       </option>
                     ))}
                   </Select>
+                  <Select
+                    value={timeframe}
+                    onChange={(e) => {
+                      setTimeframe(e.target.value);
+                      if (selectedExercise) {
+                        fetchExerciseProgress(selectedExercise);
+                      }
+                    }}
+                    w="150px"
+                  >
+                    <option value="7d">Last 7 days</option>
+                    <option value="30d">Last 30 days</option>
+                    <option value="90d">Last 90 days</option>
+                    <option value="1y">Last year</option>
+                  </Select>
                 </HStack>
 
                 {progressLoading && (
@@ -1074,66 +1098,150 @@ const AnalyticsPage = () => {
                 )}
 
                 {exerciseProgress && exerciseProgress.dataPoints.length > 0 && (
-                  <Card bg={cardBg}>
-                    <CardBody>
-                      <Heading size="md" mb={4}>
-                        {exerciseProgress.exercise} Progress
-                      </Heading>
-                      <VStack spacing={4} align="stretch">
-                        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-                          <Stat>
-                            <StatLabel>Max Weight</StatLabel>
-                            <StatNumber>
-                              {exerciseProgress.maxWeight} lbs
-                            </StatNumber>
-                          </Stat>
-                          <Stat>
-                            <StatLabel>Max Volume</StatLabel>
-                            <StatNumber>
-                              {exerciseProgress.maxVolume.toLocaleString()}
-                            </StatNumber>
-                          </Stat>
-                          <Stat>
-                            <StatLabel>Max Reps</StatLabel>
-                            <StatNumber>{exerciseProgress.maxReps}</StatNumber>
-                          </Stat>
-                        </SimpleGrid>
+                  <>
+                    {/* Chart Type Toggle */}
+                    <HStack justify="center" spacing={4}>
+                      <Button
+                        size="sm"
+                        variant={chartType === "simple" ? "solid" : "outline"}
+                        colorScheme="blue"
+                        onClick={() => setChartType("simple")}
+                      >
+                        Simple Chart
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={chartType === "multi" ? "solid" : "outline"}
+                        colorScheme="green"
+                        onClick={() => setChartType("multi")}
+                      >
+                        Multi-Metric Chart
+                      </Button>
+                    </HStack>
 
-                        <Box>
-                          <Text fontWeight="medium" mb={2}>
-                            Recent Workouts:
-                          </Text>
-                          <VStack align="start" spacing={2}>
-                            {exerciseProgress.dataPoints
-                              .slice(-5)
-                              .reverse()
-                              .map((point, index) => (
-                                <HStack
-                                  key={index}
-                                  justify="space-between"
-                                  w="full"
-                                >
-                                  <Text>
-                                    {new Date(point.date).toLocaleDateString()}
-                                  </Text>
-                                  <HStack spacing={4}>
-                                    <Badge colorScheme="blue">
-                                      {point.weight} lbs
-                                    </Badge>
-                                    <Badge colorScheme="green">
-                                      {point.reps} reps
-                                    </Badge>
-                                    <Badge colorScheme="purple">
-                                      {point.volume.toLocaleString()} vol
-                                    </Badge>
+                    {/* Progress Chart */}
+                    <Card bg={cardBg}>
+                      <CardBody>
+                        {chartType === "simple" ? (
+                          <ExerciseProgressChart
+                            exerciseProgress={exerciseProgress}
+                            exerciseName={exerciseProgress.exercise}
+                          />
+                        ) : (
+                          <MultiMetricProgressChart
+                            exerciseProgress={exerciseProgress}
+                            exerciseName={exerciseProgress.exercise}
+                          />
+                        )}
+                      </CardBody>
+                    </Card>
+
+                    {/* Progress Insights */}
+                    <Card bg={cardBg}>
+                      <CardBody>
+                        <ProgressInsights exerciseProgress={exerciseProgress} />
+                      </CardBody>
+                    </Card>
+
+                    {/* Progress Stats */}
+                    <Card bg={cardBg}>
+                      <CardBody>
+                        <Heading size="md" mb={4}>
+                          {exerciseProgress.exercise} Progress Summary
+                        </Heading>
+                        <VStack spacing={4} align="stretch">
+                          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                            <Stat>
+                              <StatLabel>Max Weight</StatLabel>
+                              <StatNumber>
+                                {exerciseProgress.maxWeight} lbs
+                              </StatNumber>
+                            </Stat>
+                            <Stat>
+                              <StatLabel>Max Volume</StatLabel>
+                              <StatNumber>
+                                {exerciseProgress.maxVolume.toLocaleString()}
+                              </StatNumber>
+                            </Stat>
+                            <Stat>
+                              <StatLabel>Max Reps</StatLabel>
+                              <StatNumber>
+                                {exerciseProgress.maxReps}
+                              </StatNumber>
+                            </Stat>
+                          </SimpleGrid>
+
+                          <Box>
+                            <HStack justify="space-between" mb={2}>
+                              <Text fontWeight="medium">
+                                Recent Workouts:
+                              </Text>
+                              <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                                Click any workout for details
+                              </Text>
+                            </HStack>
+                            <VStack align="start" spacing={2}>
+                              {exerciseProgress.dataPoints
+                                .slice(-5)
+                                .reverse()
+                                .map((point, index) => (
+                                  <HStack
+                                    key={index}
+                                    justify="space-between"
+                                    w="full"
+                                    p={3}
+                                    bg={useColorModeValue('gray.50', 'gray.600')}
+                                    borderRadius="md"
+                                    cursor="pointer"
+                                    _hover={{
+                                      bg: useColorModeValue('gray.100', 'gray.500'),
+                                      transform: 'translateY(-1px)',
+                                      boxShadow: 'md',
+                                    }}
+                                    transition="all 0.2s"
+                                    onClick={() => {
+                                      setSelectedWorkout(point);
+                                      setIsWorkoutModalOpen(true);
+                                    }}
+                                  >
+                                    <VStack align="start" spacing={1}>
+                                      <HStack spacing={2}>
+                                        <Text fontWeight="medium">
+                                          {new Date(
+                                            point.date
+                                          ).toLocaleDateString()}
+                                        </Text>
+                                        <Icon as={FiExternalLink} color="gray.400" boxSize={3} />
+                                      </HStack>
+                                      <Text fontSize="xs" color="gray.500">
+                                        {new Date(point.date).toLocaleTimeString([], { 
+                                          hour: '2-digit', 
+                                          minute: '2-digit' 
+                                        })}
+                                      </Text>
+                                    </VStack>
+                                    <HStack spacing={3}>
+                                      <Badge colorScheme="blue" variant="solid">
+                                        {point.weight} lbs
+                                      </Badge>
+                                      <Badge colorScheme="green" variant="solid">
+                                        {point.reps} reps
+                                      </Badge>
+                                      <Badge colorScheme="purple" variant="solid">
+                                        {point.sets} sets
+                                      </Badge>
+                                      <Badge colorScheme="orange" variant="outline">
+                                        {point.volume.toLocaleString()} vol
+                                      </Badge>
+                                    </HStack>
                                   </HStack>
-                                </HStack>
-                              ))}
-                          </VStack>
-                        </Box>
-                      </VStack>
-                    </CardBody>
-                  </Card>
+                                ))}
+                            </VStack>
+                          </Box>
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  </>
                 )}
 
                 {exerciseProgress &&
@@ -1149,6 +1257,17 @@ const AnalyticsPage = () => {
           </TabPanels>
         </Tabs>
       </VStack>
+
+      {/* Workout Details Modal */}
+      <WorkoutDetailsModal
+        isOpen={isWorkoutModalOpen}
+        onClose={() => {
+          setIsWorkoutModalOpen(false);
+          setSelectedWorkout(null);
+        }}
+        workoutData={selectedWorkout}
+        exerciseName={exerciseProgress?.exercise || ""}
+      />
     </Container>
   );
 };

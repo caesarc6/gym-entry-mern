@@ -252,23 +252,31 @@ export const useProductStore = create((set) => ({
 
 // Add an authentication state listener to ensure the user is authenticated
 auth.onAuthStateChanged(async (user) => {
+  console.log("Auth state changed:", user?.uid); // Debug log
   if (user) {
     // Fetch full user info from backend
     try {
+      console.log("Fetching current user info..."); // Debug log
       const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
-      if (response.data && response.data.data) {
-        useProductStore.getState().setCurrentUserInfo(response.data.data);
+      console.log("Current user response:", response.data); // Debug log
+      if (response.data) {
+        useProductStore.getState().setCurrentUserInfo(response.data);
+        console.log("Set currentUserInfo to:", response.data); // Debug log
       }
     } catch (e) {
+      console.error("Error fetching current user info:", e); // Debug log
       // fallback: just store Firebase info
-      useProductStore.getState().setCurrentUserInfo({
+      const fallbackInfo = {
         uid: user.uid,
         name: user.displayName || "User",
         username: user.displayName || "user",
         picture: user.photoURL || "",
-      });
+      };
+      useProductStore.getState().setCurrentUserInfo(fallbackInfo);
+      console.log("Set fallback currentUserInfo to:", fallbackInfo); // Debug log
     }
   } else {
     useProductStore.getState().setCurrentUserInfo(null);
+    console.log("Cleared currentUserInfo"); // Debug log
   }
 });

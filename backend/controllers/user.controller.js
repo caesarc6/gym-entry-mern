@@ -549,7 +549,7 @@ export const getCurrentUser = async (req, res) => {
   const { uid } = req.user;
 
   try {
-    const user = await User.findOne({ uid }).select("uid name email picture");
+    const user = await User.findOne({ uid }).select("uid name email picture username");
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve user" });

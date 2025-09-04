@@ -1,4 +1,4 @@
-import { DeleteIcon, EditIcon, StarIcon } from "@chakra-ui/icons";
+import { DeleteIcon, EditIcon, StarIcon, ChatIcon } from "@chakra-ui/icons";
 import { HamburgerIcon } from "@chakra-ui/icons";
 import {
   Box,
@@ -27,6 +27,10 @@ import {
   MenuList,
   MenuItem,
   Skeleton,
+  Grid,
+  GridItem,
+  Badge,
+  Divider,
 } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 import { FileUploader } from "./FileUploader";
@@ -90,15 +94,46 @@ const ProductCard = ({
   const [profileImageLoaded, setProfileImageLoaded] = useState(false);
 
   const [comment, setComment] = useState("");
+  const [editingComment, setEditingComment] = useState(null);
+  const [replyToComment, setReplyToComment] = useState(null);
+  const [replyText, setReplyText] = useState("");
 
   const textColorTitle = useColorModeValue("gray.600", "gray.500");
   const textColor = useColorModeValue("gray.200", "gray.200");
   const textColorDesc = useColorModeValue("gray.700", "gray.400");
-  const textColorOne = useColorModeValue("gray.300", "gray.700");
+  const textColorOne = useColorModeValue("gray.300", "gray.600");
   const bg = useColorModeValue("white", "gray.800");
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
     useProductStore();
   const currentUserInfo = useProductStore((state) => state.currentUserInfo);
+
+  // Debug currentUserInfo changes
+  useEffect(() => {
+    console.log("currentUserInfo changed:", currentUserInfo);
+  }, [currentUserInfo]);
+
+  // Get current user's display name for comments
+  const getCurrentUserDisplayName = () => {
+    console.log("currentUserInfo:", currentUserInfo); // Debug log
+    if (!currentUserInfo) {
+      // Check if user is authenticated but info not loaded yet
+      if (auth.currentUser) {
+        return "Loading...";
+      }
+      return "Anonymous";
+    }
+    return currentUserInfo.username
+      ? `@${currentUserInfo.username}`
+      : currentUserInfo.name || "User";
+  };
+
+  // Get current user's profile picture for comments
+  const getCurrentUserProfilePicture = () => {
+    if (!currentUserInfo) return colorMode === "dark" ? nightUrl : lightUrl;
+    return (
+      currentUserInfo.picture || (colorMode === "dark" ? nightUrl : lightUrl)
+    );
+  };
 
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -106,6 +141,11 @@ const ProductCard = ({
     isOpen: isDeleteOpen,
     onOpen: onDeleteOpen,
     onClose: onDeleteClose,
+  } = useDisclosure();
+  const {
+    isOpen: isDetailOpen,
+    onOpen: onDetailOpen,
+    onClose: onDetailClose,
   } = useDisclosure();
 
   // Update profile data when cache changes
@@ -260,43 +300,59 @@ const ProductCard = ({
     // console.log("updatedEntry changed:", updatedEntry);
   }, [updatedEntry]);
 
-  const handleFileUpload = (file) => {
-    // Check file size (limit to 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-    if (file.size > maxSize) {
+  const handleFileUpload = async (file) => {
+    try {
+      // Use the image compression utility
+      const { handleImageUploadWithCompression } = await import(
+        "../utils/imageCompression"
+      );
+
+      await handleImageUploadWithCompression(
+        file,
+        (result) => {
+          // Success callback
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setUpdatedEntry({
+              ...updatedEntry,
+              image: reader.result,
+              imageName: result.file.name,
+            });
+          };
+          reader.readAsDataURL(result.file);
+
+          // Show compression info if image was compressed
+          if (result.wasCompressed) {
+            toast({
+              title: "Image Compressed",
+              description: `Image compressed from ${result.originalSize} to ${result.compressedSize}`,
+              status: "success",
+              duration: 4000,
+              isClosable: true,
+            });
+          }
+        },
+        (error) => {
+          // Error callback
+          toast({
+            title: "Upload Error",
+            description: error,
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        },
+        { maxSizeMB: 5 }
+      );
+    } catch (error) {
+      console.error("File processing error:", error);
       toast({
         title: "Error",
-        description: "File too large. Please select an image smaller than 5MB.",
+        description: "Failed to process image. Please try again.",
         status: "error",
         duration: 5000,
         isClosable: true,
       });
-      return;
-    }
-
-    // Check file type
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Error",
-        description: "Please select a valid image file (JPEG, PNG, or GIF).",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setUpdatedEntry({
-        ...updatedEntry,
-        image: reader.result,
-        imageName: file.name,
-      });
-    };
-    if (file) {
-      reader.readAsDataURL(file);
     }
   };
 
@@ -446,12 +502,21 @@ const ProductCard = ({
         isClosable: true,
       });
     } else {
+      // Create comment object with current user info
+      const newComment = {
+        text: comment,
+        createdAt: new Date().toISOString(),
+        username: currentUserInfo?.username || null,
+        name: currentUserInfo?.name || "User",
+        picture: currentUserInfo?.picture || null,
+        uid: currentUserInfo?.uid || null,
+        likes: [],
+        replies: [],
+      };
+
       setUpdatedEntry((prevEntry) => ({
         ...prevEntry,
-        comments: [
-          ...prevEntry.comments,
-          { text: comment, createdAt: new Date() },
-        ],
+        comments: [...prevEntry.comments, newComment],
       }));
       setComment("");
       toast({
@@ -462,6 +527,192 @@ const ProductCard = ({
         isClosable: true,
       });
     }
+  };
+
+  // Handle comment like
+  const handleCommentLike = async (commentId) => {
+    try {
+      const response = await apiClient.post(
+        API_ENDPOINTS.LIKE_COMMENT(entry._id, commentId)
+      );
+
+      if (response.data.success) {
+        setUpdatedEntry((prevEntry) => ({
+          ...prevEntry,
+          comments: prevEntry.comments.map((comment) => {
+            if (comment._id === commentId) {
+              const isLiked = comment.likes?.some(
+                (like) => like.uid === currentUserInfo?.uid
+              );
+              const newLikes = isLiked
+                ? comment.likes.filter(
+                    (like) => like.uid !== currentUserInfo?.uid
+                  )
+                : [
+                    ...(comment.likes || []),
+                    {
+                      uid: currentUserInfo?.uid,
+                      username: currentUserInfo?.username,
+                      name: currentUserInfo?.name,
+                      picture: currentUserInfo?.picture,
+                    },
+                  ];
+              return { ...comment, likes: newLikes };
+            }
+            return comment;
+          }),
+        }));
+      }
+    } catch (error) {
+      console.error("Error liking comment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to like comment",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Handle comment reply
+  const handleCommentReply = async (commentId, replyText) => {
+    try {
+      const response = await apiClient.post(
+        API_ENDPOINTS.REPLY_TO_COMMENT(entry._id, commentId),
+        { text: replyText }
+      );
+
+      if (response.data.success) {
+        const newReply = {
+          text: replyText,
+          createdAt: new Date().toISOString(),
+          username: currentUserInfo?.username || null,
+          name: currentUserInfo?.name || "User",
+          picture: currentUserInfo?.picture || null,
+          uid: currentUserInfo?.uid || null,
+        };
+
+        setUpdatedEntry((prevEntry) => ({
+          ...prevEntry,
+          comments: prevEntry.comments.map((comment) => {
+            if (comment._id === commentId) {
+              return {
+                ...comment,
+                replies: [...(comment.replies || []), newReply],
+              };
+            }
+            return comment;
+          }),
+        }));
+
+        setReplyText("");
+        setReplyToComment(null);
+        toast({
+          title: "Success",
+          description: "Reply added successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error replying to comment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add reply",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Handle comment edit
+  const handleCommentEdit = async (commentId, newText) => {
+    try {
+      const response = await apiClient.put(
+        API_ENDPOINTS.EDIT_COMMENT(entry._id, commentId),
+        { text: newText }
+      );
+
+      if (response.data.success) {
+        setUpdatedEntry((prevEntry) => ({
+          ...prevEntry,
+          comments: prevEntry.comments.map((comment) => {
+            if (comment._id === commentId) {
+              return { ...comment, text: newText, edited: true };
+            }
+            return comment;
+          }),
+        }));
+
+        setEditingComment(null);
+        toast({
+          title: "Success",
+          description: "Comment updated successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error editing comment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to edit comment",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Handle comment delete
+  const handleCommentDelete = async (commentId) => {
+    try {
+      const response = await apiClient.delete(
+        API_ENDPOINTS.DELETE_COMMENT(entry._id, commentId)
+      );
+
+      if (response.data.success) {
+        setUpdatedEntry((prevEntry) => ({
+          ...prevEntry,
+          comments: prevEntry.comments.filter(
+            (comment) => comment._id !== commentId
+          ),
+        }));
+
+        toast({
+          title: "Success",
+          description: "Comment deleted successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete comment",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Check if user can edit/delete a comment
+  const canEditComment = (comment) => {
+    return currentUserInfo?.uid === comment.uid || isOwner;
+  };
+
+  // Check if user has liked a comment
+  const hasLikedComment = (comment) => {
+    return (
+      comment.likes?.some((like) => like.uid === currentUserInfo?.uid) || false
+    );
   };
 
   const handleProcessWorkout = async () => {
@@ -550,18 +801,34 @@ const ProductCard = ({
 
   return (
     <Box
-      shadow="lg"
-      rounded="lg"
-      overflow="hidden"
-      transition="all 0.3s"
-      _hover={{ transform: "translateY(-5px)", shadow: "xl" }}
       bg={bg}
+      borderRadius="4px"
+      overflow="hidden"
+      transition="all 0.2s ease-in-out"
+      _hover={{
+        transform: "translateY(-2px)",
+        shadow: useColorModeValue(
+          "0 8px 25px rgba(0,0,0,0.12)",
+          "0 8px 25px rgba(0,0,0,0.3)"
+        ),
+      }}
       position="relative"
+      cursor="pointer"
+      onClick={onDetailOpen}
+      // Fixed aspect ratio container - similar to Instagram posts (4:5 ratio)
+      aspectRatio="4/5"
+      maxW="400px"
+      w="100%"
+      mx="auto"
+      alignSelf="center"
+      border={useColorModeValue("1px solid", "1px solid")}
+      borderColor={useColorModeValue("gray.100", "gray.700")}
     >
-      <Box position="relative" h={48} w="full">
+      {/* Image container with fixed aspect ratio */}
+      <Box position="relative" w="full" h="60%" overflow="hidden">
         {!imageLoaded && (
           <Skeleton
-            h={48}
+            h="full"
             w="full"
             startColor={useColorModeValue("gray.200", "gray.600")}
             endColor={useColorModeValue("gray.300", "gray.500")}
@@ -570,7 +837,7 @@ const ProductCard = ({
         <Image
           src={updatedEntry.image || entry.image}
           alt={entry.name}
-          h={48}
+          h="full"
           w="full"
           objectFit="cover"
           onError={handleImageError}
@@ -591,19 +858,21 @@ const ProductCard = ({
       </Box>
       <HStack
         position="absolute"
-        top="2.5"
-        left="2.5"
+        top="12px"
+        left="12px"
         spacing={2}
-        bg="rgba(255, 255, 255, 0.9)"
-        px={2}
-        py={1}
-        borderRadius="full"
-        shadow="md"
+        bg="rgba(255, 255, 255, 0.95)"
+        px={3}
+        py={2}
+        borderRadius="12px"
+        shadow="0 2px 8px rgba(0,0,0,0.1)"
+        onClick={(e) => e.stopPropagation()}
+        backdropFilter="blur(8px)"
       >
-        <Box position="relative" boxSize="32px">
+        <Box position="relative" boxSize="28px">
           {!profileImageLoaded && (
             <Skeleton
-              boxSize="32px"
+              boxSize="28px"
               borderRadius="full"
               startColor={useColorModeValue("gray.200", "gray.600")}
               endColor={useColorModeValue("gray.300", "gray.500")}
@@ -612,7 +881,7 @@ const ProductCard = ({
           <Image
             src={profileImage}
             alt="User Profile"
-            boxSize="32px"
+            boxSize="28px"
             borderRadius="full"
             objectFit="cover"
             border="2px solid white"
@@ -631,11 +900,11 @@ const ProductCard = ({
         </Box>
         <Link to={isOwner ? "/profile" : `/user/${entry.uid}`}>
           <Text
-            fontSize="sm"
-            fontWeight="medium"
+            fontSize="13px"
+            fontWeight="600"
             color={textColorTitle}
-            fontFamily="Arial, sans-serif"
-            maxW="120px"
+            fontFamily="Inter, system-ui, sans-serif"
+            maxW="100px"
             noOfLines={1}
             _hover={{ textDecoration: "underline" }}
             cursor="pointer"
@@ -645,189 +914,272 @@ const ProductCard = ({
         </Link>
       </HStack>
       <Box
-        className="px-8"
-        p="8px 8px 8px 8px"
         display="flex"
         flexDirection="column"
-        minHeight="300px"
+        h="40%"
+        overflow="hidden"
+        minH="140px"
       >
-        {/* Content area */}
-        <VStack spacing={4} flex="1" minHeight="0">
-          <HStack w="full" justify="center" align="center">
-            <Heading
-              as={"h2"}
-              size={"lg"}
-              color={textColorTitle}
-              fontFamily="Arial, sans-serif"
-            >
-              {updatedEntry.name}
-            </Heading>
-          </HStack>
-          <Text color={textColorOne} fontFamily="Arial, sans-serif">
-            {formatDateHour(updatedEntry.createdAt)}
-            {" - "}
-            {formatDateTitleTime(updatedEntry.createdAt)}
-          </Text>
-          <Box flex="1" minHeight="0">
-            <Box
-              as="pre"
-              style={{
-                width: "100%",
-                whiteSpace: "pre-wrap",
-                fontFamily: "Arial, sans-serif",
-              }}
+        {/* Content area with padding */}
+        <Box p="16px" flex="1" minHeight="0" overflow="hidden">
+          <VStack spacing={2} h="full">
+            <VStack spacing={1} w="full" align="start" flexShrink="0">
+              <HStack spacing={2} w="full" align="center" justify="center">
+                <Heading
+                  as={"h2"}
+                  size={"sm"}
+                  color={textColorTitle}
+                  fontFamily="Inter, system-ui, sans-serif"
+                  noOfLines={1}
+                  fontWeight="600"
+                  textAlign="center"
+                >
+                  {updatedEntry.name}
+                </Heading>
+                <Text
+                  color={textColorOne}
+                  fontFamily="Inter, system-ui, sans-serif"
+                  fontSize="11px"
+                  fontWeight="500"
+                  flexShrink={0}
+                >
+                  {formatDateHour(updatedEntry.createdAt)}
+                  {" • "}
+                  {formatDateTitleTime(updatedEntry.createdAt)}
+                </Text>
+              </HStack>
+            </VStack>
+
+            <Text
               color={textColorDesc}
+              fontSize="12px"
+              noOfLines={3}
+              fontFamily="Inter, system-ui, sans-serif"
+              lineHeight="1.4"
+              fontWeight="400"
+              w="full"
+              flex="1"
+              minH="50px"
+              whiteSpace="pre-wrap"
             >
               {updatedEntry.description}
-            </Box>
-          </Box>
-          {/* <Text color={textColorOne} fontFamily="Arial, sans-serif">
-            Likes:{" "}
-            {Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0}
-          </Text> */}
-          {Array.isArray(updatedEntry.likes) &&
-            updatedEntry.likes.length > 0 && (
-              <Box w="full" mt={1} mb={2}>
-                <Box
-                  fontSize="sm"
-                  color={textColorDesc}
-                  fontFamily="Arial, sans-serif"
-                >
-                  Liked by{" "}
-                  {updatedEntry.likes.map((user, idx) => (
-                    <span key={user.uid || user._id}>
-                      <Link
-                        to={
-                          user.uid === currentUser?.uid
-                            ? "/profile"
-                            : `/user/${user.uid}`
-                        }
-                      >
-                        {user.username
-                          ? `@${user.username}`
-                          : user.name || "User"}
-                      </Link>
-                      {idx < updatedEntry.likes.length - 1 ? ", " : ""}
-                    </span>
-                  ))}
-                </Box>
-              </Box>
-            )}
+            </Text>
 
-          {/* Comments Display */}
-          {Array.isArray(updatedEntry.comments) &&
-            updatedEntry.comments.length > 0 && (
-              <VStack
-                style={{
-                  maxWidth: "360px",
-                  width: "-webkit-fill-available",
-                  padding: "0px 1em 0px 1em",
-                }}
-                spacing={2}
-                align="start"
-              >
-                {updatedEntry.comments.map((comment, index) => (
-                  <Box
-                    style={{
-                      width: "100%",
-                      display: "inline-flex",
-                      justifyContent: "space-between",
-                    }}
-                    key={index}
-                    p={2}
-                    bg={colorMode === "dark" ? "gray.700" : "gray.100"}
-                    rounded="md"
-                  >
-                    <Text color={textColor} fontFamily="Arial, sans-serif">
-                      {comment.text}
-                    </Text>
-                    <Text
-                      color={colorMode === "dark" ? "gray.300" : "black"}
-                      fontSize="sm"
-                      fontFamily="Arial, sans-serif"
-                    >
-                      {formatDate(comment.createdAt)}
-                    </Text>
-                  </Box>
-                ))}
+            {/* Like and comment count badges */}
+            {(Array.isArray(updatedEntry.likes) &&
+              updatedEntry.likes.length > 0) ||
+            (Array.isArray(updatedEntry.comments) &&
+              updatedEntry.comments.length > 0) ? (
+              <VStack spacing={2} justify="start" w="full" flexShrink="0">
+                <HStack spacing={2} justify="start" w="full">
+                  {Array.isArray(updatedEntry.likes) &&
+                    updatedEntry.likes.length > 0 && (
+                      <Badge
+                        colorScheme="yellow"
+                        variant="subtle"
+                        fontSize="10px"
+                        px={2}
+                        py={1}
+                        borderRadius="6px"
+                      >
+                        ❤️ {updatedEntry.likes.length}
+                      </Badge>
+                    )}
+
+                  {Array.isArray(updatedEntry.comments) &&
+                    updatedEntry.comments.length > 0 && (
+                      <Badge
+                        colorScheme="blue"
+                        variant="subtle"
+                        fontSize="10px"
+                        px={2}
+                        py={1}
+                        borderRadius="6px"
+                      >
+                        💬 {updatedEntry.comments.length}
+                      </Badge>
+                    )}
+                </HStack>
+
+                {/* Recent Comments Preview */}
+                {Array.isArray(updatedEntry.comments) &&
+                  updatedEntry.comments.length > 0 && (
+                    <Box w="full">
+                      {updatedEntry.comments.slice(-2).map((comment, index) => (
+                        <VStack
+                          key={comment._id || index}
+                          spacing={1}
+                          w="full"
+                          mb={1}
+                          opacity={0.8}
+                          align="start"
+                        >
+                          <HStack spacing={2} w="full">
+                            <Box
+                              position="relative"
+                              boxSize="16px"
+                              flexShrink={0}
+                            >
+                              <Image
+                                src={
+                                  comment.picture ||
+                                  getCurrentUserProfilePicture()
+                                }
+                                alt="Commenter"
+                                boxSize="16px"
+                                borderRadius="full"
+                                objectFit="cover"
+                              />
+                            </Box>
+                            <Text
+                              fontSize="10px"
+                              color={textColorDesc}
+                              noOfLines={1}
+                              flex={1}
+                            >
+                              <Text as="span" fontWeight="600" fontSize="10px">
+                                {comment.username
+                                  ? `@${comment.username}`
+                                  : comment.name || "User"}
+                              </Text>
+                              <Text as="span" fontSize="10px" ml={1}>
+                                {comment.text.length > 30
+                                  ? `${comment.text.substring(0, 30)}...`
+                                  : comment.text}
+                              </Text>
+                            </Text>
+                          </HStack>
+                          {/* Show interaction counts */}
+                          <HStack spacing={3} pl={6}>
+                            {comment.likes && comment.likes.length > 0 && (
+                              <Text fontSize="8px" color="gray.500">
+                                ❤️ {comment.likes.length}
+                              </Text>
+                            )}
+                            {comment.replies && comment.replies.length > 0 && (
+                              <Text fontSize="8px" color="gray.500">
+                                💬 {comment.replies.length}
+                              </Text>
+                            )}
+                          </HStack>
+                        </VStack>
+                      ))}
+                    </Box>
+                  )}
               </VStack>
-            )}
-        </VStack>
+            ) : null}
+          </VStack>
+        </Box>
 
         {/* Bottom section with buttons and comment box - falls to bottom */}
-        <VStack spacing={3} mt="auto" pt={4} flexShrink="0">
-          {/* Comment Section - Only show for owner */}
-          {isOwner && (
+        <VStack
+          spacing={2}
+          mt={3}
+          pt={2}
+          flexShrink="0"
+          borderTop="1px solid"
+          borderColor={useColorModeValue("gray.100", "gray.700")}
+        >
+          {/* Comment Section - Show for all users */}
+          <Box w="full" onClick={(e) => e.stopPropagation()}>
             <HStack spacing={2} w="full">
               <Input
-                placeholder="Comment here.."
+                placeholder="Add a comment..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
+                size="sm"
+                fontSize="11px"
+                borderRadius="4px"
+                borderColor={useColorModeValue("gray.200", "gray.600")}
+                _focus={{
+                  borderColor: useColorModeValue("blue.400", "blue.300"),
+                  boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                }}
+                h="28px"
+                flex={1}
               />
               <Button
-                colorScheme="gray"
+                colorScheme="blue"
                 onClick={() => handleCommentEntry(entry._id, comment)}
-                px={4}
-                py={2}
+                px={3}
+                py={1}
+                size="sm"
+                fontSize="11px"
+                borderRadius="4px"
+                fontWeight="500"
+                h="28px"
+                isDisabled={!comment.trim()}
+                _disabled={{
+                  opacity: 0.6,
+                  cursor: "not-allowed",
+                }}
               >
-                Comment
+                Post
               </Button>
             </HStack>
-          )}
+          </Box>
 
           {/* Action Buttons - Restructured layout */}
           {isOwner ? (
-            // Owner view: Favorite icon, edit button, and delete menu all in one row
-            <HStack w="full" justify="space-between" spacing={1} pt={0} pb={0}>
+            // Owner view: Like, edit, and menu buttons
+            <HStack
+              w="full"
+              justify="space-between"
+              spacing={0}
+              pt={0}
+              pb={0}
+              onClick={(e) => e.stopPropagation()}
+            >
               <IconButton
                 onClick={() => handleLikeEntry(entry._id)}
                 icon={<StarIcon />}
+                py={6}
                 bg={
                   isLiked
-                    ? useColorModeValue("#fff1bfd4", "yellow.500")
-                    : useColorModeValue("", "gray.800")
+                    ? useColorModeValue("red.50", "red.900")
+                    : "transparent"
                 }
-                // color={isLiked ? "white" : "inherit"}
-                boxShadow={useColorModeValue("lg", "lg")}
-                size="md"
-                rounded="lg"
-                py={"27px"}
-                color={isLiked ? "white" : "LightGray"}
+                color={
+                  isLiked
+                    ? "red.500"
+                    : useColorModeValue("gray.600", "gray.400")
+                }
+                size="sm"
+                borderRadius="0px"
                 _hover={{
-                  boxShadow: "lg",
                   bg: isLiked
-                    ? useColorModeValue("#ffedaed4", "yellow.600")
+                    ? useColorModeValue("red.100", "red.800")
                     : useColorModeValue("gray.100", "gray.700"),
                 }}
+                transition="all 0.2s"
               />
               <IconButton
                 onClick={onOpen}
                 icon={<EditIcon />}
-                bg={useColorModeValue("", "gray.800")}
-                color={"GrayText"}
-                rounded="lg"
-                size="md"
+                bg="transparent"
+                color={useColorModeValue("gray.600", "gray.400")}
+                borderRadius="0px"
+                size="sm"
+                py={6}
                 flex={1}
-                boxShadow={useColorModeValue("lg", "md")}
-                py={"27px"}
                 _hover={{
-                  boxShadow: "lg",
                   bg: useColorModeValue("gray.100", "gray.700"),
                 }}
+                transition="all 0.2s"
               />
               <Menu>
                 <MenuButton
                   as={IconButton}
                   icon={<HamburgerIcon />}
-                  color={"GrayText"}
+                  py={6}
+                  color={useColorModeValue("gray.600", "gray.400")}
                   variant="ghost"
-                  size="md"
-                  rounded="lg"
-                  py={"27px"}
-                  boxShadow={useColorModeValue("lg", "lg")}
+                  size="sm"
+                  borderRadius="0px"
                   _hover={{
                     bg: useColorModeValue("gray.100", "gray.700"),
                   }}
+                  transition="all 0.2s"
                 />
                 <MenuList>
                   <MenuItem
@@ -853,45 +1205,643 @@ const ProductCard = ({
               </Menu>
             </HStack>
           ) : (
-            // Non-owner view: Favorite icon, comment input, and comment button in one row
-            <HStack w="full" spacing={2} pt={1} pb={0}>
+            // Non-owner view: Like button only
+            <HStack
+              w="full"
+              justify="flex-start"
+              pt={1}
+              pb={0}
+              onClick={(e) => e.stopPropagation()}
+            >
               <IconButton
                 onClick={() => handleLikeEntry(entry._id)}
                 icon={<StarIcon />}
                 bg={
                   isLiked
-                    ? useColorModeValue("yellow.400", "yellow.500")
-                    : useColorModeValue("", "gray.800")
+                    ? useColorModeValue("red.50", "red.900")
+                    : "transparent"
                 }
-                color={isLiked ? "white" : "inherit"}
-                boxShadow={useColorModeValue("lg", "lg")}
-                size="md"
-                rounded="lg"
+                color={
+                  isLiked
+                    ? "red.500"
+                    : useColorModeValue("gray.600", "gray.400")
+                }
+                size="sm"
+                borderRadius="4px"
                 _hover={{
-                  boxShadow: "lg",
                   bg: isLiked
-                    ? useColorModeValue("yellow.500", "yellow.600")
+                    ? useColorModeValue("red.100", "red.800")
                     : useColorModeValue("gray.100", "gray.700"),
                 }}
+                transition="all 0.2s"
               />
-              <Input
-                placeholder="Comment here.."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                flex={1}
-              />
-              <Button
-                colorScheme="gray"
-                onClick={() => handleCommentEntry(entry._id, comment)}
-                px={4}
-                py={2}
-              >
-                Comment
-              </Button>
             </HStack>
           )}
         </VStack>
       </Box>
+
+      {/* Detail Modal */}
+      <Modal isOpen={isDetailOpen} onClose={onDetailClose} size="xl">
+        <ModalOverlay />
+        <ModalContent
+          maxW={{ base: "90vw", md: "600px" }}
+          mx={{ base: 2, md: 4 }}
+          maxH={{ base: "95vh", md: "90vh" }}
+          overflow="hidden"
+          aspectRatio={{ base: "2/3", md: "3/4" }}
+          minH={{ base: "80vh", md: "600px" }}
+          borderRadius="4px"
+        >
+          <ModalHeader
+            fontFamily="Arial, sans-serif"
+            px={{ base: 3, md: 6 }}
+            py={{ base: 3, md: 4 }}
+            fontSize={{ base: "md", md: "lg" }}
+          >
+            <HStack spacing={{ base: 2, md: 3 }}>
+              <Box position="relative" boxSize={{ base: "32px", md: "40px" }}>
+                <Image
+                  src={profileImage}
+                  alt="User Profile"
+                  boxSize={{ base: "32px", md: "40px" }}
+                  borderRadius="full"
+                  objectFit="cover"
+                  border="2px solid white"
+                />
+              </Box>
+              <VStack align="start" spacing={0}>
+                <HStack spacing={2} w="full" align="start">
+                  <Text
+                    fontWeight="bold"
+                    fontSize={{ base: "sm", md: "lg" }}
+                    noOfLines={1}
+                    flex="1"
+                  >
+                    {isUsername ? `@${userDisplayName}` : userDisplayName}
+                  </Text>
+                  <Text
+                    fontSize={{ base: "xs", md: "sm" }}
+                    color="gray.500"
+                    flexShrink={0}
+                  >
+                    {formatDateHour(updatedEntry.createdAt)} -{" "}
+                    {formatDateTitleTime(updatedEntry.createdAt)}
+                  </Text>
+                </HStack>
+              </VStack>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton size={{ base: "sm", md: "md" }} />
+          <ModalBody
+            px={{ base: 3, md: 6 }}
+            py={{ base: 2, md: 4 }}
+            overflowY="auto"
+            display="flex"
+            flexDirection="column"
+          >
+            <VStack spacing={{ base: 3, md: 4 }} align="stretch">
+              {/* Image Section */}
+              <Box>
+                <Image
+                  src={updatedEntry.image || entry.image}
+                  alt={entry.name}
+                  w="full"
+                  h={{ base: "400px", md: "450px" }}
+                  objectFit="cover"
+                  borderRadius="4px"
+                  fallback={<Skeleton h={{ base: "400px", md: "450px" }} />}
+                />
+              </Box>
+
+              {/* Content Section - Fixed height for consistency */}
+              <VStack align="start" spacing={{ base: 2, md: 3 }} flexShrink={0}>
+                <HStack spacing={2} w="full" align="start">
+                  <Heading
+                    size={{ base: "sm", md: "md" }}
+                    color={textColorTitle}
+                    fontFamily="Arial, sans-serif"
+                    flex="1"
+                    noOfLines={1}
+                  >
+                    {updatedEntry.name}
+                  </Heading>
+                  <Text
+                    fontSize={{ base: "xs", md: "sm" }}
+                    color="gray.500"
+                    flexShrink={0}
+                  >
+                    {formatDateHour(updatedEntry.createdAt)} -{" "}
+                    {formatDateTitleTime(updatedEntry.createdAt)}
+                  </Text>
+                </HStack>
+
+                <Box w="full">
+                  <Text
+                    color={textColorDesc}
+                    fontFamily="Arial, sans-serif"
+                    whiteSpace="pre-wrap"
+                    fontSize={{ base: "xs", md: "sm" }}
+                    lineHeight="1.4"
+                  >
+                    {updatedEntry.description}
+                  </Text>
+                </Box>
+
+                <Divider />
+
+                {/* Likes Section */}
+                {Array.isArray(updatedEntry.likes) &&
+                  updatedEntry.likes.length > 0 && (
+                    <Box w="full">
+                      <Text
+                        fontWeight="semibold"
+                        mb={1}
+                        color={textColorDesc}
+                        fontSize={{ base: "xs", md: "sm" }}
+                      >
+                        Liked by {updatedEntry.likes.length} people:
+                      </Text>
+                      <Box
+                        fontSize={{ base: "xs", md: "sm" }}
+                        color={textColorDesc}
+                        lineHeight="1.3"
+                        noOfLines={1}
+                      >
+                        {updatedEntry.likes.map((user, idx) => (
+                          <span key={user.uid || user._id}>
+                            <Link
+                              to={
+                                user.uid === currentUser?.uid
+                                  ? "/profile"
+                                  : `/user/${user.uid}`
+                              }
+                            >
+                              {user.username
+                                ? `@${user.username}`
+                                : user.name || "User"}
+                            </Link>
+                            {idx < updatedEntry.likes.length - 1 ? ", " : ""}
+                          </span>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                {/* Comments Section */}
+                <Box w="full">
+                  <Text
+                    fontWeight="semibold"
+                    mb={2}
+                    color={textColorDesc}
+                    fontSize={{ base: "sm", md: "md" }}
+                  >
+                    Comments (
+                    {Array.isArray(updatedEntry.comments)
+                      ? updatedEntry.comments.length
+                      : 0}
+                    )
+                  </Text>
+
+                  {/* Comment Input Section */}
+                  <Box
+                    p={{ base: 2, md: 3 }}
+                    bg={useColorModeValue("gray.50", "gray.700")}
+                    borderRadius="lg"
+                    mb={3}
+                    border="1px solid"
+                    borderColor={useColorModeValue("gray.200", "gray.600")}
+                  >
+                    <VStack spacing={2} w="full">
+                      <Textarea
+                        placeholder="Write a comment..."
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        size="sm"
+                        resize="none"
+                        rows={1}
+                        borderRadius="md"
+                        borderColor={useColorModeValue("gray.300", "gray.500")}
+                        _focus={{
+                          borderColor: useColorModeValue(
+                            "blue.400",
+                            "blue.300"
+                          ),
+                          boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                        }}
+                        bg={useColorModeValue("white", "gray.800")}
+                        fontSize={{ base: "xs", md: "sm" }}
+                      />
+                      <HStack justify="end" w="full">
+                        <Button
+                          colorScheme="blue"
+                          onClick={() => handleCommentEntry(entry._id, comment)}
+                          size="xs"
+                          px={{ base: 3, md: 4 }}
+                          fontSize={{ base: "xs", md: "sm" }}
+                          isDisabled={!comment.trim()}
+                          _disabled={{
+                            opacity: 0.6,
+                            cursor: "not-allowed",
+                          }}
+                        >
+                          Post
+                        </Button>
+                      </HStack>
+                    </VStack>
+                  </Box>
+
+                  {/* Comments List */}
+                  {Array.isArray(updatedEntry.comments) &&
+                    updatedEntry.comments.length > 0 && (
+                      <VStack
+                        spacing={2}
+                        align="start"
+                        maxH={{ base: "120px", md: "150px" }}
+                        overflowY="auto"
+                        w="full"
+                        flexShrink={0}
+                      >
+                        {updatedEntry.comments.map((comment, index) => (
+                          <Box
+                            key={comment._id || index}
+                            p={{ base: 2, md: 3 }}
+                            bg={useColorModeValue("gray.50", "gray.700")}
+                            rounded="lg"
+                            w="full"
+                            border="1px solid"
+                            borderColor={useColorModeValue(
+                              "gray.200",
+                              "gray.600"
+                            )}
+                          >
+                            <HStack
+                              spacing={{ base: 2, md: 3 }}
+                              alignItems="flex-start"
+                            >
+                              <Box
+                                position="relative"
+                                boxSize={{ base: "24px", md: "28px" }}
+                                flexShrink={0}
+                              >
+                                <Image
+                                  src={
+                                    comment.picture ||
+                                    getCurrentUserProfilePicture()
+                                  }
+                                  alt="Commenter Profile"
+                                  boxSize={{ base: "24px", md: "28px" }}
+                                  borderRadius="full"
+                                  objectFit="cover"
+                                  border="2px solid"
+                                  borderColor={useColorModeValue(
+                                    "gray.200",
+                                    "gray.600"
+                                  )}
+                                />
+                              </Box>
+                              <VStack align="start" spacing={1} flex={1}>
+                                <VStack align="start" spacing={1} w="full">
+                                  <HStack
+                                    spacing={2}
+                                    alignItems="center"
+                                    w="full"
+                                    justify="space-between"
+                                    flexWrap="wrap"
+                                  >
+                                    <HStack
+                                      spacing={2}
+                                      alignItems="center"
+                                      flexWrap="wrap"
+                                    >
+                                      <Text
+                                        fontWeight="600"
+                                        fontSize={{ base: "xs", md: "sm" }}
+                                        color={textColorDesc}
+                                        noOfLines={1}
+                                      >
+                                        {comment.username
+                                          ? `@${comment.username}`
+                                          : comment.name ||
+                                            getCurrentUserDisplayName()}
+                                      </Text>
+                                      <Text
+                                        fontSize={{ base: "xs", md: "xs" }}
+                                        color="gray.500"
+                                      >
+                                        {formatDate(comment.createdAt)}
+                                      </Text>
+                                      {comment.edited && (
+                                        <Text
+                                          fontSize={{ base: "xs", md: "xs" }}
+                                          color="gray.400"
+                                        >
+                                          (edited)
+                                        </Text>
+                                      )}
+                                    </HStack>
+                                    {canEditComment(comment) && (
+                                      <Menu>
+                                        <MenuButton
+                                          as={IconButton}
+                                          icon={<HamburgerIcon />}
+                                          size={{ base: "xs", md: "xs" }}
+                                          variant="ghost"
+                                          color={useColorModeValue(
+                                            "gray.500",
+                                            "gray.400"
+                                          )}
+                                        />
+                                        <MenuList>
+                                          <MenuItem
+                                            icon={<EditIcon />}
+                                            onClick={() =>
+                                              setEditingComment(comment._id)
+                                            }
+                                            fontSize={{ base: "sm", md: "md" }}
+                                          >
+                                            Edit
+                                          </MenuItem>
+                                          <MenuItem
+                                            icon={<DeleteIcon />}
+                                            color="red.500"
+                                            onClick={() =>
+                                              handleCommentDelete(comment._id)
+                                            }
+                                            fontSize={{ base: "sm", md: "md" }}
+                                          >
+                                            Delete
+                                          </MenuItem>
+                                        </MenuList>
+                                      </Menu>
+                                    )}
+                                  </HStack>
+                                </VStack>
+
+                                {/* Comment Text */}
+                                {editingComment === comment._id ? (
+                                  <VStack spacing={2} w="full">
+                                    <Textarea
+                                      value={comment.text}
+                                      onChange={(e) => {
+                                        setUpdatedEntry((prevEntry) => ({
+                                          ...prevEntry,
+                                          comments: prevEntry.comments.map(
+                                            (c) =>
+                                              c._id === comment._id
+                                                ? {
+                                                    ...c,
+                                                    text: e.target.value,
+                                                  }
+                                                : c
+                                          ),
+                                        }));
+                                      }}
+                                      size="sm"
+                                      resize="none"
+                                      rows={2}
+                                      fontSize={{ base: "sm", md: "md" }}
+                                    />
+                                    <HStack spacing={2}>
+                                      <Button
+                                        size={{ base: "xs", md: "sm" }}
+                                        colorScheme="blue"
+                                        onClick={() =>
+                                          handleCommentEdit(
+                                            comment._id,
+                                            comment.text
+                                          )
+                                        }
+                                      >
+                                        Save
+                                      </Button>
+                                      <Button
+                                        size={{ base: "xs", md: "sm" }}
+                                        variant="ghost"
+                                        onClick={() => setEditingComment(null)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </HStack>
+                                  </VStack>
+                                ) : (
+                                  <Text
+                                    color={textColorDesc}
+                                    fontFamily="Inter, system-ui, sans-serif"
+                                    fontSize={{ base: "xs", md: "sm" }}
+                                    lineHeight="1.3"
+                                    noOfLines={2}
+                                  >
+                                    {comment.text}
+                                  </Text>
+                                )}
+
+                                {/* Comment Actions */}
+                                <HStack spacing={{ base: 2, md: 3 }} pt={1}>
+                                  <Button
+                                    size={{ base: "xs", md: "xs" }}
+                                    variant="ghost"
+                                    leftIcon={<StarIcon />}
+                                    color={
+                                      hasLikedComment(comment)
+                                        ? "red.500"
+                                        : "gray.500"
+                                    }
+                                    onClick={() =>
+                                      handleCommentLike(comment._id)
+                                    }
+                                    fontSize={{ base: "xs", md: "xs" }}
+                                  >
+                                    {comment.likes?.length || 0}
+                                  </Button>
+                                  <Button
+                                    size={{ base: "xs", md: "xs" }}
+                                    variant="ghost"
+                                    leftIcon={<ChatIcon />}
+                                    color="gray.500"
+                                    onClick={() =>
+                                      setReplyToComment(comment._id)
+                                    }
+                                    fontSize={{ base: "xs", md: "xs" }}
+                                  >
+                                    Reply
+                                  </Button>
+                                </HStack>
+
+                                {/* Reply Input */}
+                                {replyToComment === comment._id && (
+                                  <Box w="full" pt={2}>
+                                    <VStack spacing={2}>
+                                      <Textarea
+                                        placeholder="Write a reply..."
+                                        value={replyText}
+                                        onChange={(e) =>
+                                          setReplyText(e.target.value)
+                                        }
+                                        size="sm"
+                                        resize="none"
+                                        rows={2}
+                                        fontSize={{ base: "sm", md: "md" }}
+                                      />
+                                      <HStack spacing={2}>
+                                        <Button
+                                          size={{ base: "xs", md: "sm" }}
+                                          colorScheme="blue"
+                                          onClick={() =>
+                                            handleCommentReply(
+                                              comment._id,
+                                              replyText
+                                            )
+                                          }
+                                          isDisabled={!replyText.trim()}
+                                        >
+                                          Reply
+                                        </Button>
+                                        <Button
+                                          size={{ base: "xs", md: "sm" }}
+                                          variant="ghost"
+                                          onClick={() => {
+                                            setReplyToComment(null);
+                                            setReplyText("");
+                                          }}
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </HStack>
+                                    </VStack>
+                                  </Box>
+                                )}
+
+                                {/* Replies */}
+                                {comment.replies &&
+                                  comment.replies.length > 0 && (
+                                    <VStack
+                                      spacing={1}
+                                      w="full"
+                                      pl={{ base: 2, md: 3 }}
+                                      borderLeft="2px solid"
+                                      borderColor={useColorModeValue(
+                                        "gray.200",
+                                        "gray.600"
+                                      )}
+                                    >
+                                      {comment.replies.map(
+                                        (reply, replyIndex) => (
+                                          <Box
+                                            key={reply._id || replyIndex}
+                                            p={{ base: 1, md: 2 }}
+                                            bg={useColorModeValue(
+                                              "gray.100",
+                                              "gray.600"
+                                            )}
+                                            rounded="md"
+                                            w="full"
+                                          >
+                                            <HStack
+                                              spacing={2}
+                                              alignItems="flex-start"
+                                            >
+                                              <Box
+                                                position="relative"
+                                                boxSize={{
+                                                  base: "16px",
+                                                  md: "20px",
+                                                }}
+                                                flexShrink={0}
+                                              >
+                                                <Image
+                                                  src={
+                                                    reply.picture ||
+                                                    getCurrentUserProfilePicture()
+                                                  }
+                                                  alt="Reply Profile"
+                                                  boxSize={{
+                                                    base: "16px",
+                                                    md: "20px",
+                                                  }}
+                                                  borderRadius="full"
+                                                  objectFit="cover"
+                                                />
+                                              </Box>
+                                              <VStack
+                                                align="start"
+                                                spacing={1}
+                                                flex={1}
+                                              >
+                                                <HStack
+                                                  spacing={2}
+                                                  alignItems="center"
+                                                  flexWrap="wrap"
+                                                >
+                                                  <Text
+                                                    fontWeight="600"
+                                                    fontSize={{
+                                                      base: "xs",
+                                                      md: "xs",
+                                                    }}
+                                                    color={textColorDesc}
+                                                    noOfLines={1}
+                                                  >
+                                                    {reply.username
+                                                      ? `@${reply.username}`
+                                                      : reply.name || "User"}
+                                                  </Text>
+                                                  <Text
+                                                    fontSize={{
+                                                      base: "xs",
+                                                      md: "xs",
+                                                    }}
+                                                    color="gray.500"
+                                                  >
+                                                    {formatDate(
+                                                      reply.createdAt
+                                                    )}
+                                                  </Text>
+                                                </HStack>
+                                                <Text
+                                                  color={textColorDesc}
+                                                  fontSize={{
+                                                    base: "xs",
+                                                    md: "xs",
+                                                  }}
+                                                  lineHeight="1.3"
+                                                  noOfLines={1}
+                                                >
+                                                  {reply.text}
+                                                </Text>
+                                              </VStack>
+                                            </HStack>
+                                          </Box>
+                                        )
+                                      )}
+                                    </VStack>
+                                  )}
+                              </VStack>
+                            </HStack>
+                          </Box>
+                        ))}
+                      </VStack>
+                    )}
+                </Box>
+              </VStack>
+            </VStack>
+          </ModalBody>
+          <ModalFooter
+            px={{ base: 3, md: 6 }}
+            py={{ base: 2, md: 4 }}
+            flexShrink={0}
+          >
+            <Button
+              variant="ghost"
+              onClick={onDetailClose}
+              size={{ base: "sm", md: "md" }}
+            >
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
@@ -954,6 +1904,8 @@ const ProductCard = ({
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Delete Modal */}
       <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
         <ModalOverlay />
         <ModalContent>

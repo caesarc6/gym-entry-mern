@@ -8,6 +8,10 @@ import {
   updateEntryPut,
   likeEntry,
   commentEntry,
+  likeComment,
+  replyToComment,
+  editComment,
+  deleteComment,
 } from "../controllers/entry.controller.js";
 import mongoose from "mongoose";
 import Entry from "../models/entry.model.js";
@@ -105,6 +109,16 @@ router.get("/db-test", async (req, res) => {
 router.delete("/:id", verifyIdToken, deleteEntry);
 router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", commentEntry);
+
+// Comment interaction routes
+router.post("/:entryId/comments/:commentId/like", verifyIdToken, likeComment);
+router.post(
+  "/:entryId/comments/:commentId/reply",
+  verifyIdToken,
+  replyToComment
+);
+router.put("/:entryId/comments/:commentId", verifyIdToken, editComment);
+router.delete("/:entryId/comments/:commentId", verifyIdToken, deleteComment);
 
 // PUT route for updating entries (frontend expects this)
 router.put("/:id", verifyIdToken, updateEntryPut);

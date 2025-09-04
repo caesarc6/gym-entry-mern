@@ -20,6 +20,7 @@ import { signInWithPopup } from "firebase/auth";
 import { Hero } from "../components/Hero";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import PaginationComponent from "../components/Pagination";
 
 // Optimized feed loading with lazy loading and caching
 const HomePage = () => {
@@ -436,7 +437,8 @@ const HomePage = () => {
                   }}
                   spacing={10}
                   w={"full"}
-                  alignItems="stretch"
+                  alignItems="center"
+                  justifyItems="center"
                 >
                   {memoizedEntries.map((entry) => (
                     <ProductCard
@@ -450,57 +452,12 @@ const HomePage = () => {
                     />
                   ))}
                 </SimpleGrid>
-                <Box
-                  mt={6}
-                  display="flex"
-                  justifyContent="center"
-                  alignItems="center"
-                >
-                  <Button
-                    onClick={() => {
-                      // console.log(
-                      //   "Previous button clicked, current page:",
-                      //   currentPage
-                      // );
-                      handlePageChange(currentPage - 1);
-                    }}
-                    isDisabled={currentPage <= 1 || pagination.totalPages === 0}
-                    mr={2}
-                  >
-                    <SlArrowLeft />
-                  </Button>
-                  <Text mx={2}>
-                    {pagination.totalPages === 0
-                      ? "0 • 0"
-                      : `${currentPage} • ${pagination.totalPages}`}
-                    {/* {console.log("Pagination state:", {
-                      currentPage,
-                      totalPages: pagination.totalPages,
-                      entriesCount: entries.length,
-                      prevButtonDisabled:
-                        currentPage <= 1 || pagination.totalPages === 0,
-                      nextButtonDisabled:
-                        currentPage >= pagination.totalPages ||
-                        pagination.totalPages === 0,
-                    })} */}
-                  </Text>
-                  <Button
-                    onClick={() => {
-                      // console.log(
-                      //   "Next button clicked, current page:",
-                      //   currentPage
-                      // );
-                      handlePageChange(currentPage + 1);
-                    }}
-                    isDisabled={
-                      currentPage === pagination.totalPages ||
-                      pagination.totalPages === 0
-                    }
-                    ml={2}
-                  >
-                    <SlArrowRight />
-                  </Button>
-                </Box>
+                <PaginationComponent
+                  currentPage={currentPage}
+                  totalPages={pagination.totalPages}
+                  onPageChange={handlePageChange}
+                  maxVisiblePages={5}
+                />
                 {entries.length === 0 && (
                   <Text
                     fontSize="xl"

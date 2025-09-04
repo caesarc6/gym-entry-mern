@@ -125,11 +125,18 @@ const EXERCISE_NORMALIZATION = {
   // Machine Shoulder Press
   "shoulder pres machine": "Machine Shoulder Press",
 
-  // Dips
-  "machine dip": "Dips",
-  "machine dips": "Dips",
-  "dip seated mchne": "Dips",
-  "assisted dip": "Dips",
+  // Dips - differentiate between bodyweight and weighted
+  "machine dip": "Weighted Dips",
+  "machine dips": "Weighted Dips",
+  "dip seated mchne": "Weighted Dips",
+  "assisted dip": "Assisted Dips",
+  "dips": "Bodyweight Dips",
+  "dip": "Bodyweight Dips",
+  "dip machine": "Weighted Dips",
+  "dips machine": "Weighted Dips",
+  "seated dip": "Weighted Dips",
+  "seated dips": "Weighted Dips",
+  "assisted dips": "Assisted Dips",
 
   // Dumbbell Bicep Curl
   "db curl": "Dumbbell Bicep Curl",
@@ -238,9 +245,10 @@ const EXERCISE_NORMALIZATION = {
 /**
  * Clean and normalize exercise name by removing common extra text and standardizing names
  * @param {string} name - Raw exercise name
+ * @param {number} weight - Weight value (0 for bodyweight)
  * @returns {string} Cleaned and normalized exercise name
  */
-const cleanExerciseName = (name) => {
+const cleanExerciseName = (name, weight = 0) => {
   let cleaned = name
     .trim()
     .toLowerCase()
@@ -253,7 +261,16 @@ const cleanExerciseName = (name) => {
 
   // Apply normalization mapping - exact match first
   if (EXERCISE_NORMALIZATION[cleaned]) {
-    return EXERCISE_NORMALIZATION[cleaned];
+    let normalizedName = EXERCISE_NORMALIZATION[cleaned];
+
+    // Special handling for dips based on weight
+    if (normalizedName === "Bodyweight Dips" && weight > 0) {
+      return "Weighted Dips";
+    } else if (normalizedName === "Weighted Dips" && weight === 0) {
+      return "Bodyweight Dips";
+    }
+
+    return normalizedName;
   }
 
   // Enhanced partial matching with word-based matching
@@ -305,7 +322,16 @@ const cleanExerciseName = (name) => {
       return b.percentage - a.percentage;
     });
 
-    return specificMatches[0].normalized;
+    let normalizedName = specificMatches[0].normalized;
+
+    // Special handling for dips based on weight
+    if (normalizedName === "Bodyweight Dips" && weight > 0) {
+      return "Weighted Dips";
+    } else if (normalizedName === "Weighted Dips" && weight === 0) {
+      return "Bodyweight Dips";
+    }
+
+    return normalizedName;
   }
 
   // If no normalization found, return the original name with proper capitalization
@@ -374,7 +400,7 @@ export const parseExerciseLine = (line) => {
           const finalUnit = unitLower === "lb" ? "lbs" : unitLower;
 
           return {
-            name: cleanExerciseName(exerciseName),
+            name: cleanExerciseName(exerciseName, weightNum),
             sets: reps.map((rep) => ({
               reps: rep,
               weight: weightNum,
@@ -398,7 +424,7 @@ export const parseExerciseLine = (line) => {
           const finalUnit = unitLower === "lb" ? "lbs" : unitLower;
 
           return {
-            name: cleanExerciseName(exerciseName),
+            name: cleanExerciseName(exerciseName, weightNum),
             sets: reps.map((rep) => ({
               reps: rep,
               weight: weightNum,
@@ -418,7 +444,7 @@ export const parseExerciseLine = (line) => {
           if (reps.length === 0) continue;
 
           return {
-            name: cleanExerciseName(exerciseName),
+            name: cleanExerciseName(exerciseName, 0),
             sets: reps.map((rep) => ({
               reps: rep,
               weight: 0,

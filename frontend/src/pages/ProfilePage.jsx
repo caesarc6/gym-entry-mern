@@ -35,6 +35,7 @@ import { FileUploader } from "../components/FileUploader";
 import { auth } from "../firebase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import light from "../assets/light.jpg";
+import PaginationComponent from "../components/Pagination";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
@@ -725,7 +726,8 @@ const ProfilePage = () => {
               columns={{ base: 1, md: 2, lg: 3 }}
               spacing={10}
               w={"full"}
-              alignItems="stretch"
+              alignItems="center"
+              justifyItems="center"
             >
               {entries.map((entry) => (
                 <ProductCard
@@ -736,33 +738,12 @@ const ProfilePage = () => {
                 />
               ))}
             </SimpleGrid>
-            <Box
-              mt={6}
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-            >
-              <Button
-                onClick={() => handlePageChange(currentPage - 1)}
-                isDisabled={currentPage === 1}
-                mr={2}
-              >
-                <SlArrowLeft />
-              </Button>
-              <Text mx={2}>
-                {currentPage} • {pagination.totalPages}
-              </Text>
-              <Button
-                onClick={() => handlePageChange(currentPage + 1)}
-                isDisabled={
-                  currentPage === pagination.totalPages ||
-                  pagination.totalPages === 0
-                }
-                ml={2}
-              >
-                <SlArrowRight />
-              </Button>
-            </Box>
+            <PaginationComponent
+              currentPage={currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+              maxVisiblePages={5}
+            />
           </>
         ) : (
           <Text>No posts available.</Text>

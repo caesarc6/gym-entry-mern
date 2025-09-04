@@ -46,6 +46,14 @@ export const API_ENDPOINTS = {
   UPDATE_ENTRY: (id) => buildApiUrl(`entrys/${id}`),
   LIKE_ENTRY: (id) => buildApiUrl(`entrys/${id}/like`),
   COMMENT_ENTRY: (id) => buildApiUrl(`entrys/${id}/comment`),
+  LIKE_COMMENT: (entryId, commentId) =>
+    buildApiUrl(`entrys/${entryId}/comments/${commentId}/like`),
+  REPLY_TO_COMMENT: (entryId, commentId) =>
+    buildApiUrl(`entrys/${entryId}/comments/${commentId}/reply`),
+  EDIT_COMMENT: (entryId, commentId) =>
+    buildApiUrl(`entrys/${entryId}/comments/${commentId}`),
+  DELETE_COMMENT: (entryId, commentId) =>
+    buildApiUrl(`entrys/${entryId}/comments/${commentId}`),
 
   // Follow endpoints
   FOLLOW_REQUEST: (userId) => buildApiUrl(`follow-request/${userId}`),
