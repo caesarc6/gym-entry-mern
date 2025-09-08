@@ -109,12 +109,11 @@ const ProductCard = ({
 
   // Debug currentUserInfo changes
   useEffect(() => {
-    console.log("currentUserInfo changed:", currentUserInfo);
+    // currentUserInfo changes tracked
   }, [currentUserInfo]);
 
   // Get current user's display name for comments
   const getCurrentUserDisplayName = () => {
-    console.log("currentUserInfo:", currentUserInfo); // Debug log
     if (!currentUserInfo) {
       // Check if user is authenticated but info not loaded yet
       if (auth.currentUser) {
@@ -171,7 +170,6 @@ const ProductCard = ({
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token) {
-          console.log("No auth token available");
           setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
           setUserDisplayName("Unknown User");
           return;
@@ -195,7 +193,6 @@ const ProductCard = ({
           setUserDisplayName(displayName);
           setIsUsername(isUsernameValue);
         } else {
-          console.log("No profile data found in response, using fallback");
           setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
           setUserDisplayName("Unknown User");
         }
@@ -243,7 +240,6 @@ const ProductCard = ({
 
   // Optimized image loading handlers
   const handleImageLoad = useCallback(() => {
-    // console.log("Image loaded successfully"); // Debug log
     setImageLoaded(true);
   }, []);
 
@@ -297,7 +293,7 @@ const ProductCard = ({
 
   // Debug log when updatedEntry changes
   useEffect(() => {
-    // console.log("updatedEntry changed:", updatedEntry);
+    // updatedEntry changes tracked
   }, [updatedEntry]);
 
   const handleFileUpload = async (file) => {
@@ -383,8 +379,6 @@ const ProductCard = ({
     setUpdatedEntry((prevEntry) => ({ ...prevEntry, ...updatedEntry }));
     const { success, message, data } = await updateEntry(pid, updatedEntry);
 
-    console.log("Update response:", { success, message, data }); // Debug log
-
     onClose();
     if (!success) {
       setUpdatedEntry(previousEntry);
@@ -398,13 +392,6 @@ const ProductCard = ({
     } else {
       if (data) {
         const { name, description, likes, comments, image } = data;
-        console.log("Updating entry with:", {
-          name,
-          description,
-          likes,
-          comments,
-          image,
-        }); // Debug log
         setUpdatedEntry((prevEntry) => {
           const newUpdatedEntry = {
             ...prevEntry,
@@ -414,7 +401,6 @@ const ProductCard = ({
             comments,
             image, // Add the image field to update the UI
           };
-          console.log("Setting updatedEntry to:", newUpdatedEntry); // Debug log
           return newUpdatedEntry;
         });
         onUpdate(pid, data);
@@ -872,9 +858,6 @@ const ProductCard = ({
             height: "auto",
           }}
           loading="lazy"
-          onLoadStart={() =>
-            console.log("Image loading:", updatedEntry.image || entry.image)
-          } // Debug log
         />
       </Box>
       <HStack

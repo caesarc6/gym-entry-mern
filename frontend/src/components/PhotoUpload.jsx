@@ -28,7 +28,6 @@ const PhotoUpload = ({ onUpload }) => {
       },
       () => {
         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          console.log("File available at", downloadURL);
           onUpload(downloadURL);
         });
       }

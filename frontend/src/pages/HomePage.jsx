@@ -51,19 +51,8 @@ const HomePage = () => {
   // Memoized function to handle page change
   const handlePageChange = useCallback(
     (newPage) => {
-      // console.log("Page change requested:", {
-      //   newPage,
-      //   currentPage,
-      //   totalPages: pagination.totalPages,
-      // });
       if (newPage >= 1 && newPage <= pagination.totalPages) {
-        // console.log("Setting current page to:", newPage);
         setCurrentPage(newPage);
-      } else {
-        // console.log("Page change rejected:", {
-        //   newPage,
-        //   totalPages: pagination.totalPages,
-        // });
       }
     },
     [pagination.totalPages, currentPage]
@@ -359,13 +348,11 @@ const HomePage = () => {
       const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
 
       const userData = response.data;
-      console.log("User Data:", userData.uid);
       const currentUserResponse = await apiClient.get(
         API_ENDPOINTS.GET_CURRENT_USER
       );
 
       const currentUserData = currentUserResponse.data;
-      console.log("Logged in as:", currentUserData);
     } catch (error) {
       console.error("Error during sign-in:", error);
       handleSignOutUser();
@@ -382,7 +369,6 @@ const HomePage = () => {
   const handleSignOutUser = async () => {
     try {
       await auth.signOut();
-      console.log("Signed out");
       setUid(null);
       setIsSignedIn(false);
       setEntries([]);

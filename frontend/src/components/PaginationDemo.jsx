@@ -8,7 +8,6 @@ const PaginationDemo = () => {
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
-    console.log(`Navigated to page ${newPage}`);
   };
 
   return (

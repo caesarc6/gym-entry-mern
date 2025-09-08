@@ -226,7 +226,6 @@ const WorkoutDetailsModal = ({
             variant="ghost"
             onClick={() => {
               // You can add functionality to edit or share the workout here
-              console.log("Edit workout:", workoutData);
             }}
           >
             Edit Workout

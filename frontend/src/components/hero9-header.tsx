@@ -213,7 +213,6 @@ export const HeroHeader = () => {
       if (mode === "signup") {
         const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
         const userData = response.data;
-        console.log("New user created:", userData);
       }
 
       // Get current user data

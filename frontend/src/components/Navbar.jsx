@@ -61,13 +61,11 @@ const Navbar = () => {
       const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
 
       const userData = response.data;
-      console.log("User Data:", userData.uid);
       const currentUserResponse = await apiClient.get(
         API_ENDPOINTS.GET_CURRENT_USER
       );
 
       const currentUserData = currentUserResponse.data;
-      console.log("Logged in as:", currentUserData);
     } catch (error) {
       console.error("Error during sign-in:", error);
       handleSignOut();
@@ -84,7 +82,6 @@ const Navbar = () => {
   const handleSignOut = async () => {
     try {
       await auth.signOut();
-      console.log("Signed out");
       setUid(null);
       setIsSignedIn(false);
     } catch (error) {
@@ -103,7 +100,6 @@ const Navbar = () => {
     try {
       const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
       const currentUserData = response.data;
-      console.log("Current user data:", currentUserData);
     } catch (error) {
       console.error("Error checking current user:", error);
     }
@@ -112,7 +108,6 @@ const Navbar = () => {
   const handleGoogleSignIn = async (mode = "login") => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      console.log(result);
       const token = await result.user.getIdToken();
 
       // First, check if user already exists in our database
@@ -145,7 +140,6 @@ const Navbar = () => {
           throw new Error(await response.text());
         }
         const userData = response.data;
-        console.log("New user created:", userData.uid);
       }
 
       await checkCurrentUser();

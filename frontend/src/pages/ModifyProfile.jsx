@@ -101,12 +101,10 @@ const ModifyProfile = ({ entry }) => {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        // console.log("User authenticated:", user.uid);
         setIsSignedIn(true);
         setUid(user.uid);
         // fetchUserProfile(user);
         fetchUserProfile(user);
-        // console.log("User:", user.accessToken, user.uid);
       } else {
         // console.error("User not authenticated");
         setUid(null);
@@ -256,7 +254,6 @@ const ModifyProfile = ({ entry }) => {
     //     .then((idToken) => {
     //       // Send token to your backend via HTTPS
     //       // console.log("ID Token:", idToken);
-    //       console.log("token:", token);
     //     })
     //     .catch((error) => {
     //       // Handle error
