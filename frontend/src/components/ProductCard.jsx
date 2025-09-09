@@ -790,9 +790,9 @@ const ProductCard = ({
       bg={bg}
       borderRadius="4px"
       overflow="hidden"
-      transition="all 0.2s ease-in-out"
+      transition="all .33s ease-in-out"
       _hover={{
-        transform: "translateY(-2px)",
+        transform: "translateY(-.7px)",
         shadow: useColorModeValue(
           "0 8px 25px rgba(0,0,0,0.12)",
           "0 8px 25px rgba(0,0,0,0.3)"
@@ -806,8 +806,6 @@ const ProductCard = ({
       w="100%"
       mx="auto"
       alignSelf="center"
-      border={useColorModeValue("1px solid", "1px solid")}
-      borderColor={useColorModeValue("gray.100", "gray.700")}
     >
       {/* Image container with fixed aspect ratio */}
       <Box
@@ -1019,7 +1017,7 @@ const ProductCard = ({
           borderColor={useColorModeValue("gray.100", "gray.700")}
         >
           {/* Comment Section - Show for all users */}
-          <Box w="full" onClick={(e) => e.stopPropagation()}>
+          <Box w="full" px={3} onClick={(e) => e.stopPropagation()}>
             <HStack spacing={2} w="full">
               <Input
                 placeholder="Add a comment..."
@@ -1265,12 +1263,12 @@ const ProductCard = ({
 
               {/* Content Section - Fixed height for consistency */}
               <VStack align="start" spacing={{ base: 2, md: 3 }} flexShrink={0}>
-                <HStack spacing={2} w="full" align="start">
+                <VStack spacing={1} w="full" align="center">
                   <Heading
                     size={{ base: "sm", md: "md" }}
                     color={textColorTitle}
                     fontFamily="Arial, sans-serif"
-                    flex="1"
+                    textAlign="center"
                     noOfLines={1}
                   >
                     {updatedEntry.name}
@@ -1278,12 +1276,12 @@ const ProductCard = ({
                   <Text
                     fontSize={{ base: "xs", md: "sm" }}
                     color="gray.500"
-                    flexShrink={0}
+                    textAlign="center"
                   >
                     {formatDateHour(updatedEntry.createdAt)} -{" "}
                     {formatDateTitleTime(updatedEntry.createdAt)}
                   </Text>
-                </HStack>
+                </VStack>
 
                 <Box w="full">
                   <Text
@@ -1292,6 +1290,7 @@ const ProductCard = ({
                     whiteSpace="pre-wrap"
                     fontSize={{ base: "xs", md: "sm" }}
                     lineHeight="1.4"
+                    textAlign="center"
                   >
                     {updatedEntry.description}
                   </Text>

@@ -380,7 +380,9 @@ const UserProfilePage = () => {
             </Text>
           </Stack>
           <Stack spacing={0} align={"center"} mt={4}>
-            <Text color={"gray.500"}>{userProfile.bio}</Text>
+            <Text color={"gray.500"} textAlign="center">
+              {userProfile.bio}
+            </Text>
           </Stack>
           <Stack direction={"row"} justify={"center"} spacing={6} mt={8}>
             <Stack spacing={0} align={"center"}>
