@@ -922,34 +922,32 @@ const ProductCard = ({
         overflow="hidden"
         minH="140px"
       >
-        {/* Content area with padding */}
-        <Box p="16px" flex="1" minHeight="0" overflow="hidden">
-          <VStack spacing={2} h="full">
-            <VStack spacing={1} w="full" align="start" flexShrink="0">
-              <HStack spacing={2} w="full" align="center" justify="center">
-                <Heading
-                  as={"h2"}
-                  size={"sm"}
-                  color={textColorTitle}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  noOfLines={1}
-                  fontWeight="600"
-                  textAlign="center"
-                >
-                  {updatedEntry.name}
-                </Heading>
-                <Text
-                  color={textColorOne}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="11px"
-                  fontWeight="500"
-                  flexShrink={0}
-                >
-                  {formatDateHour(updatedEntry.createdAt)}
-                  {" • "}
-                  {formatDateTitleTime(updatedEntry.createdAt)}
-                </Text>
-              </HStack>
+        {/* Content area with reduced padding */}
+        <Box p="6px" flex="1" minHeight="0" overflow="hidden">
+          <VStack spacing={1} h="full">
+            <VStack spacing={0} w="full" align="center" flexShrink="0">
+              <Heading
+                as={"h2"}
+                size={"sm"}
+                color={textColorTitle}
+                fontFamily="Inter, system-ui, sans-serif"
+                noOfLines={1}
+                fontWeight="400"
+                textAlign="center"
+              >
+                {updatedEntry.name}
+              </Heading>
+              <Text
+                color={textColorOne}
+                fontFamily="Inter, system-ui, sans-serif"
+                fontSize="10px"
+                fontWeight="700"
+                textAlign="center"
+              >
+                {formatDateHour(updatedEntry.createdAt)}
+                {" • "}
+                {formatDateTitleTime(updatedEntry.createdAt)}
+              </Text>
             </VStack>
 
             <Text
@@ -1231,8 +1229,8 @@ const ProductCard = ({
           </ModalHeader>
           <ModalCloseButton size={{ base: "sm", md: "md" }} />
           <ModalBody
-            px={{ base: 3, md: 6 }}
-            py={{ base: 2, md: 4 }}
+            px={{ base: 2, md: 3 }}
+            py={{ base: 1, md: 2 }}
             overflowY="auto"
             display="flex"
             flexDirection="column"
@@ -1263,13 +1261,14 @@ const ProductCard = ({
 
               {/* Content Section - Fixed height for consistency */}
               <VStack align="start" spacing={{ base: 2, md: 3 }} flexShrink={0}>
-                <VStack spacing={1} w="full" align="center">
+                <VStack spacing={0} w="full" align="center">
                   <Heading
                     size={{ base: "sm", md: "md" }}
                     color={textColorTitle}
                     fontFamily="Arial, sans-serif"
                     textAlign="center"
                     noOfLines={1}
+                    fontWeight="400"
                   >
                     {updatedEntry.name}
                   </Heading>
@@ -1277,6 +1276,7 @@ const ProductCard = ({
                     fontSize={{ base: "xs", md: "sm" }}
                     color="gray.500"
                     textAlign="center"
+                    fontWeight="700"
                   >
                     {formatDateHour(updatedEntry.createdAt)} -{" "}
                     {formatDateTitleTime(updatedEntry.createdAt)}
