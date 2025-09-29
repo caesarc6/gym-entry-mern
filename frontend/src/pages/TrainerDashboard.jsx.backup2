@@ -1,0 +1,1084 @@
+import {
+  Container,
+  VStack,
+  HStack,
+  Text,
+  Heading,
+  Button,
+  Box,
+  SimpleGrid,
+  Card,
+  CardBody,
+  CardHeader,
+  Badge,
+  useColorModeValue,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  useDisclosure,
+  Spinner,
+  Center,
+  Flex,
+  Select,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  FormHelperText,
+  Textarea,
+  Switch,
+} from "@chakra-ui/react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  HamburgerIcon,
+  AddIcon,
+  EditIcon,
+  DeleteIcon,
+  ViewIcon,
+  SearchIcon,
+  ChevronDownIcon,
+  ArrowBackIcon,
+} from "@chakra-ui/icons";
+import { useCustomToast } from "../hooks/useCustomToast";
+import { auth } from "../firebase";
+import { apiClient, API_ENDPOINTS } from "../config/api";
+import { useProductStore } from "../store/product";
+import ProductCard from "../components/ProductCard";
+import ContinueWorkoutModal from "../components/ContinueWorkoutModal";
+
+const TrainerDashboard = () => {
+  const [sharedWorkouts, setSharedWorkouts] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [stats, setStats] = useState({
+    totalSharedWorkouts: 0,
+    totalAssignments: 0,
+    completedWorkouts: 0,
+    activeUsers: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [sortBy, setSortBy] = useState("created");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [viewMode, setViewMode] = useState("clients"); // "clients", "assignments", or "posts"
+  const [clientPosts, setClientPosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [clientWorkoutView, setClientWorkoutView] = useState(null);
+  const [selectedWorkoutForAssignment, setSelectedWorkoutForAssignment] =
+    useState(null);
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [selectedWorkoutForEdit, setSelectedWorkoutForEdit] = useState(null);
+  const [isWorkoutEditModalOpen, setIsWorkoutEditModalOpen] = useState(false);
+  const [selectedAssignmentForContinue, setSelectedAssignmentForContinue] =
+    useState(null);
+  const [isContinueModalOpen, setIsContinueModalOpen] = useState(false);
+  const [assignmentForm, setAssignmentForm] = useState({
+    assignedToName: "",
+    assignedToEmail: "",
+    customLabel: "",
+    instructions: "",
+    targetDate: "",
+    dueDate: "",
+    isNameOnlyAssignment: false,
+  });
+  const [isSubmittingAssignment, setIsSubmittingAssignment] = useState(false);
+
+  const navigate = useNavigate();
+  const toast = useCustomToast();
+  const bgColor = useColorModeValue("white", "gray.800");
+  const cardBg = useColorModeValue("gray.50", "gray.700");
+
+  const { currentUserInfo } = useProductStore();
+
+  // Fetch data on component mount and when user is authenticated
+  useEffect(() => {
+    console.log("TrainerDashboard: currentUserInfo changed:", currentUserInfo);
+    if (currentUserInfo) {
+      console.log("TrainerDashboard: User is authenticated, fetching data");
+      fetchData();
+    } else {
+      console.log("TrainerDashboard: User is not authenticated");
+    }
+  }, [currentUserInfo]);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      console.log("TrainerDashboard: Starting to fetch data");
+
+      // Fetch shared workouts and assignments in parallel
+      const [sharedWorkoutsResponse, assignmentsResponse] = await Promise.all([
+        apiClient.get(API_ENDPOINTS.GET_TRAINER_SHARED_WORKOUTS),
+        apiClient.get(API_ENDPOINTS.GET_TRAINER_ASSIGNMENTS),
+      ]);
+
+      console.log("TrainerDashboard: Data fetched successfully");
+
+      const sharedWorkoutsData =
+        sharedWorkoutsResponse.data.data.sharedWorkouts || [];
+      const assignmentsData = assignmentsResponse.data.data.assignments || [];
+
+      setSharedWorkouts(sharedWorkoutsData);
+      setAssignments(assignmentsData);
+
+      // Calculate stats
+      const completedCount = assignmentsData.filter(
+        (assignment) => assignment.status === "completed"
+      ).length;
+
+      setStats({
+        totalSharedWorkouts: sharedWorkoutsData.length,
+        totalAssignments: assignmentsData.length,
+        completedWorkouts: completedCount,
+        activeUsers: new Set(assignmentsData.map((a) => a.assignedToUid)).size,
+      });
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Error", "Failed to fetch dashboard data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Sort and filter functions
+  const getSortedSharedWorkouts = () => {
+    let sorted = [...sharedWorkouts];
+
+    if (sortBy === "name") {
+      sorted.sort((a, b) => a.workoutName.localeCompare(b.workoutName));
+    } else if (sortBy === "created") {
+      sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else if (sortBy === "assignments") {
+      sorted.sort((a, b) => {
+        const aCount = assignments.filter(
+          (assignment) => assignment.sharedWorkoutId === a._id
+        ).length;
+        const bCount = assignments.filter(
+          (assignment) => assignment.sharedWorkoutId === b._id
+        ).length;
+        return bCount - aCount;
+      });
+    }
+
+    // Apply search filter
+    if (searchTerm) {
+      sorted = sorted.filter(
+        (workout) =>
+          workout.workoutName
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          workout.description
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          (workout.tags &&
+            workout.tags.some((tag) =>
+              tag.toLowerCase().includes(searchTerm.toLowerCase())
+            ))
+      );
+    }
+
+    return sorted;
+  };
+
+  // Filter shared workouts that have no client assignments (general shared workouts)
+  const getGeneralSharedWorkouts = () => {
+    return getSortedSharedWorkouts().filter(
+      (workout) =>
+        !assignments.some(
+          (assignment) =>
+            assignment.sharedWorkoutId &&
+            assignment.sharedWorkoutId._id === workout._id
+        )
+    );
+  };
+
+  // Filter shared workouts that have client assignments (client-specific workouts)
+  const getClientSharedWorkouts = () => {
+    return getSortedSharedWorkouts().filter((workout) =>
+      assignments.some(
+        (assignment) =>
+          assignment.sharedWorkoutId &&
+          assignment.sharedWorkoutId._id === workout._id
+      )
+    );
+  };
+
+  // Group assignments by client name
+  const getAssignmentsByClient = () => {
+    const grouped = {};
+
+    // First, add assignments
+    assignments.forEach((assignment) => {
+      const clientName = assignment.assignedToName;
+      if (!grouped[clientName]) {
+        grouped[clientName] = {
+          clientName,
+          assignments: [],
+          totalWorkouts: 0,
+          completedWorkouts: 0,
+          inProgressWorkouts: 0,
+          sharedWorkouts: 0,
+        };
+      }
+
+      grouped[clientName].assignments.push(assignment);
+      grouped[clientName].totalWorkouts++;
+
+      if (assignment.status === "completed") {
+        grouped[clientName].completedWorkouts++;
+      } else if (assignment.status === "in_progress") {
+        grouped[clientName].inProgressWorkouts++;
+      } else {
+        grouped[clientName].sharedWorkouts++;
+      }
+    });
+
+    // Then, add workouts with clientName fields that don't have assignments
+    sharedWorkouts.forEach((workout) => {
+      if (workout.clientName && workout.clientName.trim()) {
+        const clientName = workout.clientName.trim();
+        if (!grouped[clientName]) {
+          grouped[clientName] = {
+            clientName,
+            assignments: [],
+            totalWorkouts: 0,
+            completedWorkouts: 0,
+            inProgressWorkouts: 0,
+            sharedWorkouts: 0,
+          };
+        }
+
+        // Check if this workout already has an assignment
+        const hasAssignment = assignments.some(
+          (assignment) =>
+            assignment.sharedWorkoutId &&
+            assignment.sharedWorkoutId._id === workout._id
+        );
+
+        if (!hasAssignment) {
+          // Create virtual assignment
+          const virtualAssignment = {
+            _id: `virtual_${workout._id}`,
+            sharedWorkoutId: workout._id,
+            assignedToName: clientName,
+            customLabel: workout.workoutName,
+            status: "shared",
+            createdAt: workout.createdAt,
+            isVirtual: true,
+          };
+
+          grouped[clientName].assignments.push(virtualAssignment);
+          grouped[clientName].totalWorkouts++;
+          grouped[clientName].sharedWorkouts++;
+        }
+      }
+    });
+
+    // Sort clients alphabetically
+    return Object.values(grouped).sort((a, b) =>
+      a.clientName.localeCompare(b.clientName)
+    );
+  };
+
+  // Get client-specific workouts for a particular client
+  const getWorkoutsForClient = (clientName) => {
+    return getSortedSharedWorkouts().filter(
+      (workout) =>
+        // Either has an assignment for this client
+        assignments.some(
+          (assignment) =>
+            assignment.sharedWorkoutId &&
+            assignment.sharedWorkoutId._id === workout._id &&
+            assignment.assignedToName === clientName
+        ) ||
+        // Or has a clientName field matching this client
+        (workout.clientName && workout.clientName === clientName)
+    );
+  };
+
+  // Handle workout selection for assignment
+  const handleWorkoutSelection = (workout) => {
+    setSelectedWorkoutForAssignment(workout);
+    setAssignmentForm((prev) => ({
+      ...prev,
+      customLabel: workout.workoutName,
+    }));
+    setIsAssignmentModalOpen(true);
+  };
+
+  const handleAssignmentSubmit = async () => {
+    if (!selectedWorkoutForAssignment) return;
+
+    try {
+      setIsSubmittingAssignment(true);
+
+      const response = await apiClient.post(
+        API_ENDPOINTS.SHARE_WORKOUT_TO_USER(selectedWorkoutForAssignment._id),
+        {
+          ...assignmentForm,
+          isNameOnlyAssignment: assignmentForm.isNameOnlyAssignment,
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Success", "Workout shared successfully!");
+        setIsAssignmentModalOpen(false);
+        setAssignmentForm({
+          assignedToName: "",
+          assignedToEmail: "",
+          customLabel: "",
+          instructions: "",
+          targetDate: "",
+          dueDate: "",
+          isNameOnlyAssignment: false,
+        });
+        fetchData(); // Refresh data
+      }
+    } catch (error) {
+      console.error("Error sharing workout:", error);
+      toast.error(
+        "Error",
+        error.response?.data?.message || "Failed to share workout"
+      );
+    } finally {
+      setIsSubmittingAssignment(false);
+    }
+  };
+
+  const handleContinueWorkout = (assignment) => {
+    setSelectedAssignmentForContinue(assignment);
+    setIsContinueModalOpen(true);
+  };
+
+  const handleContinueSuccess = () => {
+    fetchData(); // Refresh data
+  };
+
+  if (!currentUserInfo) {
+    return (
+      <Container maxW="container.xl" pt={20} pb={8} px={6}>
+        <Center>
+          <VStack spacing={4}>
+            <Text>Please log in to access the trainer dashboard.</Text>
+            <Button onClick={() => navigate("/")}>Go to Home</Button>
+          </VStack>
+        </Center>
+      </Container>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Container maxW="container.xl" pt={20} pb={8} px={6}>
+        <Center>
+          <Spinner size="xl" />
+        </Center>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxW="container.xl" pt={20} pb={8} px={6}>
+      <VStack spacing={8} align="stretch">
+        {/* Header */}
+        <HStack justify="space-between" align="center">
+          <VStack align="start" spacing={2}>
+            <Heading size="lg">Trainer Dashboard</Heading>
+            <Text color="gray.600">
+              Manage your shared workouts and client assignments
+            </Text>
+          </VStack>
+          <HStack spacing={4}>
+            <Button
+              leftIcon={<ArrowBackIcon />}
+              variant="outline"
+              onClick={() => navigate("/")}
+            >
+              Back to Home
+            </Button>
+            <Button
+              leftIcon={<AddIcon />}
+              colorScheme="blue"
+              onClick={() => navigate("/trainer/create-shared-workout")}
+            >
+              Create Shared Workout
+            </Button>
+          </HStack>
+        </HStack>
+
+        {/* Stats */}
+        <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6}>
+          <Card bg={cardBg}>
+            <CardBody>
+              <Stat>
+                <StatLabel>Total Shared Workouts</StatLabel>
+                <StatNumber>{stats.totalSharedWorkouts}</StatNumber>
+                <StatHelpText>Created by you</StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+          <Card bg={cardBg}>
+            <CardBody>
+              <Stat>
+                <StatLabel>Total Shares</StatLabel>
+                <StatNumber>{stats.totalAssignments}</StatNumber>
+                <StatHelpText>Sent to clients</StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+          <Card bg={cardBg}>
+            <CardBody>
+              <Stat>
+                <StatLabel>Completed</StatLabel>
+                <StatNumber>{stats.completedWorkouts}</StatNumber>
+                <StatHelpText>By clients</StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+          <Card bg={cardBg}>
+            <CardBody>
+              <Stat>
+                <StatLabel>Active Clients</StatLabel>
+                <StatNumber>{stats.activeUsers}</StatNumber>
+                <StatHelpText>With assignments</StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+        </SimpleGrid>
+
+        {/* Tabs */}
+        <Tabs variant="enclosed">
+          <TabList>
+            <Tab>General Shared Workouts</Tab>
+            <Tab>Client-Specific Workouts</Tab>
+          </TabList>
+
+          <TabPanels>
+            {/* General Shared Workouts Tab */}
+            <TabPanel px={0}>
+              <VStack spacing={6} align="stretch">
+                <HStack justify="space-between">
+                  <Text fontSize="lg" fontWeight="semibold">
+                    General Shared Workouts ({getGeneralSharedWorkouts().length}
+                    )
+                  </Text>
+                  <HStack spacing={4}>
+                    <InputGroup maxW="300px">
+                      <InputLeftElement pointerEvents="none">
+                        <SearchIcon color="gray.300" />
+                      </InputLeftElement>
+                      <Input
+                        placeholder="Search workouts..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </InputGroup>
+                    <Select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      maxW="200px"
+                    >
+                      <option value="created">Sort by Created</option>
+                      <option value="name">Sort by Name</option>
+                      <option value="assignments">Sort by Shares</option>
+                    </Select>
+                  </HStack>
+                </HStack>
+
+                {getGeneralSharedWorkouts().length > 0 ? (
+                  <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+                    {getGeneralSharedWorkouts().map((workout) => (
+                      <Card key={workout._id} bg={bgColor}>
+                        <CardHeader>
+                          <HStack justify="space-between">
+                            <VStack align="start" spacing={1}>
+                              <Text fontWeight="bold" fontSize="lg">
+                                {workout.workoutName}
+                              </Text>
+                              <Badge colorScheme="blue" size="sm">
+                                {workout.category}
+                              </Badge>
+                            </VStack>
+                            <Menu>
+                              <MenuButton
+                                as={IconButton}
+                                icon={<HamburgerIcon />}
+                                variant="ghost"
+                                size="sm"
+                              />
+                              <MenuList>
+                                <MenuItem
+                                  icon={<ViewIcon />}
+                                  onClick={() =>
+                                    handleWorkoutSelection(workout)
+                                  }
+                                >
+                                  Share with Client
+                                </MenuItem>
+                                <MenuItem icon={<EditIcon />}>
+                                  Edit Workout
+                                </MenuItem>
+                                <MenuItem icon={<DeleteIcon />} color="red.500">
+                                  Delete Workout
+                                </MenuItem>
+                              </MenuList>
+                            </Menu>
+                          </HStack>
+                        </CardHeader>
+                        <CardBody>
+                          <Text color="gray.600" fontSize="sm" noOfLines={3}>
+                            {workout.description}
+                          </Text>
+                          <HStack mt={4} spacing={2}>
+                            <Badge colorScheme="green" size="sm">
+                              {workout.exercises?.length || 0} exercises
+                            </Badge>
+                            <Badge colorScheme="purple" size="sm">
+                              {workout.totalShares || 0} shares
+                            </Badge>
+                          </HStack>
+                        </CardBody>
+                      </Card>
+                    ))}
+                  </SimpleGrid>
+                ) : (
+                  <Card bg={cardBg}>
+                    <CardBody>
+                      <Center py={8}>
+                        <VStack spacing={4}>
+                          <Text color="gray.500">
+                            No General Shared Workouts Yet
+                          </Text>
+                          <Text
+                            fontSize="sm"
+                            color="gray.400"
+                            textAlign="center"
+                          >
+                            Create your first shared workout to get started
+                          </Text>
+                        </VStack>
+                      </Center>
+                    </CardBody>
+                  </Card>
+                )}
+              </VStack>
+            </TabPanel>
+
+            {/* Client-Specific Workouts Tab */}
+            <TabPanel px={0}>
+              <VStack spacing={6} align="stretch">
+                <HStack justify="space-between">
+                  <Text fontSize="lg" fontWeight="semibold">
+                    Client-Specific Workouts ({getAssignmentsByClient().length}{" "}
+                    clients)
+                  </Text>
+                  <HStack spacing={4}>
+                    <InputGroup maxW="300px">
+                      <InputLeftElement pointerEvents="none">
+                        <SearchIcon color="gray.300" />
+                      </InputLeftElement>
+                      <Input
+                        placeholder="Search clients..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </InputGroup>
+                  </HStack>
+                </HStack>
+
+                {getAssignmentsByClient().length > 0 ? (
+                  <VStack spacing={6} align="stretch">
+                    {getAssignmentsByClient()
+                      .filter(
+                        (client) =>
+                          !searchTerm ||
+                          client.clientName
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase())
+                      )
+                      .map((client) => {
+                        const clientWorkouts = getWorkoutsForClient(
+                          client.clientName
+                        );
+                        return (
+                          <Card key={client.clientName} bg={bgColor}>
+                            <CardHeader>
+                              <HStack justify="space-between" align="start">
+                                <VStack align="start" spacing={2}>
+                                  <HStack>
+                                    <Text fontWeight="bold" fontSize="lg">
+                                      {client.clientName}
+                                    </Text>
+                                    <Badge colorScheme="orange" size="sm">
+                                      {clientWorkouts.length} workout
+                                      {clientWorkouts.length !== 1 ? "s" : ""}
+                                    </Badge>
+                                    <Button
+                                      size="xs"
+                                      colorScheme="purple"
+                                      variant="outline"
+                                      onClick={() =>
+                                        navigate(
+                                          `/trainer/client/${encodeURIComponent(
+                                            client.clientName
+                                          )}`
+                                        )
+                                      }
+                                    >
+                                      View Client
+                                    </Button>
+                                  </HStack>
+                                </VStack>
+                              </HStack>
+                            </CardHeader>
+                            <CardBody pt={0}>
+                              {clientWorkouts.length > 0 ? (
+                                <SimpleGrid
+                                  columns={{ base: 1, md: 2 }}
+                                  spacing={4}
+                                >
+                                  {clientWorkouts.map((workout) => (
+                                    <Card
+                                      key={workout._id}
+                                      bg={cardBg}
+                                      size="sm"
+                                    >
+                                      <CardHeader pb={2}>
+                                        <HStack justify="space-between">
+                                          <VStack align="start" spacing={1}>
+                                            <Text
+                                              fontWeight="medium"
+                                              fontSize="md"
+                                            >
+                                              {workout.workoutName}
+                                            </Text>
+                                            <Badge colorScheme="blue" size="sm">
+                                              {workout.category}
+                                            </Badge>
+                                          </VStack>
+                                          <Menu>
+                                            <MenuButton
+                                              as={IconButton}
+                                              icon={<HamburgerIcon />}
+                                              variant="ghost"
+                                              size="xs"
+                                            />
+                                            <MenuList>
+                                              <MenuItem
+                                                icon={<ViewIcon />}
+                                                fontSize="sm"
+                                              >
+                                                View Assignments
+                                              </MenuItem>
+                                              <MenuItem
+                                                icon={<EditIcon />}
+                                                fontSize="sm"
+                                              >
+                                                Edit Workout
+                                              </MenuItem>
+                                            </MenuList>
+                                          </Menu>
+                                        </HStack>
+                                      </CardHeader>
+                                      <CardBody pt={0}>
+                                        <Text
+                                          color="gray.600"
+                                          fontSize="xs"
+                                          noOfLines={2}
+                                        >
+                                          {workout.description}
+                                        </Text>
+                                        <HStack mt={2} spacing={2}>
+                                          <Badge colorScheme="green" size="sm">
+                                            {workout.exercises?.length || 0}{" "}
+                                            exercises
+                                          </Badge>
+                                          <Badge colorScheme="purple" size="sm">
+                                            {workout.totalShares || 0} shares
+                                          </Badge>
+                                        </HStack>
+                                      </CardBody>
+                                    </Card>
+                                  ))}
+                                </SimpleGrid>
+                              ) : (
+                                <Text
+                                  color="gray.500"
+                                  fontSize="sm"
+                                  textAlign="center"
+                                  py={4}
+                                >
+                                  No workouts assigned to this client yet
+                                </Text>
+                              )}
+                            </CardBody>
+                          </Card>
+                        );
+                      })}
+                  </VStack>
+                ) : (
+                  <Card bg={cardBg}>
+                    <CardBody>
+                      <Center py={8}>
+                        <VStack spacing={4}>
+                          <Text color="gray.500">
+                            No Client-Specific Workouts Yet
+                          </Text>
+                          <Text
+                            fontSize="sm"
+                            color="gray.400"
+                            textAlign="center"
+                          >
+                            Share workouts with specific clients to see them
+                            here
+                          </Text>
+                        </VStack>
+                      </Center>
+                    </CardBody>
+                  </Card>
+                )}
+              </VStack>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+              <VStack spacing={6} align="stretch">
+                <HStack justify="space-between">
+                  <Text fontSize="lg" fontWeight="semibold">
+                    Client Assignments ({getAssignmentsByClient().length}{" "}
+                    clients, {assignments.length} total assignments)
+                  </Text>
+                  <HStack spacing={4}>
+                    <InputGroup maxW="300px">
+                      <InputLeftElement pointerEvents="none">
+                        <SearchIcon color="gray.300" />
+                      </InputLeftElement>
+                      <Input
+                        placeholder="Search clients..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </InputGroup>
+                  </HStack>
+                </HStack>
+
+                {getAssignmentsByClient().length > 0 ? (
+                  <VStack spacing={6} align="stretch">
+                    {getAssignmentsByClient()
+                      .filter(
+                        (client) =>
+                          !searchTerm ||
+                          client.clientName
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase())
+                      )
+                      .map((client) => (
+                        <Card key={client.clientName} bg={bgColor}>
+                          <CardHeader>
+                            <HStack justify="space-between" align="start">
+                              <VStack align="start" spacing={2}>
+                                <HStack>
+                                  <Text fontWeight="bold" fontSize="lg">
+                                    {client.clientName}
+                                  </Text>
+                                  <Badge colorScheme="blue" size="sm">
+                                    {client.totalWorkouts} workout
+                                    {client.totalWorkouts !== 1 ? "s" : ""}
+                                  </Badge>
+                                </HStack>
+                                <HStack spacing={4}>
+                                  <HStack spacing={1}>
+                                    <Badge colorScheme="green" size="sm">
+                                      {client.completedWorkouts} completed
+                                    </Badge>
+                                    <Badge colorScheme="yellow" size="sm">
+                                      {client.inProgressWorkouts} in progress
+                                    </Badge>
+                                    <Badge colorScheme="blue" size="sm">
+                                      {client.sharedWorkouts} shared
+                                    </Badge>
+                                    <Button
+                                      size="xs"
+                                      colorScheme="purple"
+                                      variant="outline"
+                                      onClick={() =>
+                                        navigate(
+                                          `/trainer/client/${encodeURIComponent(
+                                            client.clientName
+                                          )}`
+                                        )
+                                      }
+                                    >
+                                      View Client
+                                    </Button>
+                                  </HStack>
+                                </HStack>
+                              </VStack>
+                            </HStack>
+                          </CardHeader>
+                          <CardBody pt={0}>
+                            <VStack spacing={3} align="stretch">
+                              {client.assignments
+                                .sort(
+                                  (a, b) =>
+                                    new Date(b.createdAt) -
+                                    new Date(a.createdAt)
+                                )
+                                .map((assignment) => (
+                                  <Card
+                                    key={assignment._id}
+                                    bg={cardBg}
+                                    size="sm"
+                                  >
+                                    <CardBody>
+                                      <HStack justify="space-between">
+                                        <VStack align="start" spacing={1}>
+                                          <HStack>
+                                            <Text fontWeight="medium">
+                                              {assignment.customLabel}
+                                            </Text>
+                                            <Badge
+                                              colorScheme={
+                                                assignment.status ===
+                                                "completed"
+                                                  ? "green"
+                                                  : assignment.status ===
+                                                    "in_progress"
+                                                  ? "yellow"
+                                                  : assignment.status ===
+                                                    "shared"
+                                                  ? "blue"
+                                                  : "red"
+                                              }
+                                              size="sm"
+                                            >
+                                              {assignment.status}
+                                            </Badge>
+                                            {assignment.isVirtual && (
+                                              <Badge
+                                                colorScheme="gray"
+                                                size="sm"
+                                              >
+                                                Direct Client
+                                              </Badge>
+                                            )}
+                                          </HStack>
+                                          {assignment.instructions && (
+                                            <Text
+                                              fontSize="xs"
+                                              color="gray.500"
+                                              noOfLines={2}
+                                            >
+                                              {assignment.instructions}
+                                            </Text>
+                                          )}
+                                          <Text fontSize="xs" color="gray.400">
+                                            Assigned:{" "}
+                                            {new Date(
+                                              assignment.createdAt
+                                            ).toLocaleDateString()}
+                                          </Text>
+                                        </VStack>
+                                        <HStack>
+                                          {assignment.status !== "completed" &&
+                                            !assignment.isVirtual && (
+                                              <Button
+                                                size="xs"
+                                                colorScheme="blue"
+                                                onClick={() =>
+                                                  handleContinueWorkout(
+                                                    assignment
+                                                  )
+                                                }
+                                              >
+                                                Continue
+                                              </Button>
+                                            )}
+                                          {assignment.isVirtual && (
+                                            <Text
+                                              fontSize="xs"
+                                              color="gray.500"
+                                            >
+                                              Direct Client
+                                            </Text>
+                                          )}
+                                          <Menu>
+                                            <MenuButton
+                                              as={IconButton}
+                                              icon={<HamburgerIcon />}
+                                              variant="ghost"
+                                              size="xs"
+                                            />
+                                            <MenuList>
+                                              <MenuItem
+                                                icon={<ViewIcon />}
+                                                fontSize="sm"
+                                              >
+                                                View Details
+                                              </MenuItem>
+                                              <MenuItem
+                                                icon={<EditIcon />}
+                                                fontSize="sm"
+                                              >
+                                                Edit Assignment
+                                              </MenuItem>
+                                            </MenuList>
+                                          </Menu>
+                                        </HStack>
+                                      </HStack>
+                                    </CardBody>
+                                  </Card>
+                                ))}
+                            </VStack>
+                          </CardBody>
+                        </Card>
+                      ))}
+                  </VStack>
+                ) : (
+                  <Card bg={cardBg}>
+                    <CardBody>
+                      <Center py={8}>
+                        <VStack spacing={4}>
+                          <Text color="gray.500">
+                            No Client Assignments Yet
+                          </Text>
+                          <Text
+                            fontSize="sm"
+                            color="gray.400"
+                            textAlign="center"
+                          >
+                            Share workouts with clients to see assignments here
+                          </Text>
+                        </VStack>
+                      </Center>
+                    </CardBody>
+                  </Card>
+                )}
+              </VStack>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+
+        {/* Assignment Modal */}
+        <Modal
+          isOpen={isAssignmentModalOpen}
+          onClose={() => setIsAssignmentModalOpen(false)}
+          size="lg"
+        >
+          <ModalOverlay />
+          <ModalContent bg={bgColor}>
+            <ModalHeader>Share Workout with Client</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4}>
+                <FormControl>
+                  <FormLabel>Client Name *</FormLabel>
+                  <Input
+                    value={assignmentForm.assignedToName}
+                    onChange={(e) =>
+                      setAssignmentForm((prev) => ({
+                        ...prev,
+                        assignedToName: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter client name"
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Custom Label *</FormLabel>
+                  <Input
+                    value={assignmentForm.customLabel}
+                    onChange={(e) =>
+                      setAssignmentForm((prev) => ({
+                        ...prev,
+                        customLabel: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter custom label for this workout"
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Instructions</FormLabel>
+                  <Textarea
+                    value={assignmentForm.instructions}
+                    onChange={(e) =>
+                      setAssignmentForm((prev) => ({
+                        ...prev,
+                        instructions: e.target.value,
+                      }))
+                    }
+                    placeholder="Special instructions for this client"
+                    rows={3}
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <HStack>
+                    <Switch
+                      isChecked={assignmentForm.isNameOnlyAssignment}
+                      onChange={(e) =>
+                        setAssignmentForm((prev) => ({
+                          ...prev,
+                          isNameOnlyAssignment: e.target.checked,
+                        }))
+                      }
+                    />
+                    <FormLabel mb={0}>
+                      Name-only assignment (client not registered)
+                    </FormLabel>
+                  </HStack>
+                </FormControl>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="ghost"
+                onClick={() => setIsAssignmentModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                colorScheme="blue"
+                onClick={handleAssignmentSubmit}
+                isLoading={isSubmittingAssignment}
+                loadingText="Sharing..."
+              >
+                Share Workout
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Continue Workout Modal */}
+        <ContinueWorkoutModal
+          isOpen={isContinueModalOpen}
+          onClose={() => setIsContinueModalOpen(false)}
+          assignment={selectedAssignmentForContinue}
+          onSuccess={handleContinueSuccess}
+        />
+      </VStack>
+    </Container>
+  );
+};
+
+export default TrainerDashboard;

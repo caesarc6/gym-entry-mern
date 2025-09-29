@@ -9,6 +9,7 @@ import { verifyIdToken } from "../middleware/auth.js";
 import entryRoutes from "../routes/entry.route.js";
 import userRoutes from "../routes/user.route.js";
 import workoutRoutes from "../routes/workout.route.js";
+import sharedWorkoutRoutes from "../routes/sharedWorkout.route.js";
 
 import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
@@ -20,13 +21,7 @@ dotenv.config();
 
 connectDB();
 
-// connectAuth();
-
-//
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+connectAuth();
 
 verifyIdToken;
 
@@ -97,9 +92,23 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
 app.use("/api/entrys", entryRoutes);
 app.use("/api/", userRoutes);
 app.use("/api/workouts", workoutRoutes);
+app.use("/api/shared-workouts", sharedWorkoutRoutes);
 
 app.get("/api", (req, res) => {
   res.send("Server deployed and running on vercel.");
+});
+
+// Temporary test endpoints
+app.get("/api/entrys/test", (req, res) => {
+  res.json({ message: "Entries endpoint is working!" });
+});
+
+app.get("/api/getCurrentUser", (req, res) => {
+  res.json({ message: "User endpoint is working!" });
+});
+
+app.get("/api/posts/:uid", (req, res) => {
+  res.json({ message: "Posts endpoint is working!", uid: req.params.uid });
 });
 
 // Test route to check if the server is working

@@ -1,15 +1,19 @@
-import { Box, useColorModeValue } from "@chakra-ui/react";
+import { Box, useColorModeValue, Text } from "@chakra-ui/react";
 import { Route, Routes } from "react-router-dom";
 import CreatePage from "./pages/CreatePage";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 import SignUpFlow from "./pages/SignUpFlow";
 import ModifyProfile from "./pages/ModifyProfile";
-import { HeroHeader } from "@/components/hero9-header";
+import { HeroHeader } from "./components/hero9-header";
 import "./index.css";
 import UserProfilePage from "./pages/UserProfilePage";
 import PrivacySettings from "./components/PrivacySettings";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import SharedWorkoutPage from "./pages/SharedWorkoutPage";
+import TrainerDashboard from "./pages/TrainerDashboard";
+import CreateSharedWorkout from "./pages/CreateSharedWorkout";
+import ClientWorkoutsPage from "./pages/ClientWorkoutsPage";
 
 function App() {
   return (
@@ -19,6 +23,9 @@ function App() {
       pb={"55px"}
     >
       <HeroHeader />
+      {/* <Text p={4} textAlign="center" fontSize="2xl" fontWeight="bold">
+        App is loading...
+      </Text> */}
       {/* <Navbar /> */}
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -29,6 +36,16 @@ function App() {
         <Route path="/signup" element={<SignUpFlow />} />
         <Route path="/privacy" element={<PrivacySettings />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/workout/:shareToken" element={<SharedWorkoutPage />} />
+        <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
+        <Route
+          path="/trainer/create-shared-workout"
+          element={<CreateSharedWorkout />}
+        />
+        <Route
+          path="/trainer/client/:clientName"
+          element={<ClientWorkoutsPage />}
+        />
       </Routes>
     </Box>
   );

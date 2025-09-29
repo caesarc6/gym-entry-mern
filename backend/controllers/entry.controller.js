@@ -328,6 +328,13 @@ export const likeEntry = async (req, res) => {
       entry.likes = [];
     }
 
+    // Clean up any malformed comments that might cause validation errors
+    if (Array.isArray(entry.comments)) {
+      entry.comments = entry.comments.filter(
+        (comment) => comment && comment.uid && comment.text
+      );
+    }
+
     // Check if user has already liked the post (by ObjectId)
     const userLikedIndex = entry.likes.findIndex((likeId) =>
       likeId.equals(user._id)
@@ -576,12 +583,10 @@ export const editComment = async (req, res) => {
 
     // Check if user can edit this comment (comment owner or post owner)
     if (comment.uid !== uid && entry.uid !== uid) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Not authorized to edit this comment",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to edit this comment",
+      });
     }
 
     comment.text = text;
@@ -591,6 +596,43 @@ export const editComment = async (req, res) => {
     res.status(200).json({ success: true, data: entry });
   } catch (error) {
     console.error("Error editing comment:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Cleanup malformed comments in all entries (utility function)
+export const cleanupMalformedComments = async (req, res) => {
+  try {
+    const entries = await Entry.find({});
+    let updatedCount = 0;
+
+    for (const entry of entries) {
+      let needsUpdate = false;
+
+      if (Array.isArray(entry.comments)) {
+        const originalLength = entry.comments.length;
+        entry.comments = entry.comments.filter(
+          (comment) => comment && comment.uid && comment.text
+        );
+
+        if (entry.comments.length !== originalLength) {
+          needsUpdate = true;
+        }
+      }
+
+      if (needsUpdate) {
+        await entry.save();
+        updatedCount++;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Cleaned up malformed comments in ${updatedCount} entries`,
+      updatedCount,
+    });
+  } catch (error) {
+    console.error("Error cleaning up malformed comments:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -626,12 +668,10 @@ export const deleteComment = async (req, res) => {
 
     // Check if user can delete this comment (comment owner or post owner)
     if (comment.uid !== uid && entry.uid !== uid) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Not authorized to delete this comment",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete this comment",
+      });
     }
 
     comment.remove();
@@ -641,5 +681,178 @@ export const deleteComment = async (req, res) => {
   } catch (error) {
     console.error("Error deleting comment:", error);
     res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Generate a shareable link for a workout
+export const generateShareLink = async (req, res) => {
+  try {
+    const { entryId } = req.params;
+    const { uid } = req.user;
+
+    // Find the entry
+    const entry = await Entry.findById(entryId);
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: "Entry not found",
+      });
+    }
+
+    // Check if user owns the entry
+    if (entry.uid !== uid) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to share this entry",
+      });
+    }
+
+    // Generate a unique share token
+    const shareToken = new mongoose.Types.ObjectId().toString();
+    const shareExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    // Update the entry with sharing information
+    entry.shareable = true;
+    entry.shareToken = shareToken;
+    entry.shareExpiry = shareExpiry;
+    await entry.save();
+
+    const shareUrl = `${
+      process.env.FRONTEND_URL || "http://localhost:3000"
+    }/workout/${shareToken}`;
+
+    res.status(200).json({
+      success: true,
+      message: "Share link generated successfully",
+      data: {
+        shareToken,
+        shareUrl,
+        expiryDate: shareExpiry,
+      },
+    });
+  } catch (error) {
+    console.error("Error generating share link:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Get a shared workout by token (public endpoint)
+export const getSharedWorkout = async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+
+    // Find the entry by share token
+    const entry = await Entry.findOne({
+      shareToken,
+      shareable: true,
+      shareExpiry: { $gt: new Date() }, // Check if not expired
+    }).populate("originalEntryId");
+
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: "Shared workout not found or expired",
+      });
+    }
+
+    // Get the creator's profile information
+    const creatorProfile = await getUserProfileForSharing(entry.uid);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        entry: {
+          _id: entry._id,
+          name: entry.name,
+          description: entry.description,
+          image: entry.image,
+          createdAt: entry.createdAt,
+          likes: entry.likes,
+          comments: entry.comments,
+        },
+        creator: creatorProfile,
+        shareToken,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting shared workout:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Save a shared workout to user's account
+export const saveSharedWorkout = async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+    const { uid } = req.user;
+
+    // Find the shared entry
+    const originalEntry = await Entry.findOne({
+      shareToken,
+      shareable: true,
+      shareExpiry: { $gt: new Date() },
+    });
+
+    if (!originalEntry) {
+      return res.status(404).json({
+        success: false,
+        message: "Shared workout not found or expired",
+      });
+    }
+
+    // Check if user already saved this workout
+    const existingEntry = await Entry.findOne({
+      uid,
+      originalEntryId: originalEntry._id,
+    });
+
+    if (existingEntry) {
+      return res.status(400).json({
+        success: false,
+        message: "You have already saved this workout",
+      });
+    }
+
+    // Create a new entry for the current user
+    const newEntry = new Entry({
+      name: originalEntry.name,
+      description: originalEntry.description,
+      image: originalEntry.image,
+      uid: uid,
+      originalEntryId: originalEntry._id,
+      likes: [],
+      comments: [],
+    });
+
+    await newEntry.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Workout saved to your account successfully",
+      data: newEntry,
+    });
+  } catch (error) {
+    console.error("Error saving shared workout:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Helper function to get user profile for sharing
+const getUserProfileForSharing = async (uid) => {
+  try {
+    // This would typically fetch from your user service
+    // For now, return basic info
+    return {
+      uid,
+      name: "Workout Creator", // You can enhance this with actual user data
+      username: null,
+    };
+  } catch (error) {
+    console.error("Error getting user profile for sharing:", error);
+    return {
+      uid,
+      name: "Anonymous",
+      username: null,
+    };
   }
 };

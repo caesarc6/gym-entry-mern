@@ -21,6 +21,7 @@ import { Hero } from "../components/Hero";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
+import AssignedWorkouts from "../components/AssignedWorkouts";
 
 // Optimized feed loading with lazy loading and caching
 const HomePage = () => {
@@ -86,6 +87,26 @@ const HomePage = () => {
       unsubscribe();
     };
   }, [clearEntrys]);
+
+  // Get current user info from store
+  const currentUserInfo = useProductStore((state) => state.currentUserInfo);
+
+  // Update profile cache when current user's profile picture changes
+  useEffect(() => {
+    if (currentUserInfo && currentUserInfo.uid) {
+      setProfileCache((prevCache) => {
+        const newCache = new Map(prevCache);
+        newCache.set(currentUserInfo.uid, {
+          uid: currentUserInfo.uid,
+          profileImage: currentUserInfo.picture,
+          displayName:
+            currentUserInfo.username || currentUserInfo.name || "Unknown User",
+          isUsername: !!currentUserInfo.username,
+        });
+        return newCache;
+      });
+    }
+  }, [currentUserInfo]);
 
   // Optimized following UIDs fetch with caching
   useEffect(() => {
@@ -390,6 +411,9 @@ const HomePage = () => {
       {isSignedIn ? (
         <>
           <VStack spacing={8} className="pt-[112px]">
+            {/* Assigned Workouts Section */}
+            <AssignedWorkouts uid={uid} />
+
             <Text
               fontSize={"22"}
               fontWeight={"bold"}

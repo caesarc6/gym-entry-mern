@@ -40,7 +40,7 @@ const entrySchema = new mongoose.Schema(
         },
         uid: {
           type: String,
-          required: true,
+          required: false, // Changed to false to prevent validation errors with existing malformed data
         },
         username: String,
         name: String,
@@ -73,7 +73,7 @@ const entrySchema = new mongoose.Schema(
             },
             uid: {
               type: String,
-              required: true,
+              required: false, // Changed to false to prevent validation errors with existing malformed data
             },
             username: String,
             name: String,
@@ -86,6 +86,25 @@ const entrySchema = new mongoose.Schema(
         ],
       },
     ],
+    // Sharing functionality fields
+    shareable: {
+      type: Boolean,
+      default: false,
+    },
+    shareToken: {
+      type: String,
+      default: null,
+    },
+    shareExpiry: {
+      type: Date,
+      default: null,
+    },
+    // Reference to original entry if this is a saved shared workout
+    originalEntryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Entry",
+      default: null,
+    },
   },
   {
     timestamps: true, // createdAt, updatedAt

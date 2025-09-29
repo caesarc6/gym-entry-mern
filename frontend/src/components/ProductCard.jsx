@@ -1,5 +1,6 @@
 import { DeleteIcon, EditIcon, StarIcon, ChatIcon } from "@chakra-ui/icons";
 import { HamburgerIcon } from "@chakra-ui/icons";
+import { FiShare2 } from "react-icons/fi";
 import {
   Box,
   Button,
@@ -27,8 +28,6 @@ import {
   MenuList,
   MenuItem,
   Skeleton,
-  Grid,
-  GridItem,
   Badge,
   Divider,
 } from "@chakra-ui/react";
@@ -45,6 +44,8 @@ import {
   parseWorkoutDescription,
   parseWorkoutTitle,
 } from "../utils/workoutParser.js";
+import ShareWorkoutModal from "./ShareWorkoutModal";
+import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -80,9 +81,13 @@ const ProductCard = ({
     return null;
   }, [profileCache, entry.uid]);
 
-  const [profileImage, setProfileImage] = useState(
-    cachedProfile?.profileImage || (colorMode === "dark" ? nightUrl : lightUrl)
-  );
+  const [profileImage, setProfileImage] = useState(() => {
+    // Initialize with cached profile image if available, otherwise use default
+    return (
+      cachedProfile?.profileImage ||
+      (colorMode === "dark" ? nightUrl : lightUrl)
+    );
+  });
   const [userDisplayName, setUserDisplayName] = useState(
     cachedProfile?.displayName || "Unknown User"
   );
@@ -146,18 +151,28 @@ const ProductCard = ({
     onOpen: onDetailOpen,
     onClose: onDetailClose,
   } = useDisclosure();
+  const {
+    isOpen: isShareOpen,
+    onOpen: onShareOpen,
+    onClose: onShareClose,
+  } = useDisclosure();
+  const {
+    isOpen: isEnhancedEditOpen,
+    onOpen: onEnhancedEditOpen,
+    onClose: onEnhancedEditClose,
+  } = useDisclosure();
 
   // Update profile data when cache changes
   useEffect(() => {
     if (cachedProfile) {
-      setProfileImage(
-        cachedProfile.profileImage ||
-          (colorMode === "dark" ? nightUrl : lightUrl)
-      );
+      // Only update profile image if we have a valid cached profile image
+      if (cachedProfile.profileImage) {
+        setProfileImage(cachedProfile.profileImage);
+      }
       setUserDisplayName(cachedProfile.displayName || "Unknown User");
       setIsUsername(cachedProfile.isUsername || false);
     }
-  }, [cachedProfile, colorMode]);
+  }, [cachedProfile]);
 
   // Fetch profile image only if not in cache
   useEffect(() => {
@@ -193,12 +208,24 @@ const ProductCard = ({
           setUserDisplayName(displayName);
           setIsUsername(isUsernameValue);
         } else {
-          setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+          // Only set to default if we don't already have a profile image
+          if (
+            !profileImage ||
+            profileImage === (colorMode === "dark" ? nightUrl : lightUrl)
+          ) {
+            setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+          }
           setUserDisplayName("Unknown User");
         }
       } catch (error) {
         console.error("Error fetching profile image:", error);
-        setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+        // Only set to default if we don't already have a profile image
+        if (
+          !profileImage ||
+          profileImage === (colorMode === "dark" ? nightUrl : lightUrl)
+        ) {
+          setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+        }
         setUserDisplayName("Unknown User");
         toast({
           title: "Error",
@@ -217,16 +244,11 @@ const ProductCard = ({
 
   // Update profile image when color mode changes
   useEffect(() => {
-    // If no custom profile image is set, update to the appropriate default
-    if (
-      !profileImage ||
-      profileImage === "https://cataas.com/cat" ||
-      profileImage ===
-        "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg"
-    ) {
+    // Only update to default if we truly have no profile image and no cached profile
+    if (!profileImage && !cachedProfile?.profileImage) {
       setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
     }
-  }, [colorMode, profileImage]);
+  }, [colorMode, profileImage, cachedProfile]);
 
   // Check if current user has liked this post
   useEffect(() => {
@@ -266,7 +288,7 @@ const ProductCard = ({
   useEffect(() => {
     setImageLoaded(false);
     setProfileImageLoaded(false);
-  }, [entry._id, entry.image, entry.uid, updatedEntry.image]);
+  }, [entry._id, entry.image, entry.uid]);
 
   // Check if image is already loaded (for cached images)
   useEffect(() => {
@@ -280,12 +302,22 @@ const ProductCard = ({
     }
   }, [updatedEntry.image]);
 
+  // Reset profile image loading state when profile image URL changes
+  useEffect(() => {
+    setProfileImageLoaded(false);
+  }, [profileImage]);
+
   // Timeout fallback for profile images
   useEffect(() => {
     if (profileImage) {
+      // For external URLs (Supabase), use a shorter timeout since onLoad might not fire
+      const isExternalUrl =
+        profileImage.includes("supabase.co") || profileImage.includes("http");
+      const timeoutDuration = isExternalUrl ? 1000 : 3000;
+
       const timeout = setTimeout(() => {
         setProfileImageLoaded(true);
-      }, 3000); // 3 second timeout for profile images
+      }, timeoutDuration);
 
       return () => clearTimeout(timeout);
     }
@@ -950,20 +982,41 @@ const ProductCard = ({
               </Text>
             </VStack>
 
-            <Text
-              color={textColorDesc}
-              fontSize="12px"
-              noOfLines={3}
-              fontFamily="Inter, system-ui, sans-serif"
-              lineHeight="1.4"
-              fontWeight="400"
+            <Box
               w="full"
               flex="1"
               minH="50px"
-              whiteSpace="pre-wrap"
+              maxH="50px"
+              overflowY="auto"
+              overflowX="hidden"
+              css={{
+                "&::-webkit-scrollbar": {
+                  width: "3px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "#CBD5E0",
+                  borderRadius: "2px",
+                },
+                "&::-webkit-scrollbar-thumb:hover": {
+                  background: "#A0AEC0",
+                },
+              }}
             >
-              {updatedEntry.description}
-            </Text>
+              <Text
+                color={textColorDesc}
+                fontSize="12px"
+                fontFamily="Inter, system-ui, sans-serif"
+                lineHeight="1.4"
+                fontWeight="400"
+                whiteSpace="pre-wrap"
+                wordBreak="break-word"
+              >
+                {updatedEntry.description}
+              </Text>
+            </Box>
 
             {/* Like and comment count badges */}
             {(Array.isArray(updatedEntry.likes) &&
@@ -1119,6 +1172,16 @@ const ProductCard = ({
                 />
                 <MenuList>
                   <MenuItem
+                    icon={<EditIcon />}
+                    onClick={onEnhancedEditOpen}
+                    color="green.500"
+                    _hover={{
+                      bg: useColorModeValue("green.50", "green.900"),
+                    }}
+                  >
+                    Enhanced Edit
+                  </MenuItem>
+                  <MenuItem
                     onClick={handleProcessWorkout}
                     color="blue.500"
                     _hover={{
@@ -1126,6 +1189,16 @@ const ProductCard = ({
                     }}
                   >
                     Process Workout Data
+                  </MenuItem>
+                  <MenuItem
+                    icon={<FiShare2 />}
+                    onClick={onShareOpen}
+                    color="green.500"
+                    _hover={{
+                      bg: useColorModeValue("green.50", "green.900"),
+                    }}
+                  >
+                    Share Workout
                   </MenuItem>
                   <MenuItem
                     icon={<DeleteIcon />}
@@ -1283,7 +1356,27 @@ const ProductCard = ({
                   </Text>
                 </VStack>
 
-                <Box w="full">
+                <Box
+                  w="full"
+                  maxH="120px"
+                  overflowY="auto"
+                  overflowX="hidden"
+                  css={{
+                    "&::-webkit-scrollbar": {
+                      width: "4px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      background: "transparent",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      background: "#CBD5E0",
+                      borderRadius: "2px",
+                    },
+                    "&::-webkit-scrollbar-thumb:hover": {
+                      background: "#A0AEC0",
+                    },
+                  }}
+                >
                   <Text
                     color={textColorDesc}
                     fontFamily="Arial, sans-serif"
@@ -1291,6 +1384,7 @@ const ProductCard = ({
                     fontSize={{ base: "xs", md: "sm" }}
                     lineHeight="1.4"
                     textAlign="center"
+                    wordBreak="break-word"
                   >
                     {updatedEntry.description}
                   </Text>
@@ -1876,6 +1970,30 @@ const ProductCard = ({
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Share Workout Modal */}
+      <ShareWorkoutModal
+        isOpen={isShareOpen}
+        onClose={onShareClose}
+        entry={updatedEntry}
+      />
+
+      {/* Enhanced Workout Editor */}
+      <EnhancedWorkoutEditor
+        isOpen={isEnhancedEditOpen}
+        onClose={onEnhancedEditClose}
+        entry={entry}
+        onUpdate={handleUpdateEntry}
+        onSuccess={() => {
+          toast({
+            title: "Success",
+            description: "Workout updated successfully",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        }}
+      />
     </Box>
   );
 };

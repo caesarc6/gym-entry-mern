@@ -1,9 +1,9 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 import React, { useEffect, useRef, useState } from "react";
 import { useScroll, motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
 import { PlusSquareIcon } from "@chakra-ui/icons";
@@ -13,6 +13,7 @@ import { useColorMode } from "@chakra-ui/react";
 import { RxAvatar } from "react-icons/rx";
 import { PiSignOutThin } from "react-icons/pi";
 import { MdPrivacyTip } from "react-icons/md";
+import { FiUsers } from "react-icons/fi";
 import { MdArrowDropDown } from "react-icons/md";
 import {
   Input,
@@ -696,6 +697,14 @@ export const HeroHeader = () => {
                     </MenuItem>
                     <MenuItem
                       as={Link}
+                      to="/trainer/dashboard"
+                      className="flex items-center gap-2"
+                    >
+                      <FiUsers className="!w-5 !h-5" />
+                      Trainer Dashboard
+                    </MenuItem>
+                    <MenuItem
+                      as={Link}
                       to="/privacy"
                       className="flex items-center gap-2"
                     >
@@ -809,6 +818,25 @@ export const HeroHeader = () => {
                       <Link to="/analytics" className="flex items-center gap-2">
                         <Search className="!w-5 !h-5" />
                         <span>Analytics</span>
+                      </Link>
+                    </Button>
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        colorMode === "dark"
+                          ? "text-gray-300 hover:text-blue-400 hover:bg-gray-700"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                      )}
+                      onClick={closeMenu}
+                    >
+                      <Link
+                        to="/trainer/dashboard"
+                        className="flex items-center gap-2"
+                      >
+                        <FiUsers className="!w-5 !h-5" />
+                        <span>Trainer Dashboard</span>
                       </Link>
                     </Button>
                     <Button

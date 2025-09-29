@@ -95,6 +95,37 @@ export const API_ENDPOINTS = {
   COMPLETELY_REPROCESS_ALL_WORKOUTS: buildApiUrl(
     "workouts/completely-reprocess-all"
   ),
+
+  // Workout sharing endpoints
+  SHARE_WORKOUT: (entryId) => buildApiUrl(`entrys/${entryId}/share`),
+  GET_SHARED_WORKOUT: (shareToken) =>
+    buildApiUrl(`entrys/shared/${shareToken}`),
+  SAVE_SHARED_WORKOUT: (shareToken) =>
+    buildApiUrl(`entrys/shared/${shareToken}/save`),
+
+  // Shared Workout endpoints
+  CREATE_SHARED_WORKOUT: buildApiUrl("shared-workouts"),
+  GET_TRAINER_SHARED_WORKOUTS: buildApiUrl("shared-workouts/trainer"),
+  GET_SHARED_WORKOUT: (sharedWorkoutId) =>
+    buildApiUrl(`shared-workouts/${sharedWorkoutId}`),
+  UPDATE_SHARED_WORKOUT: (sharedWorkoutId) =>
+    buildApiUrl(`shared-workouts/${sharedWorkoutId}`),
+  DELETE_SHARED_WORKOUT: (sharedWorkoutId) =>
+    buildApiUrl(`shared-workouts/${sharedWorkoutId}`),
+
+  // Sharing endpoints
+  SHARE_WORKOUT_TO_USER: (sharedWorkoutId) =>
+    buildApiUrl(`shared-workouts/${sharedWorkoutId}/share`),
+  GET_TRAINER_ASSIGNMENTS: buildApiUrl("shared-workouts/assignments/trainer"),
+  GET_USER_ASSIGNMENTS: buildApiUrl("shared-workouts/assignments/user"),
+  UPDATE_WORKOUT_ASSIGNMENT: (assignmentId) =>
+    buildApiUrl(`shared-workouts/assignments/${assignmentId}`),
+  MARK_WORKOUT_AS_SAVED: (assignmentId) =>
+    buildApiUrl(`shared-workouts/assignments/${assignmentId}/save`),
+  CONTINUE_ASSIGNED_WORKOUT: (assignmentId) =>
+    buildApiUrl(`shared-workouts/assignments/${assignmentId}/continue`),
+  COMPLETE_ASSIGNED_WORKOUT: (assignmentId) =>
+    buildApiUrl(`shared-workouts/assignments/${assignmentId}/complete`),
 };
 
 // Axios instance with default configuration
@@ -116,11 +147,22 @@ apiClient.interceptors.request.use(
 
     if (auth.currentUser) {
       try {
-        const token = await auth.currentUser.getIdToken();
+        // Force refresh the token to ensure it's valid
+        const token = await auth.currentUser.getIdToken(true);
         config.headers.Authorization = `Bearer ${token}`;
       } catch (error) {
         console.error("Error getting auth token:", error);
+        // If token refresh fails, redirect to login or show error
+        if (
+          error.code === "auth/user-token-expired" ||
+          error.code === "auth/user-disabled"
+        ) {
+          console.error("User token expired or disabled, redirecting to login");
+          // You might want to redirect to login page here
+        }
       }
+    } else {
+      console.log("API Request: No current user found for URL:", config.url);
     }
 
     return config;
@@ -141,6 +183,13 @@ apiClient.interceptors.response.use(
       status: error.response?.status,
       url: error.config?.url,
     });
+
+    // Handle 403 Forbidden errors
+    if (error.response?.status === 403) {
+      console.error("Authentication failed - 403 Forbidden");
+      // You might want to redirect to login or show an error message here
+    }
+
     return Promise.reject(error);
   }
 );

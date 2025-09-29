@@ -12,6 +12,10 @@ import {
   replyToComment,
   editComment,
   deleteComment,
+  cleanupMalformedComments,
+  generateShareLink,
+  getSharedWorkout,
+  saveSharedWorkout,
 } from "../controllers/entry.controller.js";
 import mongoose from "mongoose";
 import Entry from "../models/entry.model.js";
@@ -110,6 +114,9 @@ router.delete("/:id", verifyIdToken, deleteEntry);
 router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", commentEntry);
 
+// Cleanup route for malformed comments (admin utility)
+router.post("/cleanup-comments", verifyIdToken, cleanupMalformedComments);
+
 // Comment interaction routes
 router.post("/:entryId/comments/:commentId/like", verifyIdToken, likeComment);
 router.post(
@@ -143,5 +150,10 @@ router.put("/:id/test", (req, res) => {
     body: req.body,
   });
 });
+
+// Sharing routes
+router.post("/:entryId/share", verifyIdToken, generateShareLink);
+router.get("/shared/:shareToken", getSharedWorkout); // Public endpoint
+router.post("/shared/:shareToken/save", verifyIdToken, saveSharedWorkout);
 
 export default router;

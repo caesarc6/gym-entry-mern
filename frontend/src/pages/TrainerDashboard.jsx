@@ -1,0 +1,589 @@
+import {
+  Container,
+  VStack,
+  HStack,
+  Text,
+  Heading,
+  Button,
+  SimpleGrid,
+  Card,
+  CardBody,
+  CardHeader,
+  Badge,
+  useColorModeValue,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Spinner,
+  Center,
+  Select,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Box,
+} from "@chakra-ui/react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  HamburgerIcon,
+  AddIcon,
+  EditIcon,
+  ViewIcon,
+  SearchIcon,
+  ArrowBackIcon,
+  DeleteIcon,
+} from "@chakra-ui/icons";
+import { useCustomToast } from "../hooks/useCustomToast";
+import { apiClient, API_ENDPOINTS } from "../config/api";
+import { useProductStore } from "../store/product";
+import { capitalizeName, normalizeNameForStorage } from "../utils/nameUtils";
+import EditSharedWorkoutModal from "../components/EditSharedWorkoutModal";
+
+const TrainerDashboard = () => {
+  const [sharedWorkouts, setSharedWorkouts] = useState([]);
+  const [stats, setStats] = useState({
+    totalSharedWorkouts: 0,
+    totalClientWorkouts: 0,
+    generalWorkouts: 0,
+    clientSpecificWorkouts: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [sortBy, setSortBy] = useState("created");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editingWorkout, setEditingWorkout] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const navigate = useNavigate();
+  const toast = useCustomToast();
+  const bgColor = useColorModeValue("white", "gray.800");
+  const cardBg = useColorModeValue("gray.50", "gray.700");
+
+  const { currentUserInfo } = useProductStore();
+
+  // Fetch data on component mount and when user is authenticated
+  useEffect(() => {
+    console.log("TrainerDashboard: currentUserInfo changed:", currentUserInfo);
+    if (currentUserInfo) {
+      console.log("TrainerDashboard: User is authenticated, fetching data");
+      fetchData();
+    } else {
+      console.log("TrainerDashboard: User is not authenticated");
+    }
+  }, [currentUserInfo]);
+
+  // Handle existing general workouts - convert them to client-specific or delete them
+  const handleGeneralWorkouts = async () => {
+    const generalWorkouts = sharedWorkouts.filter(
+      (workout) => !workout.clientName || !workout.clientName.trim()
+    );
+
+    if (generalWorkouts.length > 0) {
+      const shouldDelete = window.confirm(
+        `You have ${generalWorkouts.length} general workouts that are no longer supported. Would you like to delete them? (Click Cancel to keep them for now)`
+      );
+
+      if (shouldDelete) {
+        try {
+          // Delete general workouts
+          for (const workout of generalWorkouts) {
+            await apiClient.delete(
+              `${API_ENDPOINTS.DELETE_SHARED_WORKOUT(workout._id)}`
+            );
+          }
+          toast.success("Success", "General workouts deleted successfully");
+          fetchData(); // Refresh the data
+        } catch (error) {
+          console.error("Error deleting general workouts:", error);
+          toast.error("Error", "Failed to delete some general workouts");
+        }
+      }
+    }
+  };
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      console.log("TrainerDashboard: Starting to fetch data");
+
+      // Fetch shared workouts
+      const sharedWorkoutsResponse = await apiClient.get(
+        API_ENDPOINTS.GET_TRAINER_SHARED_WORKOUTS
+      );
+
+      console.log("TrainerDashboard: Data fetched successfully");
+
+      const sharedWorkoutsData =
+        sharedWorkoutsResponse.data.data.sharedWorkouts || [];
+
+      setSharedWorkouts(sharedWorkoutsData);
+
+      // Calculate stats - only client-specific workouts
+      const clientSpecificWorkouts = sharedWorkoutsData.filter(
+        (workout) => workout.clientName && workout.clientName.trim()
+      ).length;
+
+      setStats({
+        totalSharedWorkouts: clientSpecificWorkouts,
+        totalClientWorkouts: clientSpecificWorkouts,
+        generalWorkouts: 0,
+        clientSpecificWorkouts: clientSpecificWorkouts,
+      });
+
+      // Check for and handle existing general workouts
+      const generalWorkouts = sharedWorkoutsData.filter(
+        (workout) => !workout.clientName || !workout.clientName.trim()
+      );
+      if (generalWorkouts.length > 0) {
+        // Use setTimeout to avoid blocking the UI
+        setTimeout(() => {
+          handleGeneralWorkouts();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Error", "Failed to fetch dashboard data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Sort and filter functions - only client-specific workouts
+  const getSortedSharedWorkouts = () => {
+    // Filter to only client-specific workouts
+    let sorted = sharedWorkouts.filter(
+      (workout) => workout.clientName && workout.clientName.trim()
+    );
+
+    if (sortBy === "name") {
+      sorted.sort((a, b) => a.workoutName.localeCompare(b.workoutName));
+    } else if (sortBy === "created") {
+      sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else if (sortBy === "category") {
+      sorted.sort((a, b) => a.category.localeCompare(b.category));
+    }
+
+    // Apply search filter
+    if (searchTerm) {
+      sorted = sorted.filter(
+        (workout) =>
+          workout.workoutName
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          workout.description
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          workout.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (workout.tags &&
+            workout.tags.some((tag) =>
+              tag.toLowerCase().includes(searchTerm.toLowerCase())
+            ))
+      );
+    }
+
+    return sorted;
+  };
+
+  // Group workouts by client name
+  const getWorkoutsByClient = () => {
+    const grouped = {};
+
+    sharedWorkouts.forEach((workout) => {
+      if (workout.clientName && workout.clientName.trim()) {
+        // Use normalized name as key to group clients properly
+        const normalizedName = normalizeNameForStorage(workout.clientName);
+        const displayName = workout.clientName.trim();
+
+        if (!grouped[normalizedName]) {
+          grouped[normalizedName] = {
+            clientName: displayName,
+            workouts: [],
+            totalWorkouts: 0,
+          };
+        }
+
+        grouped[normalizedName].workouts.push(workout);
+        grouped[normalizedName].totalWorkouts++;
+      }
+    });
+
+    // Sort clients alphabetically
+    return Object.values(grouped).sort((a, b) =>
+      a.clientName.localeCompare(b.clientName)
+    );
+  };
+
+  // Get client-specific workouts for a particular client
+  const getWorkoutsForClient = (clientName) => {
+    return getSortedSharedWorkouts().filter(
+      (workout) =>
+        workout.clientName &&
+        normalizeNameForStorage(workout.clientName) ===
+          normalizeNameForStorage(clientName)
+    );
+  };
+
+  // Handle edit workout
+  const handleEditWorkout = (workout) => {
+    setEditingWorkout(workout);
+    setIsEditModalOpen(true);
+  };
+
+  // Handle edit success
+  const handleEditSuccess = (updatedWorkout) => {
+    setSharedWorkouts((prev) =>
+      prev.map((workout) =>
+        workout._id === updatedWorkout._id ? updatedWorkout : workout
+      )
+    );
+    toast.success("Success", "Workout updated successfully!");
+  };
+
+  // Close edit modal
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingWorkout(null);
+  };
+
+  // Handle delete workout
+  const handleDeleteWorkout = async (workout) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${workout.workoutName}"? This action cannot be undone.`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      await apiClient.delete(API_ENDPOINTS.DELETE_SHARED_WORKOUT(workout._id));
+
+      setSharedWorkouts((prev) => prev.filter((w) => w._id !== workout._id));
+
+      toast.success("Success", "Workout deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting workout:", error);
+      toast.error(
+        "Error",
+        error.response?.data?.message || "Failed to delete workout"
+      );
+    }
+  };
+
+  // Handle view workout details
+  const handleViewWorkoutDetails = (workout) => {
+    const workoutInfo = `
+Workout: ${workout.workoutName}
+Client: ${workout.clientName || "Not specified"}
+Total Shares: ${workout.totalShares || 0}
+Completions: ${workout.completions || 0}
+Created: ${new Date(workout.createdAt).toLocaleDateString()}
+    `.trim();
+
+    alert(workoutInfo);
+  };
+
+  if (!currentUserInfo) {
+    return (
+      <Container maxW="container.xl" pt={20} pb={8} px={6}>
+        <Center>
+          <VStack spacing={4}>
+            <Text>Please log in to access the trainer dashboard.</Text>
+            <Button onClick={() => navigate("/")}>Go to Home</Button>
+          </VStack>
+        </Center>
+      </Container>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Container maxW="container.xl" pt={20} pb={8} px={6}>
+        <Center>
+          <Spinner size="xl" />
+        </Center>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxW="container.xl" pt={20} pb={8} px={6}>
+      <VStack spacing={8} align="stretch">
+        {/* Header */}
+        <HStack justify="space-between" align="center">
+          <VStack align="start" spacing={2}>
+            <Heading size="lg">Trainer Dashboard</Heading>
+            <Text color="gray.600">
+              Manage your shared workouts for clients
+            </Text>
+          </VStack>
+          <HStack spacing={4}>
+            <Button
+              leftIcon={<ArrowBackIcon />}
+              variant="outline"
+              onClick={() => navigate("/")}
+            >
+              Back to Home
+            </Button>
+            <Button
+              leftIcon={<AddIcon />}
+              colorScheme="blue"
+              onClick={() => navigate("/trainer/create-shared-workout")}
+            >
+              Create Shared Workout
+            </Button>
+          </HStack>
+        </HStack>
+
+        {/* Stats */}
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+          <Card bg={cardBg}>
+            <CardBody>
+              <Stat>
+                <StatLabel>Total Workouts</StatLabel>
+                <StatNumber>{stats.totalSharedWorkouts}</StatNumber>
+                <StatHelpText>Created for clients</StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+          <Card bg={cardBg}>
+            <CardBody>
+              <Stat>
+                <StatLabel>Active Clients</StatLabel>
+                <StatNumber>{getWorkoutsByClient().length}</StatNumber>
+                <StatHelpText>With assigned workouts</StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+        </SimpleGrid>
+
+        {/* Client Workouts Section */}
+        <VStack spacing={6} align="stretch">
+          <HStack justify="space-between">
+            <Text fontSize="lg" fontWeight="semibold">
+              Client Workouts ({getWorkoutsByClient().length} clients)
+            </Text>
+            <HStack spacing={4}>
+              <InputGroup maxW="300px">
+                <InputLeftElement pointerEvents="none">
+                  <SearchIcon color="gray.300" />
+                </InputLeftElement>
+                <Input
+                  placeholder="Search clients or workouts..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </InputGroup>
+              <Select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                maxW="200px"
+              >
+                <option value="created">Sort by Created</option>
+                <option value="name">Sort by Name</option>
+                <option value="category">Sort by Category</option>
+              </Select>
+            </HStack>
+          </HStack>
+
+          {getWorkoutsByClient().length > 0 ? (
+            <VStack spacing={6} align="stretch">
+              {getWorkoutsByClient()
+                .filter(
+                  (client) =>
+                    !searchTerm ||
+                    client.clientName
+                      .toLowerCase()
+                      .includes(searchTerm.toLowerCase()) ||
+                    client.workouts.some((workout) =>
+                      workout.workoutName
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase())
+                    )
+                )
+                .map((client) => {
+                  const clientWorkouts = getWorkoutsForClient(
+                    client.clientName
+                  );
+                  return (
+                    <Card key={client.clientName} bg={bgColor}>
+                      <CardHeader>
+                        <HStack justify="space-between" align="start">
+                          <VStack align="start" spacing={2}>
+                            <HStack>
+                              <Text fontWeight="bold" fontSize="lg">
+                                {capitalizeName(client.clientName)}
+                              </Text>
+                              <Badge colorScheme="orange" size="sm">
+                                {clientWorkouts.length} workout
+                                {clientWorkouts.length !== 1 ? "s" : ""}
+                              </Badge>
+                              <Button
+                                size="xs"
+                                colorScheme="purple"
+                                variant="outline"
+                                onClick={() =>
+                                  navigate(
+                                    `/trainer/client/${encodeURIComponent(
+                                      client.clientName
+                                    )}`
+                                  )
+                                }
+                              >
+                                View Client
+                              </Button>
+                            </HStack>
+                          </VStack>
+                        </HStack>
+                      </CardHeader>
+                      <CardBody pt={0}>
+                        {clientWorkouts.length > 0 ? (
+                          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                            {clientWorkouts.map((workout) => (
+                              <Card key={workout._id} bg={cardBg} size="sm">
+                                <CardHeader pb={2}>
+                                  <HStack justify="space-between">
+                                    <VStack align="start" spacing={1}>
+                                      <Text fontWeight="medium" fontSize="md">
+                                        {workout.workoutName}
+                                      </Text>
+                                    </VStack>
+                                    <Menu>
+                                      <MenuButton
+                                        as={IconButton}
+                                        icon={<HamburgerIcon />}
+                                        variant="ghost"
+                                        size="xs"
+                                      />
+                                      <MenuList>
+                                        <MenuItem
+                                          icon={<ViewIcon />}
+                                          fontSize="sm"
+                                          onClick={() =>
+                                            handleViewWorkoutDetails(workout)
+                                          }
+                                        >
+                                          View Details
+                                        </MenuItem>
+                                        <MenuItem
+                                          icon={<EditIcon />}
+                                          fontSize="sm"
+                                          onClick={() =>
+                                            handleEditWorkout(workout)
+                                          }
+                                        >
+                                          Edit Workout
+                                        </MenuItem>
+                                        <MenuItem
+                                          icon={<DeleteIcon />}
+                                          fontSize="sm"
+                                          onClick={() =>
+                                            handleDeleteWorkout(workout)
+                                          }
+                                          color="red.500"
+                                        >
+                                          Delete Workout
+                                        </MenuItem>
+                                      </MenuList>
+                                    </Menu>
+                                  </HStack>
+                                </CardHeader>
+                                <CardBody pt={0}>
+                                  <Box
+                                    maxH="200px"
+                                    overflowY="auto"
+                                    overflowX="hidden"
+                                    css={{
+                                      "&::-webkit-scrollbar": {
+                                        width: "4px",
+                                      },
+                                      "&::-webkit-scrollbar-track": {
+                                        background: "transparent",
+                                      },
+                                      "&::-webkit-scrollbar-thumb": {
+                                        background: "#CBD5E0",
+                                        borderRadius: "2px",
+                                      },
+                                      "&::-webkit-scrollbar-thumb:hover": {
+                                        background: "#A0AEC0",
+                                      },
+                                    }}
+                                  >
+                                    <Text
+                                      color="gray.600"
+                                      fontSize="xs"
+                                      whiteSpace="pre-wrap"
+                                      wordBreak="break-word"
+                                    >
+                                      {workout.description}
+                                    </Text>
+                                  </Box>
+                                  <Text
+                                    color="gray.500"
+                                    fontSize="xs"
+                                    fontStyle="italic"
+                                    mt={2}
+                                  >
+                                    Created:{" "}
+                                    {new Date(
+                                      workout.createdAt
+                                    ).toLocaleDateString()}
+                                  </Text>
+                                </CardBody>
+                              </Card>
+                            ))}
+                          </SimpleGrid>
+                        ) : (
+                          <Text
+                            color="gray.500"
+                            fontSize="sm"
+                            textAlign="center"
+                            py={4}
+                          >
+                            No workouts assigned to this client yet
+                          </Text>
+                        )}
+                      </CardBody>
+                    </Card>
+                  );
+                })}
+            </VStack>
+          ) : (
+            <Card bg={cardBg}>
+              <CardBody>
+                <Center py={8}>
+                  <VStack spacing={4}>
+                    <Text color="gray.500">No Client Workouts Yet</Text>
+                    <Text fontSize="sm" color="gray.400" textAlign="center">
+                      Create workouts for your clients to get started
+                    </Text>
+                    <Button
+                      colorScheme="blue"
+                      leftIcon={<AddIcon />}
+                      onClick={() => navigate("/trainer/create-shared-workout")}
+                    >
+                      Create Your First Workout
+                    </Button>
+                  </VStack>
+                </Center>
+              </CardBody>
+            </Card>
+          )}
+        </VStack>
+      </VStack>
+
+      {/* Edit Modal */}
+      <EditSharedWorkoutModal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        sharedWorkout={editingWorkout}
+        onSuccess={handleEditSuccess}
+      />
+    </Container>
+  );
+};
+
+export default TrainerDashboard;

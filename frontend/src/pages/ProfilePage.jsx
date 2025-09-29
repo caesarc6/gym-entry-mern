@@ -410,6 +410,15 @@ const ProfilePage = () => {
       // Refresh profile data to ensure everything is in sync
       if (auth.currentUser) {
         fetchUserProfile(auth.currentUser);
+        // Also update the global store with the new profile data
+        try {
+          const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
+          if (response.data) {
+            useProductStore.getState().setCurrentUserInfo(response.data);
+          }
+        } catch (error) {
+          console.error("Error updating current user info:", error);
+        }
       }
     } catch (error) {
       toast.error(

@@ -274,3 +274,64 @@ auth.onAuthStateChanged(async (user) => {
     useProductStore.getState().setCurrentUserInfo(null);
   }
 });
+
+// Add sharing functionality to the store
+export const useSharingStore = create((set) => ({
+  // Share a workout and get a shareable link
+  shareWorkout: async (entryId) => {
+    try {
+      const response = await apiClient.post(
+        API_ENDPOINTS.SHARE_WORKOUT(entryId)
+      );
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || "Failed to share workout",
+      };
+    }
+  },
+
+  // Get a shared workout by token
+  getSharedWorkout: async (shareToken) => {
+    try {
+      const response = await apiClient.get(
+        API_ENDPOINTS.GET_SHARED_WORKOUT(shareToken)
+      );
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Failed to load shared workout",
+      };
+    }
+  },
+
+  // Save a shared workout to user's account
+  saveSharedWorkout: async (shareToken) => {
+    try {
+      const response = await apiClient.post(
+        API_ENDPOINTS.SAVE_SHARED_WORKOUT(shareToken)
+      );
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || "Failed to save workout",
+      };
+    }
+  },
+}));
