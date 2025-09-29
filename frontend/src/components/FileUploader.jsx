@@ -65,6 +65,7 @@ export const FileUploader = ({
 
   const handleClick = (e) => {
     e.preventDefault(); // Prevent form submission
+    e.stopPropagation(); // Prevent event bubbling
     hiddenFileInput.current.click();
   };
 
@@ -125,6 +126,8 @@ export const FileUploader = ({
         isDisabled={isProcessing}
         colorScheme="blue"
         variant="outline"
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
       >
         {isProcessing ? "Processing Image..." : "Add Image"}
       </Button>
