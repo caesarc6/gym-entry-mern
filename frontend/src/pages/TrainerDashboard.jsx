@@ -313,18 +313,23 @@ Created: ${new Date(workout.createdAt).toLocaleDateString()}
     <Container maxW="container.xl" pt={20} pb={8} px={6}>
       <VStack spacing={8} align="stretch">
         {/* Header */}
-        <HStack justify="space-between" align="center">
+        <VStack spacing={4} align="stretch">
           <VStack align="start" spacing={2}>
             <Heading size="lg">Trainer Dashboard</Heading>
             <Text color="gray.600">
               Manage your shared workouts for clients
             </Text>
           </VStack>
-          <HStack spacing={4}>
+          <HStack
+            spacing={4}
+            wrap="wrap"
+            justify={{ base: "center", md: "flex-end" }}
+          >
             <Button
               leftIcon={<ArrowBackIcon />}
               variant="outline"
               onClick={() => navigate("/")}
+              size={{ base: "sm", md: "md" }}
             >
               Back to Home
             </Button>
@@ -332,11 +337,12 @@ Created: ${new Date(workout.createdAt).toLocaleDateString()}
               leftIcon={<AddIcon />}
               colorScheme="blue"
               onClick={() => navigate("/trainer/create-shared-workout")}
+              size={{ base: "sm", md: "md" }}
             >
               Create Shared Workout
             </Button>
           </HStack>
-        </HStack>
+        </VStack>
 
         {/* Stats */}
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
@@ -362,12 +368,16 @@ Created: ${new Date(workout.createdAt).toLocaleDateString()}
 
         {/* Client Workouts Section */}
         <VStack spacing={6} align="stretch">
-          <HStack justify="space-between">
+          <VStack spacing={4} align="stretch">
             <Text fontSize="lg" fontWeight="semibold">
               Client Workouts ({getWorkoutsByClient().length} clients)
             </Text>
-            <HStack spacing={4}>
-              <InputGroup maxW="300px">
+            <HStack
+              spacing={4}
+              wrap="wrap"
+              justify={{ base: "center", md: "flex-end" }}
+            >
+              <InputGroup maxW={{ base: "100%", md: "300px" }} minW="200px">
                 <InputLeftElement pointerEvents="none">
                   <SearchIcon color="gray.300" />
                 </InputLeftElement>
@@ -380,14 +390,15 @@ Created: ${new Date(workout.createdAt).toLocaleDateString()}
               <Select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                maxW="200px"
+                maxW={{ base: "100%", md: "200px" }}
+                minW="150px"
               >
                 <option value="created">Sort by Created</option>
                 <option value="name">Sort by Name</option>
                 <option value="category">Sort by Category</option>
               </Select>
             </HStack>
-          </HStack>
+          </VStack>
 
           {getWorkoutsByClient().length > 0 ? (
             <VStack spacing={6} align="stretch">
