@@ -32,11 +32,6 @@ export const useCustomToast = () => {
         backdropFilter: "blur(16px)",
         border: "1px solid",
         borderColor: "rgba(255, 255, 255, 0.1)",
-        background: "rgba(255, 255, 255, 0.95)",
-        _dark: {
-          background: "rgba(33, 37, 41, 0.95)",
-          borderColor: "rgba(255, 255, 255, 0.1)",
-        },
       },
     });
   };

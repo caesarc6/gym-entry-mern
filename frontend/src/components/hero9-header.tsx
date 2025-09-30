@@ -825,8 +825,8 @@ export const HeroHeader = () => {
                       variant="ghost"
                       size="sm"
                       className={cn(
-                        colorMode === "dark"
-                          ? "text-gray-300 hover:text-blue-400 hover:bg-gray-700"
+                        colorMode === "light"
+                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                           : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
                       )}
                       onClick={closeMenu}

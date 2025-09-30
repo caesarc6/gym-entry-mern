@@ -72,21 +72,16 @@ export const handleOptionalFileUpload = (req, res, next) => {
 // Update user privacy settings
 export const updateUserPrivacy = async (req, res) => {
   try {
-    const { isPrivate, showEmail, showEntries } = req.body;
+    const { isPrivate, showEntries } = req.body;
 
     // Validate input
-    if (
-      isPrivate === undefined &&
-      showEmail === undefined &&
-      showEntries === undefined
-    ) {
+    if (isPrivate === undefined && showEntries === undefined) {
       return res.status(400).json({ message: "No privacy settings provided" });
     }
 
     // Update only the provided fields
     const updateFields = {};
     if (isPrivate !== undefined) updateFields["privacy.isPrivate"] = isPrivate;
-    if (showEmail !== undefined) updateFields["privacy.showEmail"] = showEmail;
     if (showEntries !== undefined)
       updateFields["privacy.showEntries"] = showEntries;
 
@@ -549,7 +544,9 @@ export const getCurrentUser = async (req, res) => {
   const { uid } = req.user;
 
   try {
-    const user = await User.findOne({ uid }).select("uid name email picture username");
+    const user = await User.findOne({ uid }).select(
+      "uid name email picture username"
+    );
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve user" });

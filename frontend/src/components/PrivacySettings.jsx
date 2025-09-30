@@ -18,7 +18,6 @@ import { useColorMode } from "@chakra-ui/react";
 const PrivacySettings = () => {
   const [privacySettings, setPrivacySettings] = useState({
     isPrivate: false,
-    showEmail: false,
     showEntries: true,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +58,6 @@ const PrivacySettings = () => {
         const userData = await response.json();
         setPrivacySettings({
           isPrivate: userData.privacy.isPrivate,
-          showEmail: userData.privacy.showEmail,
           showEntries: userData.privacy.showEntries,
         });
       } catch (error) {
@@ -197,19 +195,6 @@ const PrivacySettings = () => {
               <FormLabel fontSize="sm" color="gray.500" mt={1}>
                 If checked, only approved followers can view your profile and
                 posts.
-              </FormLabel>
-            </FormControl>
-            <FormControl>
-              <Checkbox
-                name="showEmail"
-                isChecked={privacySettings.showEmail}
-                onChange={handleChange}
-                colorScheme="blue"
-              >
-                Show Email
-              </Checkbox>
-              <FormLabel fontSize="sm" color="gray.500" mt={1}>
-                If checked, your email will be visible to others.
               </FormLabel>
             </FormControl>
             <FormControl>

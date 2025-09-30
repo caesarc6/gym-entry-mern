@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema(
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     // Add privacy settings
     privacy: {
-      isPrivate: { type: Boolean, default: false },
+      isPrivate: { type: Boolean, default: true },
       // You can add more granular controls if needed
       showEmail: { type: Boolean, default: false },
       showEntries: { type: Boolean, default: true },

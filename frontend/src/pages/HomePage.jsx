@@ -21,7 +21,6 @@ import { Hero } from "../components/Hero";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
-import AssignedWorkouts from "../components/AssignedWorkouts";
 
 // Optimized feed loading with lazy loading and caching
 const HomePage = () => {
@@ -411,9 +410,6 @@ const HomePage = () => {
       {isSignedIn ? (
         <>
           <VStack spacing={8} className="pt-[112px]">
-            {/* Assigned Workouts Section */}
-            <AssignedWorkouts uid={uid} />
-
             <Text
               fontSize={"22"}
               fontWeight={"bold"}

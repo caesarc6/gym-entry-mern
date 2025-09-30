@@ -9,9 +9,8 @@
 export const filterUserDataForPublicView = (user, viewerUser = null) => {
   // Ensure privacy object exists
   const privacy = user.privacy || {
-    isPrivate: false,
+    isPrivate: true,
     showEntries: true,
-    showEmail: false,
   };
 
   // Create a base public user object with allowed fields
@@ -33,7 +32,7 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
   if (viewerUser && viewerUser._id.toString() === user._id.toString()) {
     return {
       ...publicUserData,
-      email: privacy.showEmail ? user.email : undefined, // Only show email if privacy setting allows
+      email: user.email, // Always show email to the user themselves
       // Optionally include simplified followers/following arrays
       followers: user.followers
         ? user.followers.map((follower) => ({
@@ -103,9 +102,8 @@ export const filterEntriesForPublicView = (
 ) => {
   // Ensure privacy object exists
   const privacy = entryOwner.privacy || {
-    isPrivate: false,
+    isPrivate: true,
     showEntries: true,
-    showEmail: false,
   };
 
   // If viewing own profile, return all entries
