@@ -31,21 +31,33 @@ const upload = multer({
 
 // Middleware to handle file upload errors
 export const handleFileUpload = (req, res, next) => {
+  console.log("🔍 [USER] handleFileUpload middleware called");
+  console.log("🔍 [USER] Request body keys:", Object.keys(req.body));
+
   upload.single("profileImage")(req, res, (err) => {
     if (err instanceof multer.MulterError) {
+      console.error("❌ [USER] Multer error:", err.code, err.message);
       if (err.code === "LIMIT_FILE_SIZE") {
         return res.status(400).json({
           message: "File too large. Please upload a smaller image (max 20MB).",
         });
       }
     } else if (err) {
+      console.error("❌ [USER] File upload error:", err.message);
       return res.status(400).json({
         error: err.message,
       });
     }
     if (!req.file) {
+      console.error("❌ [USER] No file uploaded");
       return res.status(400).json({ error: "No file uploaded" });
     }
+    console.log("✅ [USER] File upload validation passed:", {
+      fieldname: req.file.fieldname,
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+    });
     next();
   });
 };
@@ -660,11 +672,28 @@ export const searchUsers = async (req, res) => {
 export const uploadBackgroundPicture = [
   handleFileUpload,
   async (req, res) => {
+    console.log("🔍 [USER] uploadBackgroundPicture function called");
+    console.log("🔍 [USER] User UID:", req.user.uid);
+    console.log(
+      "🔍 [USER] File details:",
+      req.file
+        ? {
+            fieldname: req.file.fieldname,
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+          }
+        : "No file"
+    );
+
     try {
+      console.log("🔍 [USER] Checking Supabase connection...");
       const isConnected = await checkSupabaseConnection();
       if (!isConnected) {
+        console.error("❌ [USER] Supabase connection failed");
         return res.status(500).json({ error: "Supabase connection failed" });
       }
+      console.log("✅ [USER] Supabase connection successful");
 
       const user = req.user;
       const fileName = generateSafeFilePath(
@@ -674,6 +703,10 @@ export const uploadBackgroundPicture = [
       );
       const filePath = fileName;
 
+      console.log("🔍 [USER] Generated file path:", filePath);
+      console.log("🔍 [USER] File buffer size:", req.file.buffer.length);
+
+      console.log("🔍 [USER] Uploading to Supabase storage...");
       const { error } = await supabase.storage
         .from("user_backgrounds")
         .upload(filePath, req.file.buffer, {
@@ -682,19 +715,33 @@ export const uploadBackgroundPicture = [
         });
 
       if (error) {
-        console.error("Supabase upload error:", error);
+        console.error("❌ [USER] Supabase upload error:", error);
+        console.error("❌ [USER] Error details:", {
+          message: error.message,
+          statusCode: error.statusCode,
+          error: error.error,
+        });
         return res.status(500).json({ error: "Failed to upload image" });
       }
+      console.log("✅ [USER] Supabase upload successful");
 
+      console.log("🔍 [USER] Getting public URL...");
       const {
         data: { publicUrl },
       } = supabase.storage.from("user_backgrounds").getPublicUrl(filePath);
+      console.log("🔍 [USER] Generated public URL:", publicUrl);
 
+      console.log("🔍 [USER] Updating user in database...");
       const updatedUser = await User.findOneAndUpdate(
         { uid: user.uid },
         { backgroundPicture: publicUrl },
         { new: true }
       );
+
+      console.log("✅ [USER] Background picture updated successfully:", {
+        uid: updatedUser.uid,
+        backgroundPicture: updatedUser.backgroundPicture,
+      });
 
       res.json({
         url: publicUrl,
@@ -702,7 +749,8 @@ export const uploadBackgroundPicture = [
         user: updatedUser,
       });
     } catch (error) {
-      console.error("Upload error:", error);
+      console.error("❌ [USER] Upload error:", error);
+      console.error("❌ [USER] Error stack:", error.stack);
       res.status(500).json({ error: error.message });
     }
   },
@@ -711,11 +759,28 @@ export const uploadBackgroundPicture = [
 export const uploadProfilePic = [
   handleFileUpload,
   async (req, res) => {
+    console.log("🔍 [USER] uploadProfilePic function called");
+    console.log("🔍 [USER] User UID:", req.user.uid);
+    console.log(
+      "🔍 [USER] File details:",
+      req.file
+        ? {
+            fieldname: req.file.fieldname,
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+          }
+        : "No file"
+    );
+
     try {
+      console.log("🔍 [USER] Checking Supabase connection...");
       const isConnected = await checkSupabaseConnection();
       if (!isConnected) {
+        console.error("❌ [USER] Supabase connection failed");
         return res.status(500).json({ error: "Supabase connection failed" });
       }
+      console.log("✅ [USER] Supabase connection successful");
 
       const user = req.user;
       const fileName = generateSafeFilePath(
@@ -725,6 +790,10 @@ export const uploadProfilePic = [
       );
       const filePath = fileName;
 
+      console.log("🔍 [USER] Generated file path:", filePath);
+      console.log("🔍 [USER] File buffer size:", req.file.buffer.length);
+
+      console.log("🔍 [USER] Uploading to Supabase storage...");
       const { error } = await supabase.storage
         .from("user_profiles")
         .upload(filePath, req.file.buffer, {
@@ -733,19 +802,33 @@ export const uploadProfilePic = [
         });
 
       if (error) {
-        console.error("Supabase upload error:", error);
+        console.error("❌ [USER] Supabase upload error:", error);
+        console.error("❌ [USER] Error details:", {
+          message: error.message,
+          statusCode: error.statusCode,
+          error: error.error,
+        });
         return res.status(500).json({ error: "Failed to upload image" });
       }
+      console.log("✅ [USER] Supabase upload successful");
 
+      console.log("🔍 [USER] Getting public URL...");
       const {
         data: { publicUrl },
       } = supabase.storage.from("user_profiles").getPublicUrl(filePath);
+      console.log("🔍 [USER] Generated public URL:", publicUrl);
 
+      console.log("🔍 [USER] Updating user in database...");
       const updatedUser = await User.findOneAndUpdate(
         { uid: user.uid },
         { picture: publicUrl },
         { new: true }
       );
+
+      console.log("✅ [USER] Profile picture updated successfully:", {
+        uid: updatedUser.uid,
+        picture: updatedUser.picture,
+      });
 
       res.json({
         url: publicUrl,
@@ -753,7 +836,8 @@ export const uploadProfilePic = [
         user: updatedUser,
       });
     } catch (error) {
-      console.error("Upload error:", error);
+      console.error("❌ [USER] Upload error:", error);
+      console.error("❌ [USER] Error stack:", error.stack);
       res.status(500).json({ error: error.message });
     }
   },

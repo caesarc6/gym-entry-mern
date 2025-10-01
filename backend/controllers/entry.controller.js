@@ -41,29 +41,46 @@ const uploadMiddleware = multer({
 
 // Middleware to handle file upload errors
 export const handleFileUpload = (req, res, next) => {
+  console.log("🔍 [ENTRY] handleFileUpload middleware called");
+  console.log(
+    "🔍 [ENTRY] Request file:",
+    req.file
+      ? {
+          fieldname: req.file.fieldname,
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+        }
+      : "No file"
+  );
+  console.log("🔍 [ENTRY] Request body keys:", Object.keys(req.body));
+
   if (!req.file) {
+    console.log("🔍 [ENTRY] No file uploaded, proceeding to next middleware");
     return next(); // No file uploaded, skip to the next middleware
   }
 
   // Check for Multer errors
   if (req.fileError) {
+    console.error("❌ [ENTRY] File upload error detected:", req.fileError);
     if (req.fileError instanceof multer.MulterError) {
+      console.error("❌ [ENTRY] Multer error code:", req.fileError.code);
       if (req.fileError.code === "LIMIT_FIELD_VALUE") {
         return res.status(400).json({
           message: "File too large. Please upload a smaller image (max 10MB).",
         });
       }
     } else {
+      console.error("❌ [ENTRY] Non-multer file error:", req.fileError.message);
       return res.status(400).json({
         error: req.fileError.message,
       });
     }
   }
 
-  // Log the request body and file for debugging
-  // console.log("Request body:", req.body);
-  // console.log("Request file:", req.file);
-
+  console.log(
+    "✅ [ENTRY] File upload validation passed, proceeding to next middleware"
+  );
   // Proceed to the next middleware
   next();
 };
@@ -80,10 +97,21 @@ export const getEntrys = async (req, res) => {
 
 // create product
 export const createEntry = async (req, res) => {
+  console.log("🔍 [ENTRY] createEntry function called");
+  console.log("🔍 [ENTRY] Request body:", {
+    name: req.body.name,
+    description: req.body.description,
+    hasImage: !!req.body.image,
+    imageName: req.body.imageName,
+    imageLength: req.body.image ? req.body.image.length : 0,
+  });
+  console.log("🔍 [ENTRY] User UID:", req.user.uid);
+
   const entry = req.body; // user will send this data
   const { uid } = req.user; // Get the authenticated user's UID
 
   if (!entry.name && !entry.description) {
+    console.error("❌ [ENTRY] Missing required fields: name and description");
     return res
       .status(400)
       .json({ success: false, message: "Please provide Name and Description" });
@@ -95,21 +123,40 @@ export const createEntry = async (req, res) => {
   const newEntry = new Entry(entry);
 
   try {
+    console.log("🔍 [ENTRY] Saving entry to database...");
     await newEntry.save();
+    console.log("✅ [ENTRY] Entry saved successfully:", {
+      id: newEntry._id,
+      name: newEntry.name,
+      hasImage: !!newEntry.image,
+    });
     res.status(201).json({ success: true, data: newEntry });
   } catch (error) {
-    // console.error("Error in Create entry:", error.message);
+    console.error("❌ [ENTRY] Error in Create entry:", error.message);
+    console.error("❌ [ENTRY] Error stack:", error.stack);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
 // update workout entry
 export const updateEntry = async (req, res) => {
+  console.log("🔍 [ENTRY] updateEntry function called");
+  console.log("🔍 [ENTRY] Request body:", {
+    pid: req.body.pid,
+    name: req.body.name,
+    description: req.body.description,
+    hasImage: !!req.body.image,
+    imageName: req.body.imageName,
+    imageLength: req.body.image ? req.body.image.length : 0,
+  });
+  console.log("🔍 [ENTRY] User UID:", req.user.uid);
+
   const { pid, name, description, image, imageName } = req.body; // Extract fields directly from req.body
   const { uid } = req.user;
 
   // Check if at least one of the fields (name or description) is provided
   if (!name) {
+    console.error("❌ [ENTRY] Missing required field: name");
     return res.status(400).json({ error: "Missing required fields" });
   }
 
@@ -118,28 +165,59 @@ export const updateEntry = async (req, res) => {
 
     // Check if a new image is provided
     if (imageName !== "undefined") {
-      const base64Data = image.split(";base64,").pop();
-      const imageBuffer = Buffer.from(base64Data, "base64");
-      const filePath = generateSafeFilePath(uid, imageName, "images");
+      console.log("🔍 [ENTRY] Processing image upload for update...");
+      console.log("🔍 [ENTRY] Image name:", imageName);
+      console.log(
+        "🔍 [ENTRY] Image data length:",
+        image ? image.length : "No image data"
+      );
 
-      // Upload the new image to Supabase storage
-      const { data: file, error } = await supabase.storage
-        .from("post_images")
-        .upload(filePath, imageBuffer, {
-          contentType: "image/jpeg",
-          cacheControl: "3600",
-          upsert: true,
-        });
+      try {
+        const base64Data = image.split(";base64,").pop();
+        const imageBuffer = Buffer.from(base64Data, "base64");
+        const filePath = generateSafeFilePath(uid, imageName, "images");
 
-      if (error) {
+        console.log("🔍 [ENTRY] Generated file path:", filePath);
+        console.log("🔍 [ENTRY] Image buffer size:", imageBuffer.length);
+
+        // Upload the new image to Supabase storage
+        console.log("🔍 [ENTRY] Uploading to Supabase storage...");
+        const { data: file, error } = await supabase.storage
+          .from("post_images")
+          .upload(filePath, imageBuffer, {
+            contentType: "image/jpeg",
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (error) {
+          console.error("❌ [ENTRY] Supabase upload error:", error);
+          console.error("❌ [ENTRY] Error details:", {
+            message: error.message,
+            statusCode: error.statusCode,
+            error: error.error,
+          });
+          return res.status(500).json({
+            error: "Failed to upload image",
+            details: error.message,
+          });
+        }
+
+        console.log("✅ [ENTRY] Supabase upload successful:", file);
+        // Generate the URL for the newly uploaded image
+        postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+        console.log("🔍 [ENTRY] Generated image URL:", postImageUrl);
+      } catch (imageError) {
+        console.error("❌ [ENTRY] Image processing error:", imageError);
         return res.status(500).json({
-          error: "Failed to upload image",
-          details: error.message,
+          error: "Failed to process image",
+          details: imageError.message,
         });
       }
-
-      // Generate the URL for the newly uploaded image
-      postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+    } else {
+      console.log(
+        "🔍 [ENTRY] No image provided for update, skipping image upload"
+      );
     }
 
     // Prepare the update object
@@ -149,14 +227,23 @@ export const updateEntry = async (req, res) => {
       ...(postImageUrl && { image: postImageUrl }), // Only include image URL if a new image is uploaded
     };
 
+    console.log("🔍 [ENTRY] Update data:", updateData);
+
     // Update the entry in the database
+    console.log("🔍 [ENTRY] Updating entry in database...");
     const entryData = await Entry.findByIdAndUpdate(pid, updateData, {
       new: true,
     });
 
-    console.log("Updated entry data:", entryData); // Debug log
+    console.log("✅ [ENTRY] Entry updated successfully:", {
+      id: entryData._id,
+      name: entryData.name,
+      hasImage: !!entryData.image,
+    });
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
+    console.error("❌ [ENTRY] Update entry error:", error);
+    console.error("❌ [ENTRY] Error stack:", error.stack);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };

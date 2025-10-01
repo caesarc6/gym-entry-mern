@@ -118,10 +118,19 @@ app.get("/api/test", (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error("Global error handler:", err);
+  console.error("❌ [SERVER] Global error handler triggered");
+  console.error("❌ [SERVER] Error details:", {
+    message: err.message,
+    type: err.type,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    body: req.body ? Object.keys(req.body) : "No body",
+  });
 
   // Handle payload too large errors specifically
   if (err.type === "entity.too.large") {
+    console.error("❌ [SERVER] Payload too large error detected");
     return res.status(413).json({
       success: false,
       message: "File too large. Please upload a smaller image.",
@@ -129,6 +138,7 @@ app.use((err, req, res, next) => {
     });
   }
 
+  console.error("❌ [SERVER] Sending 500 error response");
   res.status(500).json({
     success: false,
     message: "Internal Server Error",

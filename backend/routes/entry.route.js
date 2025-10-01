@@ -47,24 +47,53 @@ const upload = multer({
 
 // Middleware to handle file upload errors
 export const handleFileUpload = (req, res, next) => {
+  console.log("🔍 [ENTRY_ROUTE] handleFileUpload middleware called");
+  console.log(
+    "🔍 [ENTRY_ROUTE] Request file:",
+    req.file
+      ? {
+          fieldname: req.file.fieldname,
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+        }
+      : "No file"
+  );
+  console.log("🔍 [ENTRY_ROUTE] Request body keys:", Object.keys(req.body));
+
   if (!req.file) {
+    console.log(
+      "🔍 [ENTRY_ROUTE] No file uploaded, proceeding to next middleware"
+    );
     return next(); // No file uploaded, skip to the next middleware
   }
   // Check for Multer errors
   if (req.fileError) {
+    console.error(
+      "❌ [ENTRY_ROUTE] File upload error detected:",
+      req.fileError
+    );
     if (req.fileError instanceof multer.MulterError) {
+      console.error("❌ [ENTRY_ROUTE] Multer error code:", req.fileError.code);
       if (req.fileError.code === "LIMIT_FIELD_VALUE") {
         return res.status(400).json({
           message: "File too large. Please upload a smaller image (max 10MB).",
         });
       }
     } else {
+      console.error(
+        "❌ [ENTRY_ROUTE] Non-multer file error:",
+        req.fileError.message
+      );
       return res.status(400).json({
         error: req.fileError.message,
       });
     }
   }
 
+  console.log(
+    "✅ [ENTRY_ROUTE] File upload validation passed, proceeding to next middleware"
+  );
   next();
 };
 
