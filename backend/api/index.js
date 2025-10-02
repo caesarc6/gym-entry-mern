@@ -116,6 +116,20 @@ app.get("/api/test", (req, res) => {
   res.json({ success: true, message: "API is working" });
 });
 
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log("🔍 [SERVER] Incoming request:", {
+    method: req.method,
+    url: req.url,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    bodySize: req.body ? JSON.stringify(req.body).length : 0,
+    hasAuth: !!req.headers.authorization,
+    contentType: req.headers["content-type"],
+  });
+  next();
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error("❌ [SERVER] Global error handler triggered");

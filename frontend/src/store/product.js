@@ -70,14 +70,31 @@ export const useProductStore = create((set) => ({
 
     try {
       console.log("🔍 [STORE] Making API call to:", API_ENDPOINTS.CREATE_POST);
+      console.log(
+        "🔍 [STORE] Request payload size:",
+        JSON.stringify(newPost).length,
+        "bytes"
+      );
+      console.log("🔍 [STORE] Request payload preview:", {
+        name: newPost.name,
+        description: newPost.description?.substring(0, 50) + "...",
+        hasImage: !!newPost.image,
+        imageLength: newPost.image ? newPost.image.length : 0,
+        imageName: newPost.imageName,
+      });
+
       const response = await apiClient.post(API_ENDPOINTS.CREATE_POST, newPost);
       console.log("🔍 [STORE] API response received:", {
         status: response.status,
+        statusText: response.statusText,
         hasData: !!response.data,
         dataKeys: response.data ? Object.keys(response.data) : [],
+        responseData: response.data,
       });
 
       const data = response.data;
+      console.log("🔍 [STORE] Processing response data:", data);
+
       set((state) => ({ posts: [...state.posts, data.data] }));
       console.log("✅ [STORE] Post created successfully and added to state");
       return { success: true, message: "Post created successfully" };
@@ -87,6 +104,14 @@ export const useProductStore = create((set) => ({
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
+        statusText: error.response?.statusText,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          dataSize: error.config?.data
+            ? JSON.stringify(error.config.data).length
+            : 0,
+        },
       });
       throw new Error(error.response?.data?.error || "Failed to create post");
     }

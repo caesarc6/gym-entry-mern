@@ -173,7 +173,13 @@ const CreatePage = () => {
               placeholder="Name of Workout Session*"
               name="title"
               value={newPost.name}
-              onChange={(e) => setNewPost({ ...newPost, name: e.target.value })}
+              onChange={(e) => {
+                console.log(
+                  "🔍 [CREATE_PAGE] Name input changed:",
+                  e.target.value
+                );
+                setNewPost({ ...newPost, name: e.target.value });
+              }}
               w="full"
             />
             <Textarea
@@ -184,9 +190,13 @@ E.g.
 DumbBell Curls 6lbs: 3 sets of 10 reps"
               name="description"
               value={newPost.description}
-              onChange={(e) =>
-                setNewPost({ ...newPost, description: e.target.value })
-              }
+              onChange={(e) => {
+                console.log(
+                  "🔍 [CREATE_PAGE] Description input changed:",
+                  e.target.value.substring(0, 50) + "..."
+                );
+                setNewPost({ ...newPost, description: e.target.value });
+              }}
               w="full"
             />
 
@@ -234,7 +244,31 @@ DumbBell Curls 6lbs: 3 sets of 10 reps"
               }}
               fontFamily="Arial, sans-serif"
             /> */}
-            <Button colorScheme="blue" onClick={handleAddEntry} w="3xs">
+            <Button
+              colorScheme="blue"
+              onClick={(e) => {
+                console.log("🔍 [CREATE_PAGE] Add Entry button clicked");
+                console.log("🔍 [CREATE_PAGE] Event details:", {
+                  type: e.type,
+                  target: e.target,
+                  currentTarget: e.currentTarget,
+                });
+                console.log(
+                  "🔍 [CREATE_PAGE] Current newPost state at button click:",
+                  {
+                    name: newPost.name,
+                    description: newPost.description,
+                    hasPostImage: !!newPost.postImage,
+                    postImageName: newPost.postImageName,
+                    postImageLength: newPost.postImage
+                      ? newPost.postImage.length
+                      : 0,
+                  }
+                );
+                handleAddEntry();
+              }}
+              w="3xs"
+            >
               Add Entry
             </Button>
           </VStack>
