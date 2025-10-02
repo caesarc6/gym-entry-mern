@@ -38,7 +38,7 @@ export const createSharedWorkout = async (req, res) => {
       estimatedDuration,
       exercises: exercises || [],
       tags: tags || [],
-      createdAt: createdAt ? new Date(createdAt) : new Date(),
+      createdAt: createdAt ? new Date(createdAt + "T00:00:00") : new Date(),
     });
 
     await sharedWorkout.save();
@@ -162,14 +162,37 @@ export const updateSharedWorkout = async (req, res) => {
 
     // Handle createdAt field if provided
     if (updates.createdAt) {
-      updates.createdAt = new Date(updates.createdAt);
+      updates.createdAt = new Date(updates.createdAt + "T00:00:00");
     }
 
-    const template = await SharedWorkout.findOneAndUpdate(
-      { _id: sharedWorkoutId, creatorUid: uid },
-      { ...updates, updatedAt: new Date() },
-      { new: true, runValidators: true }
+    // Use native MongoDB update to bypass Mongoose timestamp restrictions
+    const ObjectId = mongoose.Types.ObjectId;
+
+    const db = SharedWorkout.db;
+    const collection = db.collection("sharedworkouts");
+
+    // First verify the document exists and belongs to the user
+    const existingDoc = await SharedWorkout.findOne({
+      _id: sharedWorkoutId,
+      creatorUid: uid,
+    });
+    if (!existingDoc) {
+      return res.status(404).json({
+        success: false,
+        message: "Shared workout not found",
+      });
+    }
+
+    // Use native MongoDB update with ObjectId
+    const result = await collection.updateOne(
+      { _id: new ObjectId(sharedWorkoutId), creatorUid: uid },
+      { $set: updates }
     );
+
+    // Fetch the updated document directly from MongoDB collection
+    const template = await collection.findOne({
+      _id: new ObjectId(sharedWorkoutId),
+    });
 
     if (!template) {
       return res.status(404).json({
@@ -274,8 +297,8 @@ export const shareWorkoutToUser = async (req, res) => {
       sharedByName: name || "Trainer",
       customLabel,
       instructions,
-      targetDate: targetDate ? new Date(targetDate) : null,
-      dueDate: dueDate ? new Date(dueDate) : null,
+      targetDate: targetDate ? new Date(targetDate + "T00:00:00") : null,
+      dueDate: dueDate ? new Date(dueDate + "T00:00:00") : null,
     });
 
     await share.save();

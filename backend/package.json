@@ -1,30 +1,25 @@
 {
-  "name": "mern-crash-course-2024",
+  "name": "gym-entry-mern-backend",
   "version": "1.0.0",
-  "description": "I am following this two hour tutorial about the mern stack. This is video is on youtube and I am looking forward to learning more on the backend of things wiht mongoDB and just see what I can learn about it.",
-  "main": "index.js",
+  "description": "Backend for Gym Entry MERN application",
+  "main": "api/index.js",
   "scripts": {
-    "dev": "NODE_ENV=development nodemon api/index.js",
-    "start": "NODE_ENV=production node api/index.js",
-    "build": "npm install && npm install --prefix ../frontend && npm run build --prefix ../frontend",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node api/index.js",
+    "dev": "nodemon api/index.js",
+    "fix-timezone-dates": "node scripts/fix-timezone-dates.js"
   },
-  "type": "module",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.46.2",
+    "express": "^4.18.2",
+    "mongoose": "^7.5.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.19.2",
-    "firebase": "^11.0.2",
-    "firebase-admin": "^12.7.0",
-    "mongoose": "^8.5.1",
+    "dotenv": "^16.3.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "path": "^0.12.7"
+    "firebase-admin": "^11.10.1",
+    "supabase": "^1.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.0.1"
   }
 }

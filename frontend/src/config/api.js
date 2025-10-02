@@ -142,56 +142,31 @@ export const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   async (config) => {
-    console.log("🔍 [API_INTERCEPTOR] Request interceptor called");
-    console.log("🔍 [API_INTERCEPTOR] Request details:", {
-      url: config.url,
-      method: config.method,
-      hasData: !!config.data,
-      dataKeys: config.data ? Object.keys(config.data) : [],
-      dataSize: config.data ? JSON.stringify(config.data).length : 0,
-    });
-
     // Import auth dynamically to avoid circular dependencies
     const { auth } = await import("../firebase");
 
     if (auth.currentUser) {
       try {
-        console.log("🔍 [API_INTERCEPTOR] Getting auth token...");
         // Force refresh the token to ensure it's valid
         const token = await auth.currentUser.getIdToken(true);
         config.headers.Authorization = `Bearer ${token}`;
-        console.log("✅ [API_INTERCEPTOR] Auth token added to request");
       } catch (error) {
-        console.error("❌ [API_INTERCEPTOR] Error getting auth token:", error);
+        console.error("Error getting auth token:", error);
         // If token refresh fails, redirect to login or show error
         if (
           error.code === "auth/user-token-expired" ||
           error.code === "auth/user-disabled"
         ) {
-          console.error(
-            "❌ [API_INTERCEPTOR] User token expired or disabled, redirecting to login"
-          );
+          console.error("User token expired or disabled, redirecting to login");
           // You might want to redirect to login page here
         }
       }
-    } else {
-      console.log(
-        "❌ [API_INTERCEPTOR] No current user found for URL:",
-        config.url
-      );
     }
-
-    console.log("🔍 [API_INTERCEPTOR] Final request config:", {
-      url: config.url,
-      method: config.method,
-      hasAuth: !!config.headers.Authorization,
-      dataSize: config.data ? JSON.stringify(config.data).length : 0,
-    });
 
     return config;
   },
   (error) => {
-    console.error("❌ [API_INTERCEPTOR] Request interceptor error:", error);
+    console.error("Request interceptor error:", error);
     return Promise.reject(error);
   }
 );
@@ -199,31 +174,20 @@ apiClient.interceptors.request.use(
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => {
-    console.log("✅ [API_INTERCEPTOR] Response received:", {
-      url: response.config?.url,
-      status: response.status,
-      statusText: response.statusText,
-      hasData: !!response.data,
-      dataKeys: response.data ? Object.keys(response.data) : [],
-    });
     return response;
   },
   (error) => {
-    console.error("❌ [API_INTERCEPTOR] API Error:", {
+    console.error("API Error:", {
       message: error.message,
       status: error.response?.status,
       statusText: error.response?.statusText,
       url: error.config?.url,
       method: error.config?.method,
-      hasResponseData: !!error.response?.data,
-      responseData: error.response?.data,
     });
 
     // Handle 403 Forbidden errors
     if (error.response?.status === 403) {
-      console.error(
-        "❌ [API_INTERCEPTOR] Authentication failed - 403 Forbidden"
-      );
+      console.error("Authentication failed - 403 Forbidden");
       // You might want to redirect to login or show an error message here
     }
 

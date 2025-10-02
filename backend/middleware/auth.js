@@ -2,45 +2,19 @@ import { admin } from "../firebase.js";
 // import { verifyIdToken } from "./middleware/auth.js";
 
 async function verifyIdToken(req, res, next) {
-  console.log("🔍 [AUTH_MIDDLEWARE] verifyIdToken called");
-  console.log("🔍 [AUTH_MIDDLEWARE] Request details:", {
-    url: req.url,
-    method: req.method,
-    hasAuthHeader: !!req.headers.authorization,
-    authHeader: req.headers.authorization
-      ? req.headers.authorization.substring(0, 20) + "..."
-      : "None",
-  });
-
   const idToken = req.headers.authorization?.split("Bearer ")[1];
 
   if (!idToken) {
-    console.error(
-      "❌ [AUTH_MIDDLEWARE] No ID token found in authorization header"
-    );
+    console.error("No ID token found in authorization header");
     return res.status(403).send("Unauthorized");
   }
 
-  console.log("🔍 [AUTH_MIDDLEWARE] ID token found, verifying...");
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     req.user = decodedToken;
-    console.log("✅ [AUTH_MIDDLEWARE] Token verified successfully:", {
-      uid: decodedToken.uid,
-      email: decodedToken.email,
-      name: decodedToken.name,
-    });
     next();
   } catch (error) {
-    console.error(
-      "❌ [AUTH_MIDDLEWARE] Error while verifying Firebase ID token:",
-      error
-    );
-    console.error("❌ [AUTH_MIDDLEWARE] Error details:", {
-      message: error.message,
-      code: error.code,
-      stack: error.stack,
-    });
+    console.error("Error while verifying Firebase ID token:", error);
     res.status(403).send("Unauthorized");
   }
 }

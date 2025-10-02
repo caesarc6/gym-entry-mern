@@ -43,6 +43,7 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { useProductStore } from "../store/product";
 import { capitalizeName, normalizeNameForStorage } from "../utils/nameUtils";
+import { formatDateSafe } from "../utils/dateUtils";
 import EditSharedWorkoutModal from "../components/EditSharedWorkoutModal";
 
 const TrainerDashboard = () => {
@@ -280,7 +281,7 @@ Workout: ${workout.workoutName}
 Client: ${workout.clientName || "Not specified"}
 Total Shares: ${workout.totalShares || 0}
 Completions: ${workout.completions || 0}
-Created: ${new Date(workout.createdAt).toLocaleDateString()}
+Created: ${formatDateSafe(workout.createdAt)}
     `.trim();
 
     alert(workoutInfo);
@@ -538,10 +539,7 @@ Created: ${new Date(workout.createdAt).toLocaleDateString()}
                                     fontStyle="italic"
                                     mt={2}
                                   >
-                                    Created:{" "}
-                                    {new Date(
-                                      workout.createdAt
-                                    ).toLocaleDateString()}
+                                    Created: {formatDateSafe(workout.createdAt)}
                                   </Text>
                                 </CardBody>
                               </Card>

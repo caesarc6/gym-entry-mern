@@ -174,10 +174,6 @@ const CreateSharedWorkoutModal = ({
       );
 
       if (response.data.success) {
-        const successMessage = `Workout created and assigned to ${capitalizeName(
-          formData.clientName
-        )}!`;
-        toast.success("Success", successMessage);
         onSuccess && onSuccess(response.data.data);
         onClose();
       } else {

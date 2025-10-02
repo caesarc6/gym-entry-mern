@@ -26,6 +26,7 @@ import { useState, useEffect } from "react";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { FileUploader } from "./FileUploader";
+import { parseDateSafe } from "../utils/dateUtils";
 
 const EditSharedWorkoutModal = ({
   isOpen,
@@ -47,25 +48,37 @@ const EditSharedWorkoutModal = ({
   const toast = useCustomToast();
   const bgColor = useColorModeValue("white", "gray.800");
 
+  // Helper function to extract date for form input
+  const extractDateForForm = (dateString) => {
+    if (!dateString) return new Date().toISOString().split("T")[0];
+
+    // If it's already a YYYY-MM-DD string, return it
+    if (typeof dateString === "string" && !dateString.includes("T")) {
+      return dateString;
+    }
+
+    // If it's an ISO string, parse it safely and return as YYYY-MM-DD
+    const parsedDate = parseDateSafe(dateString);
+    if (parsedDate) {
+      const year = parsedDate.getFullYear();
+      const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(parsedDate.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    return new Date().toISOString().split("T")[0];
+  };
+
   // Initialize form data when modal opens or workout changes
   useEffect(() => {
-    console.log(
-      "EditSharedWorkoutModal useEffect - isOpen:",
-      isOpen,
-      "sharedWorkout:",
-      sharedWorkout
-    );
     if (isOpen && sharedWorkout) {
-      console.log("Setting form data for workout:", sharedWorkout);
       setFormData({
         workoutName: sharedWorkout.workoutName || "",
         clientName: sharedWorkout.clientName || "",
         description: sharedWorkout.description || "",
         image: sharedWorkout.image || "",
         tags: sharedWorkout.tags || [],
-        createdAt: sharedWorkout.createdAt
-          ? new Date(sharedWorkout.createdAt).toISOString().split("T")[0]
-          : new Date().toISOString().split("T")[0],
+        createdAt: extractDateForForm(sharedWorkout.createdAt),
       });
       setNewTag("");
     }
@@ -122,21 +135,12 @@ const EditSharedWorkoutModal = ({
     try {
       setIsSubmitting(true);
 
-      console.log("Submitting workout update:", {
-        workoutId: sharedWorkout._id,
-        formData: formData,
-        endpoint: API_ENDPOINTS.UPDATE_SHARED_WORKOUT(sharedWorkout._id),
-      });
-
       const response = await apiClient.put(
         API_ENDPOINTS.UPDATE_SHARED_WORKOUT(sharedWorkout._id),
         formData
       );
 
-      console.log("Update response:", response);
-
       if (response.data.success) {
-        toast.success("Success", "Workout updated successfully!");
         onSuccess && onSuccess(response.data.data);
         onClose();
       } else {

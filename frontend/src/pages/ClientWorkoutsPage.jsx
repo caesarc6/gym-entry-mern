@@ -64,6 +64,7 @@ import ContinueWorkoutModal from "../components/ContinueWorkoutModal";
 import EditSharedWorkoutModal from "../components/EditSharedWorkoutModal";
 import CreateSharedWorkoutModal from "../components/CreateSharedWorkoutModal";
 import { capitalizeName, normalizeNameForStorage } from "../utils/nameUtils";
+import { formatDateSafe, parseDateSafe } from "../utils/dateUtils";
 
 const ClientWorkoutsPage = () => {
   const { clientName } = useParams();
@@ -104,7 +105,6 @@ const ClientWorkoutsPage = () => {
   const fetchClientData = async () => {
     try {
       setIsLoading(true);
-      console.log(`Fetching data for client: ${clientName}`);
 
       // Fetch all trainer assignments and shared workouts
       const [assignmentsResponse, sharedWorkoutsResponse] = await Promise.all([
@@ -204,8 +204,6 @@ const ClientWorkoutsPage = () => {
         sharedWorkouts: shared,
         completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
       });
-
-      console.log(`Found ${total} assignments for ${clientName}`);
     } catch (error) {
       console.error("Error fetching client data:", error);
       toast.error("Error", "Failed to fetch client data");
@@ -243,7 +241,11 @@ const ClientWorkoutsPage = () => {
     if (sortBy === "name") {
       filtered.sort((a, b) => a.customLabel.localeCompare(b.customLabel));
     } else if (sortBy === "created") {
-      filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      filtered.sort((a, b) => {
+        const dateA = parseDateSafe(a.createdAt) || new Date(a.createdAt);
+        const dateB = parseDateSafe(b.createdAt) || new Date(b.createdAt);
+        return dateB - dateA; // Newest first
+      });
     } else if (sortBy === "status") {
       const statusOrder = {
         completed: 1,
@@ -268,25 +270,19 @@ const ClientWorkoutsPage = () => {
 
   // Handle edit workout
   const handleEditWorkout = (assignment) => {
-    console.log("handleEditWorkout called with assignment:", assignment);
-
     // Find the shared workout for this assignment
     const sharedWorkout = sharedWorkouts.find((workout) => {
       // Handle both cases: sharedWorkoutId as string or as object with _id
       const workoutId = assignment.sharedWorkoutId;
       const targetId =
         typeof workoutId === "string" ? workoutId : workoutId?._id;
-      console.log("Comparing:", targetId, "with", workout._id);
       return targetId === workout._id;
     });
-
-    console.log("Found shared workout:", sharedWorkout);
 
     if (sharedWorkout) {
       setEditingWorkout(sharedWorkout);
       setIsEditModalOpen(true);
     } else {
-      console.error("Shared workout not found for assignment:", assignment);
       toast.error("Error", "Could not find workout details to edit");
     }
   };
@@ -528,19 +524,14 @@ const ClientWorkoutsPage = () => {
                                 <CalendarIcon />
                                 <Text>
                                   Assigned:{" "}
-                                  {new Date(
-                                    assignment.createdAt
-                                  ).toLocaleDateString()}
+                                  {formatDateSafe(assignment.createdAt)}
                                 </Text>
                               </HStack>
                               {assignment.dueDate && (
                                 <HStack>
                                   <CalendarIcon />
                                   <Text>
-                                    Due:{" "}
-                                    {new Date(
-                                      assignment.dueDate
-                                    ).toLocaleDateString()}
+                                    Due: {formatDateSafe(assignment.dueDate)}
                                   </Text>
                                 </HStack>
                               )}

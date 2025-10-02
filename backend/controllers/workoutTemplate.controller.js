@@ -266,8 +266,8 @@ export const assignWorkoutToUser = async (req, res) => {
       assignedByName: name || "Trainer",
       customLabel,
       instructions,
-      targetDate: targetDate ? new Date(targetDate) : null,
-      dueDate: dueDate ? new Date(dueDate) : null,
+      targetDate: targetDate ? new Date(targetDate + "T00:00:00") : null,
+      dueDate: dueDate ? new Date(dueDate + "T00:00:00") : null,
     });
 
     await assignment.save();

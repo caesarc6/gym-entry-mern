@@ -21,6 +21,7 @@ import { FiSave } from "react-icons/fi";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
 import ContinueWorkoutModal from "./ContinueWorkoutModal";
+import { formatDateSafe } from "../utils/dateUtils";
 
 const AssignedWorkouts = ({ uid }) => {
   const [assignments, setAssignments] = useState([]);
@@ -195,8 +196,7 @@ const AssignedWorkouts = ({ uid }) => {
                       </Badge>
                       {assignment.dueDate && (
                         <Text fontSize="xs" color="gray.500">
-                          Due:{" "}
-                          {new Date(assignment.dueDate).toLocaleDateString()}
+                          Due: {formatDateSafe(assignment.dueDate)}
                         </Text>
                       )}
                     </VStack>
