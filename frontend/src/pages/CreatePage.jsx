@@ -39,16 +39,54 @@ const CreatePage = () => {
   const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
 
   const handleFileUpload = (file) => {
+    console.log("🔍 [CREATE_PAGE] handleFileUpload called");
+    console.log("🔍 [CREATE_PAGE] File received:", {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified,
+    });
+
     const reader = new FileReader();
+
+    reader.onloadstart = () => {
+      console.log("🔍 [CREATE_PAGE] FileReader started reading file");
+    };
+
     reader.onloadend = () => {
-      setNewPost({
+      console.log("🔍 [CREATE_PAGE] FileReader finished reading file");
+      console.log(
+        "🔍 [CREATE_PAGE] Reader result length:",
+        reader.result ? reader.result.length : 0
+      );
+      console.log("🔍 [CREATE_PAGE] Reader result type:", typeof reader.result);
+
+      const updatedPost = {
         ...newPost,
         postImage: reader.result,
         postImageName: file.name,
+      };
+
+      console.log("🔍 [CREATE_PAGE] Updating newPost state:", {
+        hasPostImage: !!updatedPost.postImage,
+        postImageName: updatedPost.postImageName,
+        postImageLength: updatedPost.postImage
+          ? updatedPost.postImage.length
+          : 0,
       });
+
+      setNewPost(updatedPost);
     };
+
+    reader.onerror = (error) => {
+      console.error("❌ [CREATE_PAGE] FileReader error:", error);
+    };
+
     if (file) {
+      console.log("🔍 [CREATE_PAGE] Starting to read file as data URL");
       reader.readAsDataURL(file);
+    } else {
+      console.log("❌ [CREATE_PAGE] No file provided to handleFileUpload");
     }
   };
 
@@ -59,12 +97,35 @@ const CreatePage = () => {
   const defaultImage = useColorModeValue(day, night);
 
   const handleAddEntry = async () => {
+    console.log("🔍 [CREATE_PAGE] handleAddEntry called");
+    console.log("🔍 [CREATE_PAGE] Current newPost state:", {
+      name: newPost.name,
+      description: newPost.description,
+      hasPostImage: !!newPost.postImage,
+      postImageName: newPost.postImageName,
+      postImageLength: newPost.postImage ? newPost.postImage.length : 0,
+    });
+
     // get current user from auth
     const currentUser = { uid: auth.currentUser.uid };
     const currUser = currentUser.uid;
+    console.log("🔍 [CREATE_PAGE] Current user UID:", currUser);
+
     const postWithUID = { ...newPost, uid: currUser };
+    console.log("🔍 [CREATE_PAGE] Post with UID:", {
+      name: postWithUID.name,
+      description: postWithUID.description,
+      uid: postWithUID.uid,
+      hasPostImage: !!postWithUID.postImage,
+      postImageName: postWithUID.postImageName,
+    });
+
+    console.log("🔍 [CREATE_PAGE] Calling createPost...");
     const { success, message } = await createPost(postWithUID);
+    console.log("🔍 [CREATE_PAGE] createPost result:", { success, message });
+
     if (!success) {
+      console.error("❌ [CREATE_PAGE] Post creation failed:", message);
       toast({
         title: "Error",
         description: message,
@@ -72,6 +133,7 @@ const CreatePage = () => {
         isClosable: true,
       });
     } else {
+      console.log("✅ [CREATE_PAGE] Post created successfully");
       toast({
         title: "Success",
         description: message,

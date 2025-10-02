@@ -420,20 +420,65 @@ export const createUser = async (req, res) => {
 };
 
 export const createPost = async (req, res) => {
-  const { name, description, image } = req.body;
+  console.log("🔍 [USER_CONTROLLER] createPost function called");
+  console.log("🔍 [USER_CONTROLLER] Request body keys:", Object.keys(req.body));
+  console.log("🔍 [USER_CONTROLLER] Request body data:", {
+    name: req.body.name,
+    description: req.body.description,
+    hasImage: !!req.body.image,
+    imageName: req.body.imageName,
+    imageLength: req.body.image ? req.body.image.length : 0,
+    uid: req.user.uid,
+  });
+
+  const { name, description, image, imageName } = req.body;
   const { uid } = req.user;
 
+  console.log("🔍 [USER_CONTROLLER] Extracted data:", {
+    name,
+    description,
+    hasImage: !!image,
+    imageName,
+    uid,
+  });
+
   if (!name || !description) {
+    console.error("❌ [USER_CONTROLLER] Missing required fields:", {
+      hasName: !!name,
+      hasDescription: !!description,
+    });
     return res
       .status(400)
       .json({ success: false, message: "Please provide all fields" });
   }
 
   try {
-    const post = new Entry({ uid, name, description, image });
+    console.log("🔍 [USER_CONTROLLER] Creating new Entry object...");
+    const post = new Entry({ uid, name, description, image, imageName });
+    console.log("🔍 [USER_CONTROLLER] Entry object created:", {
+      uid: post.uid,
+      name: post.name,
+      description: post.description,
+      hasImage: !!post.image,
+      imageName: post.imageName,
+    });
+
+    console.log("🔍 [USER_CONTROLLER] Saving entry to database...");
     await post.save();
+    console.log("✅ [USER_CONTROLLER] Entry saved successfully:", {
+      id: post._id,
+      name: post.name,
+      hasImage: !!post.image,
+    });
+
     res.status(201).json(post);
   } catch (error) {
+    console.error("❌ [USER_CONTROLLER] Error creating post:", error);
+    console.error("❌ [USER_CONTROLLER] Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
     res.status(500).json({ error: "Failed to create post" });
   }
 };

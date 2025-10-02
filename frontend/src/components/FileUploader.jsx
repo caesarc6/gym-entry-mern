@@ -70,21 +70,44 @@ export const FileUploader = ({
   };
 
   const handleChange = async (event) => {
+    console.log("🔍 [FILE_UPLOADER] handleChange called");
+    console.log("🔍 [FILE_UPLOADER] Event target files:", event.target.files);
+
     const fileUploaded = event.target.files[0];
-    if (!fileUploaded) return;
+    if (!fileUploaded) {
+      console.log("❌ [FILE_UPLOADER] No file selected");
+      return;
+    }
+
+    console.log("🔍 [FILE_UPLOADER] File selected:", {
+      name: fileUploaded.name,
+      size: fileUploaded.size,
+      type: fileUploaded.type,
+      lastModified: fileUploaded.lastModified,
+    });
 
     setIsProcessing(true);
     setCompressionInfo(null);
 
     try {
+      console.log("🔍 [FILE_UPLOADER] Starting image compression process...");
       await handleImageUploadWithCompression(
         fileUploaded,
         (result) => {
           // Success callback
+          console.log("✅ [FILE_UPLOADER] Image processing successful:", {
+            originalSize: result.originalSize,
+            compressedSize: result.compressedSize,
+            wasCompressed: result.wasCompressed,
+            fileSize: result.file.size,
+            fileType: result.file.type,
+          });
+
           handleFile(result.file);
           setCompressionInfo(result);
 
           if (result.wasCompressed && showCompressionInfo) {
+            console.log("🔍 [FILE_UPLOADER] Showing compression toast");
             toast({
               title: "Image Compressed",
               description: `Image compressed from ${result.originalSize} to ${result.compressedSize}`,
@@ -98,6 +121,7 @@ export const FileUploader = ({
         },
         (error) => {
           // Error callback
+          console.error("❌ [FILE_UPLOADER] Image processing failed:", error);
           toast({
             title: "Upload Error",
             description: error,
@@ -110,7 +134,7 @@ export const FileUploader = ({
         { maxSizeMB }
       );
     } catch (error) {
-      console.error("File processing error:", error);
+      console.error("❌ [FILE_UPLOADER] File processing error:", error);
       setIsProcessing(false);
     }
   };

@@ -24,23 +24,70 @@ export const useProductStore = create((set) => ({
 
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
+    console.log("🔍 [STORE] createPost called");
+    console.log("🔍 [STORE] Input newPost:", {
+      name: newPost.name,
+      description: newPost.description,
+      uid: newPost.uid,
+      hasPostImage: !!newPost.postImage,
+      postImageName: newPost.postImageName,
+      postImageLength: newPost.postImage ? newPost.postImage.length : 0,
+    });
+
     const token = await auth.currentUser.getIdToken();
+    console.log("🔍 [STORE] Auth token obtained:", !!token);
+
     if (!newPost.name || !newPost.description) {
+      console.error("❌ [STORE] Missing required fields:", {
+        hasName: !!newPost.name,
+        hasDescription: !!newPost.description,
+      });
       return { success: false, message: "Please fill in all fields." };
     }
 
-    if (!newPost.image) {
+    // Handle image data - check if we have postImage (base64) or use default
+    if (!newPost.image && !newPost.postImage) {
+      console.log("🔍 [STORE] No image provided, using default image");
       newPost.image =
         "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
+    } else if (newPost.postImage) {
+      console.log("🔍 [STORE] Using uploaded image (base64)");
+      newPost.image = newPost.postImage;
+      // Also set imageName if available
+      if (newPost.postImageName) {
+        newPost.imageName = newPost.postImageName;
+      }
     }
 
+    console.log("🔍 [STORE] Final post data being sent:", {
+      name: newPost.name,
+      description: newPost.description,
+      uid: newPost.uid,
+      hasImage: !!newPost.image,
+      imageLength: newPost.image ? newPost.image.length : 0,
+      imageName: newPost.imageName,
+    });
+
     try {
+      console.log("🔍 [STORE] Making API call to:", API_ENDPOINTS.CREATE_POST);
       const response = await apiClient.post(API_ENDPOINTS.CREATE_POST, newPost);
+      console.log("🔍 [STORE] API response received:", {
+        status: response.status,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : [],
+      });
+
       const data = response.data;
       set((state) => ({ posts: [...state.posts, data.data] }));
+      console.log("✅ [STORE] Post created successfully and added to state");
       return { success: true, message: "Post created successfully" };
     } catch (error) {
-      console.error("Error creating post:", error);
+      console.error("❌ [STORE] Error creating post:", error);
+      console.error("❌ [STORE] Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
       throw new Error(error.response?.data?.error || "Failed to create post");
     }
   },
