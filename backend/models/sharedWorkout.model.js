@@ -33,29 +33,6 @@ const sharedWorkoutSchema = new mongoose.Schema(
       required: false,
     },
 
-    // Workout Organization
-    category: {
-      type: String,
-      enum: [
-        "strength",
-        "cardio",
-        "flexibility",
-        "sports",
-        "rehabilitation",
-        "general",
-      ],
-      default: "general",
-    },
-    difficulty: {
-      type: String,
-      enum: ["beginner", "intermediate", "advanced"],
-      default: "beginner",
-    },
-    estimatedDuration: {
-      type: Number, // in minutes
-      default: 30,
-    },
-
     // Workout Content
     exercises: [
       {
@@ -95,7 +72,6 @@ const sharedWorkoutSchema = new mongoose.Schema(
 
 // Index for better performance
 sharedWorkoutSchema.index({ creatorUid: 1, isActive: 1 });
-sharedWorkoutSchema.index({ category: 1, difficulty: 1 });
 
 const SharedWorkout = mongoose.model("SharedWorkout", sharedWorkoutSchema);
 

@@ -11,9 +11,6 @@ export const createSharedWorkout = async (req, res) => {
       clientName,
       description,
       image,
-      category,
-      difficulty,
-      estimatedDuration,
       exercises,
       tags,
       createdAt,
@@ -33,9 +30,6 @@ export const createSharedWorkout = async (req, res) => {
       creatorUid: uid,
       creatorName: name || "Trainer",
       clientName: clientName || null,
-      category,
-      difficulty,
-      estimatedDuration,
       exercises: exercises || [],
       tags: tags || [],
       createdAt: createdAt ? new Date(createdAt + "T00:00:00") : new Date(),
@@ -85,12 +79,10 @@ export const createSharedWorkout = async (req, res) => {
 export const getTrainerSharedWorkouts = async (req, res) => {
   try {
     const { uid } = req.user;
-    const { page = 1, limit = 10, category, difficulty, search } = req.query;
+    const { page = 1, limit = 10, search } = req.query;
 
     const query = { creatorUid: uid, isActive: true };
 
-    if (category) query.category = category;
-    if (difficulty) query.difficulty = difficulty;
     if (search) {
       query.$or = [
         { workoutName: { $regex: search, $options: "i" } },
@@ -336,7 +328,7 @@ export const getTrainerAssignments = async (req, res) => {
     }
 
     const shares = await WorkoutAssignment.find(query)
-      .populate("sharedWorkoutId", "workoutName category difficulty")
+      .populate("sharedWorkoutId", "workoutName")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
