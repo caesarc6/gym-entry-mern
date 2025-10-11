@@ -5,7 +5,6 @@ import {
   Text,
   VStack,
   Button,
-  useColorModeValue,
   Heading,
   Avatar,
   Center,
@@ -23,6 +22,7 @@ import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -69,9 +69,11 @@ const UserProfilePage = () => {
   });
 
   const toast = useToast();
-  const profileColorMode = useColorModeValue(lightUrl, nightUrl);
-  const bgColorMode = useColorModeValue(defaultBgUrl, defaultBgNightUrl);
-  const bgColor = useColorModeValue("white", "gray.800");
+  const colors = useThemeColors();
+  const profileColorMode =
+    colors.currentTheme === "light" ? lightUrl : nightUrl;
+  const bgColorMode =
+    colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
 
   // Determine userId: use paramUserId if available, otherwise use current user's UID
   const userId = paramUserId || auth.currentUser?.uid;
@@ -347,7 +349,7 @@ const UserProfilePage = () => {
       <Box
         maxW={"580px"}
         w={"full"}
-        bg={bgColor}
+        bg={colors.bgCard}
         boxShadow={"2xl"}
         rounded={"md"}
         overflow={"hidden"}
@@ -372,34 +374,34 @@ const UserProfilePage = () => {
             </Heading>
           </Stack>
           <Stack spacing={0} align={"center"} mb={3}>
-            <Text color={"gray.500"}>@{userProfile.username}</Text>
+            <Text color={colors.textMuted}>@{userProfile.username}</Text>
           </Stack>
           <Stack spacing={0} align={"center"} mb={4}>
-            <Text color={"gray.500"}>
+            <Text color={colors.textMuted}>
               {userProfile.goal} | {userProfile.gymName}
             </Text>
           </Stack>
           <Stack spacing={0} align={"center"} mt={4}>
-            <Text color={"gray.500"} textAlign="center">
+            <Text color={colors.textMuted} textAlign="center">
               {userProfile.bio}
             </Text>
           </Stack>
           <Stack direction={"row"} justify={"center"} spacing={6} mt={8}>
             <Stack spacing={0} align={"center"}>
               <Text fontWeight={600}>{userProfile.followersCount}</Text>
-              <Text fontSize={"sm"} color={"gray.500"}>
+              <Text fontSize={"sm"} color={colors.textMuted}>
                 Followers
               </Text>
             </Stack>
             <Stack spacing={0} align={"center"}>
               <Text fontWeight={600}>{userProfile.followingCount}</Text>
-              <Text fontSize={"sm"} color={"gray.500"}>
+              <Text fontSize={"sm"} color={colors.textMuted}>
                 Following
               </Text>
             </Stack>
             <Stack spacing={0} align={"center"}>
               <Text fontWeight={600}>{userProfile.postsCount || 0}</Text>
-              <Text fontSize={"sm"} color={"gray.500"}>
+              <Text fontSize={"sm"} color={colors.textMuted}>
                 Posts
               </Text>
             </Stack>
@@ -452,7 +454,7 @@ const UserProfilePage = () => {
         </Center>
       ) : entries.length === 0 ? (
         <Center>
-          <Text fontSize="lg" color="gray.500">
+          <Text fontSize="lg" color={colors.textMuted}>
             {userProfile.isPrivate &&
             !isFollowing &&
             auth.currentUser?.uid !== userId
@@ -498,13 +500,13 @@ const UserProfilePage = () => {
           <Box
             maxW={"580px"}
             w={"full"}
-            bg={bgColor}
+            bg={colors.bgCard}
             boxShadow={"2xl"}
             rounded={"md"}
             p={6}
             textAlign="center"
           >
-            <Text fontSize={"lg"} color={"gray.500"} mb={4}>
+            <Text fontSize={"lg"} color={colors.textMuted} mb={4}>
               This profile is private. Send a follow request to view their
               workout posts.
             </Text>
@@ -528,13 +530,13 @@ const UserProfilePage = () => {
           <Box
             maxW={"580px"}
             w={"full"}
-            bg={bgColor}
+            bg={colors.bgCard}
             boxShadow={"2xl"}
             rounded={"md"}
             p={6}
             textAlign="center"
           >
-            <Text fontSize={"lg"} color={"gray.500"} mb={4}>
+            <Text fontSize={"lg"} color={colors.textMuted} mb={4}>
               Follow request sent! You'll be able to see their posts once they
               accept your request.
             </Text>

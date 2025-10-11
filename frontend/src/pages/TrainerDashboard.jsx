@@ -10,7 +10,6 @@ import {
   CardBody,
   CardHeader,
   Badge,
-  useColorModeValue,
   Stat,
   StatLabel,
   StatNumber,
@@ -45,6 +44,7 @@ import { useProductStore } from "../store/product";
 import { capitalizeName, normalizeNameForStorage } from "../utils/nameUtils";
 import { formatDateSafe } from "../utils/dateUtils";
 import EditSharedWorkoutModal from "../components/EditSharedWorkoutModal";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const TrainerDashboard = () => {
   const [sharedWorkouts, setSharedWorkouts] = useState([]);
@@ -62,8 +62,7 @@ const TrainerDashboard = () => {
 
   const navigate = useNavigate();
   const toast = useCustomToast();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const cardBg = useColorModeValue("gray.50", "gray.700");
+  const colors = useThemeColors();
 
   const { currentUserInfo } = useProductStore();
 
@@ -112,9 +111,9 @@ const TrainerDashboard = () => {
       setIsLoading(true);
       console.log("TrainerDashboard: Starting to fetch data");
 
-      // Fetch shared workouts
+      // Fetch shared workouts (request all with high limit to avoid pagination issues)
       const sharedWorkoutsResponse = await apiClient.get(
-        API_ENDPOINTS.GET_TRAINER_SHARED_WORKOUTS
+        `${API_ENDPOINTS.GET_TRAINER_SHARED_WORKOUTS}?limit=1000`
       );
 
       console.log("TrainerDashboard: Data fetched successfully");
@@ -137,6 +136,10 @@ const TrainerDashboard = () => {
       });
 
       // Check for and handle existing general workouts
+      // DISABLED: Automatic deletion of general workouts to prevent accidental deletions
+      // If you want to clean up general workouts, use the manual button in the dashboard
+      // or uncomment the code below
+      /*
       const generalWorkouts = sharedWorkoutsData.filter(
         (workout) => !workout.clientName || !workout.clientName.trim()
       );
@@ -146,6 +149,7 @@ const TrainerDashboard = () => {
           handleGeneralWorkouts();
         }, 1000);
       }
+      */
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Error", "Failed to fetch dashboard data");
@@ -165,8 +169,6 @@ const TrainerDashboard = () => {
       sorted.sort((a, b) => a.workoutName.localeCompare(b.workoutName));
     } else if (sortBy === "created") {
       sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    } else if (sortBy === "category") {
-      sorted.sort((a, b) => a.category.localeCompare(b.category));
     }
 
     // Apply search filter
@@ -317,7 +319,7 @@ Created: ${formatDateSafe(workout.createdAt)}
         <VStack spacing={4} align="stretch">
           <VStack align="start" spacing={2}>
             <Heading size="lg">Trainer Dashboard</Heading>
-            <Text color="gray.600">
+            <Text color={colors.textSecondary}>
               Manage your shared workouts for clients
             </Text>
           </VStack>
@@ -347,7 +349,7 @@ Created: ${formatDateSafe(workout.createdAt)}
 
         {/* Stats */}
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-          <Card bg={cardBg}>
+          <Card bg={colors.bgMuted}>
             <CardBody>
               <Stat>
                 <StatLabel>Total Workouts</StatLabel>
@@ -356,7 +358,7 @@ Created: ${formatDateSafe(workout.createdAt)}
               </Stat>
             </CardBody>
           </Card>
-          <Card bg={cardBg}>
+          <Card bg={colors.bgMuted}>
             <CardBody>
               <Stat>
                 <StatLabel>Active Clients</StatLabel>
@@ -380,7 +382,7 @@ Created: ${formatDateSafe(workout.createdAt)}
             >
               <InputGroup maxW={{ base: "100%", md: "300px" }} minW="200px">
                 <InputLeftElement pointerEvents="none">
-                  <SearchIcon color="gray.300" />
+                  <SearchIcon color={colors.textMuted} />
                 </InputLeftElement>
                 <Input
                   placeholder="Search clients or workouts..."
@@ -396,7 +398,6 @@ Created: ${formatDateSafe(workout.createdAt)}
               >
                 <option value="created">Sort by Created</option>
                 <option value="name">Sort by Name</option>
-                <option value="category">Sort by Category</option>
               </Select>
             </HStack>
           </VStack>
@@ -421,7 +422,7 @@ Created: ${formatDateSafe(workout.createdAt)}
                     client.clientName
                   );
                   return (
-                    <Card key={client.clientName} bg={bgColor}>
+                    <Card key={client.clientName} bg={colors.bgCard}>
                       <CardHeader>
                         <HStack justify="space-between" align="start">
                           <VStack align="start" spacing={2}>
@@ -453,101 +454,137 @@ Created: ${formatDateSafe(workout.createdAt)}
                       </CardHeader>
                       <CardBody pt={0}>
                         {clientWorkouts.length > 0 ? (
-                          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                            {clientWorkouts.map((workout) => (
-                              <Card key={workout._id} bg={cardBg} size="sm">
-                                <CardHeader pb={2}>
-                                  <HStack justify="space-between">
-                                    <VStack align="start" spacing={1}>
-                                      <Text fontWeight="medium" fontSize="md">
-                                        {workout.workoutName}
-                                      </Text>
-                                    </VStack>
-                                    <Menu>
-                                      <MenuButton
-                                        as={IconButton}
-                                        icon={<HamburgerIcon />}
-                                        variant="ghost"
-                                        size="xs"
-                                      />
-                                      <MenuList>
-                                        <MenuItem
-                                          icon={<ViewIcon />}
-                                          fontSize="sm"
-                                          onClick={() =>
-                                            handleViewWorkoutDetails(workout)
-                                          }
-                                        >
-                                          View Details
-                                        </MenuItem>
-                                        <MenuItem
-                                          icon={<EditIcon />}
-                                          fontSize="sm"
-                                          onClick={() =>
-                                            handleEditWorkout(workout)
-                                          }
-                                        >
-                                          Edit Workout
-                                        </MenuItem>
-                                        <MenuItem
-                                          icon={<DeleteIcon />}
-                                          fontSize="sm"
-                                          onClick={() =>
-                                            handleDeleteWorkout(workout)
-                                          }
-                                          color="red.500"
-                                        >
-                                          Delete Workout
-                                        </MenuItem>
-                                      </MenuList>
-                                    </Menu>
-                                  </HStack>
-                                </CardHeader>
-                                <CardBody pt={0}>
-                                  <Box
-                                    maxH="200px"
-                                    overflowY="auto"
-                                    overflowX="hidden"
-                                    css={{
-                                      "&::-webkit-scrollbar": {
-                                        width: "4px",
-                                      },
-                                      "&::-webkit-scrollbar-track": {
-                                        background: "transparent",
-                                      },
-                                      "&::-webkit-scrollbar-thumb": {
-                                        background: "#CBD5E0",
-                                        borderRadius: "2px",
-                                      },
-                                      "&::-webkit-scrollbar-thumb:hover": {
-                                        background: "#A0AEC0",
-                                      },
-                                    }}
-                                  >
-                                    <Text
-                                      color="gray.600"
-                                      fontSize="xs"
-                                      whiteSpace="pre-wrap"
-                                      wordBreak="break-word"
+                          <VStack spacing={4} align="stretch">
+                            <SimpleGrid
+                              columns={{ base: 1, md: 2 }}
+                              spacing={4}
+                            >
+                              {clientWorkouts.slice(0, 2).map((workout) => (
+                                <Card
+                                  key={workout._id}
+                                  bg={colors.bgMuted}
+                                  size="sm"
+                                >
+                                  <CardHeader pb={2}>
+                                    <HStack justify="space-between">
+                                      <VStack align="start" spacing={1}>
+                                        <Text fontWeight="medium" fontSize="md">
+                                          {workout.workoutName}
+                                        </Text>
+                                      </VStack>
+                                      <Menu>
+                                        <MenuButton
+                                          as={IconButton}
+                                          icon={<HamburgerIcon />}
+                                          variant="ghost"
+                                          size="xs"
+                                        />
+                                        <MenuList>
+                                          <MenuItem
+                                            icon={<ViewIcon />}
+                                            fontSize="sm"
+                                            onClick={() =>
+                                              handleViewWorkoutDetails(workout)
+                                            }
+                                          >
+                                            View Details
+                                          </MenuItem>
+                                          <MenuItem
+                                            icon={<EditIcon />}
+                                            fontSize="sm"
+                                            onClick={() =>
+                                              handleEditWorkout(workout)
+                                            }
+                                          >
+                                            Edit Workout
+                                          </MenuItem>
+                                          <MenuItem
+                                            icon={<DeleteIcon />}
+                                            fontSize="sm"
+                                            onClick={() =>
+                                              handleDeleteWorkout(workout)
+                                            }
+                                            color="red.500"
+                                          >
+                                            Delete Workout
+                                          </MenuItem>
+                                        </MenuList>
+                                      </Menu>
+                                    </HStack>
+                                  </CardHeader>
+                                  <CardBody pt={0}>
+                                    <Box
+                                      maxH="200px"
+                                      overflowY="auto"
+                                      overflowX="hidden"
+                                      css={{
+                                        "&::-webkit-scrollbar": {
+                                          width: "4px",
+                                        },
+                                        "&::-webkit-scrollbar-track": {
+                                          background: "transparent",
+                                        },
+                                        "&::-webkit-scrollbar-thumb": {
+                                          background: "#CBD5E0",
+                                          borderRadius: "2px",
+                                        },
+                                        "&::-webkit-scrollbar-thumb:hover": {
+                                          background: "#A0AEC0",
+                                        },
+                                      }}
                                     >
-                                      {workout.description}
+                                      <Text
+                                        color={colors.textSecondary}
+                                        fontSize="xs"
+                                        whiteSpace="pre-wrap"
+                                        wordBreak="break-word"
+                                      >
+                                        {workout.description}
+                                      </Text>
+                                    </Box>
+                                    <Text
+                                      color={colors.textMuted}
+                                      fontSize="xs"
+                                      fontStyle="italic"
+                                      mt={2}
+                                    >
+                                      Created:{" "}
+                                      {formatDateSafe(workout.createdAt)}
                                     </Text>
-                                  </Box>
-                                  <Text
-                                    color="gray.500"
-                                    fontSize="xs"
-                                    fontStyle="italic"
-                                    mt={2}
-                                  >
-                                    Created: {formatDateSafe(workout.createdAt)}
-                                  </Text>
-                                </CardBody>
-                              </Card>
-                            ))}
-                          </SimpleGrid>
+                                  </CardBody>
+                                </Card>
+                              ))}
+                            </SimpleGrid>
+                            {clientWorkouts.length > 4 && (
+                              <Box
+                                bg={colors.bgMuted}
+                                borderRadius="md"
+                                p={3}
+                                textAlign="center"
+                                border="1px dashed"
+                                borderColor={colors.border}
+                              >
+                                <Text
+                                  color={colors.textSecondary}
+                                  fontSize="sm"
+                                  fontWeight="medium"
+                                >
+                                  +{clientWorkouts.length - 4} more workout
+                                  {clientWorkouts.length - 4 !== 1 ? "s" : ""}
+                                </Text>
+                                <Text
+                                  color={colors.textMuted}
+                                  fontSize="xs"
+                                  mt={1}
+                                >
+                                  Click "View Client" to see all workouts
+                                </Text>
+                              </Box>
+                            )}
+                          </VStack>
                         ) : (
                           <Text
-                            color="gray.500"
+                            color={colors.textMuted}
                             fontSize="sm"
                             textAlign="center"
                             py={4}
@@ -561,12 +598,16 @@ Created: ${formatDateSafe(workout.createdAt)}
                 })}
             </VStack>
           ) : (
-            <Card bg={cardBg}>
+            <Card bg={colors.bgMuted}>
               <CardBody>
                 <Center py={8}>
                   <VStack spacing={4}>
-                    <Text color="gray.500">No Client Workouts Yet</Text>
-                    <Text fontSize="sm" color="gray.400" textAlign="center">
+                    <Text color={colors.textMuted}>No Client Workouts Yet</Text>
+                    <Text
+                      fontSize="sm"
+                      color={colors.textMuted}
+                      textAlign="center"
+                    >
                       Create workouts for your clients to get started
                     </Text>
                     <Button

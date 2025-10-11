@@ -8,6 +8,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "./ui/pagination";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const PaginationComponent = ({
   currentPage,
@@ -16,6 +17,7 @@ const PaginationComponent = ({
   maxVisiblePages = 5,
 }) => {
   const [screenSize, setScreenSize] = useState("desktop");
+  const colors = useThemeColors();
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -124,6 +126,7 @@ const PaginationComponent = ({
                   ? "pointer-events-none opacity-50"
                   : "cursor-pointer"
               }
+              style={{ color: colors.textSecondary }}
               size="icon"
             >
               ←
@@ -150,6 +153,10 @@ const PaginationComponent = ({
                   }}
                   isActive={page === currentPage}
                   className="cursor-pointer"
+                  style={{
+                    color:
+                      page === currentPage ? undefined : colors.textSecondary,
+                  }}
                   size={screenSize !== "desktop" ? "sm" : "default"}
                 >
                   {page}
@@ -191,6 +198,7 @@ const PaginationComponent = ({
                   ? "pointer-events-none opacity-50"
                   : "cursor-pointer"
               }
+              style={{ color: colors.textSecondary }}
               size="icon"
             >
               →

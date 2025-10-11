@@ -7,8 +7,6 @@ import { cn } from "../lib/utils";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
 import { PlusSquareIcon } from "@chakra-ui/icons";
-import { IoMoon } from "react-icons/io5";
-import { LuSun } from "react-icons/lu";
 import { useColorMode } from "@chakra-ui/react";
 import { RxAvatar } from "react-icons/rx";
 import { PiSignOutThin } from "react-icons/pi";
@@ -31,6 +29,8 @@ import {
 } from "@chakra-ui/react";
 import { debounce } from "lodash";
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import { useTheme } from "../contexts/ThemeContext";
+import ThemeSelector from "./ThemeSelector";
 
 export const HeroHeader = () => {
   const [menuState, setMenuState] = React.useState(false);
@@ -41,7 +41,8 @@ export const HeroHeader = () => {
   const [userName, setUserName] = React.useState("");
   const [entries, setEntries] = React.useState([]);
   const { scrollYProgress } = useScroll();
-  const { colorMode, toggleColorMode } = useColorMode();
+  const { colorMode } = useColorMode();
+  const { currentTheme } = useTheme();
   const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -65,11 +66,6 @@ export const HeroHeader = () => {
 
   const handleGoogleSignInAndClose = async (mode = "login") => {
     await handleGoogleSignIn(mode);
-    closeMenu();
-  };
-
-  const handleToggleColorModeAndClose = () => {
-    toggleColorMode();
     closeMenu();
   };
 
@@ -270,7 +266,13 @@ export const HeroHeader = () => {
         <div
           className={cn(
             "mx-auto max-w-7xl px-6 py-[1px] transition-all duration-300 lg:px-12 backdrop-blur-2xl border-b",
-            colorMode === "dark" ? "bg-gray-900/80" : "bg-background/80"
+            currentTheme === "light"
+              ? "bg-background/80"
+              : currentTheme === "dark"
+              ? "bg-gray-900/80"
+              : currentTheme === "dark-black"
+              ? "bg-gray-950/90"
+              : "bg-blue-950/90"
           )}
         >
           <motion.div
@@ -285,6 +287,7 @@ export const HeroHeader = () => {
                 href="/"
                 aria-label="home"
                 className="flex items-center space-x-2"
+                onClick={closeMenu}
               >
                 <span
                   className={cn(
@@ -443,6 +446,7 @@ export const HeroHeader = () => {
                         ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                         : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
                     )}
+                    onClick={closeMenu}
                   >
                     <Link to="/create">
                       <PlusSquareIcon className="h-4 w-4" />
@@ -630,6 +634,7 @@ export const HeroHeader = () => {
                       ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                       : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
                   )}
+                  onClick={closeMenu}
                 >
                   <Link to="/create">
                     <PlusSquareIcon className="h-4 w-4" />
@@ -718,17 +723,9 @@ export const HeroHeader = () => {
                       <PiSignOutThin />
                       Sign Out
                     </MenuItem>
-                    <MenuItem
-                      onClick={toggleColorMode}
-                      className="flex items-center gap-2"
-                    >
-                      {colorMode === "light" ? (
-                        <IoMoon size={20} />
-                      ) : (
-                        <LuSun size={20} />
-                      )}
-                      {colorMode === "light" ? "Dark Mode" : "Light Mode"}
-                    </MenuItem>
+                    <Box px={3} py={2}>
+                      <ThemeSelector />
+                    </Box>
                   </MenuList>
                 </ChakraMenu>
               ) : (
@@ -870,21 +867,7 @@ export const HeroHeader = () => {
                         <span>Sign Out</span>
                       </div>
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleToggleColorModeAndClose}
-                      className={cn(
-                        colorMode === "light"
-                          ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          : "bg-gray-700 text-gray-200 hover:bg-gray-600"
-                      )}
-                    >
-                      {colorMode === "light" ? (
-                        <IoMoon size={20} />
-                      ) : (
-                        <LuSun size={20} />
-                      )}
-                    </Button>
+                    <ThemeSelector onThemeChange={closeMenu} />
                   </>
                 ) : (
                   <>

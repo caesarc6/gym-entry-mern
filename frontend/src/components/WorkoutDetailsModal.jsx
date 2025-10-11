@@ -14,13 +14,13 @@ import {
   Badge,
   Box,
   Divider,
-  useColorModeValue,
   Stat,
   StatLabel,
   StatNumber,
   StatHelpText,
   SimpleGrid,
 } from "@chakra-ui/react";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const WorkoutDetailsModal = ({
   isOpen,
@@ -28,8 +28,7 @@ const WorkoutDetailsModal = ({
   workoutData,
   exerciseName,
 }) => {
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
+  const colors = useThemeColors();
 
   if (!workoutData) {
     return null;
@@ -70,14 +69,14 @@ const WorkoutDetailsModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
       <ModalOverlay />
-      <ModalContent bg={bgColor}>
+      <ModalContent bg={colors.bgCard}>
         <ModalHeader>
           <VStack align="start" spacing={1}>
             <HStack spacing={2} w="full" align="start">
               <Text fontSize="lg" fontWeight="bold" flex="1">
                 {exerciseName}
               </Text>
-              <Text fontSize="sm" color="gray.500" flexShrink={0}>
+              <Text fontSize="sm" color={colors.textMuted} flexShrink={0}>
                 {dateInfo.fullDate} at {dateInfo.time}
               </Text>
             </HStack>
@@ -94,7 +93,7 @@ const WorkoutDetailsModal = ({
             <Box
               p={4}
               border="1px solid"
-              borderColor={borderColor}
+              borderColor={colors.borderColor}
               borderRadius="lg"
             >
               <Text fontWeight="bold" mb={3} fontSize="md">
@@ -129,7 +128,7 @@ const WorkoutDetailsModal = ({
             <Box
               p={4}
               border="1px solid"
-              borderColor={borderColor}
+              borderColor={colors.borderColor}
               borderRadius="lg"
             >
               <Text fontWeight="bold" mb={3} fontSize="md">
@@ -166,7 +165,7 @@ const WorkoutDetailsModal = ({
             <Box
               p={4}
               border="1px solid"
-              borderColor={borderColor}
+              borderColor={colors.borderColor}
               borderRadius="lg"
             >
               <Text fontWeight="bold" mb={3} fontSize="md">
@@ -192,7 +191,7 @@ const WorkoutDetailsModal = ({
             <Box
               p={4}
               border="1px solid"
-              borderColor={borderColor}
+              borderColor={colors.borderColor}
               borderRadius="lg"
             >
               <Text fontWeight="bold" mb={3} fontSize="md">

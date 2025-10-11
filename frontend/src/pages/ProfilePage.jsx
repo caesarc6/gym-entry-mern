@@ -6,7 +6,6 @@ import {
   Button,
   Box,
   Spinner,
-  useColorModeValue,
   useToast,
   Heading,
   Avatar,
@@ -39,6 +38,7 @@ import PaginationComponent from "../components/Pagination";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -86,12 +86,11 @@ const ProfilePage = () => {
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
 
   const toast = useCustomToast();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const profileColorMode = useColorModeValue(lightUrl, nightUrl);
-  const bgColorMode = useColorModeValue(defaultBgUrl, defaultBgNightUrl);
-  const colorEditButton = useColorModeValue("gray.400", "gray.900");
-  const spinnerColor = useColorModeValue("gray.700", "gray.400");
-  const modalBgColor = useColorModeValue("gray.50", "gray.700");
+  const colors = useThemeColors();
+  const profileColorMode =
+    colors.currentTheme === "light" ? lightUrl : nightUrl;
+  const bgColorMode =
+    colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
 
   const {
     isOpen: isProfileOpen,
@@ -571,7 +570,7 @@ const ProfilePage = () => {
         <Box
           maxW={"580px"}
           w={"full"}
-          bg={bgColor}
+          bg={colors.bgCard}
           boxShadow={"2xl"}
           rounded={"md"}
           overflow={"hidden"}
@@ -589,7 +588,7 @@ const ProfilePage = () => {
               onClick={onBackgroundOpen}
               size="sm"
               colorScheme="blue"
-              bg={colorEditButton}
+              bg={colors.textMuted}
               color={"white"}
               position="absolute"
               top={2}
@@ -615,17 +614,17 @@ const ProfilePage = () => {
               <Heading fontSize={"2xl"} fontWeight={500}>
                 {userProfile.username && `@${userProfile.username}`}
               </Heading>
-              <Text fontSize={"lg"} color={"gray.600"}>
+              <Text fontSize={"lg"} color={colors.textSecondary}>
                 {userProfile.name}
               </Text>
             </Stack>
             <Stack spacing={0} align={"center"} mb={4}>
-              <Text color={"gray.500"}>
+              <Text color={colors.textMuted}>
                 {userProfile.goal} | {userProfile.gymName}
               </Text>
             </Stack>
             <Stack spacing={0} align={"center"} mt={4}>
-              <Text color={"gray.500"} textAlign="center">
+              <Text color={colors.textMuted} textAlign="center">
                 {userProfile.bio}
               </Text>
             </Stack>
@@ -641,7 +640,7 @@ const ProfilePage = () => {
                 style={{ cursor: "pointer" }}
               >
                 <Text fontWeight={600}>{userProfile.followersCount}</Text>
-                <Text fontSize={"sm"} color={"gray.500"}>
+                <Text fontSize={"sm"} color={colors.textMuted}>
                   Followers
                 </Text>
               </Stack>
@@ -656,13 +655,13 @@ const ProfilePage = () => {
                 style={{ cursor: "pointer" }}
               >
                 <Text fontWeight={600}>{userProfile.followingCount}</Text>
-                <Text fontSize={"sm"} color={"gray.500"}>
+                <Text fontSize={"sm"} color={colors.textMuted}>
                   Following
                 </Text>
               </Stack>
               <Stack spacing={0} align={"center"}>
                 <Text fontWeight={600}>{userProfile.postsCount || 0}</Text>
-                <Text fontSize={"sm"} color={"gray.500"}>
+                <Text fontSize={"sm"} color={colors.textMuted}>
                   Posts
                 </Text>
               </Stack>
@@ -728,7 +727,7 @@ const ProfilePage = () => {
               size="lg"
               thickness="4px"
               speed="1.2s"
-              color={spinnerColor}
+              color={colors.textSecondary}
             />
           </Box>
         ) : entries.length > 0 ? (
@@ -790,7 +789,7 @@ const ProfilePage = () => {
                       p={3}
                       borderWidth={1}
                       borderRadius="md"
-                      bg={modalBgColor}
+                      bg={colors.bgMuted}
                     >
                       <Flex align="center" flex={1}>
                         <Link to={`/user/${request.requester.uid}`}>
@@ -812,14 +811,14 @@ const ProfilePage = () => {
                             </Text>
                             {request.requester.username &&
                               request.requester.name && (
-                                <Text fontSize="sm" color="gray.500">
+                                <Text fontSize="sm" color={colors.textMuted}>
                                   @{request.requester.username}
                                 </Text>
                               )}
                             {request.requester.bio && (
                               <Text
                                 fontSize="xs"
-                                color="gray.400"
+                                color={colors.textMuted}
                                 mt={1}
                                 noOfLines={2}
                               >
@@ -871,7 +870,7 @@ const ProfilePage = () => {
                     w="full"
                     p={2}
                     borderRadius="md"
-                    _hover={{ bg: modalBgColor }}
+                    _hover={{ bg: colors.bgMuted }}
                   >
                     <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
@@ -886,12 +885,16 @@ const ProfilePage = () => {
                             {user.name || user.username}
                           </Text>
                           {user.username && user.name && (
-                            <Text fontSize="sm" color="gray.500">
+                            <Text fontSize="sm" color={colors.textMuted}>
                               @{user.username}
                             </Text>
                           )}
                           {user.bio && (
-                            <Text fontSize="xs" color="gray.400" noOfLines={1}>
+                            <Text
+                              fontSize="xs"
+                              color={colors.textMuted}
+                              noOfLines={1}
+                            >
                               {user.bio}
                             </Text>
                           )}
@@ -925,7 +928,7 @@ const ProfilePage = () => {
                     w="full"
                     p={2}
                     borderRadius="md"
-                    _hover={{ bg: modalBgColor }}
+                    _hover={{ bg: colors.bgMuted }}
                   >
                     <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
@@ -940,12 +943,16 @@ const ProfilePage = () => {
                             {user.name || user.username}
                           </Text>
                           {user.username && user.name && (
-                            <Text fontSize="sm" color="gray.500">
+                            <Text fontSize="sm" color={colors.textMuted}>
                               @{user.username}
                             </Text>
                           )}
                           {user.bio && (
-                            <Text fontSize="xs" color="gray.400" noOfLines={1}>
+                            <Text
+                              fontSize="xs"
+                              color={colors.textMuted}
+                              noOfLines={1}
+                            >
                               {user.bio}
                             </Text>
                           )}
@@ -1004,7 +1011,7 @@ const ProfilePage = () => {
                   }
                   placeholder="Username"
                 />
-                <Text fontSize="xs" color="gray.500" textAlign="center">
+                <Text fontSize="xs" color={colors.textMuted} textAlign="center">
                   Username must be unique and cannot contain spaces
                 </Text>
                 <Input

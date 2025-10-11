@@ -14,14 +14,37 @@ import SharedWorkoutPage from "./pages/SharedWorkoutPage";
 import TrainerDashboard from "./pages/TrainerDashboard";
 import CreateSharedWorkout from "./pages/CreateSharedWorkout";
 import ClientWorkoutsPage from "./pages/ClientWorkoutsPage";
+import { useTheme } from "./contexts/ThemeContext";
 
 function App() {
+  const { currentTheme } = useTheme();
+
+  const getBackgroundStyle = () => {
+    switch (currentTheme) {
+      case "light":
+        return {
+          bgGradient: "linear(235deg, #e5e7eb, #f3f4f6, #e5e7eb)",
+          backgroundAttachment: "fixed",
+        };
+      case "dark":
+        return { bg: "gray.900" };
+      case "dark-black":
+        return {
+          bgGradient: "linear(305deg, #000000, #0d101a, #000000)",
+          backgroundAttachment: "fixed",
+        };
+      case "dark-blue":
+        return {
+          bgGradient: "linear(to-b, #050810, #0d1220)",
+          backgroundAttachment: "fixed",
+        };
+      default:
+        return { bg: "gray.200" };
+    }
+  };
+
   return (
-    <Box
-      minH={"100vh"}
-      bg={useColorModeValue("gray.200", "gray.900")}
-      pb={"55px"}
-    >
+    <Box minH={"100vh"} {...getBackgroundStyle()} pb={"55px"}>
       <HeroHeader />
       {/* <Text p={4} textAlign="center" fontSize="2xl" fontWeight="bold">
         App is loading...

@@ -18,7 +18,6 @@ import {
   ModalOverlay,
   Text,
   Textarea,
-  useColorModeValue,
   useDisclosure,
   useToast,
   VStack,
@@ -46,6 +45,7 @@ import {
 } from "../utils/workoutParser.js";
 import ShareWorkoutModal from "./ShareWorkoutModal";
 import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -60,6 +60,7 @@ const ProductCard = ({
   const currentUser = auth.currentUser;
   const isOwner = propIsOwner ?? currentUser?.uid === entry.uid;
   const { colorMode } = useColorMode();
+  const colors = useThemeColors();
 
   const [updatedEntry, setUpdatedEntry] = useState({
     _id: entry._id || "",
@@ -102,12 +103,6 @@ const ProductCard = ({
   const [editingComment, setEditingComment] = useState(null);
   const [replyToComment, setReplyToComment] = useState(null);
   const [replyText, setReplyText] = useState("");
-
-  const textColorTitle = useColorModeValue("gray.600", "gray.500");
-  const textColor = useColorModeValue("gray.200", "gray.200");
-  const textColorDesc = useColorModeValue("gray.700", "gray.400");
-  const textColorOne = useColorModeValue("gray.300", "gray.600");
-  const bg = useColorModeValue("white", "gray.800");
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
     useProductStore();
   const currentUserInfo = useProductStore((state) => state.currentUserInfo);
@@ -818,175 +813,99 @@ const ProductCard = ({
   };
 
   return (
-    <Box
-      bg={bg}
-      borderRadius="4px"
-      overflow="hidden"
-      transition="all .33s ease-in-out"
-      _hover={{
-        transform: "translateY(-.7px)",
-        shadow: useColorModeValue(
-          "0 8px 25px rgba(0,0,0,0.12)",
-          "0 8px 25px rgba(0,0,0,0.3)"
-        ),
-      }}
-      position="relative"
-      cursor="pointer"
-      onClick={onDetailOpen}
-      // Container that adapts to content
-      maxW="400px"
-      w="100%"
-      mx="auto"
-      alignSelf="center"
-    >
-      {/* Image container with fixed aspect ratio */}
+    <>
       <Box
-        position="relative"
-        w="full"
-        aspectRatio="4/5"
+        bg={colors.bgCard}
+        borderRadius="4px"
         overflow="hidden"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        sx={{
-          "--aspect-ratio": "1.25", // 4:5 ratio (5/4 = 1.25)
-          "&::before": {
-            content: '""',
-            display: "block",
-            paddingTop: "calc(100% / var(--aspect-ratio))",
-            width: "100%",
-          },
+        transition="all .33s ease-in-out"
+        _hover={{
+          shadow:
+            colors.currentTheme === "light"
+              ? "0 8px 25px rgba(0,0,0,0.12)"
+              : "0 8px 25px rgba(0,0,0,0.3)",
         }}
+        position="relative"
+        cursor="pointer"
+        onClick={onDetailOpen}
+        // Container that adapts to content
+        maxW="400px"
+        w="100%"
+        mx="auto"
+        alignSelf="center"
       >
-        {!imageLoaded && (
-          <Skeleton
-            w="full"
-            h="auto"
-            aspectRatio="4/5"
-            startColor={useColorModeValue("gray.200", "gray.600")}
-            endColor={useColorModeValue("gray.300", "gray.500")}
-          />
-        )}
-        <Image
-          src={updatedEntry.image || entry.image}
-          alt={entry.name}
+        {/* Image container with fixed aspect ratio */}
+        <Box
+          position="relative"
           w="full"
-          h="auto"
-          objectFit="cover"
-          objectPosition="center"
-          onError={handleImageError}
-          onLoad={handleImageLoad}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            display: imageLoaded ? "block" : "none",
-            opacity: imageLoaded ? 1 : 0,
-            transition: "opacity 0.3s ease-in-out",
-            aspectRatio: "4/5",
-            width: "100%",
-            height: "auto",
+          aspectRatio="4/5"
+          overflow="hidden"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          sx={{
+            "--aspect-ratio": "1.25", // 4:5 ratio (5/4 = 1.25)
+            "&::before": {
+              content: '""',
+              display: "block",
+              paddingTop: "calc(100% / var(--aspect-ratio))",
+              width: "100%",
+            },
           }}
-          loading="lazy"
-        />
-      </Box>
-      <HStack
-        position="absolute"
-        top="12px"
-        left="12px"
-        spacing={2}
-        bg="rgba(255, 255, 255, 0.95)"
-        px={3}
-        py={2}
-        borderRadius="12px"
-        shadow="0 2px 8px rgba(0,0,0,0.1)"
-        onClick={(e) => e.stopPropagation()}
-        backdropFilter="blur(8px)"
-      >
-        <Box position="relative" boxSize="28px">
-          {!profileImageLoaded && (
+        >
+          {!imageLoaded && (
             <Skeleton
-              boxSize="28px"
-              borderRadius="full"
-              startColor={useColorModeValue("gray.200", "gray.600")}
-              endColor={useColorModeValue("gray.300", "gray.500")}
+              w="full"
+              h="auto"
+              aspectRatio="4/5"
+              startColor={colors.borderColor}
+              endColor={colors.borderColorInput}
             />
           )}
           <Image
-            src={profileImage}
-            alt="User Profile"
-            boxSize="28px"
-            borderRadius="full"
+            src={updatedEntry.image || entry.image}
+            alt={entry.name}
+            w="full"
+            h="auto"
             objectFit="cover"
-            border="2px solid white"
-            onError={handleProfileImageError}
-            onLoad={handleProfileImageLoad}
+            objectPosition="center"
+            onError={handleImageError}
+            onLoad={handleImageLoad}
             style={{
               position: "absolute",
               top: 0,
               left: 0,
-              display: profileImageLoaded ? "block" : "none",
-              opacity: profileImageLoaded ? 1 : 0,
+              display: imageLoaded ? "block" : "none",
+              opacity: imageLoaded ? 1 : 0,
               transition: "opacity 0.3s ease-in-out",
+              aspectRatio: "4/5",
+              width: "100%",
+              height: "auto",
             }}
             loading="lazy"
           />
-        </Box>
-        <Link to={isOwner ? "/profile" : `/user/${entry.uid}`}>
-          <Text
-            fontSize="13px"
-            fontWeight="600"
-            color={textColorTitle}
-            fontFamily="Inter, system-ui, sans-serif"
-            maxW="100px"
-            noOfLines={1}
-            _hover={{ textDecoration: "underline" }}
-            cursor="pointer"
-          >
-            {isUsername ? `@${userDisplayName}` : userDisplayName}
-          </Text>
-        </Link>
-      </HStack>
-      <Box
-        display="flex"
-        flexDirection="column"
-        h="40%"
-        overflow="hidden"
-        minH="140px"
-      >
-        {/* Content area with reduced padding */}
-        <Box p="6px" flex="1" minHeight="0" overflow="hidden">
-          <VStack spacing={1} h="full">
-            <VStack spacing={0} w="full" align="center" flexShrink="0">
-              <Heading
-                as={"h2"}
-                size={"sm"}
-                color={textColorTitle}
-                fontFamily="Inter, system-ui, sans-serif"
-                noOfLines={1}
-                fontWeight="400"
-                textAlign="center"
-              >
-                {updatedEntry.name}
-              </Heading>
-              <Text
-                color={textColorOne}
-                fontFamily="Inter, system-ui, sans-serif"
-                fontSize="10px"
-                fontWeight="700"
-                textAlign="center"
-              >
-                {formatDateHour(updatedEntry.createdAt)}
-                {" • "}
-                {formatDateTitleTime(updatedEntry.createdAt)}
-              </Text>
-            </VStack>
 
+          {/* Description overlay with gradient background */}
+          <Box
+            position="absolute"
+            bottom="0"
+            left="0"
+            right="0"
+            p="8px"
+            background={
+              colors.currentTheme === "light"
+                ? "linear-gradient(to top, white 0%, rgba(0, 0, 0, 0.1) 50%, rgba(255, 255, 255, 0.1) 100%)"
+                : "linear-gradient(to top, #1a202cfc 0%, rgb(0 0 0 / 74%) 50%, rgb(0 0 0 / 54%) 100%)"
+            }
+            backdropFilter="blur(2px)"
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            minH="180px"
+          >
             <Box
               w="full"
-              flex="1"
-              minH="50px"
-              maxH="50px"
+              maxH="180px"
               overflowY="auto"
               overflowX="hidden"
               css={{
@@ -1005,57 +924,141 @@ const ProductCard = ({
                 },
               }}
             >
-              <Text
-                color={textColorDesc}
-                fontSize="12px"
-                fontFamily="Inter, system-ui, sans-serif"
-                lineHeight="1.4"
-                fontWeight="400"
-                whiteSpace="pre-wrap"
-                wordBreak="break-word"
-              >
-                {updatedEntry.description}
-              </Text>
-            </Box>
+              <VStack spacing={0.5} align="stretch" w="full">
+                <Heading
+                  as="h2"
+                  size="sm"
+                  color={colors.textTitle}
+                  fontFamily="Inter, system-ui, sans-serif"
+                  noOfLines={1}
+                  fontWeight="400"
+                  textAlign="center"
+                >
+                  {updatedEntry.name}
+                </Heading>
+                <Text
+                  color={colors.textOne}
+                  fontFamily="Inter, system-ui, sans-serif"
+                  fontSize="10px"
+                  fontWeight="700"
+                  textAlign="center"
+                >
+                  {formatDateHour(updatedEntry.createdAt)}
+                  {" • "}
+                  {formatDateTitleTime(updatedEntry.createdAt)}
+                </Text>
 
-            {/* Like and comment count badges */}
-            {(Array.isArray(updatedEntry.likes) &&
-              updatedEntry.likes.length > 0) ||
-            (Array.isArray(updatedEntry.comments) &&
-              updatedEntry.comments.length > 0) ? (
-              <VStack spacing={2} justify="start" w="full" flexShrink="0">
-                <HStack spacing={2} justify="start" w="full">
-                  {Array.isArray(updatedEntry.likes) &&
-                    updatedEntry.likes.length > 0 && (
-                      <Badge
-                        colorScheme="yellow"
-                        variant="subtle"
-                        fontSize="10px"
-                        px={2}
-                        py={1}
-                        borderRadius="6px"
-                      >
-                        ❤️ {updatedEntry.likes.length}
-                      </Badge>
-                    )}
-
-                  {Array.isArray(updatedEntry.comments) &&
-                    updatedEntry.comments.length > 0 && (
-                      <Badge
-                        colorScheme="blue"
-                        variant="subtle"
-                        fontSize="10px"
-                        px={2}
-                        py={1}
-                        borderRadius="6px"
-                      >
-                        💬 {updatedEntry.comments.length}
-                      </Badge>
-                    )}
-                </HStack>
+                <Text
+                  color={colors.textDesc}
+                  fontSize="12px"
+                  fontFamily="Inter, system-ui, sans-serif"
+                  lineHeight="1.4"
+                  fontWeight="400"
+                  whiteSpace="pre-wrap"
+                  wordBreak="break-word"
+                  textAlign="center"
+                >
+                  {updatedEntry.description}
+                </Text>
               </VStack>
-            ) : null}
-          </VStack>
+            </Box>
+          </Box>
+        </Box>
+        <HStack
+          position="absolute"
+          top="12px"
+          left="12px"
+          spacing={2}
+          bg="rgba(255, 255, 255, 0.95)"
+          px={3}
+          py={2}
+          borderRadius="12px"
+          shadow="0 2px 8px rgba(0,0,0,0.1)"
+          onClick={(e) => e.stopPropagation()}
+          backdropFilter="blur(8px)"
+        >
+          <Box position="relative" boxSize="28px">
+            {!profileImageLoaded && (
+              <Skeleton
+                boxSize="28px"
+                borderRadius="full"
+                startColor={colors.borderColor}
+                endColor={colors.borderColorInput}
+              />
+            )}
+            <Image
+              src={profileImage}
+              alt="User Profile"
+              boxSize="28px"
+              borderRadius="full"
+              objectFit="cover"
+              border="2px solid white"
+              onError={handleProfileImageError}
+              onLoad={handleProfileImageLoad}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                display: profileImageLoaded ? "block" : "none",
+                opacity: profileImageLoaded ? 1 : 0,
+                transition: "opacity 0.3s ease-in-out",
+              }}
+              loading="lazy"
+            />
+          </Box>
+          <Link to={isOwner ? "/profile" : `/user/${entry.uid}`}>
+            <Text
+              fontSize="13px"
+              fontWeight="600"
+              color={colors.textTitle}
+              fontFamily="Inter, system-ui, sans-serif"
+              maxW="100px"
+              noOfLines={1}
+              _hover={{ textDecoration: "underline" }}
+              cursor="pointer"
+            >
+              {isUsername ? `@${userDisplayName}` : userDisplayName}
+            </Text>
+          </Link>
+        </HStack>
+        {/* Like and comment count badges - positioned below image */}
+        <Box p="6px">
+          {(Array.isArray(updatedEntry.likes) &&
+            updatedEntry.likes.length > 0) ||
+          (Array.isArray(updatedEntry.comments) &&
+            updatedEntry.comments.length > 0) ? (
+            <VStack spacing={2} justify="start" w="full" flexShrink="0">
+              <HStack spacing={2} justify="start" w="full">
+                {Array.isArray(updatedEntry.likes) &&
+                  updatedEntry.likes.length > 0 && (
+                    <Badge
+                      colorScheme="yellow"
+                      variant="subtle"
+                      fontSize="10px"
+                      px={2}
+                      py={1}
+                      borderRadius="6px"
+                    >
+                      ❤️ {updatedEntry.likes.length}
+                    </Badge>
+                  )}
+
+                {Array.isArray(updatedEntry.comments) &&
+                  updatedEntry.comments.length > 0 && (
+                    <Badge
+                      colorScheme="blue"
+                      variant="subtle"
+                      fontSize="10px"
+                      px={2}
+                      py={1}
+                      borderRadius="6px"
+                    >
+                      💬 {updatedEntry.comments.length}
+                    </Badge>
+                  )}
+              </HStack>
+            </VStack>
+          ) : null}
         </Box>
 
         {/* Bottom section with buttons and comment box - falls to bottom */}
@@ -1065,7 +1068,7 @@ const ProductCard = ({
           pt={2}
           flexShrink="0"
           borderTop="1px solid"
-          borderColor={useColorModeValue("gray.100", "gray.700")}
+          borderColor={colors.borderColorLight}
         >
           {/* Comment Section - Show for all users */}
           <Box w="full" px={3} onClick={(e) => e.stopPropagation()}>
@@ -1077,9 +1080,9 @@ const ProductCard = ({
                 size="sm"
                 fontSize="11px"
                 borderRadius="4px"
-                borderColor={useColorModeValue("gray.200", "gray.600")}
+                borderColor={colors.borderColor}
                 _focus={{
-                  borderColor: useColorModeValue("blue.400", "blue.300"),
+                  borderColor: "blue.400",
                   boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
                 }}
                 h="28px"
@@ -1122,22 +1125,12 @@ const ProductCard = ({
                 icon={<StarIcon />}
                 py={7}
                 px={4}
-                bg={
-                  isLiked
-                    ? useColorModeValue("red.50", "red.900")
-                    : "transparent"
-                }
-                color={
-                  isLiked
-                    ? "red.500"
-                    : useColorModeValue("gray.600", "gray.400")
-                }
+                bg={isLiked ? colors.likeBg : "transparent"}
+                color={isLiked ? colors.likeActive : colors.textSecondary}
                 size="sm"
                 borderRadius="0px"
                 _hover={{
-                  bg: isLiked
-                    ? useColorModeValue("red.100", "red.800")
-                    : useColorModeValue("gray.100", "gray.700"),
+                  bg: isLiked ? colors.likeBgHover : colors.bgHover,
                 }}
                 transition="all 0.2s"
               />
@@ -1145,13 +1138,13 @@ const ProductCard = ({
                 onClick={onOpen}
                 icon={<EditIcon />}
                 bg="transparent"
-                color={useColorModeValue("gray.600", "gray.400")}
+                color={colors.textSecondary}
                 borderRadius="0px"
                 size="sm"
                 py={7}
                 flex={1}
                 _hover={{
-                  bg: useColorModeValue("gray.100", "gray.700"),
+                  bg: colors.bgHover,
                 }}
                 transition="all 0.2s"
               />
@@ -1161,12 +1154,12 @@ const ProductCard = ({
                   icon={<HamburgerIcon />}
                   py={7}
                   px={4}
-                  color={useColorModeValue("gray.600", "gray.400")}
+                  color={colors.textSecondary}
                   variant="ghost"
                   size="sm"
                   borderRadius="0px"
                   _hover={{
-                    bg: useColorModeValue("gray.100", "gray.700"),
+                    bg: colors.bgHover,
                   }}
                   transition="all 0.2s"
                 />
@@ -1176,7 +1169,7 @@ const ProductCard = ({
                     onClick={onEnhancedEditOpen}
                     color="green.500"
                     _hover={{
-                      bg: useColorModeValue("green.50", "green.900"),
+                      bg: colors.editBg,
                     }}
                   >
                     Enhanced Edit
@@ -1185,7 +1178,7 @@ const ProductCard = ({
                     onClick={handleProcessWorkout}
                     color="blue.500"
                     _hover={{
-                      bg: useColorModeValue("blue.50", "blue.900"),
+                      bg: colors.processBg,
                     }}
                   >
                     Process Workout Data
@@ -1195,7 +1188,7 @@ const ProductCard = ({
                     onClick={onShareOpen}
                     color="green.500"
                     _hover={{
-                      bg: useColorModeValue("green.50", "green.900"),
+                      bg: colors.editBg,
                     }}
                   >
                     Share Workout
@@ -1205,7 +1198,7 @@ const ProductCard = ({
                     onClick={onDeleteOpen}
                     color="red.500"
                     _hover={{
-                      bg: useColorModeValue("red.50", "red.900"),
+                      bg: colors.deleteBg,
                     }}
                   >
                     Delete Post
@@ -1225,22 +1218,12 @@ const ProductCard = ({
               <IconButton
                 onClick={() => handleLikeEntry(entry._id)}
                 icon={<StarIcon />}
-                bg={
-                  isLiked
-                    ? useColorModeValue("red.50", "red.900")
-                    : "transparent"
-                }
-                color={
-                  isLiked
-                    ? "red.500"
-                    : useColorModeValue("gray.600", "gray.400")
-                }
+                bg={isLiked ? colors.likeBg : "transparent"}
+                color={isLiked ? colors.likeActive : colors.textSecondary}
                 size="sm"
                 borderRadius="4px"
                 _hover={{
-                  bg: isLiked
-                    ? useColorModeValue("red.100", "red.800")
-                    : useColorModeValue("gray.100", "gray.700"),
+                  bg: isLiked ? colors.likeBgHover : colors.bgHover,
                 }}
                 transition="all 0.2s"
               />
@@ -1290,7 +1273,7 @@ const ProductCard = ({
                   </Text>
                   <Text
                     fontSize={{ base: "xs", md: "sm" }}
-                    color="gray.500"
+                    color={colors.textMuted}
                     flexShrink={0}
                   >
                     {formatDateHour(updatedEntry.createdAt)} -{" "}
@@ -1337,7 +1320,7 @@ const ProductCard = ({
                 <VStack spacing={0} w="full" align="center">
                   <Heading
                     size={{ base: "sm", md: "md" }}
-                    color={textColorTitle}
+                    color={colors.textTitle}
                     fontFamily="Arial, sans-serif"
                     textAlign="center"
                     noOfLines={1}
@@ -1347,7 +1330,7 @@ const ProductCard = ({
                   </Heading>
                   <Text
                     fontSize={{ base: "xs", md: "sm" }}
-                    color="gray.500"
+                    color={colors.textMuted}
                     textAlign="center"
                     fontWeight="700"
                   >
@@ -1378,7 +1361,7 @@ const ProductCard = ({
                   }}
                 >
                   <Text
-                    color={textColorDesc}
+                    color={colors.textDesc}
                     fontFamily="Arial, sans-serif"
                     whiteSpace="pre-wrap"
                     fontSize={{ base: "xs", md: "sm" }}
@@ -1399,14 +1382,14 @@ const ProductCard = ({
                       <Text
                         fontWeight="semibold"
                         mb={1}
-                        color={textColorDesc}
+                        color={colors.textDesc}
                         fontSize={{ base: "xs", md: "sm" }}
                       >
                         Liked by {updatedEntry.likes.length} people:
                       </Text>
                       <Box
                         fontSize={{ base: "xs", md: "sm" }}
-                        color={textColorDesc}
+                        color={colors.textDesc}
                         lineHeight="1.3"
                         noOfLines={1}
                       >
@@ -1435,7 +1418,7 @@ const ProductCard = ({
                   <Text
                     fontWeight="semibold"
                     mb={2}
-                    color={textColorDesc}
+                    color={colors.textDesc}
                     fontSize={{ base: "sm", md: "md" }}
                   >
                     Comments (
@@ -1448,11 +1431,11 @@ const ProductCard = ({
                   {/* Comment Input Section */}
                   <Box
                     p={{ base: 2, md: 3 }}
-                    bg={useColorModeValue("gray.50", "gray.700")}
+                    bg={colors.bgMuted}
                     borderRadius="lg"
                     mb={3}
                     border="1px solid"
-                    borderColor={useColorModeValue("gray.200", "gray.600")}
+                    borderColor={colors.borderColor}
                   >
                     <VStack spacing={2} w="full">
                       <Textarea
@@ -1463,15 +1446,12 @@ const ProductCard = ({
                         resize="none"
                         rows={1}
                         borderRadius="md"
-                        borderColor={useColorModeValue("gray.300", "gray.500")}
+                        borderColor={colors.borderColorInput}
                         _focus={{
-                          borderColor: useColorModeValue(
-                            "blue.400",
-                            "blue.300"
-                          ),
+                          borderColor: "blue.400",
                           boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
                         }}
-                        bg={useColorModeValue("white", "gray.800")}
+                        bg={colors.bgCard}
                         fontSize={{ base: "xs", md: "sm" }}
                       />
                       <HStack justify="end" w="full">
@@ -1508,14 +1488,11 @@ const ProductCard = ({
                           <Box
                             key={comment._id || index}
                             p={{ base: 2, md: 3 }}
-                            bg={useColorModeValue("gray.50", "gray.700")}
+                            bg={colors.bgMuted}
                             rounded="lg"
                             w="full"
                             border="1px solid"
-                            borderColor={useColorModeValue(
-                              "gray.200",
-                              "gray.600"
-                            )}
+                            borderColor={colors.borderColor}
                           >
                             <HStack
                               spacing={{ base: 2, md: 3 }}
@@ -1536,10 +1513,7 @@ const ProductCard = ({
                                   borderRadius="full"
                                   objectFit="cover"
                                   border="2px solid"
-                                  borderColor={useColorModeValue(
-                                    "gray.200",
-                                    "gray.600"
-                                  )}
+                                  borderColor={colors.borderColor}
                                 />
                               </Box>
                               <VStack align="start" spacing={1} flex={1}>
@@ -1559,7 +1533,7 @@ const ProductCard = ({
                                       <Text
                                         fontWeight="600"
                                         fontSize={{ base: "xs", md: "sm" }}
-                                        color={textColorDesc}
+                                        color={colors.textDesc}
                                         noOfLines={1}
                                       >
                                         {comment.username
@@ -1569,7 +1543,7 @@ const ProductCard = ({
                                       </Text>
                                       <Text
                                         fontSize={{ base: "xs", md: "xs" }}
-                                        color="gray.500"
+                                        color={colors.textMuted}
                                       >
                                         {formatDate(comment.createdAt)}
                                       </Text>
@@ -1589,10 +1563,7 @@ const ProductCard = ({
                                           icon={<HamburgerIcon />}
                                           size={{ base: "xs", md: "xs" }}
                                           variant="ghost"
-                                          color={useColorModeValue(
-                                            "gray.500",
-                                            "gray.400"
-                                          )}
+                                          color={colors.textMuted}
                                         />
                                         <MenuList>
                                           <MenuItem
@@ -1668,7 +1639,7 @@ const ProductCard = ({
                                   </VStack>
                                 ) : (
                                   <Text
-                                    color={textColorDesc}
+                                    color={colors.textDesc}
                                     fontFamily="Inter, system-ui, sans-serif"
                                     fontSize={{ base: "xs", md: "sm" }}
                                     lineHeight="1.3"
@@ -1687,7 +1658,7 @@ const ProductCard = ({
                                     color={
                                       hasLikedComment(comment)
                                         ? "red.500"
-                                        : "gray.500"
+                                        : colors.textMuted
                                     }
                                     onClick={() =>
                                       handleCommentLike(comment._id)
@@ -1700,7 +1671,7 @@ const ProductCard = ({
                                     size={{ base: "xs", md: "xs" }}
                                     variant="ghost"
                                     leftIcon={<ChatIcon />}
-                                    color="gray.500"
+                                    color={colors.textMuted}
                                     onClick={() =>
                                       setReplyToComment(comment._id)
                                     }
@@ -1762,20 +1733,14 @@ const ProductCard = ({
                                       w="full"
                                       pl={{ base: 2, md: 3 }}
                                       borderLeft="2px solid"
-                                      borderColor={useColorModeValue(
-                                        "gray.200",
-                                        "gray.600"
-                                      )}
+                                      borderColor={colors.borderColor}
                                     >
                                       {comment.replies.map(
                                         (reply, replyIndex) => (
                                           <Box
                                             key={reply._id || replyIndex}
                                             p={{ base: 1, md: 2 }}
-                                            bg={useColorModeValue(
-                                              "gray.100",
-                                              "gray.600"
-                                            )}
+                                            bg={colors.bgHover}
                                             rounded="md"
                                             w="full"
                                           >
@@ -1821,7 +1786,7 @@ const ProductCard = ({
                                                       base: "xs",
                                                       md: "xs",
                                                     }}
-                                                    color={textColorDesc}
+                                                    color={colors.textDesc}
                                                     noOfLines={1}
                                                   >
                                                     {reply.username
@@ -1833,7 +1798,7 @@ const ProductCard = ({
                                                       base: "xs",
                                                       md: "xs",
                                                     }}
-                                                    color="gray.500"
+                                                    color={colors.textMuted}
                                                   >
                                                     {formatDate(
                                                       reply.createdAt
@@ -1841,7 +1806,7 @@ const ProductCard = ({
                                                   </Text>
                                                 </HStack>
                                                 <Text
-                                                  color={textColorDesc}
+                                                  color={colors.textDesc}
                                                   fontSize={{
                                                     base: "xs",
                                                     md: "xs",
@@ -1994,7 +1959,7 @@ const ProductCard = ({
           });
         }}
       />
-    </Box>
+    </>
   );
 };
 

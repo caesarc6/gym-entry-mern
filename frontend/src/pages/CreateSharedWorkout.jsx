@@ -58,7 +58,7 @@ const CreateSharedWorkout = () => {
     try {
       setIsLoadingClients(true);
       const response = await apiClient.get(
-        API_ENDPOINTS.GET_TRAINER_SHARED_WORKOUTS
+        `${API_ENDPOINTS.GET_TRAINER_SHARED_WORKOUTS}?limit=1000`
       );
       const workouts = response.data.data.sharedWorkouts || [];
 

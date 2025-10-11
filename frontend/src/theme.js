@@ -178,7 +178,7 @@ const theme = extendTheme({
     },
   },
   styles: {
-    global: {
+    global: (props) => ({
       body: {
         bg: "silver.50",
         color: "silver.900",
@@ -186,8 +186,18 @@ const theme = extendTheme({
           bg: "silver.900",
           color: "silver.100",
         },
+        // Dark black theme
+        ".dark-black &": {
+          bg: "#141414", // Very dark black
+          color: "#f5f5f5",
+        },
+        // Dark blue theme
+        ".dark-blue &": {
+          bg: "#0a0e1a", // Very dark blue
+          color: "#e6f0ff",
+        },
       },
-    },
+    }),
   },
 });
 

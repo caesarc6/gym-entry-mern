@@ -15,7 +15,6 @@ import {
   FormControl,
   FormLabel,
   Select,
-  useColorModeValue,
   Divider,
   Badge,
   Box,
@@ -25,6 +24,7 @@ import {
 import { useState } from "react";
 import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
 import { apiClient, API_ENDPOINTS } from "../config/api";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const ContinueWorkoutModal = ({
   isOpen,
@@ -52,7 +52,7 @@ const ContinueWorkoutModal = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const toast = useToast();
-  const bgColor = useColorModeValue("white", "gray.800");
+  const colors = useThemeColors();
 
   const handleAddExercise = () => {
     setAdditionalExercises([
@@ -193,7 +193,7 @@ const ContinueWorkoutModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl">
       <ModalOverlay />
-      <ModalContent bg={bgColor}>
+      <ModalContent bg={colors.bgCard}>
         <ModalHeader>
           <VStack align="start" spacing={2}>
             <Text fontSize="lg" fontWeight="bold">
@@ -204,7 +204,7 @@ const ContinueWorkoutModal = ({
                 : "Continue Workout"}
             </Text>
             <HStack>
-              <Text fontSize="sm" color="gray.600">
+              <Text fontSize="sm" color={colors.textSecondary}>
                 {assignment?.customLabel}
               </Text>
               <Badge colorScheme={getStatusColor(assignment?.status)}>
@@ -238,7 +238,7 @@ const ContinueWorkoutModal = ({
                       <Box
                         key={index}
                         p={3}
-                        bg={useColorModeValue("gray.50", "gray.700")}
+                        bg={colors.bgMuted}
                         borderRadius="md"
                       >
                         <HStack justify="space-between">
@@ -258,7 +258,7 @@ const ContinueWorkoutModal = ({
                             </Badge>
                           )}
                         </HStack>
-                        <Text fontSize="sm" color="gray.600">
+                        <Text fontSize="sm" color={colors.textSecondary}>
                           {exercise.setsCompleted} sets ×{" "}
                           {exercise.repsCompleted} reps @ {exercise.weightUsed}
                         </Text>
@@ -285,7 +285,7 @@ const ContinueWorkoutModal = ({
                           >
                             <Text
                               fontSize="sm"
-                              color="gray.500"
+                              color={colors.textMuted}
                               whiteSpace="pre-wrap"
                               wordBreak="break-word"
                             >
@@ -323,7 +323,7 @@ const ContinueWorkoutModal = ({
                     p={4}
                     borderWidth={1}
                     borderRadius="md"
-                    bg={useColorModeValue("gray.50", "gray.700")}
+                    bg={colors.bgMuted}
                   >
                     <HStack justify="space-between" mb={3}>
                       <Text fontSize="sm" fontWeight="medium">

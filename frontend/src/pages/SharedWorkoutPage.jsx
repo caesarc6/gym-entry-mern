@@ -8,7 +8,6 @@ import {
   Button,
   Box,
   Spinner,
-  useColorModeValue,
   useToast,
   Avatar,
   Badge,
@@ -28,6 +27,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
+import { useThemeColors } from "../hooks/useThemeColors";
 import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
@@ -54,9 +54,11 @@ const SharedWorkoutPage = () => {
 
   const toast = useCustomToast();
   const navigate = useNavigate();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const profileColorMode = useColorModeValue(lightUrl, nightUrl);
-  const bgColorMode = useColorModeValue(defaultBgUrl, defaultBgNightUrl);
+  const colors = useThemeColors();
+  const profileColorMode =
+    colors.currentTheme === "light" ? lightUrl : nightUrl;
+  const bgColorMode =
+    colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
 
   const {
     isOpen: isSignInModalOpen,
@@ -174,7 +176,7 @@ const SharedWorkoutPage = () => {
       <Container maxW="container.lg" py={12}>
         <VStack spacing={6} textAlign="center">
           <Heading color="red.500">Workout Not Found</Heading>
-          <Text fontSize="lg" color="gray.600">
+          <Text fontSize="lg" color={colors.textSecondary}>
             {error ||
               "This shared workout could not be found or may have expired."}
           </Text>
@@ -192,12 +194,12 @@ const SharedWorkoutPage = () => {
         {/* Header Section */}
         <Box
           w="full"
-          bg={bgColor}
+          bg={colors.bgCard}
           p={8}
           rounded="lg"
           shadow="lg"
           borderWidth={1}
-          borderColor={useColorModeValue("gray.200", "gray.600")}
+          borderColor={colors.borderColor}
         >
           <VStack spacing={6}>
             {/* Creator Info */}
@@ -212,11 +214,11 @@ const SharedWorkoutPage = () => {
                   {creator?.name || "Workout Creator"}
                 </Text>
                 {creator?.username && (
-                  <Text fontSize="sm" color="gray.500">
+                  <Text fontSize="sm" color={colors.textMuted}>
                     @{creator.username}
                   </Text>
                 )}
-                <Text fontSize="sm" color="gray.500">
+                <Text fontSize="sm" color={colors.textMuted}>
                   Shared this workout
                 </Text>
               </VStack>
@@ -237,12 +239,12 @@ const SharedWorkoutPage = () => {
         {/* Workout Content */}
         <Box
           w="full"
-          bg={bgColor}
+          bg={colors.bgCard}
           rounded="lg"
           shadow="lg"
           overflow="hidden"
           borderWidth={1}
-          borderColor={useColorModeValue("gray.200", "gray.600")}
+          borderColor={colors.borderColor}
         >
           {/* Workout Image */}
           {workout.image && (
@@ -263,7 +265,7 @@ const SharedWorkoutPage = () => {
                 fontSize="lg"
                 lineHeight="1.6"
                 whiteSpace="pre-wrap"
-                color={useColorModeValue("gray.700", "gray.300")}
+                color={colors.textDesc}
               >
                 {workout.description}
               </Text>
@@ -277,7 +279,7 @@ const SharedWorkoutPage = () => {
                     <Text fontWeight="bold" fontSize="lg">
                       {workout.likes.length}
                     </Text>
-                    <Text fontSize="sm" color="gray.500">
+                    <Text fontSize="sm" color={colors.textMuted}>
                       Likes
                     </Text>
                   </VStack>
@@ -287,7 +289,7 @@ const SharedWorkoutPage = () => {
                     <Text fontWeight="bold" fontSize="lg">
                       {workout.comments.length}
                     </Text>
-                    <Text fontSize="sm" color="gray.500">
+                    <Text fontSize="sm" color={colors.textMuted}>
                       Comments
                     </Text>
                   </VStack>
@@ -300,18 +302,18 @@ const SharedWorkoutPage = () => {
         {/* Action Section */}
         <Box
           w="full"
-          bg={bgColor}
+          bg={colors.bgCard}
           p={8}
           rounded="lg"
           shadow="lg"
           borderWidth={1}
-          borderColor={useColorModeValue("gray.200", "gray.600")}
+          borderColor={colors.borderColor}
         >
           <VStack spacing={6}>
             <Heading size="md" textAlign="center">
               Want to save this workout?
             </Heading>
-            <Text textAlign="center" color="gray.600" maxW="md">
+            <Text textAlign="center" color={colors.textSecondary} maxW="md">
               {isSignedIn
                 ? "Save this workout to your account to track your progress and build your fitness journey."
                 : "Sign up or sign in to save this workout to your account and start tracking your fitness progress."}
@@ -344,7 +346,7 @@ const SharedWorkoutPage = () => {
               )}
             </HStack>
 
-            <Text fontSize="sm" color="gray.500" textAlign="center">
+            <Text fontSize="sm" color={colors.textMuted} textAlign="center">
               By saving this workout, you'll be able to track your progress and
               build upon it.
             </Text>
@@ -364,7 +366,7 @@ const SharedWorkoutPage = () => {
                 To save this workout to your account, you'll need to sign up or
                 sign in.
               </Text>
-              <Text fontSize="sm" color="gray.600">
+              <Text fontSize="sm" color={colors.textSecondary}>
                 Don't worry - it's free and takes just a minute!
               </Text>
             </VStack>

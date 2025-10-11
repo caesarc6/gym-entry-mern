@@ -15,6 +15,7 @@ import { useState, useEffect } from "react";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import ThemeSelector from "./ThemeSelector";
 
 const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -233,9 +234,7 @@ const Navbar = () => {
                 </Button>
               </>
             )}
-            <Button size={"sm"} onClick={toggleColorMode}>
-              {colorMode === "light" ? <IoMoon /> : <LuSun size="20" />}
-            </Button>
+            <ThemeSelector />
           </HStack>
         </Flex>
       </Container>

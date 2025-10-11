@@ -106,10 +106,12 @@ const ClientWorkoutsPage = () => {
     try {
       setIsLoading(true);
 
-      // Fetch all trainer assignments and shared workouts
+      // Fetch all trainer assignments and shared workouts (request all with high limit)
       const [assignmentsResponse, sharedWorkoutsResponse] = await Promise.all([
-        apiClient.get(API_ENDPOINTS.GET_TRAINER_ASSIGNMENTS),
-        apiClient.get(API_ENDPOINTS.GET_TRAINER_SHARED_WORKOUTS),
+        apiClient.get(`${API_ENDPOINTS.GET_TRAINER_ASSIGNMENTS}?limit=1000`),
+        apiClient.get(
+          `${API_ENDPOINTS.GET_TRAINER_SHARED_WORKOUTS}?limit=1000`
+        ),
       ]);
 
       const allAssignments = assignmentsResponse.data.data.assignments || [];
