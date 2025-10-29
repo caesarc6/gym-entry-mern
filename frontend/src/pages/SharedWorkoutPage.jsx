@@ -88,11 +88,11 @@ const SharedWorkoutPage = () => {
       try {
         setIsLoading(true);
         const response = await apiClient.get(
-          API_ENDPOINTS.GET_SHARED_WORKOUT(shareToken)
+          API_ENDPOINTS.GET_SHARED_WORKOUT_BY_TOKEN(shareToken)
         );
 
         if (response.data.success) {
-          setWorkout(response.data.data.entry);
+          setWorkout(response.data.data.sharedWorkout);
           setCreator(response.data.data.creator);
         } else {
           throw new Error(
@@ -121,7 +121,7 @@ const SharedWorkoutPage = () => {
     setIsSaving(true);
     try {
       const response = await apiClient.post(
-        API_ENDPOINTS.SAVE_SHARED_WORKOUT(shareToken)
+        API_ENDPOINTS.SAVE_SHARED_WORKOUT_BY_TOKEN(shareToken)
       );
 
       if (response.data.success) {
@@ -147,7 +147,12 @@ const SharedWorkoutPage = () => {
   };
 
   const handleSignIn = () => {
-    navigate("/signup");
+    // Pass the current shared workout URL as the redirect path
+    navigate("/signup", {
+      state: {
+        from: `/shared-workout/${shareToken}`,
+      },
+    });
   };
 
   const formatDate = (dateString) => {
@@ -210,8 +215,12 @@ const SharedWorkoutPage = () => {
                 name={creator?.name || "Creator"}
               />
               <VStack align="start" spacing={1}>
-                <Text fontWeight="bold" fontSize="lg">
-                  {creator?.name || "Workout Creator"}
+                <Text
+                  fontWeight="bold"
+                  fontSize="lg"
+                  color={colors.textPrimary}
+                >
+                  {creator?.name || workout?.creatorName || "Trainer"}
                 </Text>
                 {creator?.username && (
                   <Text fontSize="sm" color={colors.textMuted}>
@@ -219,15 +228,15 @@ const SharedWorkoutPage = () => {
                   </Text>
                 )}
                 <Text fontSize="sm" color={colors.textMuted}>
-                  Shared this workout
+                  shared this workout
                 </Text>
               </VStack>
             </HStack>
 
             {/* Workout Title */}
             <VStack spacing={2}>
-              <Heading size="xl" textAlign="center">
-                {workout.name}
+              <Heading size="xl" textAlign="center" color={colors.textPrimary}>
+                {workout.workoutName}
               </Heading>
               <Badge colorScheme="blue" variant="subtle" px={3} py={1}>
                 {formatDate(workout.createdAt)}
@@ -250,7 +259,7 @@ const SharedWorkoutPage = () => {
           {workout.image && (
             <Image
               src={workout.image}
-              alt={workout.name}
+              alt={workout.workoutName}
               w="full"
               h="400px"
               objectFit="cover"
@@ -260,7 +269,9 @@ const SharedWorkoutPage = () => {
           {/* Workout Description */}
           <Box p={8}>
             <VStack spacing={6} align="stretch">
-              <Heading size="md">Workout Details</Heading>
+              <Heading size="md" color={colors.textPrimary}>
+                Workout Details
+              </Heading>
               <Text
                 fontSize="lg"
                 lineHeight="1.6"
@@ -272,29 +283,23 @@ const SharedWorkoutPage = () => {
 
               <Divider />
 
-              {/* Stats */}
-              <HStack spacing={8} justify="center">
-                {workout.likes && workout.likes.length > 0 && (
+              {/* Client Info */}
+              {workout.clientName && (
+                <HStack spacing={8} justify="center">
                   <VStack spacing={1}>
-                    <Text fontWeight="bold" fontSize="lg">
-                      {workout.likes.length}
+                    <Text
+                      fontWeight="bold"
+                      fontSize="lg"
+                      color={colors.textPrimary}
+                    >
+                      Client
                     </Text>
                     <Text fontSize="sm" color={colors.textMuted}>
-                      Likes
+                      {workout.clientName}
                     </Text>
                   </VStack>
-                )}
-                {workout.comments && workout.comments.length > 0 && (
-                  <VStack spacing={1}>
-                    <Text fontWeight="bold" fontSize="lg">
-                      {workout.comments.length}
-                    </Text>
-                    <Text fontSize="sm" color={colors.textMuted}>
-                      Comments
-                    </Text>
-                  </VStack>
-                )}
-              </HStack>
+                </HStack>
+              )}
             </VStack>
           </Box>
         </Box>
@@ -310,7 +315,7 @@ const SharedWorkoutPage = () => {
           borderColor={colors.borderColor}
         >
           <VStack spacing={6}>
-            <Heading size="md" textAlign="center">
+            <Heading size="md" textAlign="center" color={colors.textPrimary}>
               Want to save this workout?
             </Heading>
             <Text textAlign="center" color={colors.textSecondary} maxW="md">

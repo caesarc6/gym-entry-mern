@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import SharedWorkout from "../models/sharedWorkout.model.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
+import { User } from "../models/user.model.js";
 
 // Create a new shared workout
 export const createSharedWorkout = async (req, res) => {
@@ -605,6 +606,466 @@ export const completeAssignedWorkout = async (req, res) => {
   }
 };
 
+// Check for pending workouts assigned to a name/email
+export const checkPendingWorkouts = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    if (!name && !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Name or email is required to check for pending workouts",
+      });
+    }
+
+    // Normalize name for searching (lowercase, trimmed)
+    const normalizedName = name ? name.trim().toLowerCase() : null;
+
+    // Build query to find assignments by name or email
+    const query = {
+      isRegisteredUser: false, // Only look for name-only assignments
+      $or: [],
+    };
+
+    if (normalizedName) {
+      query.$or.push({ assignedToName: normalizedName });
+    }
+    if (email) {
+      query.$or.push({ assignedToEmail: email.trim().toLowerCase() });
+    }
+
+    // Find pending assignments
+    const pendingAssignments = await WorkoutAssignment.find(query)
+      .populate("sharedWorkoutId")
+      .sort({ createdAt: -1 });
+
+    if (pendingAssignments.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No pending workouts found",
+        data: {
+          count: 0,
+          assignments: [],
+        },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${pendingAssignments.length} pending workout${
+        pendingAssignments.length > 1 ? "s" : ""
+      }`,
+      data: {
+        count: pendingAssignments.length,
+        assignments: pendingAssignments,
+      },
+    });
+  } catch (error) {
+    console.error("Error checking pending workouts:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Claim pending workouts when user creates an account
+export const claimPendingWorkouts = async (req, res) => {
+  try {
+    const { uid, name } = req.user;
+    const { email } = req.body;
+
+    // Normalize name for searching (lowercase, trimmed)
+    const normalizedName = name ? name.trim().toLowerCase() : null;
+    const normalizedEmail = email ? email.trim().toLowerCase() : null;
+
+    // Build query to find assignments by name or email
+    const query = {
+      isRegisteredUser: false, // Only claim name-only assignments
+      assignedToUid: null,
+      $or: [],
+    };
+
+    if (normalizedName) {
+      query.$or.push({ assignedToName: normalizedName });
+    }
+    if (normalizedEmail) {
+      query.$or.push({ assignedToEmail: normalizedEmail });
+    }
+
+    if (query.$or.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Name or email is required to claim workouts",
+      });
+    }
+
+    // Find all pending assignments that match
+    const pendingAssignments = await WorkoutAssignment.find(query);
+
+    if (pendingAssignments.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No pending workouts found to claim",
+        data: {
+          claimedCount: 0,
+          assignments: [],
+        },
+      });
+    }
+
+    // Update all matching assignments to link them to the user
+    const updatePromises = pendingAssignments.map((assignment) =>
+      WorkoutAssignment.findByIdAndUpdate(
+        assignment._id,
+        {
+          assignedToUid: uid,
+          isRegisteredUser: true,
+          assignedToEmail: normalizedEmail || assignment.assignedToEmail,
+        },
+        { new: true }
+      ).populate("sharedWorkoutId")
+    );
+
+    const claimedAssignments = await Promise.all(updatePromises);
+
+    // Create workout posts for each claimed assignment
+    const Entry = (await import("../models/entry.model.js")).default;
+    const workoutPosts = [];
+
+    for (const assignment of claimedAssignments) {
+      if (assignment.sharedWorkoutId) {
+        const sharedWorkout = assignment.sharedWorkoutId;
+        const workoutPost = new Entry({
+          name: sharedWorkout.workoutName,
+          uid: uid,
+          description: `Workout shared by ${sharedWorkout.creatorName}: ${sharedWorkout.description}`,
+          image: sharedWorkout.image,
+          shareable: false,
+          shareToken: null,
+          shareExpiry: null,
+          originalEntryId: null,
+        });
+
+        await workoutPost.save();
+        workoutPosts.push({
+          _id: workoutPost._id,
+          name: workoutPost.name,
+          description: workoutPost.description,
+          image: workoutPost.image,
+          createdAt: workoutPost.createdAt,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully claimed ${claimedAssignments.length} workout${
+        claimedAssignments.length > 1 ? "s" : ""
+      }!`,
+      data: {
+        claimedCount: claimedAssignments.length,
+        assignments: claimedAssignments,
+        workoutPosts: workoutPosts,
+      },
+    });
+  } catch (error) {
+    console.error("Error claiming pending workouts:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Generate a shareable link for a shared workout
+export const generateShareableLink = async (req, res) => {
+  try {
+    const { sharedWorkoutId } = req.params;
+    const { uid } = req.user;
+
+    // Verify the shared workout exists and belongs to the trainer
+    const sharedWorkout = await SharedWorkout.findOne({
+      _id: sharedWorkoutId,
+      creatorUid: uid,
+      isActive: true,
+    });
+
+    if (!sharedWorkout) {
+      return res.status(404).json({
+        success: false,
+        message: "Shared workout not found",
+      });
+    }
+
+    // Generate a unique share token (using workout ID + timestamp for uniqueness)
+    const shareToken = Buffer.from(`${sharedWorkoutId}-${Date.now()}`).toString(
+      "base64"
+    );
+
+    // Store the share token in the shared workout document
+    await SharedWorkout.findByIdAndUpdate(sharedWorkoutId, {
+      shareToken,
+      shareTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    });
+
+    const shareUrl = `${
+      process.env.FRONTEND_URL || "http://localhost:5173"
+    }/shared-workout/${shareToken}`;
+
+    res.status(200).json({
+      success: true,
+      message: "Shareable link generated successfully",
+      data: {
+        shareToken,
+        shareUrl,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+  } catch (error) {
+    console.error("Error generating shareable link:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Get shared workout by share token (public endpoint)
+export const getSharedWorkoutByToken = async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+
+    if (!shareToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Share token is required",
+      });
+    }
+
+    // Find the shared workout by share token
+    const sharedWorkout = await SharedWorkout.findOne({
+      shareToken,
+      isActive: true,
+      shareTokenExpiresAt: { $gt: new Date() }, // Check if token hasn't expired
+    });
+
+    if (!sharedWorkout) {
+      return res.status(404).json({
+        success: false,
+        message: "Shared workout not found or link has expired",
+      });
+    }
+
+    // Fetch the creator's profile information using the UID
+    const creator = await User.findOne({ uid: sharedWorkout.creatorUid });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        sharedWorkout,
+        creator: creator
+          ? {
+              uid: creator.uid,
+              name: creator.name,
+              username: creator.username,
+              picture: creator.picture,
+            }
+          : {
+              uid: sharedWorkout.creatorUid,
+              name: sharedWorkout.creatorName,
+              username: null,
+              picture: null,
+            },
+      },
+    });
+  } catch (error) {
+    console.error("Error getting shared workout by token:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Save shared workout to user's account
+export const saveSharedWorkoutToAccount = async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+    const { uid, name } = req.user;
+
+    if (!shareToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Share token is required",
+      });
+    }
+
+    // Find the shared workout by share token
+    const sharedWorkout = await SharedWorkout.findOne({
+      shareToken,
+      isActive: true,
+      shareTokenExpiresAt: { $gt: new Date() },
+    });
+
+    if (!sharedWorkout) {
+      return res.status(404).json({
+        success: false,
+        message: "Shared workout not found or link has expired",
+      });
+    }
+
+    // Check if user already has this workout saved
+    const existingAssignment = await WorkoutAssignment.findOne({
+      sharedWorkoutId: sharedWorkout._id,
+      assignedToUid: uid,
+    });
+
+    if (existingAssignment) {
+      return res.status(400).json({
+        success: false,
+        message: "You have already saved this workout to your account",
+      });
+    }
+
+    // Create a new assignment for the user
+    const assignment = new WorkoutAssignment({
+      sharedWorkoutId: sharedWorkout._id,
+      assignedToUid: uid,
+      assignedToName: name || "User",
+      assignedToEmail: null,
+      isRegisteredUser: true,
+      sharedByUid: sharedWorkout.creatorUid,
+      sharedByName: sharedWorkout.creatorName,
+      customLabel: sharedWorkout.workoutName,
+      instructions: "Saved from shareable link",
+      targetDate: null,
+      dueDate: null,
+    });
+
+    await assignment.save();
+
+    // Create a workout post on the client's profile
+    const Entry = (await import("../models/entry.model.js")).default;
+    const workoutPost = new Entry({
+      name: sharedWorkout.workoutName,
+      uid: uid,
+      description: `Workout shared by ${sharedWorkout.creatorName}: ${sharedWorkout.description}`,
+      image: sharedWorkout.image,
+      shareable: false,
+      shareToken: null,
+      shareExpiry: null,
+      originalEntryId: null,
+    });
+
+    await workoutPost.save();
+
+    // Update shared workout share count
+    await SharedWorkout.findByIdAndUpdate(sharedWorkout._id, {
+      $inc: { totalShares: 1 },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Workout saved to your account successfully",
+      data: {
+        assignment,
+        workoutPost: {
+          _id: workoutPost._id,
+          name: workoutPost.name,
+          description: workoutPost.description,
+          image: workoutPost.image,
+          createdAt: workoutPost.createdAt,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error saving shared workout:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Get clients who have claimed workouts from a trainer
+export const getTrainerClients = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const { page = 1, limit = 10, search, sortBy = "recent" } = req.query;
+
+    // Find all assignments where the trainer shared workouts and clients have claimed them
+    const query = {
+      sharedByUid: uid,
+      assignedToUid: { $ne: null }, // Only registered users who have claimed
+      isRegisteredUser: true,
+      isVisible: true,
+    };
+
+    if (search) {
+      query.$or = [
+        { assignedToName: { $regex: search, $options: "i" } },
+        { customLabel: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const assignments = await WorkoutAssignment.find(query)
+      .populate("sharedWorkoutId", "workoutName description image")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await WorkoutAssignment.countDocuments(query);
+
+    // Group assignments by client (assignedToUid)
+    const clientsMap = new Map();
+
+    assignments.forEach((assignment) => {
+      const clientUid = assignment.assignedToUid;
+      if (!clientsMap.has(clientUid)) {
+        clientsMap.set(clientUid, {
+          clientUid: clientUid,
+          clientName: assignment.assignedToName,
+          clientEmail: assignment.assignedToEmail,
+          claimedWorkouts: [],
+          totalClaimedWorkouts: 0,
+          lastClaimedAt: assignment.createdAt,
+        });
+      }
+
+      const client = clientsMap.get(clientUid);
+      client.claimedWorkouts.push({
+        assignmentId: assignment._id,
+        workoutName: assignment.sharedWorkoutId?.workoutName,
+        workoutDescription: assignment.sharedWorkoutId?.description,
+        workoutImage: assignment.sharedWorkoutId?.image,
+        customLabel: assignment.customLabel,
+        status: assignment.status,
+        claimedAt: assignment.createdAt,
+        completedAt: assignment.userWorkout?.completedAt,
+      });
+      client.totalClaimedWorkouts++;
+
+      // Update last claimed date if this assignment is more recent
+      if (assignment.createdAt > client.lastClaimedAt) {
+        client.lastClaimedAt = assignment.createdAt;
+      }
+    });
+
+    const clients = Array.from(clientsMap.values());
+
+    // Sort clients based on sortBy parameter
+    if (sortBy === "recent") {
+      clients.sort(
+        (a, b) => new Date(b.lastClaimedAt) - new Date(a.lastClaimedAt)
+      );
+    } else if (sortBy === "name") {
+      clients.sort((a, b) => a.clientName.localeCompare(b.clientName));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        clients,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          totalClients: clients.length,
+          limit: parseInt(limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error getting trainer clients:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
 export default {
   createSharedWorkout,
   getTrainerSharedWorkouts,
@@ -618,4 +1079,10 @@ export default {
   markWorkoutAsSaved,
   continueAssignedWorkout,
   completeAssignedWorkout,
+  checkPendingWorkouts,
+  claimPendingWorkouts,
+  generateShareableLink,
+  getSharedWorkoutByToken,
+  saveSharedWorkoutToAccount,
+  getTrainerClients,
 };

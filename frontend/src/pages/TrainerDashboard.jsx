@@ -37,6 +37,7 @@ import {
   SearchIcon,
   ArrowBackIcon,
   DeleteIcon,
+  LinkIcon,
 } from "@chakra-ui/icons";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { apiClient, API_ENDPOINTS } from "../config/api";
@@ -45,20 +46,26 @@ import { capitalizeName, normalizeNameForStorage } from "../utils/nameUtils";
 import { formatDateSafe } from "../utils/dateUtils";
 import EditSharedWorkoutModal from "../components/EditSharedWorkoutModal";
 import { useThemeColors } from "../hooks/useThemeColors";
+import ShareableLinkModal from "../components/ShareableLinkModal";
 
 const TrainerDashboard = () => {
   const [sharedWorkouts, setSharedWorkouts] = useState([]);
+  const [clients, setClients] = useState([]);
   const [stats, setStats] = useState({
     totalSharedWorkouts: 0,
     totalClientWorkouts: 0,
     generalWorkouts: 0,
     clientSpecificWorkouts: 0,
+    totalClients: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState("created");
   const [searchTerm, setSearchTerm] = useState("");
   const [editingWorkout, setEditingWorkout] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [sharingWorkout, setSharingWorkout] = useState(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("workouts"); // "workouts" or "clients"
 
   const navigate = useNavigate();
   const toast = useCustomToast();
@@ -116,12 +123,19 @@ const TrainerDashboard = () => {
         `${API_ENDPOINTS.GET_TRAINER_SHARED_WORKOUTS}?limit=1000`
       );
 
+      // Fetch clients who have claimed workouts
+      const clientsResponse = await apiClient.get(
+        `${API_ENDPOINTS.GET_TRAINER_CLIENTS}?limit=1000`
+      );
+
       console.log("TrainerDashboard: Data fetched successfully");
 
       const sharedWorkoutsData =
         sharedWorkoutsResponse.data.data.sharedWorkouts || [];
+      const clientsData = clientsResponse.data.data.clients || [];
 
       setSharedWorkouts(sharedWorkoutsData);
+      setClients(clientsData);
 
       // Calculate stats - only client-specific workouts
       const clientSpecificWorkouts = sharedWorkoutsData.filter(
@@ -133,6 +147,7 @@ const TrainerDashboard = () => {
         totalClientWorkouts: clientSpecificWorkouts,
         generalWorkouts: 0,
         clientSpecificWorkouts: clientSpecificWorkouts,
+        totalClients: clientsData.length,
       });
 
       // Check for and handle existing general workouts
@@ -289,6 +304,18 @@ Created: ${formatDateSafe(workout.createdAt)}
     alert(workoutInfo);
   };
 
+  // Handle share workout
+  const handleShareWorkout = (workout) => {
+    setSharingWorkout(workout);
+    setIsShareModalOpen(true);
+  };
+
+  // Close share modal
+  const handleCloseShareModal = () => {
+    setIsShareModalOpen(false);
+    setSharingWorkout(null);
+  };
+
   if (!currentUserInfo) {
     return (
       <Container maxW="container.xl" pt={20} pb={8} px={6}>
@@ -348,7 +375,7 @@ Created: ${formatDateSafe(workout.createdAt)}
         </VStack>
 
         {/* Stats */}
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
           <Card bg={colors.bgMuted}>
             <CardBody>
               <Stat>
@@ -367,62 +394,351 @@ Created: ${formatDateSafe(workout.createdAt)}
               </Stat>
             </CardBody>
           </Card>
+          <Card bg={colors.bgMuted}>
+            <CardBody>
+              <Stat>
+                <StatLabel>Clients with Claims</StatLabel>
+                <StatNumber>{stats.totalClients}</StatNumber>
+                <StatHelpText>Who have claimed workouts</StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
         </SimpleGrid>
 
-        {/* Client Workouts Section */}
-        <VStack spacing={6} align="stretch">
-          <VStack spacing={4} align="stretch">
-            <Text fontSize="lg" fontWeight="semibold">
-              Client Workouts ({getWorkoutsByClient().length} clients)
-            </Text>
-            <HStack
-              spacing={4}
-              wrap="wrap"
-              justify={{ base: "center", md: "flex-end" }}
-            >
-              <InputGroup maxW={{ base: "100%", md: "300px" }} minW="200px">
-                <InputLeftElement pointerEvents="none">
-                  <SearchIcon color={colors.textMuted} />
-                </InputLeftElement>
-                <Input
-                  placeholder="Search clients or workouts..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </InputGroup>
-              <Select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                maxW={{ base: "100%", md: "200px" }}
-                minW="150px"
-              >
-                <option value="created">Sort by Created</option>
-                <option value="name">Sort by Name</option>
-              </Select>
-            </HStack>
-          </VStack>
+        {/* Tab Navigation */}
+        <HStack spacing={4} justify="center">
+          <Button
+            colorScheme={activeTab === "workouts" ? "blue" : "gray"}
+            variant={activeTab === "workouts" ? "solid" : "outline"}
+            onClick={() => setActiveTab("workouts")}
+          >
+            Client Workouts
+          </Button>
+          <Button
+            colorScheme={activeTab === "clients" ? "blue" : "gray"}
+            variant={activeTab === "clients" ? "solid" : "outline"}
+            onClick={() => setActiveTab("clients")}
+          >
+            Claimed Clients
+          </Button>
+        </HStack>
 
-          {getWorkoutsByClient().length > 0 ? (
-            <VStack spacing={6} align="stretch">
-              {getWorkoutsByClient()
-                .filter(
-                  (client) =>
-                    !searchTerm ||
-                    client.clientName
-                      .toLowerCase()
-                      .includes(searchTerm.toLowerCase()) ||
-                    client.workouts.some((workout) =>
-                      workout.workoutName
+        {/* Conditional Content Based on Active Tab */}
+        {activeTab === "workouts" ? (
+          /* Client Workouts Section */
+          <VStack spacing={6} align="stretch">
+            <VStack spacing={4} align="stretch">
+              <Text fontSize="lg" fontWeight="semibold">
+                Client Workouts ({getWorkoutsByClient().length} clients)
+              </Text>
+              <HStack
+                spacing={4}
+                wrap="wrap"
+                justify={{ base: "center", md: "flex-end" }}
+              >
+                <InputGroup maxW={{ base: "100%", md: "300px" }} minW="200px">
+                  <InputLeftElement pointerEvents="none">
+                    <SearchIcon color={colors.textMuted} />
+                  </InputLeftElement>
+                  <Input
+                    placeholder="Search clients or workouts..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </InputGroup>
+                <Select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  maxW={{ base: "100%", md: "200px" }}
+                  minW="150px"
+                >
+                  <option value="created">Sort by Created</option>
+                  <option value="name">Sort by Name</option>
+                </Select>
+              </HStack>
+            </VStack>
+
+            {getWorkoutsByClient().length > 0 ? (
+              <VStack spacing={6} align="stretch">
+                {getWorkoutsByClient()
+                  .filter(
+                    (client) =>
+                      !searchTerm ||
+                      client.clientName
                         .toLowerCase()
-                        .includes(searchTerm.toLowerCase())
-                    )
-                )
-                .map((client) => {
-                  const clientWorkouts = getWorkoutsForClient(
-                    client.clientName
-                  );
-                  return (
-                    <Card key={client.clientName} bg={colors.bgCard}>
+                        .includes(searchTerm.toLowerCase()) ||
+                      client.workouts.some((workout) =>
+                        workout.workoutName
+                          .toLowerCase()
+                          .includes(searchTerm.toLowerCase())
+                      )
+                  )
+                  .map((client) => {
+                    const clientWorkouts = getWorkoutsForClient(
+                      client.clientName
+                    );
+                    return (
+                      <Card key={client.clientName} bg={colors.bgCard}>
+                        <CardHeader>
+                          <HStack justify="space-between" align="start">
+                            <VStack align="start" spacing={2}>
+                              <HStack>
+                                <Text fontWeight="bold" fontSize="lg">
+                                  {capitalizeName(client.clientName)}
+                                </Text>
+                                <Badge colorScheme="orange" size="sm">
+                                  {clientWorkouts.length} workout
+                                  {clientWorkouts.length !== 1 ? "s" : ""}
+                                </Badge>
+                                <Button
+                                  size="xs"
+                                  colorScheme="purple"
+                                  variant="outline"
+                                  onClick={() =>
+                                    navigate(
+                                      `/trainer/client/${encodeURIComponent(
+                                        client.clientName
+                                      )}`
+                                    )
+                                  }
+                                >
+                                  View Client
+                                </Button>
+                              </HStack>
+                            </VStack>
+                          </HStack>
+                        </CardHeader>
+                        <CardBody pt={0}>
+                          {clientWorkouts.length > 0 ? (
+                            <VStack spacing={4} align="stretch">
+                              <SimpleGrid
+                                columns={{ base: 1, md: 2 }}
+                                spacing={4}
+                              >
+                                {clientWorkouts.slice(0, 2).map((workout) => (
+                                  <Card
+                                    key={workout._id}
+                                    bg={colors.bgMuted}
+                                    size="sm"
+                                  >
+                                    <CardHeader pb={2}>
+                                      <HStack justify="space-between">
+                                        <VStack align="start" spacing={1}>
+                                          <Text
+                                            fontWeight="medium"
+                                            fontSize="md"
+                                          >
+                                            {workout.workoutName}
+                                          </Text>
+                                        </VStack>
+                                        <Menu>
+                                          <MenuButton
+                                            as={IconButton}
+                                            icon={<HamburgerIcon />}
+                                            variant="ghost"
+                                            size="xs"
+                                          />
+                                          <MenuList>
+                                            <MenuItem
+                                              icon={<ViewIcon />}
+                                              fontSize="sm"
+                                              onClick={() =>
+                                                handleViewWorkoutDetails(
+                                                  workout
+                                                )
+                                              }
+                                            >
+                                              View Details
+                                            </MenuItem>
+                                            <MenuItem
+                                              icon={<EditIcon />}
+                                              fontSize="sm"
+                                              onClick={() =>
+                                                handleEditWorkout(workout)
+                                              }
+                                            >
+                                              Edit Workout
+                                            </MenuItem>
+                                            <MenuItem
+                                              icon={<LinkIcon />}
+                                              fontSize="sm"
+                                              onClick={() =>
+                                                handleShareWorkout(workout)
+                                              }
+                                            >
+                                              Generate Share Link
+                                            </MenuItem>
+                                            <MenuItem
+                                              icon={<DeleteIcon />}
+                                              fontSize="sm"
+                                              onClick={() =>
+                                                handleDeleteWorkout(workout)
+                                              }
+                                              color="red.500"
+                                            >
+                                              Delete Workout
+                                            </MenuItem>
+                                          </MenuList>
+                                        </Menu>
+                                      </HStack>
+                                    </CardHeader>
+                                    <CardBody pt={0}>
+                                      <Box
+                                        maxH="200px"
+                                        overflowY="auto"
+                                        overflowX="hidden"
+                                        css={{
+                                          "&::-webkit-scrollbar": {
+                                            width: "4px",
+                                          },
+                                          "&::-webkit-scrollbar-track": {
+                                            background: "transparent",
+                                          },
+                                          "&::-webkit-scrollbar-thumb": {
+                                            background: "#CBD5E0",
+                                            borderRadius: "2px",
+                                          },
+                                          "&::-webkit-scrollbar-thumb:hover": {
+                                            background: "#A0AEC0",
+                                          },
+                                        }}
+                                      >
+                                        <Text
+                                          color={colors.textSecondary}
+                                          fontSize="xs"
+                                          whiteSpace="pre-wrap"
+                                          wordBreak="break-word"
+                                        >
+                                          {workout.description}
+                                        </Text>
+                                      </Box>
+                                      <Text
+                                        color={colors.textMuted}
+                                        fontSize="xs"
+                                        fontStyle="italic"
+                                        mt={2}
+                                      >
+                                        Created:{" "}
+                                        {formatDateSafe(workout.createdAt)}
+                                      </Text>
+                                    </CardBody>
+                                  </Card>
+                                ))}
+                              </SimpleGrid>
+                              {clientWorkouts.length > 4 && (
+                                <Box
+                                  bg={colors.bgMuted}
+                                  borderRadius="md"
+                                  p={3}
+                                  textAlign="center"
+                                  border="1px dashed"
+                                  borderColor={colors.border}
+                                >
+                                  <Text
+                                    color={colors.textSecondary}
+                                    fontSize="sm"
+                                    fontWeight="medium"
+                                  >
+                                    +{clientWorkouts.length - 4} more workout
+                                    {clientWorkouts.length - 4 !== 1 ? "s" : ""}
+                                  </Text>
+                                  <Text
+                                    color={colors.textMuted}
+                                    fontSize="xs"
+                                    mt={1}
+                                  >
+                                    Click "View Client" to see all workouts
+                                  </Text>
+                                </Box>
+                              )}
+                            </VStack>
+                          ) : (
+                            <Text
+                              color={colors.textMuted}
+                              fontSize="sm"
+                              textAlign="center"
+                              py={4}
+                            >
+                              No workouts assigned to this client yet
+                            </Text>
+                          )}
+                        </CardBody>
+                      </Card>
+                    );
+                  })}
+              </VStack>
+            ) : (
+              <Card bg={colors.bgMuted}>
+                <CardBody>
+                  <Center py={8}>
+                    <VStack spacing={4}>
+                      <Text color={colors.textMuted}>
+                        No Client Workouts Yet
+                      </Text>
+                      <Text
+                        fontSize="sm"
+                        color={colors.textMuted}
+                        textAlign="center"
+                      >
+                        Create workouts for your clients to get started
+                      </Text>
+                      <Button
+                        colorScheme="blue"
+                        leftIcon={<AddIcon />}
+                        onClick={() =>
+                          navigate("/trainer/create-shared-workout")
+                        }
+                      >
+                        Create Your First Workout
+                      </Button>
+                    </VStack>
+                  </Center>
+                </CardBody>
+              </Card>
+            )}
+          </VStack>
+        ) : (
+          /* Clients Section */
+          <VStack spacing={6} align="stretch">
+            <VStack spacing={4} align="stretch">
+              <Text fontSize="lg" fontWeight="semibold">
+                Clients Who Have Claimed Workouts ({clients.length} clients)
+              </Text>
+              <HStack
+                spacing={4}
+                wrap="wrap"
+                justify={{ base: "center", md: "flex-end" }}
+              >
+                <InputGroup maxW={{ base: "100%", md: "300px" }} minW="200px">
+                  <InputLeftElement pointerEvents="none">
+                    <SearchIcon color={colors.textMuted} />
+                  </InputLeftElement>
+                  <Input
+                    placeholder="Search clients..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </InputGroup>
+              </HStack>
+            </VStack>
+
+            {clients.length > 0 ? (
+              <VStack spacing={6} align="stretch">
+                {clients
+                  .filter(
+                    (client) =>
+                      !searchTerm ||
+                      client.clientName
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase()) ||
+                      client.claimedWorkouts.some((workout) =>
+                        workout.workoutName
+                          .toLowerCase()
+                          .includes(searchTerm.toLowerCase())
+                      )
+                  )
+                  .map((client) => (
+                    <Card key={client.clientUid} bg={colors.bgCard}>
                       <CardHeader>
                         <HStack justify="space-between" align="start">
                           <VStack align="start" spacing={2}>
@@ -430,132 +746,91 @@ Created: ${formatDateSafe(workout.createdAt)}
                               <Text fontWeight="bold" fontSize="lg">
                                 {capitalizeName(client.clientName)}
                               </Text>
-                              <Badge colorScheme="orange" size="sm">
-                                {clientWorkouts.length} workout
-                                {clientWorkouts.length !== 1 ? "s" : ""}
+                              <Badge colorScheme="green" size="sm">
+                                {client.totalClaimedWorkouts} claimed
                               </Badge>
-                              <Button
-                                size="xs"
-                                colorScheme="purple"
-                                variant="outline"
-                                onClick={() =>
-                                  navigate(
-                                    `/trainer/client/${encodeURIComponent(
-                                      client.clientName
-                                    )}`
-                                  )
-                                }
-                              >
-                                View Client
-                              </Button>
+                              <Badge colorScheme="blue" size="sm">
+                                {
+                                  client.claimedWorkouts.filter(
+                                    (w) => w.status === "completed"
+                                  ).length
+                                }{" "}
+                                completed
+                              </Badge>
                             </HStack>
+                            <Text fontSize="sm" color={colors.textMuted}>
+                              Last claimed:{" "}
+                              {formatDateSafe(client.lastClaimedAt)}
+                            </Text>
                           </VStack>
                         </HStack>
                       </CardHeader>
                       <CardBody pt={0}>
-                        {clientWorkouts.length > 0 ? (
+                        {client.claimedWorkouts.length > 0 ? (
                           <VStack spacing={4} align="stretch">
                             <SimpleGrid
                               columns={{ base: 1, md: 2 }}
                               spacing={4}
                             >
-                              {clientWorkouts.slice(0, 2).map((workout) => (
-                                <Card
-                                  key={workout._id}
-                                  bg={colors.bgMuted}
-                                  size="sm"
-                                >
-                                  <CardHeader pb={2}>
-                                    <HStack justify="space-between">
+                              {client.claimedWorkouts
+                                .slice(0, 4)
+                                .map((workout) => (
+                                  <Card
+                                    key={workout.assignmentId}
+                                    bg={colors.bgMuted}
+                                    size="sm"
+                                  >
+                                    <CardHeader pb={2}>
                                       <VStack align="start" spacing={1}>
                                         <Text fontWeight="medium" fontSize="md">
                                           {workout.workoutName}
                                         </Text>
+                                        <Badge
+                                          colorScheme={
+                                            workout.status === "completed"
+                                              ? "green"
+                                              : workout.status === "in_progress"
+                                              ? "yellow"
+                                              : "blue"
+                                          }
+                                          size="sm"
+                                        >
+                                          {workout.status}
+                                        </Badge>
                                       </VStack>
-                                      <Menu>
-                                        <MenuButton
-                                          as={IconButton}
-                                          icon={<HamburgerIcon />}
-                                          variant="ghost"
-                                          size="xs"
-                                        />
-                                        <MenuList>
-                                          <MenuItem
-                                            icon={<ViewIcon />}
-                                            fontSize="sm"
-                                            onClick={() =>
-                                              handleViewWorkoutDetails(workout)
-                                            }
-                                          >
-                                            View Details
-                                          </MenuItem>
-                                          <MenuItem
-                                            icon={<EditIcon />}
-                                            fontSize="sm"
-                                            onClick={() =>
-                                              handleEditWorkout(workout)
-                                            }
-                                          >
-                                            Edit Workout
-                                          </MenuItem>
-                                          <MenuItem
-                                            icon={<DeleteIcon />}
-                                            fontSize="sm"
-                                            onClick={() =>
-                                              handleDeleteWorkout(workout)
-                                            }
-                                            color="red.500"
-                                          >
-                                            Delete Workout
-                                          </MenuItem>
-                                        </MenuList>
-                                      </Menu>
-                                    </HStack>
-                                  </CardHeader>
-                                  <CardBody pt={0}>
-                                    <Box
-                                      maxH="200px"
-                                      overflowY="auto"
-                                      overflowX="hidden"
-                                      css={{
-                                        "&::-webkit-scrollbar": {
-                                          width: "4px",
-                                        },
-                                        "&::-webkit-scrollbar-track": {
-                                          background: "transparent",
-                                        },
-                                        "&::-webkit-scrollbar-thumb": {
-                                          background: "#CBD5E0",
-                                          borderRadius: "2px",
-                                        },
-                                        "&::-webkit-scrollbar-thumb:hover": {
-                                          background: "#A0AEC0",
-                                        },
-                                      }}
-                                    >
+                                    </CardHeader>
+                                    <CardBody pt={0}>
                                       <Text
                                         color={colors.textSecondary}
                                         fontSize="xs"
-                                        whiteSpace="pre-wrap"
-                                        wordBreak="break-word"
+                                        noOfLines={3}
                                       >
-                                        {workout.description}
+                                        {workout.workoutDescription}
                                       </Text>
-                                    </Box>
-                                    <Text
-                                      color={colors.textMuted}
-                                      fontSize="xs"
-                                      fontStyle="italic"
-                                      mt={2}
-                                    >
-                                      Created:{" "}
-                                      {formatDateSafe(workout.createdAt)}
-                                    </Text>
-                                  </CardBody>
-                                </Card>
-                              ))}
+                                      <Text
+                                        color={colors.textMuted}
+                                        fontSize="xs"
+                                        fontStyle="italic"
+                                        mt={2}
+                                      >
+                                        Claimed:{" "}
+                                        {formatDateSafe(workout.claimedAt)}
+                                      </Text>
+                                      {workout.completedAt && (
+                                        <Text
+                                          color={colors.textMuted}
+                                          fontSize="xs"
+                                          fontStyle="italic"
+                                        >
+                                          Completed:{" "}
+                                          {formatDateSafe(workout.completedAt)}
+                                        </Text>
+                                      )}
+                                    </CardBody>
+                                  </Card>
+                                ))}
                             </SimpleGrid>
-                            {clientWorkouts.length > 4 && (
+                            {client.claimedWorkouts.length > 4 && (
                               <Box
                                 bg={colors.bgMuted}
                                 borderRadius="md"
@@ -569,15 +844,11 @@ Created: ${formatDateSafe(workout.createdAt)}
                                   fontSize="sm"
                                   fontWeight="medium"
                                 >
-                                  +{clientWorkouts.length - 4} more workout
-                                  {clientWorkouts.length - 4 !== 1 ? "s" : ""}
-                                </Text>
-                                <Text
-                                  color={colors.textMuted}
-                                  fontSize="xs"
-                                  mt={1}
-                                >
-                                  Click "View Client" to see all workouts
+                                  +{client.claimedWorkouts.length - 4} more
+                                  workout
+                                  {client.claimedWorkouts.length - 4 !== 1
+                                    ? "s"
+                                    : ""}
                                 </Text>
                               </Box>
                             )}
@@ -589,40 +860,34 @@ Created: ${formatDateSafe(workout.createdAt)}
                             textAlign="center"
                             py={4}
                           >
-                            No workouts assigned to this client yet
+                            No claimed workouts yet
                           </Text>
                         )}
                       </CardBody>
                     </Card>
-                  );
-                })}
-            </VStack>
-          ) : (
-            <Card bg={colors.bgMuted}>
-              <CardBody>
-                <Center py={8}>
-                  <VStack spacing={4}>
-                    <Text color={colors.textMuted}>No Client Workouts Yet</Text>
-                    <Text
-                      fontSize="sm"
-                      color={colors.textMuted}
-                      textAlign="center"
-                    >
-                      Create workouts for your clients to get started
-                    </Text>
-                    <Button
-                      colorScheme="blue"
-                      leftIcon={<AddIcon />}
-                      onClick={() => navigate("/trainer/create-shared-workout")}
-                    >
-                      Create Your First Workout
-                    </Button>
-                  </VStack>
-                </Center>
-              </CardBody>
-            </Card>
-          )}
-        </VStack>
+                  ))}
+              </VStack>
+            ) : (
+              <Card bg={colors.bgMuted}>
+                <CardBody>
+                  <Center py={8}>
+                    <VStack spacing={4}>
+                      <Text color={colors.textMuted}>No Clients Yet</Text>
+                      <Text
+                        fontSize="sm"
+                        color={colors.textMuted}
+                        textAlign="center"
+                      >
+                        Share workouts with clients to see them here once they
+                        claim them
+                      </Text>
+                    </VStack>
+                  </Center>
+                </CardBody>
+              </Card>
+            )}
+          </VStack>
+        )}
       </VStack>
 
       {/* Edit Modal */}
@@ -631,6 +896,13 @@ Created: ${formatDateSafe(workout.createdAt)}
         onClose={handleCloseEditModal}
         sharedWorkout={editingWorkout}
         onSuccess={handleEditSuccess}
+      />
+
+      {/* Share Link Modal */}
+      <ShareableLinkModal
+        isOpen={isShareModalOpen}
+        onClose={handleCloseShareModal}
+        workout={sharingWorkout}
       />
     </Container>
   );

@@ -8,6 +8,7 @@ import {
   filterUserDataForPublicView,
 } from "../utils/userUtils.js";
 import { generateSafeFilePath } from "../utils/fileUtils.js";
+import WorkoutAssignment from "../models/workoutAssignment.model.js";
 
 // Multer configuration
 const fileFilter = (req, file, cb) => {
@@ -398,7 +399,11 @@ export const createUser = async (req, res) => {
 
   try {
     let user = await User.findOne({ uid });
+    let claimedWorkouts = [];
+    let isNewUser = false;
+
     if (!user) {
+      isNewUser = true;
       // Generate username from name: remove spaces and convert to lowercase
       const generatedUsername = name
         ? name.replace(/\s+/g, "").toLowerCase()
@@ -412,9 +417,65 @@ export const createUser = async (req, res) => {
         username: generatedUsername,
       });
       await user.save();
+
+      // Automatically claim any pending workouts assigned to this name or email
+      const normalizedName = name ? name.trim().toLowerCase() : null;
+      const normalizedEmail = email ? email.trim().toLowerCase() : null;
+
+      // Build query to find assignments by name or email
+      const query = {
+        isRegisteredUser: false, // Only claim name-only assignments
+        assignedToUid: null,
+        $or: [],
+      };
+
+      if (normalizedName) {
+        query.$or.push({ assignedToName: normalizedName });
+      }
+      if (normalizedEmail) {
+        query.$or.push({ assignedToEmail: normalizedEmail });
+      }
+
+      if (query.$or.length > 0) {
+        try {
+          // Find all pending assignments that match
+          const pendingAssignments = await WorkoutAssignment.find(query);
+
+          if (pendingAssignments.length > 0) {
+            // Update all matching assignments to link them to the user
+            const updatePromises = pendingAssignments.map((assignment) =>
+              WorkoutAssignment.findByIdAndUpdate(
+                assignment._id,
+                {
+                  assignedToUid: uid,
+                  isRegisteredUser: true,
+                  assignedToEmail:
+                    normalizedEmail || assignment.assignedToEmail,
+                },
+                { new: true }
+              ).populate("sharedWorkoutId")
+            );
+
+            claimedWorkouts = await Promise.all(updatePromises);
+            console.log(
+              `✅ Automatically claimed ${claimedWorkouts.length} workout(s) for new user ${name}`
+            );
+          }
+        } catch (claimError) {
+          console.error("Error auto-claiming workouts:", claimError);
+          // Don't fail user creation if claiming workouts fails
+        }
+      }
     }
-    res.status(201).json(user);
+
+    res.status(201).json({
+      user,
+      claimedWorkouts: claimedWorkouts.length,
+      workouts: claimedWorkouts,
+      isNewUser,
+    });
   } catch (error) {
+    console.error("Error creating user:", error);
     res.status(500).json({ error: "Failed to create user" });
   }
 };
@@ -659,11 +720,11 @@ export const searchUsers = async (req, res) => {
       viewerUser = await User.findOne({ uid: req.user.uid });
     }
 
-    // Find users matching the search query
+    // Find users matching the search query (only match from the beginning)
     const users = await User.find({
       $or: [
-        { name: { $regex: query, $options: "i" } },
-        { username: { $regex: query, $options: "i" } },
+        { name: { $regex: `^${query}`, $options: "i" } },
+        { username: { $regex: `^${query}`, $options: "i" } },
       ],
     })
       .populate("followers", "uid")

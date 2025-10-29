@@ -1,15 +1,36 @@
 import { Container, SimpleGrid, Text, VStack, Button } from "@chakra-ui/react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useColorMode } from "@chakra-ui/react";
 import { auth, googleProvider } from "../firebase.js"; // Adjust the import according to your project structure
 import { signInWithPopup } from "firebase/auth";
+import { useNavigate, useLocation } from "react-router-dom";
 import PhotoUpload from "../components/PhotoUpload.jsx"; // Adjust the import according to your project structure
 import ProfilePictureUpload from "./ProfilePictureUpload.jsx";
+import { API_ENDPOINTS, apiClient } from "../config/api";
+import { useToast } from "@chakra-ui/react";
 
 const SignUpFlow = () => {
   const [step, setStep] = useState("google"); // Start directly with Google Sign-In
   const { colorMode, toggleColorMode } = useColorMode(); // Use the useColorMode hook
   const [profileImage, setProfileImage] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const toast = useToast();
+
+  // Get the redirect path from location state, default to home
+  const redirectPath = location.state?.from || "/";
+
+  // Check if user is already signed in and redirect them
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is already signed in, redirect them back
+        navigate(redirectPath, { replace: true });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate, redirectPath]);
 
   const handleFileChange = (e) => {
     setProfileImage(e.target.files[0]);
@@ -17,7 +38,8 @@ const SignUpFlow = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      const result = await auth.signInWithPopup(auth, googleProvider);
+      // Fix: Use correct Firebase auth syntax
+      const result = await signInWithPopup(auth, googleProvider);
       const token = await result.user.getIdToken();
 
       const formData = new FormData();
@@ -28,7 +50,6 @@ const SignUpFlow = () => {
         {
           method: "POST",
           headers: {
-            // "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: formData, // Include the profileImage in the request body
@@ -40,8 +61,27 @@ const SignUpFlow = () => {
       }
 
       const userData = await response.json();
+
+      // Show success message
+      toast({
+        title: "Success",
+        description: "Successfully signed in!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // Redirect to the intended page (shared workout page or home)
+      navigate(redirectPath, { replace: true });
     } catch (error) {
       console.error("Error during sign-up:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign in. Please try again.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 

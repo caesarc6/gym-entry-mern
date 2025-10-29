@@ -51,6 +51,7 @@ export const HeroHeader = () => {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [searchResults, setSearchResults] = React.useState([]);
   const [isSearching, setIsSearching] = React.useState(false);
+  const [hasSearched, setHasSearched] = React.useState(false);
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const searchRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -83,6 +84,7 @@ export const HeroHeader = () => {
   const searchUsers = debounce(async (query) => {
     if (!query.trim()) {
       setSearchResults([]);
+      setHasSearched(false);
       return;
     }
     setIsSearching(true);
@@ -105,6 +107,7 @@ export const HeroHeader = () => {
       setSearchResults([]);
     } finally {
       setIsSearching(false);
+      setHasSearched(true);
     }
   }, 300);
 
@@ -112,6 +115,7 @@ export const HeroHeader = () => {
   const handleProfileClick = (e, path) => {
     setSearchQuery("");
     setSearchResults([]);
+    setHasSearched(false);
     setIsSearchOpen(false);
     navigate(path);
   };
@@ -130,6 +134,7 @@ export const HeroHeader = () => {
       }
       setSearchQuery("");
       setSearchResults([]);
+      setHasSearched(false);
       setIsSearchOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -327,6 +332,7 @@ export const HeroHeader = () => {
                       value={searchQuery}
                       onChange={(e) => {
                         setSearchQuery(e.target.value);
+                        setHasSearched(false);
                         searchUsers(e.target.value);
                       }}
                       onClick={(e) => e.stopPropagation()}
@@ -347,6 +353,7 @@ export const HeroHeader = () => {
                         onClick={() => {
                           setSearchQuery("");
                           setSearchResults([]);
+                          setHasSearched(false);
                           setIsSearchOpen(false);
                         }}
                         className={cn(
@@ -360,11 +367,7 @@ export const HeroHeader = () => {
                         <X className="h-1 w-1" />
                       </Button>
                     )}
-                    {isSearching && <Spinner size="sm" className="ml-2" />}
-                    {(searchResults.length > 0 ||
-                      (searchQuery &&
-                        !isSearching &&
-                        searchResults.length === 0)) && (
+                    {searchQuery && (
                       <VStack
                         align="start"
                         spacing={2}
@@ -429,8 +432,12 @@ export const HeroHeader = () => {
                               </Link>
                             );
                           })
-                        ) : (
+                        ) : hasSearched && searchResults.length === 0 ? (
                           <Text w="full">No users found</Text>
+                        ) : (
+                          <Flex w="full" justify="center" align="center">
+                            <Spinner size="xs" />
+                          </Flex>
                         )}
                       </VStack>
                     )}
@@ -490,6 +497,7 @@ export const HeroHeader = () => {
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
+                    setHasSearched(false);
                     searchUsers(e.target.value);
                   }}
                   size="sm"
@@ -528,6 +536,7 @@ export const HeroHeader = () => {
                     onClick={() => {
                       setSearchQuery("");
                       setSearchResults([]);
+                      setHasSearched(false);
                     }}
                     className={cn(
                       "absolute right-10 top-1/2 -translate-y-1/2 py-[0px] px-1",
@@ -539,19 +548,7 @@ export const HeroHeader = () => {
                     <X className="h-1 w-2" />
                   </Button>
                 )}
-                {isSearching && (
-                  <Spinner
-                    size="sm"
-                    position="absolute"
-                    right="14px"
-                    top="50%"
-                    transform="translateY(-50%)"
-                  />
-                )}
-                {(searchResults.length > 0 ||
-                  (searchQuery &&
-                    !isSearching &&
-                    searchResults.length === 0)) && (
+                {searchQuery && (
                   <VStack
                     align="start"
                     spacing={2}
@@ -614,8 +611,12 @@ export const HeroHeader = () => {
                           </Link>
                         );
                       })
-                    ) : (
+                    ) : hasSearched && searchResults.length === 0 ? (
                       <Text w="full">No users found</Text>
+                    ) : (
+                      <Flex w="full" justify="center" align="center">
+                        <Spinner size="xs" />
+                      </Flex>
                     )}
                   </VStack>
                 )}

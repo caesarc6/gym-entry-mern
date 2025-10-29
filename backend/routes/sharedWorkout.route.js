@@ -12,6 +12,12 @@ import {
   markWorkoutAsSaved,
   continueAssignedWorkout,
   completeAssignedWorkout,
+  checkPendingWorkouts,
+  claimPendingWorkouts,
+  generateShareableLink,
+  getSharedWorkoutByToken,
+  saveSharedWorkoutToAccount,
+  getTrainerClients,
 } from "../controllers/sharedWorkout.controller.js";
 import { verifyIdToken } from "../middleware/auth.js";
 
@@ -20,6 +26,7 @@ const router = express.Router();
 // Shared Workout Management Routes
 router.post("/", verifyIdToken, createSharedWorkout);
 router.get("/trainer", verifyIdToken, getTrainerSharedWorkouts);
+router.get("/clients", verifyIdToken, getTrainerClients);
 router.get("/:sharedWorkoutId", verifyIdToken, getSharedWorkout);
 router.put("/:sharedWorkoutId", verifyIdToken, updateSharedWorkout);
 router.delete("/:sharedWorkoutId", verifyIdToken, deleteSharedWorkout);
@@ -39,6 +46,23 @@ router.put(
   "/assignments/:shareId/complete",
   verifyIdToken,
   completeAssignedWorkout
+);
+
+// Workout claiming routes (for new users)
+router.post("/check-pending", checkPendingWorkouts);
+router.post("/claim-pending", verifyIdToken, claimPendingWorkouts);
+
+// Shareable link routes
+router.post(
+  "/:sharedWorkoutId/generate-link",
+  verifyIdToken,
+  generateShareableLink
+);
+router.get("/shared/:shareToken", getSharedWorkoutByToken); // Public route
+router.post(
+  "/shared/:shareToken/save",
+  verifyIdToken,
+  saveSharedWorkoutToAccount
 );
 
 // Test route

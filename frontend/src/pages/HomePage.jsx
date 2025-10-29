@@ -21,6 +21,7 @@ import { Hero } from "../components/Hero";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
+import ClaimedWorkoutsModal from "../components/ClaimedWorkoutsModal";
 
 // Optimized feed loading with lazy loading and caching
 const HomePage = () => {
@@ -89,6 +90,15 @@ const HomePage = () => {
 
   // Get current user info from store
   const currentUserInfo = useProductStore((state) => state.currentUserInfo);
+
+  // Get claimed workouts state from store
+  const claimedWorkouts = useProductStore((state) => state.claimedWorkouts);
+  const showClaimedWorkoutsModal = useProductStore(
+    (state) => state.showClaimedWorkoutsModal
+  );
+  const setShowClaimedWorkoutsModal = useProductStore(
+    (state) => state.setShowClaimedWorkoutsModal
+  );
 
   // Update profile cache when current user's profile picture changes
   useEffect(() => {
@@ -502,6 +512,13 @@ const HomePage = () => {
           <Hero handleGoogleSignIn={handleGoogleSignIn} />
         </div>
       )}
+
+      {/* Claimed Workouts Modal */}
+      <ClaimedWorkoutsModal
+        isOpen={showClaimedWorkoutsModal}
+        onClose={() => setShowClaimedWorkoutsModal(false)}
+        claimedWorkouts={claimedWorkouts}
+      />
     </Container>
   );
 };

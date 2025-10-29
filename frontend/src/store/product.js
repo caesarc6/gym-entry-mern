@@ -22,6 +22,13 @@ export const useProductStore = create((set) => ({
   currentUserInfo: null,
   setCurrentUserInfo: (info) => set({ currentUserInfo: info }),
 
+  // Claimed workouts state
+  claimedWorkouts: [],
+  setClaimedWorkouts: (workouts) => set({ claimedWorkouts: workouts }),
+  showClaimedWorkoutsModal: false,
+  setShowClaimedWorkoutsModal: (show) =>
+    set({ showClaimedWorkoutsModal: show }),
+
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
     console.log("🔍 [STORE] createPost called");
@@ -331,6 +338,32 @@ auth.onAuthStateChanged(async (user) => {
       if (response.data) {
         useProductStore.getState().setCurrentUserInfo(response.data);
       }
+
+      // Check if the user just signed up and has claimed workouts
+      // This is done by calling the createUser endpoint which returns claimed workouts
+      try {
+        const createUserResponse = await apiClient.get(
+          API_ENDPOINTS.GET_CURRENT_MONGODB_USER
+        );
+
+        // If there are claimed workouts, show them in a modal
+        if (
+          createUserResponse.data &&
+          createUserResponse.data.claimedWorkouts > 0 &&
+          createUserResponse.data.workouts
+        ) {
+          useProductStore
+            .getState()
+            .setClaimedWorkouts(createUserResponse.data.workouts);
+
+          // Only show the modal if it's a new user
+          if (createUserResponse.data.isNewUser) {
+            useProductStore.getState().setShowClaimedWorkoutsModal(true);
+          }
+        }
+      } catch (claimError) {
+        console.log("No claimed workouts or error checking:", claimError);
+      }
     } catch (e) {
       console.error("Error fetching current user info:", e); // Debug log
       // fallback: just store Firebase info
@@ -344,6 +377,8 @@ auth.onAuthStateChanged(async (user) => {
     }
   } else {
     useProductStore.getState().setCurrentUserInfo(null);
+    useProductStore.getState().setClaimedWorkouts([]);
+    useProductStore.getState().setShowClaimedWorkoutsModal(false);
   }
 });
 

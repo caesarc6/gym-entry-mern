@@ -64,6 +64,18 @@ const sharedWorkoutSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // Shareable link functionality
+    shareToken: {
+      type: String,
+      required: false,
+      unique: true,
+      sparse: true, // Allows multiple null values
+    },
+    shareTokenExpiresAt: {
+      type: Date,
+      required: false,
+    },
   },
   {
     timestamps: true,

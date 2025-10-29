@@ -59,7 +59,10 @@ function App() {
         <Route path="/signup" element={<SignUpFlow />} />
         <Route path="/privacy" element={<PrivacySettings />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route path="/workout/:shareToken" element={<SharedWorkoutPage />} />
+        <Route
+          path="/shared-workout/:shareToken"
+          element={<SharedWorkoutPage />}
+        />
         <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
         <Route
           path="/trainer/create-shared-workout"

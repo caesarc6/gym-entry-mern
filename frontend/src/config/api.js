@@ -118,6 +118,7 @@ export const API_ENDPOINTS = {
     buildApiUrl(`shared-workouts/${sharedWorkoutId}/share`),
   GET_TRAINER_ASSIGNMENTS: buildApiUrl("shared-workouts/assignments/trainer"),
   GET_USER_ASSIGNMENTS: buildApiUrl("shared-workouts/assignments/user"),
+  GET_TRAINER_CLIENTS: buildApiUrl("shared-workouts/clients"),
   UPDATE_WORKOUT_ASSIGNMENT: (assignmentId) =>
     buildApiUrl(`shared-workouts/assignments/${assignmentId}`),
   MARK_WORKOUT_AS_SAVED: (assignmentId) =>
@@ -126,6 +127,18 @@ export const API_ENDPOINTS = {
     buildApiUrl(`shared-workouts/assignments/${assignmentId}/continue`),
   COMPLETE_ASSIGNED_WORKOUT: (assignmentId) =>
     buildApiUrl(`shared-workouts/assignments/${assignmentId}/complete`),
+
+  // Workout claiming endpoints
+  CHECK_PENDING_WORKOUTS: buildApiUrl("shared-workouts/check-pending"),
+  CLAIM_PENDING_WORKOUTS: buildApiUrl("shared-workouts/claim-pending"),
+
+  // Shareable link endpoints
+  GENERATE_SHAREABLE_LINK: (sharedWorkoutId) =>
+    buildApiUrl(`shared-workouts/${sharedWorkoutId}/generate-link`),
+  GET_SHARED_WORKOUT_BY_TOKEN: (shareToken) =>
+    buildApiUrl(`shared-workouts/shared/${shareToken}`),
+  SAVE_SHARED_WORKOUT_BY_TOKEN: (shareToken) =>
+    buildApiUrl(`shared-workouts/shared/${shareToken}/save`),
 };
 
 // Axios instance with default configuration
