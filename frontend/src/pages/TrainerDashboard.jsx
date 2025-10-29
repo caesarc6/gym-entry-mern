@@ -66,6 +66,7 @@ const TrainerDashboard = () => {
   const [sharingWorkout, setSharingWorkout] = useState(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("workouts"); // "workouts" or "clients"
+  const [clientSortBy, setClientSortBy] = useState("recent"); // "recent" or "name"
 
   const navigate = useNavigate();
   const toast = useCustomToast();
@@ -222,18 +223,33 @@ const TrainerDashboard = () => {
             clientName: displayName,
             workouts: [],
             totalWorkouts: 0,
+            lastWorkoutDate: null,
           };
         }
 
         grouped[normalizedName].workouts.push(workout);
         grouped[normalizedName].totalWorkouts++;
+
+        // Track the most recent workout date for this client
+        const workoutDate = new Date(workout.createdAt);
+        if (
+          !grouped[normalizedName].lastWorkoutDate ||
+          workoutDate > grouped[normalizedName].lastWorkoutDate
+        ) {
+          grouped[normalizedName].lastWorkoutDate = workoutDate;
+        }
       }
     });
 
-    // Sort clients alphabetically
-    return Object.values(grouped).sort((a, b) =>
-      a.clientName.localeCompare(b.clientName)
-    );
+    // Sort clients based on clientSortBy setting
+    const clients = Object.values(grouped);
+    if (clientSortBy === "recent") {
+      return clients.sort(
+        (a, b) => new Date(b.lastWorkoutDate) - new Date(a.lastWorkoutDate)
+      );
+    } else {
+      return clients.sort((a, b) => a.clientName.localeCompare(b.clientName));
+    }
   };
 
   // Get client-specific workouts for a particular client
@@ -455,6 +471,15 @@ Created: ${formatDateSafe(workout.createdAt)}
                   <option value="created">Sort by Created</option>
                   <option value="name">Sort by Name</option>
                 </Select>
+                <Select
+                  value={clientSortBy}
+                  onChange={(e) => setClientSortBy(e.target.value)}
+                  maxW={{ base: "100%", md: "200px" }}
+                  minW="150px"
+                >
+                  <option value="recent">Most Recent Workout</option>
+                  <option value="name">Sort by Name</option>
+                </Select>
               </HStack>
             </VStack>
 
@@ -473,7 +498,7 @@ Created: ${formatDateSafe(workout.createdAt)}
                           .includes(searchTerm.toLowerCase())
                       )
                   )
-                  .map((client) => {
+                  .map((client, index) => {
                     const clientWorkouts = getWorkoutsForClient(
                       client.clientName
                     );
@@ -483,6 +508,16 @@ Created: ${formatDateSafe(workout.createdAt)}
                           <HStack justify="space-between" align="start">
                             <VStack align="start" spacing={2}>
                               <HStack>
+                                {clientSortBy === "recent" && index < 3 && (
+                                  <Badge
+                                    colorScheme="orange"
+                                    size="lg"
+                                    borderRadius="full"
+                                    px={2}
+                                  >
+                                    #{index + 1}
+                                  </Badge>
+                                )}
                                 <Text fontWeight="bold" fontSize="lg">
                                   {capitalizeName(client.clientName)}
                                 </Text>
