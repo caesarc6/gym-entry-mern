@@ -72,6 +72,9 @@ const ProductCard = ({
     likes: Array.isArray(entry.likes) ? entry.likes : [],
     comments: Array.isArray(entry.comments) ? entry.comments : [],
     createdAt: entry.createdAt || new Date().toISOString(),
+    trainerUid: entry.trainerUid || null,
+    trainerName: entry.trainerName || null,
+    trainerUsername: entry.trainerUsername || null,
   });
 
   // Use profile cache if available, otherwise use defaults
@@ -95,6 +98,20 @@ const ProductCard = ({
   const [isUsername, setIsUsername] = useState(
     cachedProfile?.isUsername || false
   );
+  
+  // Trainer profile info for shared workouts
+  const [trainerProfileImage, setTrainerProfileImage] = useState(
+    colorMode === "dark" ? nightUrl : lightUrl
+  );
+  const [trainerDisplayName, setTrainerDisplayName] = useState(() => {
+    // Initialize from entry data if available
+    return entry.trainerName || entry.trainerUsername || null;
+  });
+  const [trainerIsUsername, setTrainerIsUsername] = useState(() => {
+    // Initialize from entry data if available
+    return !!entry.trainerUsername;
+  });
+  const [trainerProfileImageLoaded, setTrainerProfileImageLoaded] = useState(false);
   const [isLiked, setIsLiked] = useState(false); // Track if current user has liked this post
   const [imageLoaded, setImageLoaded] = useState(false);
   const [profileImageLoaded, setProfileImageLoaded] = useState(false);
@@ -235,7 +252,62 @@ const ProductCard = ({
     if (entry.uid && !cachedProfile) {
       fetchProfileImage();
     }
-  }, [entry.uid, toast, cachedProfile, colorMode]);
+    
+    // Always fetch trainer profile if this is a shared workout (independent of cachedProfile)
+    if (entry.trainerUid) {
+      fetchTrainerProfile();
+    }
+  }, [entry.uid, entry.trainerUid, entry.trainerName, entry.trainerUsername, toast, cachedProfile, colorMode]);
+  
+  // Fetch trainer profile info
+  const fetchTrainerProfile = async () => {
+    // If we already have trainer name/username from entry, use those
+    if (entry.trainerName || entry.trainerUsername) {
+      setTrainerDisplayName(entry.trainerName || entry.trainerUsername);
+      setTrainerIsUsername(!!entry.trainerUsername);
+    }
+    
+    // Always try to fetch profile image even if we have name/username
+    if (!entry.trainerUid) return;
+    
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await apiClient.get(
+        API_ENDPOINTS.PROFILE_IMAGE(entry.trainerUid),
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+      
+      if (response.data.success) {
+        const data = response.data.data;
+        if (data.picture) {
+          setTrainerProfileImage(data.picture);
+          setTrainerProfileImageLoaded(true);
+        }
+        if (data.name || data.username) {
+          setTrainerDisplayName(data.name || data.username);
+          setTrainerIsUsername(!!data.username);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching trainer profile:", error);
+      // If we have trainer name/username from entry, still show it
+      if (entry.trainerName || entry.trainerUsername) {
+        setTrainerDisplayName(entry.trainerName || entry.trainerUsername);
+        setTrainerIsUsername(!!entry.trainerUsername);
+      }
+    }
+  };
+  
+  const handleTrainerProfileImageError = () => {
+    setTrainerProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+    setTrainerProfileImageLoaded(true);
+  };
+  
+  const handleTrainerProfileImageLoad = () => {
+    setTrainerProfileImageLoaded(true);
+  };
 
   // Update profile image when color mode changes
   useEffect(() => {
@@ -977,49 +1049,147 @@ const ProductCard = ({
           onClick={(e) => e.stopPropagation()}
           backdropFilter="blur(8px)"
         >
-          <Box position="relative" boxSize="28px">
-            {!profileImageLoaded && (
-              <Skeleton
-                boxSize="28px"
-                borderRadius="full"
-                startColor={colors.borderColor}
-                endColor={colors.borderColorInput}
-              />
-            )}
-            <Image
-              src={profileImage}
-              alt="User Profile"
-              boxSize="28px"
-              borderRadius="full"
-              objectFit="cover"
-              border="2px solid white"
-              onError={handleProfileImageError}
-              onLoad={handleProfileImageLoad}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                display: profileImageLoaded ? "block" : "none",
-                opacity: profileImageLoaded ? 1 : 0,
-                transition: "opacity 0.3s ease-in-out",
-              }}
-              loading="lazy"
-            />
-          </Box>
-          <Link to={isOwner ? "/profile" : `/user/${entry.uid}`}>
-            <Text
-              fontSize="13px"
-              fontWeight="600"
-              color={colors.textTitle}
-              fontFamily="Inter, system-ui, sans-serif"
-              maxW="100px"
-              noOfLines={1}
-              _hover={{ textDecoration: "underline" }}
-              cursor="pointer"
-            >
-              {isUsername ? `@${userDisplayName}` : userDisplayName}
-            </Text>
-          </Link>
+          {updatedEntry.trainerUid && updatedEntry.trainerUid !== entry.uid ? (
+            // Show both trainer and client usernames for shared workouts
+            <>
+              <Box position="relative" boxSize="28px">
+                {!trainerProfileImageLoaded && (
+                  <Skeleton
+                    boxSize="28px"
+                    borderRadius="full"
+                    startColor={colors.borderColor}
+                    endColor={colors.borderColorInput}
+                  />
+                )}
+                <Image
+                  src={trainerProfileImage}
+                  alt="Trainer Profile"
+                  boxSize="28px"
+                  borderRadius="full"
+                  objectFit="cover"
+                  border="2px solid white"
+                  onError={handleTrainerProfileImageError}
+                  onLoad={handleTrainerProfileImageLoad}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    display: trainerProfileImageLoaded ? "block" : "none",
+                    opacity: trainerProfileImageLoaded ? 1 : 0,
+                    transition: "opacity 0.3s ease-in-out",
+                  }}
+                  loading="lazy"
+                />
+              </Box>
+              <Link to={`/user/${updatedEntry.trainerUid}`}>
+                <Text
+                  fontSize="12px"
+                  fontWeight="600"
+                  color={colors.textTitle}
+                  fontFamily="Inter, system-ui, sans-serif"
+                  maxW="80px"
+                  noOfLines={1}
+                  _hover={{ textDecoration: "underline" }}
+                  cursor="pointer"
+                >
+                  {trainerIsUsername && trainerDisplayName ? `@${trainerDisplayName}` : trainerDisplayName || "Trainer"}
+                </Text>
+              </Link>
+              <Text fontSize="12px" color={colors.textMuted} fontWeight="500">
+                →
+              </Text>
+              <Box position="relative" boxSize="28px">
+                {!profileImageLoaded && (
+                  <Skeleton
+                    boxSize="28px"
+                    borderRadius="full"
+                    startColor={colors.borderColor}
+                    endColor={colors.borderColorInput}
+                  />
+                )}
+                <Image
+                  src={profileImage}
+                  alt="User Profile"
+                  boxSize="28px"
+                  borderRadius="full"
+                  objectFit="cover"
+                  border="2px solid white"
+                  onError={handleProfileImageError}
+                  onLoad={handleProfileImageLoad}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    display: profileImageLoaded ? "block" : "none",
+                    opacity: profileImageLoaded ? 1 : 0,
+                    transition: "opacity 0.3s ease-in-out",
+                  }}
+                  loading="lazy"
+                />
+              </Box>
+              <Link to={isOwner ? "/profile" : `/user/${entry.uid}`}>
+                <Text
+                  fontSize="12px"
+                  fontWeight="600"
+                  color={colors.textTitle}
+                  fontFamily="Inter, system-ui, sans-serif"
+                  maxW="80px"
+                  noOfLines={1}
+                  _hover={{ textDecoration: "underline" }}
+                  cursor="pointer"
+                >
+                  {isUsername ? `@${userDisplayName}` : userDisplayName}
+                </Text>
+              </Link>
+            </>
+          ) : (
+            // Show only client username for regular posts
+            <>
+              <Box position="relative" boxSize="28px">
+                {!profileImageLoaded && (
+                  <Skeleton
+                    boxSize="28px"
+                    borderRadius="full"
+                    startColor={colors.borderColor}
+                    endColor={colors.borderColorInput}
+                  />
+                )}
+                <Image
+                  src={profileImage}
+                  alt="User Profile"
+                  boxSize="28px"
+                  borderRadius="full"
+                  objectFit="cover"
+                  border="2px solid white"
+                  onError={handleProfileImageError}
+                  onLoad={handleProfileImageLoad}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    display: profileImageLoaded ? "block" : "none",
+                    opacity: profileImageLoaded ? 1 : 0,
+                    transition: "opacity 0.3s ease-in-out",
+                  }}
+                  loading="lazy"
+                />
+              </Box>
+              <Link to={isOwner ? "/profile" : `/user/${entry.uid}`}>
+                <Text
+                  fontSize="13px"
+                  fontWeight="600"
+                  color={colors.textTitle}
+                  fontFamily="Inter, system-ui, sans-serif"
+                  maxW="100px"
+                  noOfLines={1}
+                  _hover={{ textDecoration: "underline" }}
+                  cursor="pointer"
+                >
+                  {isUsername ? `@${userDisplayName}` : userDisplayName}
+                </Text>
+              </Link>
+            </>
+          )}
         </HStack>
         {/* Like and comment count badges - positioned below image */}
         <Box p="6px">

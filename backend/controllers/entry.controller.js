@@ -229,11 +229,67 @@ export const updateEntry = async (req, res) => {
 
     console.log("🔍 [ENTRY] Update data:", updateData);
 
+    // Get the entry first to check if it's linked to a SharedWorkout
+    const existingEntry = await Entry.findById(pid);
+    if (!existingEntry) {
+      return res.status(404).json({ success: false, message: "Entry not found" });
+    }
+
     // Update the entry in the database
     console.log("🔍 [ENTRY] Updating entry in database...");
     const entryData = await Entry.findByIdAndUpdate(pid, updateData, {
       new: true,
     });
+
+    // If this entry is linked to a SharedWorkout, sync the update back to the SharedWorkout
+    if (existingEntry.sharedWorkoutId) {
+      try {
+        const SharedWorkout = (await import("../models/sharedWorkout.model.js")).default;
+        const sharedWorkoutUpdates = {};
+
+        // Description is now stored without prefix - trainer info is separate
+        if (name) sharedWorkoutUpdates.workoutName = name;
+        if (description) sharedWorkoutUpdates.description = description;
+        if (postImageUrl) sharedWorkoutUpdates.image = postImageUrl;
+
+        if (Object.keys(sharedWorkoutUpdates).length > 0) {
+          // Also find other Entry posts linked to this SharedWorkout before updating
+          const otherEntries = await Entry.find({
+            sharedWorkoutId: existingEntry.sharedWorkoutId,
+            _id: { $ne: pid }, // Exclude the current entry
+          });
+
+          // Update the SharedWorkout
+          await SharedWorkout.findByIdAndUpdate(
+            existingEntry.sharedWorkoutId,
+            { $set: sharedWorkoutUpdates },
+            { new: true }
+          );
+
+          // Also update all other Entry posts linked to this SharedWorkout
+          const otherEntryUpdates = {};
+          if (name) otherEntryUpdates.name = name;
+          if (description) {
+            // Description is stored without prefix - trainer info is separate
+            otherEntryUpdates.description = description;
+          }
+          if (postImageUrl) otherEntryUpdates.image = postImageUrl;
+
+          if (Object.keys(otherEntryUpdates).length > 0) {
+            const updateResult = await Entry.updateMany(
+              { sharedWorkoutId: existingEntry.sharedWorkoutId, _id: { $ne: pid } },
+              { $set: otherEntryUpdates }
+            );
+            console.log(`✅ [ENTRY] Synced update to SharedWorkout ${existingEntry.sharedWorkoutId} and ${updateResult.modifiedCount} other Entry posts`);
+          } else {
+            console.log(`✅ [ENTRY] Synced update to SharedWorkout ${existingEntry.sharedWorkoutId}`);
+          }
+        }
+      } catch (syncError) {
+        console.error("❌ [ENTRY] Error syncing to SharedWorkout:", syncError);
+        // Don't fail the request if sync fails, just log it
+      }
+    }
 
     console.log("✅ [ENTRY] Entry updated successfully:", {
       id: entryData._id,
@@ -335,6 +391,56 @@ export const updateEntryPut = async (req, res) => {
     const entryData = await Entry.findByIdAndUpdate(id, updateData, {
       new: true,
     });
+
+    // If this entry is linked to a SharedWorkout, sync the update back to the SharedWorkout
+    if (existingEntry.sharedWorkoutId) {
+      try {
+        const SharedWorkout = (await import("../models/sharedWorkout.model.js")).default;
+        const sharedWorkoutUpdates = {};
+
+        // Description is now stored without prefix - trainer info is separate
+        if (name) sharedWorkoutUpdates.workoutName = name;
+        if (description) sharedWorkoutUpdates.description = description;
+        if (postImageUrl) sharedWorkoutUpdates.image = postImageUrl;
+
+        if (Object.keys(sharedWorkoutUpdates).length > 0) {
+          // Also find other Entry posts linked to this SharedWorkout before updating
+          const otherEntries = await Entry.find({
+            sharedWorkoutId: existingEntry.sharedWorkoutId,
+            _id: { $ne: id }, // Exclude the current entry
+          });
+
+          // Update the SharedWorkout
+          await SharedWorkout.findByIdAndUpdate(
+            existingEntry.sharedWorkoutId,
+            { $set: sharedWorkoutUpdates },
+            { new: true }
+          );
+
+          // Also update all other Entry posts linked to this SharedWorkout
+          const otherEntryUpdates = {};
+          if (name) otherEntryUpdates.name = name;
+          if (description) {
+            // Description is stored without prefix - trainer info is separate
+            otherEntryUpdates.description = description;
+          }
+          if (postImageUrl) otherEntryUpdates.image = postImageUrl;
+
+          if (Object.keys(otherEntryUpdates).length > 0) {
+            const updateResult = await Entry.updateMany(
+              { sharedWorkoutId: existingEntry.sharedWorkoutId, _id: { $ne: id } },
+              { $set: otherEntryUpdates }
+            );
+            console.log(`✅ [ENTRY PUT] Synced update to SharedWorkout ${existingEntry.sharedWorkoutId} and ${updateResult.modifiedCount} other Entry posts`);
+          } else {
+            console.log(`✅ [ENTRY PUT] Synced update to SharedWorkout ${existingEntry.sharedWorkoutId}`);
+          }
+        }
+      } catch (syncError) {
+        console.error("❌ [ENTRY PUT] Error syncing to SharedWorkout:", syncError);
+        // Don't fail the request if sync fails, just log it
+      }
+    }
 
     console.log("PUT Updated entry data:", entryData); // Debug log
     console.log("PUT route - postImageUrl:", postImageUrl); // Debug log

@@ -731,7 +731,16 @@ const ClientWorkoutsPage = () => {
                           )}
 
                         {/* Action Buttons */}
-                        <HStack justify="flex-end">
+                        <HStack justify="flex-end" spacing={3}>
+                          <Button
+                            size="sm"
+                            colorScheme="blue"
+                            variant="outline"
+                            leftIcon={<EditIcon />}
+                            onClick={() => handleEditWorkout(assignment)}
+                          >
+                            Edit Workout
+                          </Button>
                           {assignment.status !== "completed" &&
                             !assignment.isVirtual && (
                               <Button

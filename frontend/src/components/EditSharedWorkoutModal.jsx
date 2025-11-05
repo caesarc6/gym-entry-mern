@@ -171,10 +171,10 @@ const EditSharedWorkoutModal = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="xl">
+    <Modal isOpen={isOpen} onClose={handleClose} size="2xl">
       <ModalOverlay />
-      <ModalContent bg={bgColor} maxW="600px">
-        <ModalHeader>Edit Shared Workout</ModalHeader>
+      <ModalContent bg={bgColor} maxW="800px">
+        <ModalHeader>Edit Workout</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <VStack spacing={6} align="stretch">
@@ -231,7 +231,7 @@ const EditSharedWorkoutModal = ({
   Dumbbell Rows 50lbs - 12 10 8 6
   Shoulder Press 50lbs - 12 10 8 6
   Assisted Pull-ups 50lbs - 12 10 8 6"
-                  rows={8}
+                  rows={15}
                   value={formData.description}
                   onChange={(e) =>
                     handleInputChange("description", e.target.value)

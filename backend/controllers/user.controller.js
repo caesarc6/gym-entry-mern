@@ -600,6 +600,9 @@ export const getPostsByUID = async (req, res) => {
       })),
       comments: post.comments || [],
       createdAt: post.createdAt || new Date().toISOString(),
+      trainerUid: post.trainerUid || null,
+      trainerName: post.trainerName || null,
+      trainerUsername: post.trainerUsername || null,
     }));
 
     res.status(200).json({
@@ -1113,6 +1116,9 @@ export const getUserProfile = async (req, res) => {
       })),
       comments: post.comments || [],
       createdAt: post.createdAt || new Date().toISOString(),
+      trainerUid: post.trainerUid || null,
+      trainerName: post.trainerName || null,
+      trainerUsername: post.trainerUsername || null,
     }));
 
     const responseData = {
@@ -1503,6 +1509,9 @@ export const getFeedPosts = async (req, res) => {
       })),
       comments: post.comments || [],
       createdAt: post.createdAt || new Date().toISOString(),
+      trainerUid: post.trainerUid || null,
+      trainerName: post.trainerName || null,
+      trainerUsername: post.trainerUsername || null,
     }));
 
     res.status(200).json({

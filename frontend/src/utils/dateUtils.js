@@ -94,7 +94,7 @@ export const getTodayDateString = () => {
 
 /**
  * Converts a date string to a Date object, handling timezone issues
- * @param {string} dateString - Date string in YYYY-MM-DD format
+ * @param {string} dateString - Date string in YYYY-MM-DD or ISO format
  * @returns {Date} - Date object in local timezone
  */
 export const parseDateSafe = (dateString) => {
@@ -105,8 +105,30 @@ export const parseDateSafe = (dateString) => {
       // YYYY-MM-DD format - treat as local date
       const [year, month, day] = dateString.split("-");
       return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    } else if (typeof dateString === "string" && dateString.includes("T")) {
+      // ISO string - check for timezone issues
+      const isoDate = new Date(dateString);
+
+      // Check if this is likely a timezone issue:
+      // Any date that ends with T00:00:00.000Z or similar is likely stored as UTC midnight
+      // when it should be interpreted as a local date
+      const isLikelyTimezoneIssue =
+        dateString.endsWith("T00:00:00.000Z") ||
+        dateString.endsWith("T00:00:00Z") ||
+        (isoDate.getUTCHours() === 0 &&
+          isoDate.getUTCMinutes() === 0 &&
+          isoDate.getUTCSeconds() === 0);
+
+      if (isLikelyTimezoneIssue) {
+        // Extract the date part and treat it as local time
+        const dateOnly = dateString.split("T")[0];
+        const [year, month, day] = dateOnly.split("-");
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        return isoDate;
+      }
     } else {
-      // ISO string or other format
+      // Already a Date object or other format
       return new Date(dateString);
     }
   } catch (error) {

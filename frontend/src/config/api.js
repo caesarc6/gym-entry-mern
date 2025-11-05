@@ -139,6 +139,13 @@ export const API_ENDPOINTS = {
     buildApiUrl(`shared-workouts/shared/${shareToken}`),
   SAVE_SHARED_WORKOUT_BY_TOKEN: (shareToken) =>
     buildApiUrl(`shared-workouts/shared/${shareToken}/save`),
+
+  // Client shareable link endpoints (for all workouts under a client name)
+  GENERATE_CLIENT_SHAREABLE_LINK: buildApiUrl("shared-workouts/generate-client-link"),
+  GET_CLIENT_WORKOUTS_BY_TOKEN: (shareToken) =>
+    buildApiUrl(`shared-workouts/client-claim/${shareToken}`),
+  CLAIM_CLIENT_WORKOUTS_BY_TOKEN: (shareToken) =>
+    buildApiUrl(`shared-workouts/client-claim/${shareToken}/claim`),
 };
 
 // Axios instance with default configuration

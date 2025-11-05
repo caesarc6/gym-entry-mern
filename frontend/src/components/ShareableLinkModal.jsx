@@ -40,33 +40,68 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
 
     try {
       setIsGenerating(true);
-      const response = await apiClient.post(
-        API_ENDPOINTS.GENERATE_SHAREABLE_LINK(workout._id)
-      );
+      
+      // Check if this is a client link request
+      if (workout.isClientLink && workout.clientName) {
+        const response = await apiClient.post(
+          API_ENDPOINTS.GENERATE_CLIENT_SHAREABLE_LINK,
+          { clientName: workout.clientName }
+        );
 
-      if (response.data.success) {
-        setShareData(response.data.data);
+        if (response.data.success) {
+          setShareData(response.data.data);
 
-        // Auto-copy to clipboard on desktop devices
-        const isDesktop = window.innerWidth >= 768; // Desktop breakpoint
-        if (isDesktop) {
-          // Use a small delay to ensure the clipboard hook is updated
-          setTimeout(() => {
-            onCopy();
-          }, 100);
+          // Auto-copy to clipboard on desktop devices
+          const isDesktop = window.innerWidth >= 768; // Desktop breakpoint
+          if (isDesktop) {
+            // Use a small delay to ensure the clipboard hook is updated
+            setTimeout(() => {
+              onCopy();
+            }, 100);
+          }
+
+          toast({
+            title: "Client shareable link generated!",
+            description: isDesktop
+              ? `Your client link (${response.data.data.workoutCount} workouts) has been copied to clipboard and is ready to share.`
+              : `Your client link (${response.data.data.workoutCount} workouts) is ready to share.`,
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        } else {
+          throw new Error(response.data.message || "Failed to generate link");
         }
-
-        toast({
-          title: "Shareable link generated!",
-          description: isDesktop
-            ? "Your workout link has been copied to clipboard and is ready to share."
-            : "Your workout link is ready to share.",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
       } else {
-        throw new Error(response.data.message || "Failed to generate link");
+        // Single workout link
+        const response = await apiClient.post(
+          API_ENDPOINTS.GENERATE_SHAREABLE_LINK(workout._id)
+        );
+
+        if (response.data.success) {
+          setShareData(response.data.data);
+
+          // Auto-copy to clipboard on desktop devices
+          const isDesktop = window.innerWidth >= 768; // Desktop breakpoint
+          if (isDesktop) {
+            // Use a small delay to ensure the clipboard hook is updated
+            setTimeout(() => {
+              onCopy();
+            }, 100);
+          }
+
+          toast({
+            title: "Shareable link generated!",
+            description: isDesktop
+              ? "Your workout link has been copied to clipboard and is ready to share."
+              : "Your workout link is ready to share.",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        } else {
+          throw new Error(response.data.message || "Failed to generate link");
+        }
       }
     } catch (error) {
       console.error("Error generating shareable link:", error);
@@ -125,18 +160,32 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
             {workout && (
               <Box p={4} bg={cardBg} borderRadius="md" borderWidth="1px">
                 <VStack align="start" spacing={2}>
-                  <Text fontWeight="bold" fontSize="lg">
-                    {workout.workoutName}
-                  </Text>
-                  <Text fontSize="sm" color="gray.600" noOfLines={3}>
-                    {workout.description}
-                  </Text>
-                  <HStack fontSize="xs" color="gray.500">
-                    <Text>Client: {workout.clientName}</Text>
-                    <Badge colorScheme="blue" size="sm">
-                      {workout.totalShares || 0} shares
-                    </Badge>
-                  </HStack>
+                  {workout.isClientLink ? (
+                    <>
+                      <Text fontWeight="bold" fontSize="lg">
+                        Client: {workout.clientName}
+                      </Text>
+                      <Text fontSize="sm" color="gray.600">
+                        Generate a link that will allow clients to claim all workouts
+                        assigned to this client name.
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text fontWeight="bold" fontSize="lg">
+                        {workout.workoutName}
+                      </Text>
+                      <Text fontSize="sm" color="gray.600" noOfLines={3}>
+                        {workout.description}
+                      </Text>
+                      <HStack fontSize="xs" color="gray.500">
+                        <Text>Client: {workout.clientName}</Text>
+                        <Badge colorScheme="blue" size="sm">
+                          {workout.totalShares || 0} shares
+                        </Badge>
+                      </HStack>
+                    </>
+                  )}
                 </VStack>
               </Box>
             )}
@@ -146,14 +195,16 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
             {!shareData ? (
               <VStack spacing={4} align="stretch">
                 <Text color="gray.600" textAlign="center">
-                  Generate a shareable link that allows clients to view and save
-                  this workout to their account.
+                  {workout?.isClientLink
+                    ? "Generate a shareable link that allows clients to claim all workouts assigned to this client name."
+                    : "Generate a shareable link that allows clients to view and save this workout to their account."}
                 </Text>
                 <Box bg="blue.50" p={3} borderRadius="md">
                   <Text fontSize="sm" color="blue.800">
-                    💡 <strong>How it works:</strong> When someone clicks your
-                    link, they can view the workout details and save it to their
-                    account if they're signed in.
+                    💡 <strong>How it works:</strong>{" "}
+                    {workout?.isClientLink
+                      ? "When someone clicks your link, they can view all workouts and claim them all at once to their account if they're signed in."
+                      : "When someone clicks your link, they can view the workout details and save it to their account if they're signed in."}
                   </Text>
                 </Box>
                 <Button
@@ -240,8 +291,11 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
                     <br />
                     2. Send it to your client via text, email, or social media
                     <br />
-                    3. Your client can view the workout and save it to their
-                    account
+                    3. Your client can view{" "}
+                    {shareData?.workoutCount
+                      ? `all ${shareData.workoutCount} workouts and claim them`
+                      : "the workout and save it"}{" "}
+                    to their account
                     <br />
                     4. The link will be valid for 30 days
                   </Text>

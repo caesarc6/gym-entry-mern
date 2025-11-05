@@ -326,6 +326,12 @@ Created: ${formatDateSafe(workout.createdAt)}
     setIsShareModalOpen(true);
   };
 
+  // Handle share client (all workouts for a client)
+  const handleShareClient = (clientName) => {
+    setSharingWorkout({ clientName, isClientLink: true });
+    setIsShareModalOpen(true);
+  };
+
   // Close share modal
   const handleCloseShareModal = () => {
     setIsShareModalOpen(false);
@@ -498,7 +504,7 @@ Created: ${formatDateSafe(workout.createdAt)}
                           .includes(searchTerm.toLowerCase())
                       )
                   )
-                  .map((client, index) => {
+                  .map((client) => {
                     const clientWorkouts = getWorkoutsForClient(
                       client.clientName
                     );
@@ -508,16 +514,6 @@ Created: ${formatDateSafe(workout.createdAt)}
                           <HStack justify="space-between" align="start">
                             <VStack align="start" spacing={2}>
                               <HStack>
-                                {clientSortBy === "recent" && index < 3 && (
-                                  <Badge
-                                    colorScheme="orange"
-                                    size="lg"
-                                    borderRadius="full"
-                                    px={2}
-                                  >
-                                    #{index + 1}
-                                  </Badge>
-                                )}
                                 <Text fontWeight="bold" fontSize="lg">
                                   {capitalizeName(client.clientName)}
                                 </Text>
@@ -538,6 +534,17 @@ Created: ${formatDateSafe(workout.createdAt)}
                                   }
                                 >
                                   View Client
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  colorScheme="green"
+                                  variant="outline"
+                                  leftIcon={<LinkIcon />}
+                                  onClick={() =>
+                                    handleShareClient(client.clientName)
+                                  }
+                                >
+                                  Generate Client Link
                                 </Button>
                               </HStack>
                             </VStack>
@@ -566,55 +573,57 @@ Created: ${formatDateSafe(workout.createdAt)}
                                             {workout.workoutName}
                                           </Text>
                                         </VStack>
-                                        <Menu>
-                                          <MenuButton
-                                            as={IconButton}
-                                            icon={<HamburgerIcon />}
+                                        <HStack spacing={1}>
+                                          <IconButton
+                                            icon={<EditIcon />}
                                             variant="ghost"
-                                            size="xs"
+                                            size="sm"
+                                            aria-label="Edit workout"
+                                            onClick={() =>
+                                              handleEditWorkout(workout)
+                                            }
                                           />
-                                          <MenuList>
-                                            <MenuItem
-                                              icon={<ViewIcon />}
-                                              fontSize="sm"
-                                              onClick={() =>
-                                                handleViewWorkoutDetails(
-                                                  workout
-                                                )
-                                              }
-                                            >
-                                              View Details
-                                            </MenuItem>
-                                            <MenuItem
-                                              icon={<EditIcon />}
-                                              fontSize="sm"
-                                              onClick={() =>
-                                                handleEditWorkout(workout)
-                                              }
-                                            >
-                                              Edit Workout
-                                            </MenuItem>
-                                            <MenuItem
-                                              icon={<LinkIcon />}
-                                              fontSize="sm"
-                                              onClick={() =>
-                                                handleShareWorkout(workout)
-                                              }
-                                            >
-                                              Generate Share Link
-                                            </MenuItem>
-                                            <MenuItem
-                                              icon={<DeleteIcon />}
-                                              fontSize="sm"
-                                              onClick={() =>
-                                                handleDeleteWorkout(workout)
-                                              }
-                                              color="red.500"
-                                            >
-                                              Delete Workout
-                                            </MenuItem>
-                                          </MenuList>
-                                        </Menu>
+                                          <Menu>
+                                            <MenuButton
+                                              as={IconButton}
+                                              icon={<HamburgerIcon />}
+                                              variant="ghost"
+                                              size="sm"
+                                            />
+                                            <MenuList>
+                                              <MenuItem
+                                                icon={<ViewIcon />}
+                                                fontSize="sm"
+                                                onClick={() =>
+                                                  handleViewWorkoutDetails(
+                                                    workout
+                                                  )
+                                                }
+                                              >
+                                                View Details
+                                              </MenuItem>
+                                              <MenuItem
+                                                icon={<LinkIcon />}
+                                                fontSize="sm"
+                                                onClick={() =>
+                                                  handleShareWorkout(workout)
+                                                }
+                                              >
+                                                Generate Share Link
+                                              </MenuItem>
+                                              <MenuItem
+                                                icon={<DeleteIcon />}
+                                                fontSize="sm"
+                                                onClick={() =>
+                                                  handleDeleteWorkout(workout)
+                                                }
+                                                color="red.500"
+                                              >
+                                                Delete Workout
+                                              </MenuItem>
+                                            </MenuList>
+                                          </Menu>
+                                        </HStack>
                                       </HStack>
                                     </CardHeader>
                                     <CardBody pt={0}>
@@ -668,6 +677,15 @@ Created: ${formatDateSafe(workout.createdAt)}
                                   textAlign="center"
                                   border="1px dashed"
                                   borderColor={colors.border}
+                                  cursor="pointer"
+                                  _hover={{ borderColor: colors.textPrimary }}
+                                  onClick={() =>
+                                    navigate(
+                                      `/trainer/client/${encodeURIComponent(
+                                        client.clientName
+                                      )}`
+                                    )
+                                  }
                                 >
                                   <Text
                                     color={colors.textSecondary}
@@ -682,7 +700,7 @@ Created: ${formatDateSafe(workout.createdAt)}
                                     fontSize="xs"
                                     mt={1}
                                   >
-                                    Click "View Client" to see all workouts
+                                    Click to see all workouts
                                   </Text>
                                 </Box>
                               )}

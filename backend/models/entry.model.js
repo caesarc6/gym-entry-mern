@@ -105,6 +105,25 @@ const entrySchema = new mongoose.Schema(
       ref: "Entry",
       default: null,
     },
+    // Reference to SharedWorkout if this entry came from a claimed workout
+    sharedWorkoutId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SharedWorkout",
+      default: null,
+    },
+    // Trainer information if this workout was shared by a trainer
+    trainerUid: {
+      type: String,
+      default: null,
+    },
+    trainerName: {
+      type: String,
+      default: null,
+    },
+    trainerUsername: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true, // createdAt, updatedAt

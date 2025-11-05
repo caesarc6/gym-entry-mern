@@ -14,6 +14,7 @@ import SharedWorkoutPage from "./pages/SharedWorkoutPage";
 import TrainerDashboard from "./pages/TrainerDashboard";
 import CreateSharedWorkout from "./pages/CreateSharedWorkout";
 import ClientWorkoutsPage from "./pages/ClientWorkoutsPage";
+import ClientClaimPage from "./pages/ClientClaimPage";
 import { useTheme } from "./contexts/ThemeContext";
 
 function App() {
@@ -62,6 +63,10 @@ function App() {
         <Route
           path="/shared-workout/:shareToken"
           element={<SharedWorkoutPage />}
+        />
+        <Route
+          path="/client-claim/:shareToken"
+          element={<ClientClaimPage />}
         />
         <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
         <Route

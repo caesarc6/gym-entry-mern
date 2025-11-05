@@ -18,6 +18,9 @@ import {
   getSharedWorkoutByToken,
   saveSharedWorkoutToAccount,
   getTrainerClients,
+  generateClientShareableLink,
+  getClientWorkoutsByToken,
+  claimClientWorkoutsByToken,
 } from "../controllers/sharedWorkout.controller.js";
 import { verifyIdToken } from "../middleware/auth.js";
 
@@ -63,6 +66,19 @@ router.post(
   "/shared/:shareToken/save",
   verifyIdToken,
   saveSharedWorkoutToAccount
+);
+
+// Client shareable link routes (for all workouts under a client name)
+router.post(
+  "/generate-client-link",
+  verifyIdToken,
+  generateClientShareableLink
+);
+router.get("/client-claim/:shareToken", getClientWorkoutsByToken); // Public route
+router.post(
+  "/client-claim/:shareToken/claim",
+  verifyIdToken,
+  claimClientWorkoutsByToken
 );
 
 // Test route
