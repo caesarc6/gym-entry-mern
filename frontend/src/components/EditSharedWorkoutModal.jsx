@@ -13,11 +13,6 @@ import {
   Input,
   Textarea,
   useColorModeValue,
-  Tag,
-  TagLabel,
-  TagCloseButton,
-  Wrap,
-  WrapItem,
   HStack,
   Box,
   FormHelperText,
@@ -27,6 +22,7 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { FileUploader } from "./FileUploader";
 import { parseDateSafe } from "../utils/dateUtils";
+import { capitalizeName } from "../utils/nameUtils";
 
 const EditSharedWorkoutModal = ({
   isOpen,
@@ -42,7 +38,6 @@ const EditSharedWorkoutModal = ({
     tags: [],
     createdAt: "",
   });
-  const [newTag, setNewTag] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toast = useCustomToast();
@@ -80,7 +75,6 @@ const EditSharedWorkoutModal = ({
         tags: sharedWorkout.tags || [],
         createdAt: extractDateForForm(sharedWorkout.createdAt),
       });
-      setNewTag("");
     }
   }, [isOpen, sharedWorkout]);
 
@@ -88,28 +82,6 @@ const EditSharedWorkoutModal = ({
     setFormData((prev) => ({
       ...prev,
       [field]: value,
-    }));
-  };
-
-  const addTag = () => {
-    if (!newTag.trim()) return;
-
-    if (formData.tags.includes(newTag.trim())) {
-      toast.error("Error", "Tag already exists");
-      return;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      tags: [...prev.tags, newTag.trim()],
-    }));
-    setNewTag("");
-  };
-
-  const removeTag = (tagToRemove) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: prev.tags.filter((tag) => tag !== tagToRemove),
     }));
   };
 
@@ -166,7 +138,6 @@ const EditSharedWorkoutModal = ({
       tags: [],
       createdAt: "",
     });
-    setNewTag("");
     onClose();
   };
 
@@ -174,27 +145,16 @@ const EditSharedWorkoutModal = ({
     <Modal isOpen={isOpen} onClose={handleClose} size="2xl">
       <ModalOverlay />
       <ModalContent bg={bgColor} maxW="800px">
-        <ModalHeader>Edit Workout</ModalHeader>
+        <ModalHeader>
+          {sharedWorkout?.clientName
+            ? `Edit ${capitalizeName(sharedWorkout.clientName)}'s Workout`
+            : "Edit Workout"}
+        </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <VStack spacing={6} align="stretch">
             {/* Basic Information */}
             <VStack spacing={4}>
-              <FormControl>
-                <FormLabel>Client Name</FormLabel>
-                <Input
-                  placeholder="Client name"
-                  value={formData.clientName}
-                  onChange={(e) =>
-                    handleInputChange("clientName", e.target.value)
-                  }
-                />
-                <FormHelperText>
-                  This workout will be organized under this client on your
-                  dashboard
-                </FormHelperText>
-              </FormControl>
-
               <FormControl isRequired>
                 <FormLabel>Workout Name</FormLabel>
                 <Input
@@ -215,10 +175,6 @@ const EditSharedWorkoutModal = ({
                     handleInputChange("createdAt", e.target.value)
                   }
                 />
-                <FormHelperText>
-                  Set the date when this workout was created (useful for
-                  backdating)
-                </FormHelperText>
               </FormControl>
 
               <FormControl isRequired>
@@ -231,7 +187,7 @@ const EditSharedWorkoutModal = ({
   Dumbbell Rows 50lbs - 12 10 8 6
   Shoulder Press 50lbs - 12 10 8 6
   Assisted Pull-ups 50lbs - 12 10 8 6"
-                  rows={15}
+                  rows={10}
                   value={formData.description}
                   onChange={(e) =>
                     handleInputChange("description", e.target.value)
@@ -262,35 +218,6 @@ const EditSharedWorkoutModal = ({
                       }}
                     />
                   </Box>
-                )}
-              </FormControl>
-
-              {/* Tags */}
-              <FormControl>
-                <FormLabel>Tags (Optional)</FormLabel>
-                <HStack w="full">
-                  <Input
-                    placeholder="Add tags for better organization..."
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && addTag()}
-                  />
-                  <Button onClick={addTag} size="sm">
-                    Add
-                  </Button>
-                </HStack>
-
-                {formData.tags.length > 0 && (
-                  <Wrap mt={2}>
-                    {formData.tags.map((tag, index) => (
-                      <WrapItem key={index}>
-                        <Tag size="md" colorScheme="blue" variant="solid">
-                          <TagLabel>{tag}</TagLabel>
-                          <TagCloseButton onClick={() => removeTag(tag)} />
-                        </Tag>
-                      </WrapItem>
-                    ))}
-                  </Wrap>
                 )}
               </FormControl>
             </VStack>

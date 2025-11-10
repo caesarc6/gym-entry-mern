@@ -270,10 +270,6 @@ const CreateSharedWorkout = () => {
                     handleInputChange("createdAt", e.target.value)
                   }
                 />
-                <FormHelperText>
-                  Set the date when this workout was created (useful for
-                  backdating)
-                </FormHelperText>
               </FormControl>
 
               <FormControl isRequired>
@@ -319,39 +315,6 @@ const CreateSharedWorkout = () => {
                   </Box>
                 )}
               </FormControl>
-            </VStack>
-          </CardBody>
-        </Card>
-
-        {/* Tags */}
-        <Card bg={bgColor}>
-          <CardHeader>
-            <Heading size="md">Tags (Optional)</Heading>
-          </CardHeader>
-          <CardBody>
-            <VStack spacing={4}>
-              <HStack w="full">
-                <Input
-                  placeholder="Add tags for better organization..."
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && addTag()}
-                />
-                <Button onClick={addTag}>Add Tag</Button>
-              </HStack>
-
-              {sharedWorkout.tags.length > 0 && (
-                <Wrap>
-                  {sharedWorkout.tags.map((tag, index) => (
-                    <WrapItem key={index}>
-                      <Tag size="md" colorScheme="blue" variant="solid">
-                        <TagLabel>{tag}</TagLabel>
-                        <TagCloseButton onClick={() => removeTag(tag)} />
-                      </Tag>
-                    </WrapItem>
-                  ))}
-                </Wrap>
-              )}
             </VStack>
           </CardBody>
         </Card>

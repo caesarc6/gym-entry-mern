@@ -235,10 +235,6 @@ const CreateSharedWorkoutModal = ({
                     handleInputChange("createdAt", e.target.value)
                   }
                 />
-                <FormHelperText>
-                  Set the date when this workout was created (useful for
-                  backdating)
-                </FormHelperText>
               </FormControl>
 
               <FormControl isRequired>
@@ -282,35 +278,6 @@ const CreateSharedWorkoutModal = ({
                       }}
                     />
                   </Box>
-                )}
-              </FormControl>
-
-              {/* Tags */}
-              <FormControl>
-                <FormLabel>Tags (Optional)</FormLabel>
-                <HStack w="full">
-                  <Input
-                    placeholder="Add tags for better organization..."
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && addTag()}
-                  />
-                  <Button onClick={addTag} size="sm">
-                    Add
-                  </Button>
-                </HStack>
-
-                {formData.tags.length > 0 && (
-                  <Wrap mt={2}>
-                    {formData.tags.map((tag, index) => (
-                      <WrapItem key={index}>
-                        <Tag size="md" colorScheme="blue" variant="solid">
-                          <TagLabel>{tag}</TagLabel>
-                          <TagCloseButton onClick={() => removeTag(tag)} />
-                        </Tag>
-                      </WrapItem>
-                    ))}
-                  </Wrap>
                 )}
               </FormControl>
             </VStack>

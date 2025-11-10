@@ -80,7 +80,6 @@ const ClientWorkoutsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("created");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedAssignmentForContinue, setSelectedAssignmentForContinue] =
     useState(null);
   const [isContinueModalOpen, setIsContinueModalOpen] = useState(false);
@@ -217,13 +216,6 @@ const ClientWorkoutsPage = () => {
   // Filter and sort assignments
   const getFilteredAssignments = () => {
     let filtered = [...assignments];
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(
-        (assignment) => assignment.status === statusFilter
-      );
-    }
 
     // Apply search filter
     if (searchTerm) {
@@ -411,7 +403,13 @@ const ClientWorkoutsPage = () => {
     <Container maxW="container.xl" pt={20} pb={8} px={6}>
       <VStack spacing={8} align="stretch">
         {/* Header */}
-        <HStack justify="space-between" align="center">
+        <HStack
+          justify="space-between"
+          align="center"
+          spacing={4}
+          flexWrap="wrap"
+          rowGap={4}
+        >
           <VStack align="start" spacing={2}>
             <HStack>
               <Button
@@ -432,8 +430,10 @@ const ClientWorkoutsPage = () => {
             leftIcon={<AddIcon />}
             colorScheme="blue"
             onClick={() => setIsCreateModalOpen(true)}
+            w={{ base: "full", md: "auto" }}
+            justifyContent="center"
           >
-            Create Workout for {capitalizeName(clientName)}
+            Create Workout
           </Button>
         </HStack>
 
@@ -459,17 +459,6 @@ const ClientWorkoutsPage = () => {
                 <option value="created">Sort by Date</option>
                 <option value="name">Sort by Name</option>
                 <option value="status">Sort by Status</option>
-              </Select>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                maxW="200px"
-              >
-                <option value="all">All Statuses</option>
-                <option value="shared">Shared</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="skipped">Skipped</option>
               </Select>
             </HStack>
           </CardBody>
@@ -515,11 +504,6 @@ const ClientWorkoutsPage = () => {
                                 {getStatusIcon(assignment.status)}
                                 {assignment.status.replace("_", " ")}
                               </Badge>
-                              {assignment.isVirtual && (
-                                <Badge colorScheme="gray" size="sm">
-                                  Direct Client
-                                </Badge>
-                              )}
                             </HStack>
                             <HStack spacing={4} fontSize="sm" color="gray.600">
                               <HStack>
@@ -731,13 +715,20 @@ const ClientWorkoutsPage = () => {
                           )}
 
                         {/* Action Buttons */}
-                        <HStack justify="flex-end" spacing={3}>
+                        <HStack
+                          justify="flex-end"
+                          spacing={3}
+                          flexWrap="wrap"
+                          rowGap={2}
+                        >
                           <Button
                             size="sm"
                             colorScheme="blue"
                             variant="outline"
                             leftIcon={<EditIcon />}
                             onClick={() => handleEditWorkout(assignment)}
+                            w={{ base: "full", sm: "auto" }}
+                            justifyContent="center"
                           >
                             Edit Workout
                           </Button>
@@ -749,6 +740,7 @@ const ClientWorkoutsPage = () => {
                                 onClick={() =>
                                   handleContinueWorkout(assignment)
                                 }
+                                w={{ base: "full", sm: "auto" }}
                               >
                                 Continue Workout
                               </Button>
@@ -775,7 +767,7 @@ const ClientWorkoutsPage = () => {
                       No workouts found for {capitalizeName(clientName)}
                     </Text>
                     <Text fontSize="sm" color="gray.400" textAlign="center">
-                      {searchTerm || statusFilter !== "all"
+                      {searchTerm
                         ? "Try adjusting your search or filter criteria"
                         : "Create workouts for this client to see them here"}
                     </Text>

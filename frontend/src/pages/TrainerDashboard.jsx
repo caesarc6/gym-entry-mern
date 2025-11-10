@@ -511,20 +511,31 @@ Created: ${formatDateSafe(workout.createdAt)}
                     return (
                       <Card key={client.clientName} bg={colors.bgCard}>
                         <CardHeader>
-                          <HStack justify="space-between" align="start">
+                          <HStack
+                            justify="space-between"
+                            align="start"
+                            spacing={4}
+                            flexWrap="wrap"
+                          >
                             <VStack align="start" spacing={2}>
-                              <HStack>
+                              <HStack
+                                spacing={2}
+                                flexWrap="wrap"
+                                columnGap={2}
+                                rowGap={2}
+                                alignItems="center"
+                              >
                                 <Text fontWeight="bold" fontSize="lg">
                                   {capitalizeName(client.clientName)}
                                 </Text>
-                                <Badge colorScheme="orange" size="sm">
-                                  {clientWorkouts.length} workout
-                                  {clientWorkouts.length !== 1 ? "s" : ""}
-                                </Badge>
                                 <Button
                                   size="xs"
                                   colorScheme="purple"
                                   variant="outline"
+                                  whiteSpace="nowrap"
+                                  h="auto"
+                                  fontSize="xs"
+                                  px={3}
                                   onClick={() =>
                                     navigate(
                                       `/trainer/client/${encodeURIComponent(
@@ -540,11 +551,15 @@ Created: ${formatDateSafe(workout.createdAt)}
                                   colorScheme="green"
                                   variant="outline"
                                   leftIcon={<LinkIcon />}
+                                  whiteSpace="nowrap"
+                                  h="auto"
+                                  fontSize="xs"
+                                  px={3}
                                   onClick={() =>
                                     handleShareClient(client.clientName)
                                   }
                                 >
-                                  Generate Client Link
+                                  Client Link
                                 </Button>
                               </HStack>
                             </VStack>
