@@ -34,6 +34,7 @@ const CreateSharedWorkoutModal = ({
   isOpen,
   onClose,
   clientName,
+  displayClientName,
   onSuccess,
 }) => {
   const [formData, setFormData] = useState({
@@ -208,7 +209,11 @@ const CreateSharedWorkoutModal = ({
       <ModalOverlay />
       <ModalContent bg={bgColor} maxW="600px">
         <ModalHeader>
-          Create Workout for {capitalizeName(clientName)}
+          {clientName || displayClientName
+            ? `Create Workout for ${capitalizeName(
+                displayClientName || clientName
+              )}`
+            : "Create Shared Workout"}
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
@@ -295,7 +300,11 @@ const CreateSharedWorkoutModal = ({
               isLoading={isSubmitting}
               loadingText="Creating..."
             >
-              Create Workout for {capitalizeName(clientName)}
+              {clientName || displayClientName
+                ? `Create Workout for ${capitalizeName(
+                    displayClientName || clientName
+                  )}`
+                : "Create Workout"}
             </Button>
           </HStack>
         </ModalFooter>

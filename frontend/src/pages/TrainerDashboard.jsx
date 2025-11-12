@@ -45,6 +45,7 @@ import { useProductStore } from "../store/product";
 import { capitalizeName, normalizeNameForStorage } from "../utils/nameUtils";
 import { formatDateSafe } from "../utils/dateUtils";
 import EditSharedWorkoutModal from "../components/EditSharedWorkoutModal";
+import CreateSharedWorkoutModal from "../components/CreateSharedWorkoutModal";
 import { useThemeColors } from "../hooks/useThemeColors";
 import ShareableLinkModal from "../components/ShareableLinkModal";
 
@@ -67,6 +68,9 @@ const TrainerDashboard = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("workouts"); // "workouts" or "clients"
   const [clientSortBy, setClientSortBy] = useState("recent"); // "recent" or "name"
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [clientForQuickCreate, setClientForQuickCreate] = useState("");
+  const [clientDisplayName, setClientDisplayName] = useState("");
 
   const navigate = useNavigate();
   const toast = useCustomToast();
@@ -332,6 +336,30 @@ Created: ${formatDateSafe(workout.createdAt)}
     setIsShareModalOpen(true);
   };
 
+  const handleQuickCreateWorkout = (clientName) => {
+    const normalizedName = normalizeNameForStorage(clientName);
+    setClientForQuickCreate(normalizedName);
+    setClientDisplayName(clientName);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+    setClientForQuickCreate("");
+    setClientDisplayName("");
+  };
+
+  const handleCreateSuccess = () => {
+    fetchData();
+    toast.success(
+      "Success",
+      `Workout created for ${capitalizeName(
+        clientDisplayName || clientForQuickCreate
+      )}`
+    );
+    handleCloseCreateModal();
+  };
+
   // Close share modal
   const handleCloseShareModal = () => {
     setIsShareModalOpen(false);
@@ -560,6 +588,21 @@ Created: ${formatDateSafe(workout.createdAt)}
                                   }
                                 >
                                   Client Link
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  colorScheme="blue"
+                                  variant="solid"
+                                  leftIcon={<AddIcon />}
+                                  whiteSpace="nowrap"
+                                  h="auto"
+                                  fontSize="xs"
+                                  px={3}
+                                  onClick={() =>
+                                    handleQuickCreateWorkout(client.clientName)
+                                  }
+                                >
+                                  Create Workout
                                 </Button>
                               </HStack>
                             </VStack>
@@ -971,6 +1014,13 @@ Created: ${formatDateSafe(workout.createdAt)}
         isOpen={isShareModalOpen}
         onClose={handleCloseShareModal}
         workout={sharingWorkout}
+      />
+      <CreateSharedWorkoutModal
+        isOpen={isCreateModalOpen}
+        onClose={handleCloseCreateModal}
+        clientName={clientForQuickCreate}
+        displayClientName={clientDisplayName}
+        onSuccess={handleCreateSuccess}
       />
     </Container>
   );

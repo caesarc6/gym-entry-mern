@@ -798,7 +798,8 @@ const ClientWorkoutsPage = () => {
         <CreateSharedWorkoutModal
           isOpen={isCreateModalOpen}
           onClose={handleCloseCreateModal}
-          clientName={clientName}
+          clientName={normalizeNameForStorage(clientName)}
+          displayClientName={capitalizeName(clientName)}
           onSuccess={handleCreateSuccess}
         />
       </VStack>

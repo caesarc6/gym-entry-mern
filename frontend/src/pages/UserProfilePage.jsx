@@ -180,6 +180,9 @@ const UserProfilePage = () => {
             createdAt: post.createdAt || new Date().toISOString(),
             uid: post.uid || userId, // ProductCard expects 'uid' field
             ownerId: post.uid || userId,
+            trainerUid: post.trainerUid || null,
+            trainerName: post.trainerName || null,
+            trainerUsername: post.trainerUsername || null,
           }));
           setEntries(normalizedEntries);
           setPagination(postsData.pagination);

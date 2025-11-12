@@ -25,7 +25,7 @@ import {
   Spinner,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AddIcon, DeleteIcon, ArrowBackIcon } from "@chakra-ui/icons";
 import { FileUploader } from "../components/FileUploader";
 import { useCustomToast } from "../hooks/useCustomToast";
@@ -47,8 +47,10 @@ const CreateSharedWorkout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clients, setClients] = useState([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [isClientPrefilled, setIsClientPrefilled] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useCustomToast();
   const bgColor = useColorModeValue("white", "gray.800");
   const cardBg = useColorModeValue("gray.50", "gray.700");
@@ -98,6 +100,21 @@ const CreateSharedWorkout = () => {
   useEffect(() => {
     fetchClients();
   }, []);
+
+  // Prefill client name if provided via query params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const clientParam = params.get("client");
+    if (clientParam && clientParam.trim().length > 0) {
+      setIsClientPrefilled(true);
+      setSharedWorkout((prev) => ({
+        ...prev,
+        clientName: clientParam.trim(),
+      }));
+    } else {
+      setIsClientPrefilled(false);
+    }
+  }, [location.search]);
 
   const handleInputChange = (field, value) => {
     setSharedWorkout((prev) => ({
@@ -219,7 +236,11 @@ const CreateSharedWorkout = () => {
             <VStack spacing={4}>
               <FormControl>
                 <FormLabel>Client Name</FormLabel>
-                {isLoadingClients ? (
+                {isClientPrefilled ? (
+                  <Text fontWeight="semibold">
+                    {capitalizeName(sharedWorkout.clientName)}
+                  </Text>
+                ) : isLoadingClients ? (
                   <HStack>
                     <Spinner size="sm" />
                     <Text fontSize="sm" color="gray.500">
@@ -245,9 +266,11 @@ const CreateSharedWorkout = () => {
                     </datalist>
                   </VStack>
                 )}
-                <FormHelperText>
-                  Type a new client name or select from existing clients
-                </FormHelperText>
+                {!isClientPrefilled && (
+                  <FormHelperText>
+                    Type a new client name or select from existing clients
+                  </FormHelperText>
+                )}
               </FormControl>
 
               <FormControl isRequired>

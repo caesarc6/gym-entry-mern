@@ -253,7 +253,13 @@ const ProfilePage = () => {
       const data = response.data;
 
       if (data.success) {
-        setEntries(data.data || []);
+        const normalizedPosts = (data.data || []).map((post) => ({
+          ...post,
+          trainerUid: post.trainerUid || null,
+          trainerName: post.trainerName || null,
+          trainerUsername: post.trainerUsername || null,
+        }));
+        setEntries(normalizedPosts);
         setPagination(data.pagination);
       } else {
         console.error("Failed to fetch posts:", data.message);

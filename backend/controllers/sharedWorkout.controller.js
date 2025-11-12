@@ -41,7 +41,12 @@ export const createSharedWorkout = async (req, res) => {
     // If client name is provided, automatically create an share
     if (clientName && clientName.trim()) {
       const normalizedClientName = clientName.trim().toLowerCase();
-      
+      const escapedClientName = normalizedClientName.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+      const nameMatchRegex = new RegExp(`^${escapedClientName}$`, "i");
+
       // Create name-only assignment for future claims
       const share = new WorkoutAssignment({
         sharedWorkoutId: sharedWorkout._id,
@@ -66,12 +71,30 @@ export const createSharedWorkout = async (req, res) => {
 
       // Find all users who have previously claimed workouts for this client name from this trainer
       // This means they've already linked their account to this client name
-      const existingClaimedUserIds = await WorkoutAssignment.find({
+      const matchCriteria = {
         sharedByUid: uid,
-        assignedToName: normalizedClientName,
         assignedToUid: { $ne: null }, // Only registered users
         isRegisteredUser: true,
-      }).distinct("assignedToUid");
+        assignedToName: nameMatchRegex,
+      };
+
+      const existingClaimedAssignments = await WorkoutAssignment.find(
+        matchCriteria
+      ).select("assignedToUid");
+
+      const existingClaimedUserIds = [
+        ...new Set(
+          existingClaimedAssignments
+            .map((assignment) => assignment.assignedToUid)
+            .filter(Boolean)
+        ),
+      ];
+
+      if (existingClaimedAssignments.length > 0) {
+        await WorkoutAssignment.updateMany(matchCriteria, {
+          assignedToName: normalizedClientName,
+        });
+      }
 
       // Track how many users get auto-assigned
       let autoAssignedCount = 0;
@@ -98,7 +121,7 @@ export const createSharedWorkout = async (req, res) => {
           const autoAssignment = new WorkoutAssignment({
             sharedWorkoutId: sharedWorkout._id,
             assignedToUid: userId,
-            assignedToName: user.name || normalizedClientName,
+            assignedToName: normalizedClientName,
             assignedToEmail: user.email || null,
             isRegisteredUser: true,
             sharedByUid: uid,

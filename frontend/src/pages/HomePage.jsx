@@ -281,6 +281,9 @@ const HomePage = () => {
                 createdAt: post.createdAt || new Date().toISOString(),
                 ownerId: post.uid || fetchUid,
                 uid: post.uid || fetchUid,
+                trainerUid: post.trainerUid || null,
+                trainerName: post.trainerName || null,
+                trainerUsername: post.trainerUsername || null,
               }));
             }
             return [];
