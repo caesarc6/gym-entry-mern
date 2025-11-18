@@ -72,16 +72,24 @@ export const createSharedWorkout = async (req, res) => {
 
       // Find all users who have previously claimed workouts for this client name from this trainer
       // This means they've already linked their account to this client name
-      const matchCriteria = {
-        sharedByUid: uid,
+      // Strategy: Find all SharedWorkouts for this client name, then find users who claimed them
+
+      // First, find all existing workouts for this client name from this trainer
+      const existingClientWorkouts = await SharedWorkout.find({
+        creatorUid: uid,
+        clientName: nameMatchRegex,
+        isActive: true,
+      }).select("_id");
+
+      const existingWorkoutIds = existingClientWorkouts.map((w) => w._id);
+
+      // Then, find all users who have claimed any of those workouts
+      // This works regardless of what assignedToName they have
+      const existingClaimedAssignments = await WorkoutAssignment.find({
+        sharedWorkoutId: { $in: existingWorkoutIds },
         assignedToUid: { $ne: null }, // Only registered users
         isRegisteredUser: true,
-        assignedToName: nameMatchRegex,
-      };
-
-      const existingClaimedAssignments = await WorkoutAssignment.find(
-        matchCriteria
-      ).select("assignedToUid");
+      }).select("assignedToUid assignedToName");
 
       const existingClaimedUserIds = [
         ...new Set(
@@ -91,10 +99,19 @@ export const createSharedWorkout = async (req, res) => {
         ),
       ];
 
+      // Update assignedToName for all existing assignments to use the normalized client name
+      // This ensures consistency for future matching
       if (existingClaimedAssignments.length > 0) {
-        await WorkoutAssignment.updateMany(matchCriteria, {
-          assignedToName: normalizedClientName,
-        });
+        await WorkoutAssignment.updateMany(
+          {
+            sharedWorkoutId: { $in: existingWorkoutIds },
+            assignedToUid: { $ne: null },
+            isRegisteredUser: true,
+          },
+          {
+            assignedToName: normalizedClientName,
+          }
+        );
       }
 
       // Track how many users get auto-assigned
