@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import SharedWorkout from "../models/sharedWorkout.model.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
 import { User } from "../models/user.model.js";
+import Entry from "../models/entry.model.js";
 
 // Create a new shared workout
 export const createSharedWorkout = async (req, res) => {
@@ -102,8 +103,6 @@ export const createSharedWorkout = async (req, res) => {
       // If there are users who have previously claimed workouts for this client name,
       // automatically assign this new workout to them
       if (existingClaimedUserIds.length > 0) {
-        const Entry = (await import("../models/entry.model.js")).default;
-
         for (const userId of existingClaimedUserIds) {
           // Get user info
           const user = await User.findOne({ uid: userId });
@@ -127,7 +126,8 @@ export const createSharedWorkout = async (req, res) => {
             sharedByUid: uid,
             sharedByName: name || "Trainer",
             customLabel: workoutName,
-            instructions: "Automatically assigned - new workout for your client profile",
+            instructions:
+              "Automatically assigned - new workout for your client profile",
             targetDate: null,
             dueDate: null,
           });
@@ -136,14 +136,18 @@ export const createSharedWorkout = async (req, res) => {
           autoAssignedCount++;
 
           // Get trainer info for display
-          const trainer = await User.findOne({ uid: uid }).select("name username");
-          
+          const trainer = await User.findOne({ uid: uid }).select(
+            "name username"
+          );
+
           // Create workout post on the user's profile
           const workoutPost = new Entry({
             name: workoutName,
             uid: userId,
             description: description, // Store description without prefix
-            image: image || "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
+            image:
+              image ||
+              "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
             shareable: false,
             shareToken: null,
             shareExpiry: null,
@@ -170,7 +174,9 @@ export const createSharedWorkout = async (req, res) => {
       // Build response message
       let message = "Shared workout created successfully";
       if (autoAssignedCount > 0) {
-        message = `Shared workout created and automatically assigned to ${autoAssignedCount} existing client${autoAssignedCount > 1 ? "s" : ""}`;
+        message = `Shared workout created and automatically assigned to ${autoAssignedCount} existing client${
+          autoAssignedCount > 1 ? "s" : ""
+        }`;
       } else {
         message = "Shared workout created and sent to client successfully";
       }
@@ -315,7 +321,6 @@ export const updateSharedWorkout = async (req, res) => {
 
     // Update all Entry posts that are linked to this SharedWorkout
     // This ensures that when a trainer edits a workout, clients see the updated version
-    const Entry = (await import("../models/entry.model.js")).default;
     const entryUpdates = {};
 
     // Build updates only for fields that were actually changed
@@ -334,13 +339,15 @@ export const updateSharedWorkout = async (req, res) => {
     if (Object.keys(entryUpdates).length > 0) {
       // Convert sharedWorkoutId to ObjectId for consistent querying
       const workoutObjectId = new mongoose.Types.ObjectId(sharedWorkoutId);
-      
+
       // Find all entries linked to this SharedWorkout
       const linkedEntries = await Entry.find({
         sharedWorkoutId: workoutObjectId,
       });
 
-      console.log(`🔍 [SHARED_WORKOUT] Found ${linkedEntries.length} Entry post(s) linked to SharedWorkout ${sharedWorkoutId}`);
+      console.log(
+        `🔍 [SHARED_WORKOUT] Found ${linkedEntries.length} Entry post(s) linked to SharedWorkout ${sharedWorkoutId}`
+      );
 
       if (linkedEntries.length > 0) {
         const updateResult = await Entry.updateMany(
@@ -348,10 +355,17 @@ export const updateSharedWorkout = async (req, res) => {
           { $set: entryUpdates }
         );
 
-        console.log(`✅ [SHARED_WORKOUT] Updated ${updateResult.modifiedCount} Entry post(s) linked to SharedWorkout ${sharedWorkoutId}`);
-        console.log(`✅ [SHARED_WORKOUT] Updated fields:`, Object.keys(entryUpdates));
+        console.log(
+          `✅ [SHARED_WORKOUT] Updated ${updateResult.modifiedCount} Entry post(s) linked to SharedWorkout ${sharedWorkoutId}`
+        );
+        console.log(
+          `✅ [SHARED_WORKOUT] Updated fields:`,
+          Object.keys(entryUpdates)
+        );
       } else {
-        console.log(`⚠️ [SHARED_WORKOUT] No Entry posts found with sharedWorkoutId: ${sharedWorkoutId}`);
+        console.log(
+          `⚠️ [SHARED_WORKOUT] No Entry posts found with sharedWorkoutId: ${sharedWorkoutId}`
+        );
         // Try to find entries by workout name as fallback (for entries created before sharedWorkoutId was added)
         const fallbackEntries = await Entry.find({
           name: template.workoutName,
@@ -360,22 +374,26 @@ export const updateSharedWorkout = async (req, res) => {
         });
 
         if (fallbackEntries.length > 0) {
-          console.log(`⚠️ [SHARED_WORKOUT] Found ${fallbackEntries.length} Entry post(s) by name fallback - updating them and adding sharedWorkoutId`);
-          
+          console.log(
+            `⚠️ [SHARED_WORKOUT] Found ${fallbackEntries.length} Entry post(s) by name fallback - updating them and adding sharedWorkoutId`
+          );
+
           // Update these entries with sharedWorkoutId and new data
           const fallbackUpdate = {
             ...entryUpdates,
             sharedWorkoutId: workoutObjectId, // Add the sharedWorkoutId for future syncing
           };
-          
+
           const fallbackResult = await Entry.updateMany(
-            { 
-              _id: { $in: fallbackEntries.map(e => e._id) }
+            {
+              _id: { $in: fallbackEntries.map((e) => e._id) },
             },
             { $set: fallbackUpdate }
           );
 
-          console.log(`✅ [SHARED_WORKOUT] Updated ${fallbackResult.modifiedCount} fallback Entry post(s) and added sharedWorkoutId`);
+          console.log(
+            `✅ [SHARED_WORKOUT] Updated ${fallbackResult.modifiedCount} fallback Entry post(s) and added sharedWorkoutId`
+          );
         }
       }
     }
@@ -913,21 +931,24 @@ export const claimPendingWorkouts = async (req, res) => {
     const claimedAssignments = await Promise.all(updatePromises);
 
     // Create workout posts for each claimed assignment
-    const Entry = (await import("../models/entry.model.js")).default;
     const workoutPosts = [];
 
     for (const assignment of claimedAssignments) {
       if (assignment.sharedWorkoutId) {
         const sharedWorkout = assignment.sharedWorkoutId;
-        
+
         // Get trainer info for display
-        const trainer = await User.findOne({ uid: sharedWorkout.creatorUid }).select("name username");
-        
+        const trainer = await User.findOne({
+          uid: sharedWorkout.creatorUid,
+        }).select("name username");
+
         const workoutPost = new Entry({
           name: sharedWorkout.workoutName,
           uid: uid,
           description: sharedWorkout.description, // Store description without prefix
-          image: sharedWorkout.image || "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
+          image:
+            sharedWorkout.image ||
+            "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
           shareable: false,
           shareToken: null,
           shareExpiry: null,
@@ -1128,15 +1149,18 @@ export const saveSharedWorkoutToAccount = async (req, res) => {
     await assignment.save();
 
     // Get trainer info for display
-    const trainer = await User.findOne({ uid: sharedWorkout.creatorUid }).select("name username");
-    
+    const trainer = await User.findOne({
+      uid: sharedWorkout.creatorUid,
+    }).select("name username");
+
     // Create a workout post on the client's profile
-    const Entry = (await import("../models/entry.model.js")).default;
     const workoutPost = new Entry({
       name: sharedWorkout.workoutName,
       uid: uid,
       description: sharedWorkout.description, // Store description without prefix
-      image: sharedWorkout.image || "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
+      image:
+        sharedWorkout.image ||
+        "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
       shareable: false,
       shareToken: null,
       shareExpiry: null,
@@ -1352,11 +1376,9 @@ export const getClientWorkoutsByToken = async (req, res) => {
         // If decodeURIComponent fails, token might not be URL-encoded, use as-is
         decodedToken = shareToken;
       }
-      
+
       // Restore base64 format (replace URL-safe characters back)
-      const base64Token = decodedToken
-        .replace(/-/g, "+")
-        .replace(/_/g, "/");
+      const base64Token = decodedToken.replace(/-/g, "+").replace(/_/g, "/");
       // Add padding if needed
       const paddedToken =
         base64Token + "=".repeat((4 - (base64Token.length % 4)) % 4);
@@ -1372,7 +1394,11 @@ export const getClientWorkoutsByToken = async (req, res) => {
     // Split token data
     const tokenParts = tokenData.split(":");
     if (tokenParts.length !== 4) {
-      console.error("Invalid token format. Expected 4 parts, got:", tokenParts.length, tokenData);
+      console.error(
+        "Invalid token format. Expected 4 parts, got:",
+        tokenParts.length,
+        tokenData
+      );
       return res.status(400).json({
         success: false,
         message: "Invalid share token format",
@@ -1384,7 +1410,11 @@ export const getClientWorkoutsByToken = async (req, res) => {
 
     // Validate token components
     if (!uid || !normalizedClientName || isNaN(expiresAt)) {
-      console.error("Invalid token components:", { uid, normalizedClientName, expiresAt });
+      console.error("Invalid token components:", {
+        uid,
+        normalizedClientName,
+        expiresAt,
+      });
       return res.status(400).json({
         success: false,
         message: "Invalid share token - missing required components",
@@ -1468,11 +1498,9 @@ export const claimClientWorkoutsByToken = async (req, res) => {
         // If decodeURIComponent fails, token might not be URL-encoded, use as-is
         decodedToken = shareToken;
       }
-      
+
       // Restore base64 format (replace URL-safe characters back)
-      const base64Token = decodedToken
-        .replace(/-/g, "+")
-        .replace(/_/g, "/");
+      const base64Token = decodedToken.replace(/-/g, "+").replace(/_/g, "/");
       // Add padding if needed
       const paddedToken =
         base64Token + "=".repeat((4 - (base64Token.length % 4)) % 4);
@@ -1488,7 +1516,11 @@ export const claimClientWorkoutsByToken = async (req, res) => {
     // Split token data
     const tokenParts = tokenData.split(":");
     if (tokenParts.length !== 4) {
-      console.error("Invalid token format. Expected 4 parts, got:", tokenParts.length, tokenData);
+      console.error(
+        "Invalid token format. Expected 4 parts, got:",
+        tokenParts.length,
+        tokenData
+      );
       return res.status(400).json({
         success: false,
         message: "Invalid share token format",
@@ -1500,7 +1532,11 @@ export const claimClientWorkoutsByToken = async (req, res) => {
 
     // Validate token components
     if (!trainerUid || !normalizedClientName || isNaN(expiresAt)) {
-      console.error("Invalid token components:", { trainerUid, normalizedClientName, expiresAt });
+      console.error("Invalid token components:", {
+        trainerUid,
+        normalizedClientName,
+        expiresAt,
+      });
       return res.status(400).json({
         success: false,
         message: "Invalid share token - missing required components",
@@ -1541,12 +1577,13 @@ export const claimClientWorkoutsByToken = async (req, res) => {
 
     // Check if Entry posts exist for already-claimed workouts
     // If assignments exist but entries don't, we need to create them
-    const Entry = (await import("../models/entry.model.js")).default;
     const existingEntryWorkoutNames = new Set(
-      (await Entry.find({
-        uid: uid,
-        name: { $in: clientWorkouts.map((w) => w.workoutName) },
-      })).map((e) => e.name)
+      (
+        await Entry.find({
+          uid: uid,
+          name: { $in: clientWorkouts.map((w) => w.workoutName) },
+        })
+      ).map((e) => e.name)
     );
 
     // Filter out workouts that have already been claimed
@@ -1565,23 +1602,30 @@ export const claimClientWorkoutsByToken = async (req, res) => {
     const createdMissingEntries = [];
     for (const workout of missingEntryWorkouts) {
       // Get trainer info for display
-      const trainer = await User.findOne({ uid: workout.creatorUid }).select("name username");
-      
+      const trainer = await User.findOne({ uid: workout.creatorUid }).select(
+        "name username"
+      );
+
       // Also update the existing assignment to use the normalized client name for future auto-assignment
       const existingAssignment = existingAssignments.find(
         (a) => a.sharedWorkoutId.toString() === workout._id.toString()
       );
-      if (existingAssignment && existingAssignment.assignedToName !== normalizedClientName) {
+      if (
+        existingAssignment &&
+        existingAssignment.assignedToName !== normalizedClientName
+      ) {
         await WorkoutAssignment.findByIdAndUpdate(existingAssignment._id, {
           assignedToName: normalizedClientName, // Update to use client name for future matching
         });
       }
-      
+
       const workoutPost = new Entry({
         name: workout.workoutName,
         uid: uid,
         description: workout.description, // Store description without prefix
-        image: workout.image || "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
+        image:
+          workout.image ||
+          "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
         shareable: false,
         shareToken: null,
         shareExpiry: null,
@@ -1600,7 +1644,9 @@ export const claimClientWorkoutsByToken = async (req, res) => {
         image: workoutPost.image,
         createdAt: workoutPost.createdAt,
       });
-      console.log(`Created missing Entry post for workout: ${workout.workoutName}`);
+      console.log(
+        `Created missing Entry post for workout: ${workout.workoutName}`
+      );
     }
 
     // If all workouts are already claimed and we've created all missing entries,
@@ -1608,7 +1654,11 @@ export const claimClientWorkoutsByToken = async (req, res) => {
     if (workoutsToClaim.length === 0 && createdMissingEntries.length > 0) {
       return res.status(200).json({
         success: true,
-        message: `All workouts were already claimed. Created ${createdMissingEntries.length} missing post${createdMissingEntries.length > 1 ? "s" : ""} in your profile feed.`,
+        message: `All workouts were already claimed. Created ${
+          createdMissingEntries.length
+        } missing post${
+          createdMissingEntries.length > 1 ? "s" : ""
+        } in your profile feed.`,
         data: {
           claimedCount: 0,
           skippedCount: clientWorkouts.length,
@@ -1623,7 +1673,9 @@ export const claimClientWorkoutsByToken = async (req, res) => {
     if (workoutsToClaim.length === 0) {
       return res.status(200).json({
         success: true,
-        message: `All ${clientWorkouts.length} workout${clientWorkouts.length > 1 ? "s are" : " is"} already claimed and appear in your profile feed.`,
+        message: `All ${clientWorkouts.length} workout${
+          clientWorkouts.length > 1 ? "s are" : " is"
+        } already claimed and appear in your profile feed.`,
         data: {
           claimedCount: 0,
           skippedCount: clientWorkouts.length,
@@ -1657,14 +1709,18 @@ export const claimClientWorkoutsByToken = async (req, res) => {
       assignments.push(assignment);
 
       // Get trainer info for display
-      const trainer = await User.findOne({ uid: workout.creatorUid }).select("name username");
-      
+      const trainer = await User.findOne({ uid: workout.creatorUid }).select(
+        "name username"
+      );
+
       // Create a workout post on the client's profile
       const workoutPost = new Entry({
         name: workout.workoutName,
         uid: uid,
         description: workout.description, // Store description without prefix
-        image: workout.image || "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
+        image:
+          workout.image ||
+          "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
         shareable: false,
         shareToken: null,
         shareExpiry: null,
@@ -1694,15 +1750,17 @@ export const claimClientWorkoutsByToken = async (req, res) => {
     let message = `Successfully claimed ${assignments.length} workout${
       assignments.length > 1 ? "s" : ""
     }!`;
-    
+
     if (existingAssignments.length > 0) {
       message += ` (${existingAssignments.length} workout${
         existingAssignments.length > 1 ? "s were" : " was"
       } already claimed and skipped)`;
     }
-    
+
     if (createdMissingEntries.length > 0) {
-      message += ` Created ${createdMissingEntries.length} missing post${createdMissingEntries.length > 1 ? "s" : ""} in your profile feed.`;
+      message += ` Created ${createdMissingEntries.length} missing post${
+        createdMissingEntries.length > 1 ? "s" : ""
+      } in your profile feed.`;
     }
 
     res.status(201).json({
