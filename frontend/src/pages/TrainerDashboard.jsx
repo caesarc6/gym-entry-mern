@@ -80,12 +80,8 @@ const TrainerDashboard = () => {
 
   // Fetch data on component mount and when user is authenticated
   useEffect(() => {
-    console.log("TrainerDashboard: currentUserInfo changed:", currentUserInfo);
     if (currentUserInfo) {
-      console.log("TrainerDashboard: User is authenticated, fetching data");
       fetchData();
-    } else {
-      console.log("TrainerDashboard: User is not authenticated");
     }
   }, [currentUserInfo]);
 
@@ -121,7 +117,6 @@ const TrainerDashboard = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      console.log("TrainerDashboard: Starting to fetch data");
 
       // Fetch shared workouts (request all with high limit to avoid pagination issues)
       const sharedWorkoutsResponse = await apiClient.get(
@@ -132,8 +127,6 @@ const TrainerDashboard = () => {
       const clientsResponse = await apiClient.get(
         `${API_ENDPOINTS.GET_TRAINER_CLIENTS}?limit=1000`
       );
-
-      console.log("TrainerDashboard: Data fetched successfully");
 
       const sharedWorkoutsData =
         sharedWorkoutsResponse.data.data.sharedWorkouts || [];
