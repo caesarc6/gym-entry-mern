@@ -33,7 +33,7 @@ Open your terminal and run this command (replace the placeholders):
 ### Option A: Using Email
 
 ```bash
-mongosh "mongodb+srv://caesarc6:GXW3zmhaBTyihrrx@cluster0.plpvq.mongodb.net/entrys?retryWrites=true&w=majority&appName=Cluster0" --eval 'db.users.updateOne({ email: "caesarcd6@gmail.com" }, { $set: { isAdmin: true } })'
+mongosh "YOUR_MONGODB_CONNECTION_STRING" --eval 'db.users.updateOne({ email: "your-email@example.com" }, { $set: { isAdmin: true } })'
 ```
 
 ### Option B: Using Firebase UID
@@ -135,7 +135,7 @@ If you prefer not to install `mongosh`, you can use these alternatives:
 
 ```bash
 cd backend
-npm run set-admin caesarcd6@gmail.com
+npm run set-admin your-email@example.com
 ```
 
 This uses your existing Node.js setup and doesn't require installing anything new.
