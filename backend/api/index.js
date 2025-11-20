@@ -1,3 +1,7 @@
+// Buffer polyfill for Node.js compatibility
+// Import polyfill early to ensure Buffer is available globally
+import "../polyfills/buffer.js";
+
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
@@ -98,18 +102,18 @@ app.get("/api", (req, res) => {
   res.send("Server deployed and running on vercel.");
 });
 
-// Temporary test endpoints
-app.get("/api/entrys/test", (req, res) => {
-  res.json({ message: "Entries endpoint is working!" });
-});
+// Temporary test endpoints (removed to avoid conflicts with actual routes)
+// app.get("/api/entrys/test", (req, res) => {
+//   res.json({ message: "Entries endpoint is working!" });
+// });
 
-app.get("/api/getCurrentUser", (req, res) => {
-  res.json({ message: "User endpoint is working!" });
-});
+// app.get("/api/getCurrentUser", (req, res) => {
+//   res.json({ message: "User endpoint is working!" });
+// });
 
-app.get("/api/posts/:uid", (req, res) => {
-  res.json({ message: "Posts endpoint is working!", uid: req.params.uid });
-});
+// app.get("/api/posts/:uid", (req, res) => {
+//   res.json({ message: "Posts endpoint is working!", uid: req.params.uid });
+// });
 
 // Test route to check if the server is working
 app.get("/api/test", (req, res) => {

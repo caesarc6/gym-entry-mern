@@ -15,6 +15,7 @@ import TrainerDashboard from "./pages/TrainerDashboard";
 import CreateSharedWorkout from "./pages/CreateSharedWorkout";
 import ClientWorkoutsPage from "./pages/ClientWorkoutsPage";
 import ClientClaimPage from "./pages/ClientClaimPage";
+import AdminDashboard from "./pages/AdminDashboard";
 import { useTheme } from "./contexts/ThemeContext";
 
 function App() {
@@ -77,6 +78,7 @@ function App() {
           path="/trainer/client/:clientName"
           element={<ClientWorkoutsPage />}
         />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
       </Routes>
     </Box>
   );

@@ -1,0 +1,10 @@
+{
+  "exec": "node --require ./polyfills/buffer.cjs",
+  "watch": ["api", "config", "controllers", "middleware", "models", "routes", "utils"],
+  "ext": "js,json",
+  "ignore": ["node_modules", "*.test.js"],
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
+

@@ -21,6 +21,17 @@ const userSchema = new mongoose.Schema(
       showEmail: { type: Boolean, default: false },
       showEntries: { type: Boolean, default: true },
     },
+    // Trainer dashboard access (beta feature)
+    trainerDashboardAccess: {
+      type: String,
+      enum: ["none", "requested", "approved"],
+      default: "none",
+    },
+    // Admin flag
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

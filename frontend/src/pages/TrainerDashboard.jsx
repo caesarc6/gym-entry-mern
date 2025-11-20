@@ -48,6 +48,7 @@ import EditSharedWorkoutModal from "../components/EditSharedWorkoutModal";
 import CreateSharedWorkoutModal from "../components/CreateSharedWorkoutModal";
 import { useThemeColors } from "../hooks/useThemeColors";
 import ShareableLinkModal from "../components/ShareableLinkModal";
+import ViewSharedWorkoutModal from "../components/ViewSharedWorkoutModal";
 
 const TrainerDashboard = () => {
   const [sharedWorkouts, setSharedWorkouts] = useState([]);
@@ -71,6 +72,11 @@ const TrainerDashboard = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [clientForQuickCreate, setClientForQuickCreate] = useState("");
   const [clientDisplayName, setClientDisplayName] = useState("");
+  const [hasAccess, setHasAccess] = useState(false);
+  const [accessStatus, setAccessStatus] = useState("none");
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [viewingWorkout, setViewingWorkout] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const navigate = useNavigate();
   const toast = useCustomToast();
@@ -78,12 +84,53 @@ const TrainerDashboard = () => {
 
   const { currentUserInfo } = useProductStore();
 
+  // Check trainer dashboard access on mount
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (!currentUserInfo) {
+        setCheckingAccess(false);
+        return;
+      }
+
+      try {
+        const response = await apiClient.get(
+          API_ENDPOINTS.CHECK_TRAINER_DASHBOARD_ACCESS
+        );
+        if (response.data.success) {
+          const access = response.data.hasAccess || false;
+          const status = response.data.accessStatus || "none";
+          setHasAccess(access);
+          setAccessStatus(status);
+
+          if (!access) {
+            toast.error(
+              "Access Required",
+              "You need trainer dashboard access to view this page. Please request access in Settings."
+            );
+            setTimeout(() => navigate("/privacy"), 2000);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking trainer dashboard access:", error);
+        toast.error(
+          "Error",
+          "Failed to verify trainer dashboard access. Please try again."
+        );
+        setTimeout(() => navigate("/"), 2000);
+      } finally {
+        setCheckingAccess(false);
+      }
+    };
+
+    checkAccess();
+  }, [currentUserInfo, navigate, toast]);
+
   // Fetch data on component mount and when user is authenticated
   useEffect(() => {
-    if (currentUserInfo) {
+    if (currentUserInfo && hasAccess) {
       fetchData();
     }
-  }, [currentUserInfo]);
+  }, [currentUserInfo, hasAccess]);
 
   // Handle existing general workouts - convert them to client-specific or delete them
   const handleGeneralWorkouts = async () => {
@@ -306,15 +353,14 @@ const TrainerDashboard = () => {
 
   // Handle view workout details
   const handleViewWorkoutDetails = (workout) => {
-    const workoutInfo = `
-Workout: ${workout.workoutName}
-Client: ${workout.clientName || "Not specified"}
-Total Shares: ${workout.totalShares || 0}
-Completions: ${workout.completions || 0}
-Created: ${formatDateSafe(workout.createdAt)}
-    `.trim();
+    setViewingWorkout(workout);
+    setIsViewModalOpen(true);
+  };
 
-    alert(workoutInfo);
+  // Close view modal
+  const handleCloseViewModal = () => {
+    setIsViewModalOpen(false);
+    setViewingWorkout(null);
   };
 
   // Handle share workout
@@ -366,6 +412,46 @@ Created: ${formatDateSafe(workout.createdAt)}
           <VStack spacing={4}>
             <Text>Please log in to access the trainer dashboard.</Text>
             <Button onClick={() => navigate("/")}>Go to Home</Button>
+          </VStack>
+        </Center>
+      </Container>
+    );
+  }
+
+  if (checkingAccess) {
+    return (
+      <Container maxW="container.xl" pt={20} pb={8} px={6}>
+        <Center>
+          <VStack spacing={4}>
+            <Spinner size="xl" />
+            <Text>Checking access...</Text>
+          </VStack>
+        </Center>
+      </Container>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <Container maxW="container.xl" pt={20} pb={8} px={6}>
+        <Center>
+          <VStack spacing={4}>
+            <Text fontSize="lg" fontWeight="semibold">
+              Trainer Dashboard Access Required
+            </Text>
+            <Text textAlign="center" color={colors.textSecondary}>
+              {accessStatus === "requested"
+                ? "Your request for trainer dashboard access is pending review. We'll notify you once it's approved."
+                : "The trainer dashboard is currently in beta. Please request access in Settings to use this feature."}
+            </Text>
+            <HStack spacing={4}>
+              <Button onClick={() => navigate("/privacy")}>
+                Go to Settings
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/")}>
+                Go to Home
+              </Button>
+            </HStack>
           </VStack>
         </Center>
       </Container>
@@ -546,17 +632,13 @@ Created: ${formatDateSafe(workout.createdAt)}
                                 rowGap={2}
                                 alignItems="center"
                               >
-                                <Text fontWeight="bold" fontSize="lg">
-                                  {capitalizeName(client.clientName)}
-                                </Text>
-                                <Button
-                                  size="xs"
-                                  colorScheme="purple"
-                                  variant="outline"
-                                  whiteSpace="nowrap"
-                                  h="auto"
-                                  fontSize="xs"
-                                  px={3}
+                                <Text
+                                  fontWeight="bold"
+                                  fontSize="lg"
+                                  cursor="pointer"
+                                  color={colors.textPrimary}
+                                  _hover={{ opacity: 0.7 }}
+                                  transition="opacity 0.2s"
                                   onClick={() =>
                                     navigate(
                                       `/trainer/client/${encodeURIComponent(
@@ -565,37 +647,39 @@ Created: ${formatDateSafe(workout.createdAt)}
                                     )
                                   }
                                 >
-                                  View Client
-                                </Button>
+                                  {capitalizeName(client.clientName)}
+                                </Text>
                                 <Button
-                                  size="xs"
-                                  colorScheme="green"
-                                  variant="outline"
+                                  size="sm"
+                                  // colorScheme="green"
+                                  variant="solid"
                                   leftIcon={<LinkIcon />}
                                   whiteSpace="nowrap"
                                   h="auto"
-                                  fontSize="xs"
-                                  px={3}
+                                  fontSize="sm"
+                                  height={7}
+                                  px={2}
                                   onClick={() =>
                                     handleShareClient(client.clientName)
                                   }
                                 >
-                                  Client Link
+                                  Sharable Link
                                 </Button>
                                 <Button
                                   size="xs"
-                                  colorScheme="blue"
+                                  colorScheme="gray"
                                   variant="solid"
                                   leftIcon={<AddIcon />}
                                   whiteSpace="nowrap"
                                   h="auto"
-                                  fontSize="xs"
+                                  fontSize="sm"
+                                  height={7}
                                   px={3}
                                   onClick={() =>
                                     handleQuickCreateWorkout(client.clientName)
                                   }
                                 >
-                                  Create Workout
+                                  New Workout
                                 </Button>
                               </HStack>
                             </VStack>
@@ -613,6 +697,15 @@ Created: ${formatDateSafe(workout.createdAt)}
                                     key={workout._id}
                                     bg={colors.bgMuted}
                                     size="sm"
+                                    cursor="pointer"
+                                    _hover={{
+                                      bg: colors.bgMuted,
+                                      opacity: 0.8,
+                                    }}
+                                    transition="all 0.2s"
+                                    onClick={() =>
+                                      handleViewWorkoutDetails(workout)
+                                    }
                                   >
                                     <CardHeader pb={2}>
                                       <HStack justify="space-between">
@@ -624,7 +717,10 @@ Created: ${formatDateSafe(workout.createdAt)}
                                             {workout.workoutName}
                                           </Text>
                                         </VStack>
-                                        <HStack spacing={1}>
+                                        <HStack
+                                          spacing={1}
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
                                           <IconButton
                                             icon={<EditIcon />}
                                             variant="ghost"
@@ -1014,6 +1110,13 @@ Created: ${formatDateSafe(workout.createdAt)}
         clientName={clientForQuickCreate}
         displayClientName={clientDisplayName}
         onSuccess={handleCreateSuccess}
+      />
+
+      {/* View Workout Modal */}
+      <ViewSharedWorkoutModal
+        isOpen={isViewModalOpen}
+        onClose={handleCloseViewModal}
+        workout={viewingWorkout}
       />
     </Container>
   );

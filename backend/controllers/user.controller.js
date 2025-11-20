@@ -1554,6 +1554,249 @@ export const getUsers = async (req, res) => {
   }
 };
 
+// Request trainer dashboard access
+export const requestTrainerDashboardAccess = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const user = await User.findOne({ uid });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if already approved
+    if (user.trainerDashboardAccess === "approved") {
+      return res.status(200).json({
+        success: true,
+        message: "You already have trainer dashboard access",
+        accessStatus: "approved",
+      });
+    }
+
+    // Update to requested status
+    user.trainerDashboardAccess = "requested";
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Trainer dashboard access requested successfully",
+      accessStatus: "requested",
+    });
+  } catch (error) {
+    console.error("Error requesting trainer dashboard access:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Check trainer dashboard access status
+export const checkTrainerDashboardAccess = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const user = await User.findOne({ uid }).select("trainerDashboardAccess");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const accessStatus = user.trainerDashboardAccess || "none";
+    const hasAccess = accessStatus === "approved";
+
+    res.status(200).json({
+      success: true,
+      accessStatus,
+      hasAccess,
+    });
+  } catch (error) {
+    console.error("Error checking trainer dashboard access:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Admin: Check if user is admin
+export const checkIsAdmin = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const user = await User.findOne({ uid }).select("isAdmin");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      isAdmin: user.isAdmin || false,
+    });
+  } catch (error) {
+    console.error("Error checking admin status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Admin: Get all trainer dashboard access requests
+export const getTrainerDashboardRequests = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const currentUser = await User.findOne({ uid }).select("isAdmin");
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!currentUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: Admin access required",
+      });
+    }
+
+    // Get all users with requested or approved status
+    const requests = await User.find({
+      trainerDashboardAccess: { $in: ["requested", "approved"] },
+    })
+      .select("uid name email username picture trainerDashboardAccess createdAt")
+      .sort({ createdAt: -1 });
+
+    // Separate pending requests and approved users
+    const pendingRequests = requests.filter(
+      (user) => user.trainerDashboardAccess === "requested"
+    );
+    const approvedUsers = requests.filter(
+      (user) => user.trainerDashboardAccess === "approved"
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pendingRequests,
+        approvedUsers,
+        totalPending: pendingRequests.length,
+        totalApproved: approvedUsers.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching trainer dashboard requests:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Admin: Approve trainer dashboard access
+export const approveTrainerDashboardAccess = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const { userId } = req.params; // The user ID to approve
+
+    const currentUser = await User.findOne({ uid }).select("isAdmin");
+    if (!currentUser || !currentUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: Admin access required",
+      });
+    }
+
+    const userToApprove = await User.findOne({ uid: userId });
+    if (!userToApprove) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    userToApprove.trainerDashboardAccess = "approved";
+    await userToApprove.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Trainer dashboard access approved successfully",
+      data: {
+        uid: userToApprove.uid,
+        name: userToApprove.name,
+        email: userToApprove.email,
+        accessStatus: userToApprove.trainerDashboardAccess,
+      },
+    });
+  } catch (error) {
+    console.error("Error approving trainer dashboard access:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Admin: Reject trainer dashboard access
+export const rejectTrainerDashboardAccess = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const { userId } = req.params; // The user ID to reject
+
+    const currentUser = await User.findOne({ uid }).select("isAdmin");
+    if (!currentUser || !currentUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: Admin access required",
+      });
+    }
+
+    const userToReject = await User.findOne({ uid: userId });
+    if (!userToReject) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    userToReject.trainerDashboardAccess = "none";
+    await userToReject.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Trainer dashboard access rejected successfully",
+      data: {
+        uid: userToReject.uid,
+        name: userToReject.name,
+        email: userToReject.email,
+        accessStatus: userToReject.trainerDashboardAccess,
+      },
+    });
+  } catch (error) {
+    console.error("Error rejecting trainer dashboard access:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 export const getFollowers = async (req, res) => {
   try {
     const { userId } = req.params;

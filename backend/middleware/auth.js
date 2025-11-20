@@ -6,7 +6,10 @@ async function verifyIdToken(req, res, next) {
 
   if (!idToken) {
     console.error("No ID token found in authorization header");
-    return res.status(403).send("Unauthorized");
+    return res.status(403).json({ 
+      success: false,
+      message: "Unauthorized: No authentication token provided" 
+    });
   }
 
   try {
@@ -15,7 +18,27 @@ async function verifyIdToken(req, res, next) {
     next();
   } catch (error) {
     console.error("Error while verifying Firebase ID token:", error);
-    res.status(403).send("Unauthorized");
+    console.error("Error details:", {
+      code: error.code,
+      message: error.message,
+      url: req.originalUrl,
+      method: req.method
+    });
+    
+    // Provide more specific error messages
+    if (error.code === "auth/id-token-expired") {
+      return res.status(403).json({
+        success: false,
+        message: "Token expired. Please log out and log back in.",
+        code: "TOKEN_EXPIRED"
+      });
+    }
+    
+    return res.status(403).json({
+      success: false,
+      message: "Unauthorized: Invalid or expired authentication token",
+      code: "AUTH_FAILED"
+    });
   }
 }
 

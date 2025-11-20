@@ -35,6 +35,12 @@ import {
   checkFollowRequestStatus,
   cancelFollowRequest,
   getBatchProfileImages,
+  requestTrainerDashboardAccess,
+  checkTrainerDashboardAccess,
+  checkIsAdmin,
+  getTrainerDashboardRequests,
+  approveTrainerDashboardAccess,
+  rejectTrainerDashboardAccess,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -134,6 +140,36 @@ router.get(
   "/follow-request/status/:userId",
   verifyIdToken,
   checkFollowRequestStatus
+);
+
+// Trainer dashboard access routes
+router.post(
+  "/trainer-dashboard/request",
+  verifyIdToken,
+  requestTrainerDashboardAccess
+);
+router.get(
+  "/trainer-dashboard/access",
+  verifyIdToken,
+  checkTrainerDashboardAccess
+);
+
+// Admin routes
+router.get("/admin/check", verifyIdToken, checkIsAdmin);
+router.get(
+  "/admin/trainer-dashboard-requests",
+  verifyIdToken,
+  getTrainerDashboardRequests
+);
+router.post(
+  "/admin/trainer-dashboard/approve/:userId",
+  verifyIdToken,
+  approveTrainerDashboardAccess
+);
+router.post(
+  "/admin/trainer-dashboard/reject/:userId",
+  verifyIdToken,
+  rejectTrainerDashboardAccess
 );
 
 export default router;

@@ -12,16 +12,25 @@ import {
   VStack,
   Text,
   Spinner,
+  Divider,
+  Alert,
+  AlertIcon,
 } from "@chakra-ui/react";
 import { useColorMode } from "@chakra-ui/react";
+import { apiClient, API_ENDPOINTS } from "../config/api";
 
 const PrivacySettings = () => {
   const [privacySettings, setPrivacySettings] = useState({
     isPrivate: false,
     showEntries: true,
   });
+  const [trainerDashboardAccess, setTrainerDashboardAccess] = useState({
+    status: "none",
+    hasAccess: false,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRequestingAccess, setIsRequestingAccess] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -60,6 +69,22 @@ const PrivacySettings = () => {
           isPrivate: userData.privacy.isPrivate,
           showEntries: userData.privacy.showEntries,
         });
+
+        // Fetch trainer dashboard access status
+        try {
+          const accessResponse = await apiClient.get(
+            API_ENDPOINTS.CHECK_TRAINER_DASHBOARD_ACCESS
+          );
+          if (accessResponse.data.success) {
+            setTrainerDashboardAccess({
+              status: accessResponse.data.accessStatus || "none",
+              hasAccess: accessResponse.data.hasAccess || false,
+            });
+          }
+        } catch (accessError) {
+          console.error("Error fetching trainer dashboard access:", accessError);
+          // Don't fail the whole page if this fails
+        }
       } catch (error) {
         console.error("Error fetching privacy settings:", error);
         toast({
@@ -152,6 +177,45 @@ const PrivacySettings = () => {
     }
   };
 
+  const handleRequestTrainerDashboardAccess = async () => {
+    setIsRequestingAccess(true);
+    try {
+      const response = await apiClient.post(
+        API_ENDPOINTS.REQUEST_TRAINER_DASHBOARD_ACCESS
+      );
+
+      if (response.data.success) {
+        setTrainerDashboardAccess({
+          status: response.data.accessStatus,
+          hasAccess: response.data.accessStatus === "approved",
+        });
+        toast({
+          title: "Success",
+          description:
+            response.data.accessStatus === "approved"
+              ? "You already have trainer dashboard access!"
+              : "Trainer dashboard access requested successfully. We'll review your request soon.",
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error requesting trainer dashboard access:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message ||
+          "Failed to request trainer dashboard access",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsRequestingAccess(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Box
@@ -221,6 +285,58 @@ const PrivacySettings = () => {
             </Button>
           </VStack>
         </form>
+
+        <Divider my={6} />
+
+        {/* Trainer Dashboard Access Section */}
+        <VStack spacing={4} align="stretch">
+          <Heading size="md">Trainer Dashboard (Beta)</Heading>
+          <Text fontSize="sm" color="gray.500">
+            The trainer dashboard is currently in beta. Request access to use
+            this feature.
+          </Text>
+
+          {trainerDashboardAccess.status === "approved" ? (
+            <Alert status="success" borderRadius="md">
+              <AlertIcon />
+              <VStack align="start" spacing={1}>
+                <Text fontWeight="semibold">
+                  You have trainer dashboard access!
+                </Text>
+                <Button
+                  size="sm"
+                  colorScheme="blue"
+                  onClick={() => navigate("/trainer/dashboard")}
+                >
+                  Go to Trainer Dashboard
+                </Button>
+              </VStack>
+            </Alert>
+          ) : trainerDashboardAccess.status === "requested" ? (
+            <Alert status="info" borderRadius="md">
+              <AlertIcon />
+              <VStack align="start" spacing={1}>
+                <Text fontWeight="semibold">
+                  Access request pending review
+                </Text>
+                <Text fontSize="sm">
+                  Your request for trainer dashboard access is being reviewed.
+                  We'll notify you once it's approved.
+                </Text>
+              </VStack>
+            </Alert>
+          ) : (
+            <Button
+              colorScheme="blue"
+              variant="outline"
+              isLoading={isRequestingAccess}
+              onClick={handleRequestTrainerDashboardAccess}
+              width="full"
+            >
+              Request Trainer Dashboard Access
+            </Button>
+          )}
+        </VStack>
       </VStack>
     </Box>
   );

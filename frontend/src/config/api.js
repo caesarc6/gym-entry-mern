@@ -69,6 +69,20 @@ export const API_ENDPOINTS = {
   // Privacy endpoints
   PRIVACY: buildApiUrl("privacy"),
 
+  // Trainer dashboard access endpoints
+  REQUEST_TRAINER_DASHBOARD_ACCESS: buildApiUrl("trainer-dashboard/request"),
+  CHECK_TRAINER_DASHBOARD_ACCESS: buildApiUrl("trainer-dashboard/access"),
+
+  // Admin endpoints
+  CHECK_IS_ADMIN: buildApiUrl("admin/check"),
+  GET_TRAINER_DASHBOARD_REQUESTS: buildApiUrl(
+    "admin/trainer-dashboard-requests"
+  ),
+  APPROVE_TRAINER_DASHBOARD_ACCESS: (userId) =>
+    buildApiUrl(`admin/trainer-dashboard/approve/${userId}`),
+  REJECT_TRAINER_DASHBOARD_ACCESS: (userId) =>
+    buildApiUrl(`admin/trainer-dashboard/reject/${userId}`),
+
   // Search endpoints
   SEARCH_USERS: (query) =>
     buildApiUrl(`searchUsers?query=${encodeURIComponent(query)}`),
@@ -141,7 +155,9 @@ export const API_ENDPOINTS = {
     buildApiUrl(`shared-workouts/shared/${shareToken}/save`),
 
   // Client shareable link endpoints (for all workouts under a client name)
-  GENERATE_CLIENT_SHAREABLE_LINK: buildApiUrl("shared-workouts/generate-client-link"),
+  GENERATE_CLIENT_SHAREABLE_LINK: buildApiUrl(
+    "shared-workouts/generate-client-link"
+  ),
   GET_CLIENT_WORKOUTS_BY_TOKEN: (shareToken) =>
     buildApiUrl(`shared-workouts/client-claim/${shareToken}`),
   CLAIM_CLIENT_WORKOUTS_BY_TOKEN: (shareToken) =>
@@ -167,12 +183,35 @@ apiClient.interceptors.request.use(
 
     if (auth.currentUser) {
       try {
-        // Force refresh the token to ensure it's valid
-        const token = await auth.currentUser.getIdToken(true);
-        config.headers.Authorization = `Bearer ${token}`;
+        // Try to get token without forcing refresh first (uses cached token if available)
+        let token;
+        try {
+          token = await auth.currentUser.getIdToken(false);
+        } catch (error) {
+          // If cached token fails, try with refresh
+          try {
+            token = await auth.currentUser.getIdToken(true);
+          } catch (refreshError) {
+            console.error(
+              "❌ Failed to refresh token:",
+              refreshError.code,
+              refreshError.message
+            );
+            throw refreshError;
+          }
+        }
+
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
       } catch (error) {
-        console.error("Error getting auth token:", error);
-        // If token refresh fails, redirect to login or show error
+        console.error(
+          "❌ Error getting auth token:",
+          error.code,
+          error.message
+        );
+        // If token refresh fails, try to continue without token (backend will handle auth)
+        // This prevents blocking all requests when Firebase has issues
         if (
           error.code === "auth/user-token-expired" ||
           error.code === "auth/user-disabled"
@@ -191,26 +230,25 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Response interceptor to log backend error messages
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
-    console.error("API Error:", {
-      message: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      url: error.config?.url,
-      method: error.config?.method,
-    });
-
-    // Handle 403 Forbidden errors
-    if (error.response?.status === 403) {
-      console.error("Authentication failed - 403 Forbidden");
-      // You might want to redirect to login or show an error message here
+    // Log detailed error information from backend
+    if (error.response) {
+      console.error("❌ Backend Error Response:", {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        url: error.config?.url,
+        message: error.response.data?.message,
+        code: error.response.data?.code,
+        fullError: error.response.data,
+      });
+    } else {
+      console.error("❌ Network Error:", error.message);
     }
-
     return Promise.reject(error);
   }
 );

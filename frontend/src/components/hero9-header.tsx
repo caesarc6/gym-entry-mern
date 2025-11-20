@@ -13,6 +13,7 @@ import { PiSignOutThin } from "react-icons/pi";
 import { MdPrivacyTip } from "react-icons/md";
 import { FiUsers } from "react-icons/fi";
 import { MdArrowDropDown } from "react-icons/md";
+import { HiShieldCheck } from "react-icons/hi";
 import {
   Input,
   VStack,
@@ -53,6 +54,9 @@ export const HeroHeader = () => {
   const [isSearching, setIsSearching] = React.useState(false);
   const [hasSearched, setHasSearched] = React.useState(false);
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
+  const [hasTrainerDashboardAccess, setHasTrainerDashboardAccess] =
+    React.useState(false);
+  const [isAdmin, setIsAdmin] = React.useState(false);
   const searchRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -156,11 +160,54 @@ export const HeroHeader = () => {
         setUid(null);
         setUserName("");
         setEntries([]);
+        setHasTrainerDashboardAccess(false);
       }
       setIsLoading(false);
     });
     return () => unsubscribe();
   }, []);
+
+  // Check trainer dashboard access when user is signed in
+  React.useEffect(() => {
+    if (isSignedIn && uid) {
+      const checkAccess = async () => {
+        try {
+          const response = await apiClient.get(
+            API_ENDPOINTS.CHECK_TRAINER_DASHBOARD_ACCESS
+          );
+          if (response.data.success) {
+            setHasTrainerDashboardAccess(response.data.hasAccess || false);
+          }
+        } catch (error) {
+          console.error("Error checking trainer dashboard access:", error);
+          // Default to false on error
+          setHasTrainerDashboardAccess(false);
+        }
+      };
+      checkAccess();
+    }
+  }, [isSignedIn, uid]);
+
+  // Check admin status when user is signed in
+  React.useEffect(() => {
+    if (isSignedIn && uid) {
+      const checkAdminStatus = async () => {
+        try {
+          const response = await apiClient.get(API_ENDPOINTS.CHECK_IS_ADMIN);
+          if (response.data.success) {
+            setIsAdmin(response.data.isAdmin || false);
+          }
+        } catch (error) {
+          console.error("Error checking admin status:", error);
+          // Default to false on error
+          setIsAdmin(false);
+        }
+      };
+      checkAdminStatus();
+    } else {
+      setIsAdmin(false);
+    }
+  }, [isSignedIn, uid]);
 
   React.useEffect(() => {
     const unsubscribe = scrollYProgress.on("change", (latest) => {
@@ -701,14 +748,26 @@ export const HeroHeader = () => {
                       <Search className="!w-5 !h-5" />
                       Analytics
                     </MenuItem>
-                    <MenuItem
-                      as={Link}
-                      to="/trainer/dashboard"
-                      className="flex items-center gap-2"
-                    >
-                      <FiUsers className="!w-5 !h-5" />
-                      Trainer Dashboard
-                    </MenuItem>
+                    {hasTrainerDashboardAccess && (
+                      <MenuItem
+                        as={Link}
+                        to="/trainer/dashboard"
+                        className="flex items-center gap-2"
+                      >
+                        <FiUsers className="!w-5 !h-5" />
+                        Trainer Dashboard
+                      </MenuItem>
+                    )}
+                    {isAdmin && (
+                      <MenuItem
+                        as={Link}
+                        to="/admin/dashboard"
+                        className="flex items-center gap-2"
+                      >
+                        <HiShieldCheck className="!w-5 !h-5" />
+                        Admin Dashboard
+                      </MenuItem>
+                    )}
                     <MenuItem
                       as={Link}
                       to="/privacy"
@@ -818,25 +877,48 @@ export const HeroHeader = () => {
                         <span>Analytics</span>
                       </Link>
                     </Button>
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
-                      )}
-                      onClick={closeMenu}
-                    >
-                      <Link
-                        to="/trainer/dashboard"
-                        className="flex items-center gap-2"
+                    {hasTrainerDashboardAccess && (
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          colorMode === "light"
+                            ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                            : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                        )}
+                        onClick={closeMenu}
                       >
-                        <FiUsers className="!w-5 !h-5" />
-                        <span>Trainer Dashboard</span>
-                      </Link>
-                    </Button>
+                        <Link
+                          to="/trainer/dashboard"
+                          className="flex items-center gap-2"
+                        >
+                          <FiUsers className="!w-5 !h-5" />
+                          <span>Trainer Dashboard</span>
+                        </Link>
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          colorMode === "light"
+                            ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                            : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                        )}
+                        onClick={closeMenu}
+                      >
+                        <Link
+                          to="/admin/dashboard"
+                          className="flex items-center gap-2"
+                        >
+                          <HiShieldCheck className="!w-5 !h-5" />
+                          <span>Admin Dashboard</span>
+                        </Link>
+                      </Button>
+                    )}
                     <Button
                       asChild
                       variant="ghost"
