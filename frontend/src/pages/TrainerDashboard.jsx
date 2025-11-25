@@ -755,7 +755,7 @@ const TrainerDashboard = () => {
                                       handleViewWorkoutDetails(workout)
                                     }
                                   >
-                                    <CardHeader pb={2}>
+                                    <CardHeader pb={2} pointerEvents="none">
                                       <HStack justify="space-between">
                                         <VStack align="start" spacing={1}>
                                           <Text
@@ -768,6 +768,7 @@ const TrainerDashboard = () => {
                                         </VStack>
                                         <HStack
                                           spacing={1}
+                                          pointerEvents="auto"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <IconButton
@@ -778,6 +779,8 @@ const TrainerDashboard = () => {
                                             onClick={() =>
                                               handleEditWorkout(workout)
                                             }
+                                            color={colors.textPrimary}
+                                            _hover={{ bg: colors.bgHover }}
                                           />
                                           <Menu>
                                             <MenuButton
@@ -785,6 +788,8 @@ const TrainerDashboard = () => {
                                               icon={<HamburgerIcon />}
                                               variant="ghost"
                                               size="sm"
+                                              color={colors.textPrimary}
+                                              _hover={{ bg: colors.bgHover }}
                                             />
                                             <MenuList
                                               bg={colors.bgCard}
@@ -833,7 +838,7 @@ const TrainerDashboard = () => {
                                         </HStack>
                                       </HStack>
                                     </CardHeader>
-                                    <CardBody pt={0}>
+                                    <CardBody pt={0} pointerEvents="none">
                                       <Box
                                         maxH="200px"
                                         overflowY="auto"
@@ -995,7 +1000,11 @@ const TrainerDashboard = () => {
                         <HStack justify="space-between" align="start">
                           <VStack align="start" spacing={2}>
                             <HStack>
-                              <Text fontWeight="bold" fontSize="lg">
+                              <Text
+                                fontWeight="bold"
+                                fontSize="lg"
+                                color={colors.textPrimary}
+                              >
                                 {capitalizeName(client.clientName)}
                               </Text>
                               <Badge colorScheme="green" size="sm">

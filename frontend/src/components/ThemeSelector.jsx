@@ -26,14 +26,12 @@ const ThemeSelector = ({ onThemeChange }) => {
       display="flex"
       alignItems="center"
       gap={2}
-      w="full"
       onClick={toggleTheme}
       cursor="pointer"
       aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
-      style={{ justifyContent: "center" }}
       color={colors.textSecondary}
     >
-      <Icon as={CurrentIcon} color={colors.textSecondary} />
+      <Icon as={CurrentIcon} color={colors.textSecondary} w={5} h={5} />
       <Text fontSize="sm" color={colors.textSecondary}>
         {isDark ? "Dark" : "Light"}
       </Text>

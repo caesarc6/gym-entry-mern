@@ -11,7 +11,6 @@ import {
   CardBody,
   CardHeader,
   Badge,
-  useColorModeValue,
   Stat,
   StatLabel,
   StatNumber,
@@ -65,6 +64,7 @@ import EditSharedWorkoutModal from "../components/EditSharedWorkoutModal";
 import CreateSharedWorkoutModal from "../components/CreateSharedWorkoutModal";
 import { capitalizeName, normalizeNameForStorage } from "../utils/nameUtils";
 import { formatDateSafe, parseDateSafe } from "../utils/dateUtils";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const ClientWorkoutsPage = () => {
   const { clientName } = useParams();
@@ -89,8 +89,7 @@ const ClientWorkoutsPage = () => {
 
   const navigate = useNavigate();
   const toast = useCustomToast();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const cardBg = useColorModeValue("gray.50", "gray.700");
+  const colors = useThemeColors();
 
   const { currentUserInfo } = useProductStore();
 
@@ -379,7 +378,7 @@ const ClientWorkoutsPage = () => {
       <Container maxW="container.xl" pt={20} pb={8} px={6}>
         <Center>
           <VStack spacing={4}>
-            <Text>Please log in to access client workouts.</Text>
+            <Text color={colors.textPrimary}>Please log in to access client workouts.</Text>
             <Button onClick={() => navigate("/")}>Go to Home</Button>
           </VStack>
         </Center>
@@ -421,8 +420,8 @@ const ClientWorkoutsPage = () => {
                 Back to Dashboard
               </Button>
             </HStack>
-            <Heading size="lg">{capitalizeName(clientName)}'s Workouts</Heading>
-            <Text color="gray.600">
+            <Heading size="lg" color={colors.textPrimary}>{capitalizeName(clientName)}'s Workouts</Heading>
+            <Text color={colors.textSecondary}>
               Manage and track {capitalizeName(clientName)}'s workouts
             </Text>
           </VStack>
@@ -438,23 +437,28 @@ const ClientWorkoutsPage = () => {
         </HStack>
 
         {/* Filters and Search */}
-        <Card bg={bgColor}>
+        <Card bg={colors.bgCard}>
           <CardBody>
             <HStack spacing={4} wrap="wrap">
               <InputGroup maxW="300px">
                 <InputLeftElement pointerEvents="none">
-                  <SearchIcon color="gray.300" />
+                  <SearchIcon color={colors.textMuted} />
                 </InputLeftElement>
                 <Input
                   placeholder="Search workouts..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
               </InputGroup>
               <Select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 maxW="200px"
+                color={colors.textPrimary}
+                borderColor={colors.borderColorInput}
               >
                 <option value="created">Sort by Date</option>
                 <option value="name">Sort by Name</option>
@@ -467,7 +471,7 @@ const ClientWorkoutsPage = () => {
         {/* Client Workouts */}
         <VStack spacing={4} align="stretch">
           <HStack justify="space-between">
-            <Text fontSize="lg" fontWeight="semibold">
+            <Text fontSize="lg" fontWeight="semibold" color={colors.textPrimary}>
               Client Workouts ({filteredAssignments.length})
             </Text>
           </HStack>
@@ -484,14 +488,14 @@ const ClientWorkoutsPage = () => {
                 });
 
                 return (
-                  <Card key={assignment._id} bg={bgColor}>
+                  <Card key={assignment._id} bg={colors.bgCard}>
                     <CardBody>
                       <VStack spacing={4} align="stretch">
                         {/* Assignment Header */}
                         <HStack justify="space-between" align="start">
                           <VStack align="start" spacing={2}>
                             <HStack>
-                              <Text fontWeight="bold" fontSize="lg">
+                              <Text fontWeight="bold" fontSize="lg" color={colors.textPrimary}>
                                 {assignment.customLabel}
                               </Text>
                               <Badge
@@ -505,7 +509,7 @@ const ClientWorkoutsPage = () => {
                                 {assignment.status.replace("_", " ")}
                               </Badge>
                             </HStack>
-                            <HStack spacing={4} fontSize="sm" color="gray.600">
+                            <HStack spacing={4} fontSize="sm" color={colors.textSecondary}>
                               <HStack>
                                 <CalendarIcon />
                                 <Text>
@@ -529,21 +533,28 @@ const ClientWorkoutsPage = () => {
                               icon={<HamburgerIcon />}
                               variant="ghost"
                               size="sm"
+                              color={colors.textPrimary}
+                              _hover={{ bg: colors.bgHover }}
                             />
-                            <MenuList>
-                              <MenuItem icon={<ViewIcon />}>
+                            <MenuList bg={colors.bgCard} borderColor={colors.border}>
+                              <MenuItem icon={<ViewIcon />} bg={colors.bgCard} color={colors.textPrimary} _hover={{ bg: colors.bgHover }}>
                                 View Details
                               </MenuItem>
                               <MenuItem
                                 icon={<EditIcon />}
                                 onClick={() => handleEditWorkout(assignment)}
+                                bg={colors.bgCard}
+                                color={colors.textPrimary}
+                                _hover={{ bg: colors.bgHover }}
                               >
                                 Edit Workout
                               </MenuItem>
                               <MenuItem
                                 icon={<DeleteIcon />}
                                 onClick={() => handleDeleteWorkout(assignment)}
-                                color="red.500"
+                                color={colors.deleteColor}
+                                bg={colors.bgCard}
+                                _hover={{ bg: colors.bgHover }}
                               >
                                 Delete Workout
                               </MenuItem>
@@ -554,12 +565,15 @@ const ClientWorkoutsPage = () => {
                                     onClick={() =>
                                       handleContinueWorkout(assignment)
                                     }
+                                    bg={colors.bgCard}
+                                    color={colors.textPrimary}
+                                    _hover={{ bg: colors.bgHover }}
                                   >
                                     Continue Workout
                                   </MenuItem>
                                 )}
                               {assignment.isVirtual && (
-                                <MenuItem icon={<InfoIcon />} isDisabled>
+                                <MenuItem icon={<InfoIcon />} isDisabled bg={colors.bgCard} color={colors.textMuted}>
                                   Convert to Tracked Workout
                                 </MenuItem>
                               )}
@@ -573,7 +587,7 @@ const ClientWorkoutsPage = () => {
                             <Text
                               fontSize="sm"
                               fontWeight="medium"
-                              color="gray.700"
+                              color={colors.textPrimary}
                               mb={1}
                             >
                               Instructions:
@@ -590,17 +604,17 @@ const ClientWorkoutsPage = () => {
                                   background: "transparent",
                                 },
                                 "&::-webkit-scrollbar-thumb": {
-                                  background: "#CBD5E0",
+                                  background: colors.scrollbarThumb,
                                   borderRadius: "2px",
                                 },
                                 "&::-webkit-scrollbar-thumb:hover": {
-                                  background: "#A0AEC0",
+                                  background: colors.scrollbarThumbHover,
                                 },
                               }}
                             >
                               <Text
                                 fontSize="sm"
-                                color="gray.600"
+                                color={colors.textSecondary}
                                 whiteSpace="pre-wrap"
                                 wordBreak="break-word"
                               >
@@ -613,11 +627,11 @@ const ClientWorkoutsPage = () => {
                         {/* Workout Description */}
                         {sharedWorkout && (
                           <Box>
-                            <Divider my={2} />
+                            <Divider my={2} borderColor={colors.borderColor} />
                             <Text
                               fontSize="sm"
                               fontWeight="medium"
-                              color="gray.700"
+                              color={colors.textPrimary}
                               mb={2}
                             >
                               Workout Description:
@@ -634,17 +648,17 @@ const ClientWorkoutsPage = () => {
                                   background: "transparent",
                                 },
                                 "&::-webkit-scrollbar-thumb": {
-                                  background: "#CBD5E0",
+                                  background: colors.scrollbarThumb,
                                   borderRadius: "2px",
                                 },
                                 "&::-webkit-scrollbar-thumb:hover": {
-                                  background: "#A0AEC0",
+                                  background: colors.scrollbarThumbHover,
                                 },
                               }}
                             >
                               <Text
                                 fontSize="sm"
-                                color="gray.600"
+                                color={colors.textSecondary}
                                 whiteSpace="pre-wrap"
                                 wordBreak="break-word"
                               >
@@ -659,11 +673,11 @@ const ClientWorkoutsPage = () => {
                           assignment.userWorkout.actualExercises &&
                           assignment.userWorkout.actualExercises.length > 0 && (
                             <Box>
-                              <Divider my={2} />
+                              <Divider my={2} borderColor={colors.borderColor} />
                               <Text
                                 fontSize="sm"
                                 fontWeight="medium"
-                                color="gray.700"
+                                color={colors.textPrimary}
                                 mb={2}
                               >
                                 Client's Progress:
@@ -675,7 +689,7 @@ const ClientWorkoutsPage = () => {
                                     <HStack
                                       key={index}
                                       fontSize="xs"
-                                      color="gray.600"
+                                      color={colors.textSecondary}
                                     >
                                       <Text fontWeight="medium">
                                         {exercise.name}:
@@ -703,7 +717,7 @@ const ClientWorkoutsPage = () => {
                                   ))}
                                 {assignment.userWorkout.actualExercises.length >
                                   3 && (
-                                  <Text fontSize="xs" color="gray.500">
+                                  <Text fontSize="xs" color={colors.textMuted}>
                                     +
                                     {assignment.userWorkout.actualExercises
                                       .length - 3}{" "}
@@ -746,7 +760,7 @@ const ClientWorkoutsPage = () => {
                               </Button>
                             )}
                           {assignment.isVirtual && (
-                            <Text fontSize="sm" color="gray.500">
+                            <Text fontSize="sm" color={colors.textMuted}>
                               This workout is directly associated with the
                               client
                             </Text>
@@ -759,14 +773,14 @@ const ClientWorkoutsPage = () => {
               })}
             </VStack>
           ) : (
-            <Card bg={cardBg}>
+            <Card bg={colors.bgMuted}>
               <CardBody>
                 <Center py={8}>
                   <VStack spacing={4}>
-                    <Text color="gray.500">
+                    <Text color={colors.textMuted}>
                       No workouts found for {capitalizeName(clientName)}
                     </Text>
-                    <Text fontSize="sm" color="gray.400" textAlign="center">
+                    <Text fontSize="sm" color={colors.textMuted} textAlign="center">
                       {searchTerm
                         ? "Try adjusting your search or filter criteria"
                         : "Create workouts for this client to see them here"}
