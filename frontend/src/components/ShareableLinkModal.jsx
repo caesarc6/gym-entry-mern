@@ -15,7 +15,6 @@ import {
   IconButton,
   Tooltip,
   useToast,
-  useColorModeValue,
   HStack,
   Badge,
   Box,
@@ -25,13 +24,13 @@ import {
 import { CopyIcon, ExternalLinkIcon, LinkIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [shareData, setShareData] = useState(null);
   const toast = useToast();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const cardBg = useColorModeValue("gray.50", "gray.700");
+  const colors = useThemeColors();
 
   const { hasCopied, onCopy } = useClipboard(shareData?.shareUrl || "");
 
@@ -147,7 +146,7 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
   return (
     <Modal isOpen={isOpen} onClose={handleClose} size="lg" isCentered>
       <ModalOverlay backdropFilter="blur(4px)" />
-      <ModalContent bg={bgColor} maxH="80vh">
+      <ModalContent bg={colors.bgCard} maxH="80vh">
         <ModalHeader>
           <HStack spacing={2}>
             <LinkIcon color="blue.500" />
@@ -158,27 +157,27 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
         <ModalBody overflowY="auto">
           <VStack spacing={6} align="stretch">
             {workout && (
-              <Box p={4} bg={cardBg} borderRadius="md" borderWidth="1px">
+              <Box p={4} bg={colors.bgMuted} borderRadius="md" borderWidth="1px" borderColor={colors.border}>
                 <VStack align="start" spacing={2}>
                   {workout.isClientLink ? (
                     <>
-                      <Text fontWeight="bold" fontSize="lg">
+                      <Text fontWeight="bold" fontSize="lg" color={colors.textPrimary}>
                         Client: {workout.clientName}
                       </Text>
-                      <Text fontSize="sm" color="gray.600">
+                      <Text fontSize="sm" color={colors.textSecondary}>
                         Generate a link that will allow clients to claim all workouts
                         assigned to this client name.
                       </Text>
                     </>
                   ) : (
                     <>
-                      <Text fontWeight="bold" fontSize="lg">
+                      <Text fontWeight="bold" fontSize="lg" color={colors.textPrimary}>
                         {workout.workoutName}
                       </Text>
-                      <Text fontSize="sm" color="gray.600" noOfLines={3}>
+                      <Text fontSize="sm" color={colors.textSecondary} noOfLines={3}>
                         {workout.description}
                       </Text>
-                      <HStack fontSize="xs" color="gray.500">
+                      <HStack fontSize="xs" color={colors.textMuted}>
                         <Text>Client: {workout.clientName}</Text>
                         <Badge colorScheme="blue" size="sm">
                           {workout.totalShares || 0} shares
@@ -194,13 +193,13 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
 
             {!shareData ? (
               <VStack spacing={4} align="stretch">
-                <Text color="gray.600" textAlign="center">
+                <Text color={colors.textSecondary} textAlign="center">
                   {workout?.isClientLink
                     ? "Generate a shareable link that allows clients to claim all workouts assigned to this client name."
                     : "Generate a shareable link that allows clients to view and save this workout to their account."}
                 </Text>
-                <Box bg="blue.50" p={3} borderRadius="md">
-                  <Text fontSize="sm" color="blue.800">
+                <Box bg={colors.processBg} p={3} borderRadius="md" border="1px solid" borderColor={colors.border}>
+                  <Text fontSize="sm" color={colors.textPrimary}>
                     💡 <strong>How it works:</strong>{" "}
                     {workout?.isClientLink
                       ? "When someone clicks your link, they can view all workouts and claim them all at once to their account if they're signed in."
@@ -223,13 +222,13 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
                 <Text
                   fontWeight="semibold"
                   textAlign="center"
-                  color="green.600"
+                  color={colors.textPrimary}
                 >
                   ✅ Shareable link generated successfully!
                 </Text>
 
                 <VStack spacing={3}>
-                  <Text fontSize="sm" fontWeight="semibold" color="gray.700">
+                  <Text fontSize="sm" fontWeight="semibold" color={colors.textPrimary}>
                     Share Link:
                   </Text>
                   <InputGroup>
@@ -237,8 +236,9 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
                       value={shareData.shareUrl}
                       isReadOnly
                       fontSize="sm"
-                      bg="white"
-                      borderColor="gray.300"
+                      bg={colors.bgCard}
+                      borderColor={colors.border}
+                      color={colors.textPrimary}
                     />
                     <InputRightElement>
                       <Tooltip label={hasCopied ? "Copied!" : "Copy link"}>
@@ -269,24 +269,24 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
                         aria-label="Open link"
                       />
                     </Tooltip>
-                    <Text fontSize="xs" color="gray.500">
+                    <Text fontSize="xs" color={colors.textMuted}>
                       Test your link by opening it in a new tab
                     </Text>
                   </HStack>
                 </VStack>
 
-                <Box bg="yellow.50" p={3} borderRadius="md">
-                  <Text fontSize="sm" color="yellow.800">
+                <Box bg={colors.bgMuted} p={3} borderRadius="md" border="1px solid" borderColor={colors.border}>
+                  <Text fontSize="sm" color={colors.textPrimary}>
                     ⏰ <strong>Expires:</strong>{" "}
                     {formatExpirationDate(shareData.expiresAt)}
                   </Text>
                 </Box>
 
-                <Box bg="gray.50" p={3} borderRadius="md">
-                  <Text fontSize="sm" color="gray.700">
+                <Box bg={colors.bgMuted} p={3} borderRadius="md" border="1px solid" borderColor={colors.border}>
+                  <Text fontSize="sm" color={colors.textPrimary}>
                     <strong>Instructions for sharing:</strong>
                   </Text>
-                  <Text fontSize="xs" color="gray.600" mt={1}>
+                  <Text fontSize="xs" color={colors.textSecondary} mt={1}>
                     1. Copy the link above
                     <br />
                     2. Send it to your client via text, email, or social media

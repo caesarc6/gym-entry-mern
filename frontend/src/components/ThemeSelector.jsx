@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Icon, Text, useColorMode } from "@chakra-ui/react";
+import { Button, Icon, Text, useColorMode, Box } from "@chakra-ui/react";
 import { IoMoon } from "react-icons/io5";
 import { LuSun } from "react-icons/lu";
 import { useTheme } from "../contexts/ThemeContext";
@@ -22,23 +22,22 @@ const ThemeSelector = ({ onThemeChange }) => {
   const CurrentIcon = isDark ? IoMoon : LuSun;
 
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      leftIcon={<Icon as={CurrentIcon} />}
+    <Box
+      display="flex"
+      alignItems="center"
+      gap={2}
+      w="full"
       onClick={toggleTheme}
+      cursor="pointer"
       aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
-      color={currentTheme === "light" ? "gray.500" : "gray.500"}
-      fontWeight="normal"
-      fontSize="0.75rem"
-      className={cn(
-        colorMode === "light"
-          ? "text-gray-500 hover:text-gray-500 hover:bg-gray-100"
-          : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
-      )}
+      style={{ justifyContent: "center" }}
+      color={colors.textSecondary}
     >
-      {isDark ? "Dark" : "Light"}
-    </Button>
+      <Icon as={CurrentIcon} color={colors.textSecondary} />
+      <Text fontSize="sm" color={colors.textSecondary}>
+        {isDark ? "Dark" : "Light"}
+      </Text>
+    </Box>
   );
 };
 

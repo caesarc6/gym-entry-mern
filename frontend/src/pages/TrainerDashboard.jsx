@@ -35,7 +35,6 @@ import {
   EditIcon,
   ViewIcon,
   SearchIcon,
-  ArrowBackIcon,
   DeleteIcon,
   LinkIcon,
 } from "@chakra-ui/icons";
@@ -83,6 +82,23 @@ const TrainerDashboard = () => {
   const colors = useThemeColors();
 
   const { currentUserInfo } = useProductStore();
+
+  // Scrollbar styles for theme-aware scrollbars
+  const scrollbarStyles = {
+    "&::-webkit-scrollbar": {
+      width: "4px",
+    },
+    "&::-webkit-scrollbar-track": {
+      background: "transparent",
+    },
+    "&::-webkit-scrollbar-thumb": {
+      background: colors.scrollbarThumb,
+      borderRadius: "2px",
+    },
+    "&::-webkit-scrollbar-thumb:hover": {
+      background: colors.scrollbarThumbHover,
+    },
+  };
 
   // Check trainer dashboard access on mount
   useEffect(() => {
@@ -474,7 +490,9 @@ const TrainerDashboard = () => {
         {/* Header */}
         <VStack spacing={4} align="stretch">
           <VStack align="start" spacing={2}>
-            <Heading size="lg">Trainer Dashboard</Heading>
+            <Heading size="lg" color={colors.textPrimary}>
+              Trainer Dashboard
+            </Heading>
             <Text color={colors.textSecondary}>
               Manage your shared workouts for clients
             </Text>
@@ -484,14 +502,6 @@ const TrainerDashboard = () => {
             wrap="wrap"
             justify={{ base: "center", md: "flex-end" }}
           >
-            <Button
-              leftIcon={<ArrowBackIcon />}
-              variant="outline"
-              onClick={() => navigate("/")}
-              size={{ base: "sm", md: "md" }}
-            >
-              Back to Home
-            </Button>
             <Button
               leftIcon={<AddIcon />}
               colorScheme="blue"
@@ -508,27 +518,41 @@ const TrainerDashboard = () => {
           <Card bg={colors.bgMuted}>
             <CardBody>
               <Stat>
-                <StatLabel>Total Workouts</StatLabel>
-                <StatNumber>{stats.totalSharedWorkouts}</StatNumber>
-                <StatHelpText>Created for clients</StatHelpText>
+                <StatLabel color={colors.textPrimary}>Total Workouts</StatLabel>
+                <StatNumber color={colors.textPrimary}>
+                  {stats.totalSharedWorkouts}
+                </StatNumber>
+                <StatHelpText color={colors.textSecondary}>
+                  Created for clients
+                </StatHelpText>
               </Stat>
             </CardBody>
           </Card>
           <Card bg={colors.bgMuted}>
             <CardBody>
               <Stat>
-                <StatLabel>Active Clients</StatLabel>
-                <StatNumber>{getWorkoutsByClient().length}</StatNumber>
-                <StatHelpText>With assigned workouts</StatHelpText>
+                <StatLabel color={colors.textPrimary}>Active Clients</StatLabel>
+                <StatNumber color={colors.textPrimary}>
+                  {getWorkoutsByClient().length}
+                </StatNumber>
+                <StatHelpText color={colors.textSecondary}>
+                  With assigned workouts
+                </StatHelpText>
               </Stat>
             </CardBody>
           </Card>
           <Card bg={colors.bgMuted}>
             <CardBody>
               <Stat>
-                <StatLabel>Clients with Claims</StatLabel>
-                <StatNumber>{stats.totalClients}</StatNumber>
-                <StatHelpText>Who have claimed workouts</StatHelpText>
+                <StatLabel color={colors.textPrimary}>
+                  Clients with Claims
+                </StatLabel>
+                <StatNumber color={colors.textPrimary}>
+                  {stats.totalClients}
+                </StatNumber>
+                <StatHelpText color={colors.textSecondary}>
+                  Who have claimed workouts
+                </StatHelpText>
               </Stat>
             </CardBody>
           </Card>
@@ -538,15 +562,27 @@ const TrainerDashboard = () => {
         <HStack spacing={4} justify="center">
           <Button
             colorScheme={activeTab === "workouts" ? "blue" : "gray"}
-            variant={activeTab === "workouts" ? "solid" : "outline"}
+            variant={activeTab === "workouts" ? "solid" : "ghost"}
             onClick={() => setActiveTab("workouts")}
+            color={activeTab === "workouts" ? undefined : colors.textPrimary}
+            bg={activeTab === "workouts" ? undefined : colors.bgHover}
+            _hover={{
+              bg: activeTab === "workouts" ? undefined : colors.bgMuted,
+            }}
+            fontWeight={activeTab === "workouts" ? "semibold" : "medium"}
           >
             Client Workouts
           </Button>
           <Button
             colorScheme={activeTab === "clients" ? "blue" : "gray"}
-            variant={activeTab === "clients" ? "solid" : "outline"}
+            variant={activeTab === "clients" ? "solid" : "ghost"}
             onClick={() => setActiveTab("clients")}
+            color={activeTab === "clients" ? undefined : colors.textPrimary}
+            bg={activeTab === "clients" ? undefined : colors.bgHover}
+            _hover={{
+              bg: activeTab === "clients" ? undefined : colors.bgMuted,
+            }}
+            fontWeight={activeTab === "clients" ? "semibold" : "medium"}
           >
             Claimed Clients
           </Button>
@@ -557,7 +593,11 @@ const TrainerDashboard = () => {
           /* Client Workouts Section */
           <VStack spacing={6} align="stretch">
             <VStack spacing={4} align="stretch">
-              <Text fontSize="lg" fontWeight="semibold">
+              <Text
+                fontSize="lg"
+                fontWeight="semibold"
+                color={colors.textPrimary}
+              >
                 Client Workouts ({getWorkoutsByClient().length} clients)
               </Text>
               <HStack
@@ -573,6 +613,8 @@ const TrainerDashboard = () => {
                     placeholder="Search clients or workouts..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    color={colors.textPrimary}
+                    _placeholder={{ color: colors.textMuted }}
                   />
                 </InputGroup>
                 <Select
@@ -580,6 +622,7 @@ const TrainerDashboard = () => {
                   onChange={(e) => setSortBy(e.target.value)}
                   maxW={{ base: "100%", md: "200px" }}
                   minW="150px"
+                  color={colors.textPrimary}
                 >
                   <option value="created">Sort by Created</option>
                   <option value="name">Sort by Name</option>
@@ -589,6 +632,7 @@ const TrainerDashboard = () => {
                   onChange={(e) => setClientSortBy(e.target.value)}
                   maxW={{ base: "100%", md: "200px" }}
                   minW="150px"
+                  color={colors.textPrimary}
                 >
                   <option value="recent">Most Recent Workout</option>
                   <option value="name">Sort by Name</option>
@@ -651,7 +695,6 @@ const TrainerDashboard = () => {
                                 </Text>
                                 <Button
                                   size="sm"
-                                  // colorScheme="green"
                                   variant="solid"
                                   leftIcon={<LinkIcon />}
                                   whiteSpace="nowrap"
@@ -662,12 +705,14 @@ const TrainerDashboard = () => {
                                   onClick={() =>
                                     handleShareClient(client.clientName)
                                   }
+                                  color={colors.textPrimary}
+                                  bg={colors.bgButton}
+                                  _hover={{ bg: colors.bgHover }}
                                 >
                                   Sharable Link
                                 </Button>
                                 <Button
                                   size="xs"
-                                  colorScheme="gray"
                                   variant="solid"
                                   leftIcon={<AddIcon />}
                                   whiteSpace="nowrap"
@@ -678,6 +723,9 @@ const TrainerDashboard = () => {
                                   onClick={() =>
                                     handleQuickCreateWorkout(client.clientName)
                                   }
+                                  color={colors.textPrimary}
+                                  bg={colors.bgButton}
+                                  _hover={{ bg: colors.bgHover }}
                                 >
                                   New Workout
                                 </Button>
@@ -713,6 +761,7 @@ const TrainerDashboard = () => {
                                           <Text
                                             fontWeight="medium"
                                             fontSize="md"
+                                            color={colors.textPrimary}
                                           >
                                             {workout.workoutName}
                                           </Text>
@@ -737,7 +786,10 @@ const TrainerDashboard = () => {
                                               variant="ghost"
                                               size="sm"
                                             />
-                                            <MenuList>
+                                            <MenuList
+                                              bg={colors.bgCard}
+                                              borderColor={colors.border}
+                                            >
                                               <MenuItem
                                                 icon={<ViewIcon />}
                                                 fontSize="sm"
@@ -746,6 +798,9 @@ const TrainerDashboard = () => {
                                                     workout
                                                   )
                                                 }
+                                                bg={colors.bgCard}
+                                                color={colors.textPrimary}
+                                                _hover={{ bg: colors.bgHover }}
                                               >
                                                 View Details
                                               </MenuItem>
@@ -755,6 +810,9 @@ const TrainerDashboard = () => {
                                                 onClick={() =>
                                                   handleShareWorkout(workout)
                                                 }
+                                                bg={colors.bgCard}
+                                                color={colors.textPrimary}
+                                                _hover={{ bg: colors.bgHover }}
                                               >
                                                 Generate Share Link
                                               </MenuItem>
@@ -764,7 +822,9 @@ const TrainerDashboard = () => {
                                                 onClick={() =>
                                                   handleDeleteWorkout(workout)
                                                 }
-                                                color="red.500"
+                                                color={colors.deleteColor}
+                                                bg={colors.bgCard}
+                                                _hover={{ bg: colors.bgHover }}
                                               >
                                                 Delete Workout
                                               </MenuItem>
@@ -778,21 +838,7 @@ const TrainerDashboard = () => {
                                         maxH="200px"
                                         overflowY="auto"
                                         overflowX="hidden"
-                                        css={{
-                                          "&::-webkit-scrollbar": {
-                                            width: "4px",
-                                          },
-                                          "&::-webkit-scrollbar-track": {
-                                            background: "transparent",
-                                          },
-                                          "&::-webkit-scrollbar-thumb": {
-                                            background: "#CBD5E0",
-                                            borderRadius: "2px",
-                                          },
-                                          "&::-webkit-scrollbar-thumb:hover": {
-                                            background: "#A0AEC0",
-                                          },
-                                        }}
+                                        css={scrollbarStyles}
                                       >
                                         <Text
                                           color={colors.textSecondary}
@@ -901,7 +947,11 @@ const TrainerDashboard = () => {
           /* Clients Section */
           <VStack spacing={6} align="stretch">
             <VStack spacing={4} align="stretch">
-              <Text fontSize="lg" fontWeight="semibold">
+              <Text
+                fontSize="lg"
+                fontWeight="semibold"
+                color={colors.textPrimary}
+              >
                 Clients Who Have Claimed Workouts ({clients.length} clients)
               </Text>
               <HStack
@@ -917,6 +967,8 @@ const TrainerDashboard = () => {
                     placeholder="Search clients..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    color={colors.textPrimary}
+                    _placeholder={{ color: colors.textMuted }}
                   />
                 </InputGroup>
               </HStack>
@@ -982,7 +1034,11 @@ const TrainerDashboard = () => {
                                   >
                                     <CardHeader pb={2}>
                                       <VStack align="start" spacing={1}>
-                                        <Text fontWeight="medium" fontSize="md">
+                                        <Text
+                                          fontWeight="medium"
+                                          fontSize="md"
+                                          color={colors.textPrimary}
+                                        >
                                           {workout.workoutName}
                                         </Text>
                                         <Badge

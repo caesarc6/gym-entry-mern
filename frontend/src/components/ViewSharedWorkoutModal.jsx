@@ -32,7 +32,7 @@ const ViewSharedWorkoutModal = ({ isOpen, onClose, workout }) => {
       <ModalContent bg={colors.bgCard} maxH="90vh">
         <ModalHeader>
           <VStack align="start" spacing={2}>
-            <Text fontSize="xl" fontWeight="bold">
+            <Text fontSize="xl" fontWeight="bold" color={colors.textPrimary}>
               {workout.workoutName}
             </Text>
             <HStack spacing={2} flexWrap="wrap">
@@ -77,7 +77,12 @@ const ViewSharedWorkoutModal = ({ isOpen, onClose, workout }) => {
               border="1px solid"
               borderColor={colors.border}
             >
-              <Text fontWeight="semibold" mb={2} fontSize="md">
+              <Text
+                fontWeight="semibold"
+                mb={2}
+                fontSize="md"
+                color={colors.textPrimary}
+              >
                 Workout Description
               </Text>
               <Text
@@ -112,19 +117,27 @@ const ViewSharedWorkoutModal = ({ isOpen, onClose, workout }) => {
             {/* Workout Metadata */}
             <VStack spacing={2} align="stretch">
               <HStack justify="space-between">
-                <Text fontSize="sm" color={colors.textMuted}>
+                <Text fontSize="sm" color={colors.textSecondary}>
                   Created:
                 </Text>
-                <Text fontSize="sm" fontWeight="medium">
+                <Text
+                  fontSize="sm"
+                  fontWeight="medium"
+                  color={colors.textPrimary}
+                >
                   {formatDateSafe(workout.createdAt)}
                 </Text>
               </HStack>
               {workout.updatedAt && (
                 <HStack justify="space-between">
-                  <Text fontSize="sm" color={colors.textMuted}>
+                  <Text fontSize="sm" color={colors.textSecondary}>
                     Last Updated:
                   </Text>
-                  <Text fontSize="sm" fontWeight="medium">
+                  <Text
+                    fontSize="sm"
+                    fontWeight="medium"
+                    color={colors.textPrimary}
+                  >
                     {formatDateSafe(workout.updatedAt)}
                   </Text>
                 </HStack>
@@ -144,4 +157,3 @@ const ViewSharedWorkoutModal = ({ isOpen, onClose, workout }) => {
 };
 
 export default ViewSharedWorkoutModal;
-

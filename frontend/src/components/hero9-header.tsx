@@ -27,11 +27,13 @@ import {
   MenuList,
   MenuItem,
   Box,
+  Button as ChakraButton,
 } from "@chakra-ui/react";
 import { debounce } from "lodash";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useTheme } from "../contexts/ThemeContext";
 import ThemeSelector from "./ThemeSelector";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 export const HeroHeader = () => {
   const [menuState, setMenuState] = React.useState(false);
@@ -44,6 +46,7 @@ export const HeroHeader = () => {
   const { scrollYProgress } = useScroll();
   const { colorMode } = useColorMode();
   const { currentTheme } = useTheme();
+  const colors = useThemeColors();
   const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -355,19 +358,19 @@ export const HeroHeader = () => {
               {/* Mobile Search and Create */}
               <div className="flex items-center gap-2 md:hidden">
                 {!isSearchOpen ? (
-                  <Button
+                  <ChakraButton
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsSearchOpen(true)}
-                    className={cn(
-                      colorMode === "light"
-                        ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                        : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
-                    )}
+                    color={colors.textSecondary}
+                    _hover={{
+                      bg: colors.bgHover,
+                      color: colors.textPrimary,
+                    }}
                     aria-label="Open search"
                   >
                     <Search className="h-5 w-5" />
-                  </Button>
+                  </ChakraButton>
                 ) : (
                   <div
                     className="relative flex items-center gap-2"
@@ -419,7 +422,7 @@ export const HeroHeader = () => {
                         align="start"
                         spacing={2}
                         w={{ base: "full", md: "200px" }} // Full width on mobile
-                        bg={colorMode === "light" ? "white" : "gray.800"}
+                        bg={colors.bgCard}
                         p={4}
                         borderRadius="md"
                         boxShadow="md"
@@ -447,9 +450,10 @@ export const HeroHeader = () => {
                               >
                                 <Flex
                                   align="center"
-                                  _hover={{ bg: "gray.100" }}
+                                  _hover={{ bg: colors.bgHover }}
                                   p={2}
                                   w="full"
+                                  bg={colors.bgCard}
                                 >
                                   <Avatar src={user.picture} size="sm" mr={2} />
                                   <Box flex={1}>
@@ -460,17 +464,24 @@ export const HeroHeader = () => {
                                           ? "bold"
                                           : "normal"
                                       }
+                                      color={colors.textPrimary}
                                     >
                                       {user.name}
                                     </Text>
                                     {user.username &&
                                       user.username !== user.name && (
-                                        <Text fontSize="xs" color="gray.500">
+                                        <Text
+                                          fontSize="xs"
+                                          color={colors.textMuted}
+                                        >
                                           @{user.username}
                                         </Text>
                                       )}
                                     {user.isPrivate && (
-                                      <Text fontSize="xs" color="gray.400">
+                                      <Text
+                                        fontSize="xs"
+                                        color={colors.textMuted}
+                                      >
                                         Private Profile
                                       </Text>
                                     )}
@@ -480,7 +491,9 @@ export const HeroHeader = () => {
                             );
                           })
                         ) : hasSearched && searchResults.length === 0 ? (
-                          <Text w="full">No users found</Text>
+                          <Text w="full" color={colors.textSecondary}>
+                            No users found
+                          </Text>
                         ) : (
                           <Flex w="full" justify="center" align="center">
                             <Spinner size="xs" />
@@ -491,21 +504,20 @@ export const HeroHeader = () => {
                   </div>
                 )}
                 {isSignedIn && (
-                  <Button
-                    asChild
+                  <ChakraButton
                     variant="ghost"
                     size="sm"
-                    className={cn(
-                      colorMode === "light"
-                        ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                        : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
-                    )}
+                    color={colors.textSecondary}
+                    _hover={{
+                      bg: colors.bgHover,
+                      color: colors.textPrimary,
+                    }}
                     onClick={closeMenu}
+                    as={Link}
+                    to="/create"
                   >
-                    <Link to="/create">
-                      <PlusSquareIcon className="h-4 w-4" />
-                    </Link>
-                  </Button>
+                    <PlusSquareIcon className="h-4 w-4" />
+                  </ChakraButton>
                 )}
               </div>
 
@@ -563,19 +575,19 @@ export const HeroHeader = () => {
                     "pr-8"
                   )}
                 />
-                <Button
+                <ChakraButton
                   variant="ghost"
                   size="sm"
-                  className={cn(
-                    "py-0 px-[8px] ml-2",
-                    colorMode === "light"
-                      ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                      : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
-                  )}
+                  className="py-0 px-[8px] ml-2"
+                  color={colors.textSecondary}
+                  _hover={{
+                    bg: colors.bgHover,
+                    color: colors.textPrimary,
+                  }}
                   aria-label="Search"
                 >
                   <Search className="h-5 w-5" />
-                </Button>
+                </ChakraButton>
                 {searchQuery && (
                   <Button
                     variant="ghost"
@@ -600,7 +612,7 @@ export const HeroHeader = () => {
                     align="start"
                     spacing={2}
                     w={{ base: "full", md: "200px" }}
-                    bg={colorMode === "light" ? "white" : "gray.800"}
+                    bg={colors.bgCard}
                     p={4}
                     borderRadius="md"
                     boxShadow="md"
@@ -626,9 +638,10 @@ export const HeroHeader = () => {
                           >
                             <Flex
                               align="center"
-                              _hover={{ bg: "gray.100" }}
+                              _hover={{ bg: colors.bgHover }}
                               p={2}
                               w="full"
+                              bg={colors.bgCard}
                             >
                               <Avatar src={user.picture} size="sm" mr={2} />
                               <Box flex={1}>
@@ -639,17 +652,21 @@ export const HeroHeader = () => {
                                       ? "bold"
                                       : "normal"
                                   }
+                                  color={colors.textPrimary}
                                 >
                                   {user.name}
                                 </Text>
                                 {user.username &&
                                   user.username !== user.name && (
-                                    <Text fontSize="xs" color="gray.500">
+                                    <Text
+                                      fontSize="xs"
+                                      color={colors.textMuted}
+                                    >
                                       @{user.username}
                                     </Text>
                                   )}
                                 {user.isPrivate && (
-                                  <Text fontSize="xs" color="gray.400">
+                                  <Text fontSize="xs" color={colors.textMuted}>
                                     Private Profile
                                   </Text>
                                 )}
@@ -659,7 +676,9 @@ export const HeroHeader = () => {
                         );
                       })
                     ) : hasSearched && searchResults.length === 0 ? (
-                      <Text w="full">No users found</Text>
+                      <Text w="full" color={colors.textSecondary}>
+                        No users found
+                      </Text>
                     ) : (
                       <Flex w="full" justify="center" align="center">
                         <Spinner size="xs" />
@@ -673,21 +692,20 @@ export const HeroHeader = () => {
             {/* Desktop Create and User Dropdown (Right-Aligned) */}
             <div className="hidden md:flex items-center gap-2">
               {isSignedIn && (
-                <Button
-                  asChild
+                <ChakraButton
                   variant="ghost"
                   size="sm"
-                  className={cn(
-                    colorMode === "light"
-                      ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                      : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
-                  )}
+                  color={colors.textSecondary}
+                  _hover={{
+                    bg: colors.bgHover,
+                    color: colors.textPrimary,
+                  }}
                   onClick={closeMenu}
+                  as={Link}
+                  to="/create"
                 >
-                  <Link to="/create">
-                    <PlusSquareIcon className="h-4 w-4" />
-                  </Link>
-                </Button>
+                  <PlusSquareIcon className="h-4 w-4" />
+                </ChakraButton>
               )}
               {isLoading ? (
                 <Button
@@ -708,34 +726,62 @@ export const HeroHeader = () => {
                     variant="ghost"
                     size="sm"
                     display="flex"
+                    alignItems="center"
                     px={2}
                     border="1px solid red" // Debug: Visualize button boundaries
-                    className={cn(
-                      colorMode === "light"
-                        ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                        : "text-gray-500 hover:text-blue-300 hover:bg-gray-800"
-                    )}
+                    style={{ justifyContent: "center" }}
+                    color={
+                      colors.currentTheme === "light"
+                        ? "black"
+                        : colors.textPrimary
+                    }
+                    _hover={{
+                      bg: colors.bgHover,
+                      color:
+                        colors.currentTheme === "light"
+                          ? "gray.900"
+                          : colors.textPrimary,
+                    }}
                   >
-                    <Box display="flex">
-                      <Text as="span" fontSize="sm">
+                    <Box display="flex" alignItems="center">
+                      <Text
+                        as="span"
+                        fontSize="sm"
+                        color={
+                          colors.currentTheme === "light"
+                            ? "gray.400"
+                            : "gray.500"
+                        }
+                      >
                         @{userName}
                       </Text>
-                      <MdArrowDropDown
-                        size="1.2rem"
-                        style={{ marginLeft: "4px" }}
-                      />
+                      <Box
+                        ml="4px"
+                        display="inline-flex"
+                        alignItems="center"
+                        color={
+                          colors.currentTheme === "light"
+                            ? "gray.400"
+                            : "gray.500"
+                        }
+                      >
+                        <MdArrowDropDown
+                          size="1.2rem"
+                          style={{
+                            color: "inherit",
+                          }}
+                        />
+                      </Box>
                     </Box>
                   </MenuButton>
-                  <MenuList
-                    bg={colorMode === "light" ? "white" : "gray.700"}
-                    borderColor={
-                      colorMode === "light" ? "gray.200" : "gray.700"
-                    }
-                  >
+                  <MenuList bg={colors.bgCard} borderColor={colors.border}>
                     <MenuItem
                       as={Link}
                       to="/profile"
                       className="flex items-center gap-2"
+                      bg={colors.bgCard}
+                      color={colors.textSecondary}
+                      _hover={{ bg: colors.bgHover }}
                     >
                       <RxAvatar className="!w-5 !h-5" />
                       Profile
@@ -744,6 +790,9 @@ export const HeroHeader = () => {
                       as={Link}
                       to="/analytics"
                       className="flex items-center gap-2"
+                      bg={colors.bgCard}
+                      color={colors.textSecondary}
+                      _hover={{ bg: colors.bgHover }}
                     >
                       <Search className="!w-5 !h-5" />
                       Analytics
@@ -753,6 +802,9 @@ export const HeroHeader = () => {
                         as={Link}
                         to="/trainer/dashboard"
                         className="flex items-center gap-2"
+                        bg={colors.bgCard}
+                        color={colors.textSecondary}
+                        _hover={{ bg: colors.bgHover }}
                       >
                         <FiUsers className="!w-5 !h-5" />
                         Trainer Dashboard
@@ -763,6 +815,9 @@ export const HeroHeader = () => {
                         as={Link}
                         to="/admin/dashboard"
                         className="flex items-center gap-2"
+                        bg={colors.bgCard}
+                        color={colors.textSecondary}
+                        _hover={{ bg: colors.bgHover }}
                       >
                         <HiShieldCheck className="!w-5 !h-5" />
                         Admin Dashboard
@@ -772,6 +827,9 @@ export const HeroHeader = () => {
                       as={Link}
                       to="/privacy"
                       className="flex items-center gap-2"
+                      bg={colors.bgCard}
+                      color={colors.textSecondary}
+                      _hover={{ bg: colors.bgHover }}
                     >
                       <MdPrivacyTip className="!w-5 !h-5" />
                       Privacy Settings
@@ -779,13 +837,21 @@ export const HeroHeader = () => {
                     <MenuItem
                       onClick={handleSignOut}
                       className="flex items-center gap-2"
+                      bg={colors.bgCard}
+                      color={colors.textSecondary}
+                      _hover={{ bg: colors.bgHover }}
                     >
                       <PiSignOutThin />
                       Sign Out
                     </MenuItem>
-                    <Box px={3} py={2}>
+                    <MenuItem
+                      bg={colors.bgCard}
+                      color={colors.textSecondary}
+                      _hover={{ bg: colors.bgHover }}
+                      className="flex items-center gap-2"
+                    >
                       <ThemeSelector />
-                    </Box>
+                    </MenuItem>
                   </MenuList>
                 </ChakraMenu>
               ) : (

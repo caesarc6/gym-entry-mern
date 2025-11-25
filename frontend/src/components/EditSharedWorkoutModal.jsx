@@ -12,7 +12,6 @@ import {
   FormLabel,
   Input,
   Textarea,
-  useColorModeValue,
   HStack,
   Box,
   FormHelperText,
@@ -23,6 +22,7 @@ import { apiClient, API_ENDPOINTS } from "../config/api";
 import { FileUploader } from "./FileUploader";
 import { parseDateSafe } from "../utils/dateUtils";
 import { capitalizeName } from "../utils/nameUtils";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const EditSharedWorkoutModal = ({
   isOpen,
@@ -41,7 +41,7 @@ const EditSharedWorkoutModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toast = useCustomToast();
-  const bgColor = useColorModeValue("white", "gray.800");
+  const colors = useThemeColors();
 
   // Helper function to extract date for form input
   const extractDateForForm = (dateString) => {
@@ -144,7 +144,7 @@ const EditSharedWorkoutModal = ({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} size="2xl">
       <ModalOverlay />
-      <ModalContent bg={bgColor} maxW="800px">
+      <ModalContent bg={colors.bgCard} maxW="800px">
         <ModalHeader>
           {sharedWorkout?.clientName
             ? `Edit ${capitalizeName(sharedWorkout.clientName)}'s Workout`

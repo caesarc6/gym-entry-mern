@@ -12,7 +12,6 @@ import {
   FormLabel,
   Input,
   Textarea,
-  useColorModeValue,
   Tag,
   TagLabel,
   TagCloseButton,
@@ -29,6 +28,7 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { FileUploader } from "./FileUploader";
 import { normalizeNameForStorage, capitalizeName } from "../utils/nameUtils";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const CreateSharedWorkoutModal = ({
   isOpen,
@@ -51,7 +51,7 @@ const CreateSharedWorkoutModal = ({
   const [isLoadingClients, setIsLoadingClients] = useState(false);
 
   const toast = useCustomToast();
-  const bgColor = useColorModeValue("white", "gray.800");
+  const colors = useThemeColors();
 
   // Fetch clients list
   const fetchClients = async () => {
@@ -207,43 +207,48 @@ const CreateSharedWorkoutModal = ({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} size="xl">
       <ModalOverlay />
-      <ModalContent bg={bgColor} maxW="600px">
-        <ModalHeader>
+      <ModalContent bg={colors.bgCard} maxW="600px">
+        <ModalHeader color={colors.textPrimary}>
           {clientName || displayClientName
             ? `Create Workout for ${capitalizeName(
                 displayClientName || clientName
               )}`
             : "Create Shared Workout"}
         </ModalHeader>
-        <ModalCloseButton />
+        <ModalCloseButton color={colors.textMuted} />
         <ModalBody>
           <VStack spacing={6} align="stretch">
             {/* Basic Information */}
             <VStack spacing={4}>
               <FormControl isRequired>
-                <FormLabel>Workout Name</FormLabel>
+                <FormLabel color={colors.textPrimary}>Workout Name</FormLabel>
                 <Input
                   placeholder="e.g., Upper Body Strength, Lower Body Strength"
                   value={formData.workoutName}
                   onChange={(e) =>
                     handleInputChange("workoutName", e.target.value)
                   }
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
               </FormControl>
 
               <FormControl>
-                <FormLabel>Workout Date</FormLabel>
+                <FormLabel color={colors.textPrimary}>Workout Date</FormLabel>
                 <Input
                   type="date"
                   value={formData.createdAt}
                   onChange={(e) =>
                     handleInputChange("createdAt", e.target.value)
                   }
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
                 />
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel>Workout Description</FormLabel>
+                <FormLabel color={colors.textPrimary}>Workout Description</FormLabel>
                 <Textarea
                   placeholder="Workout Example:
   Workout Name & Weight - Rep Count:
@@ -259,12 +264,15 @@ const CreateSharedWorkoutModal = ({
                   }
                   fontSize="sm"
                   fontFamily="monospace"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
               </FormControl>
 
               {/* Image Upload */}
               <FormControl>
-                <FormLabel>Workout Image (Optional)</FormLabel>
+                <FormLabel color={colors.textPrimary}>Workout Image (Optional)</FormLabel>
                 <FileUploader
                   handleFile={handleFileUpload}
                   maxSizeMB={5}

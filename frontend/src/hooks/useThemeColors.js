@@ -49,10 +49,10 @@ export const useThemeColors = () => {
     destructiveForeground: getCSSVariable("destructive-foreground"),
 
     // Theme-aware utility colors
-    textPrimary: getThemeColor("gray.800", "gray.100"),
+    textPrimary: getThemeColor("gray.900", "gray.100"),
     textSecondary: getThemeColor("gray.600", "gray.400"),
     textMuted: getThemeColor("gray.500", "gray.500"),
-    textTitle: getThemeColor("gray.700", "gray.300"),
+    textTitle: getThemeColor("gray.800", "gray.300"),
     textDesc: getThemeColor("gray.700", "gray.400"),
     textOne: getThemeColor("gray.300", "gray.600"),
 
@@ -60,6 +60,7 @@ export const useThemeColors = () => {
     bgCard: getThemeColor("white", "gray.800"),
     bgHover: getThemeColor("gray.100", "gray.700"),
     bgMuted: getThemeColor("gray.50", "gray.700"),
+    bgButton: getThemeColor("gray.100", "gray.600"),
 
     // Border utilities
     borderColor: getThemeColor("gray.200", "gray.600"),
@@ -80,5 +81,9 @@ export const useThemeColors = () => {
     deleteBg: getThemeColor("red.50", "red.900"),
     processColor: "blue.500",
     processBg: getThemeColor("blue.50", "blue.900"),
+
+    // Scrollbar colors
+    scrollbarThumb: getThemeColor("#CBD5E0", "#4A5568"),
+    scrollbarThumbHover: getThemeColor("#A0AEC0", "#718096"),
   };
 };

@@ -15,7 +15,6 @@ import {
   CardBody,
   CardHeader,
   IconButton,
-  useColorModeValue,
   Tag,
   TagLabel,
   TagCloseButton,
@@ -32,6 +31,7 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { auth } from "../firebase";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { normalizeNameForStorage, capitalizeName } from "../utils/nameUtils";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const CreateSharedWorkout = () => {
   const [sharedWorkout, setSharedWorkout] = useState({
@@ -52,8 +52,7 @@ const CreateSharedWorkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useCustomToast();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const cardBg = useColorModeValue("gray.50", "gray.700");
+  const colors = useThemeColors();
 
   // Fetch clients list
   const fetchClients = async () => {
@@ -220,30 +219,30 @@ const CreateSharedWorkout = () => {
             onClick={() => navigate("/trainer/dashboard")}
           />
           <VStack align="start" spacing={1}>
-            <Heading size="lg">Create Shared Workout</Heading>
-            <Text color="gray.600">
+            <Heading size="lg" color={colors.textPrimary}>Create Shared Workout</Heading>
+            <Text color={colors.textSecondary}>
               Create a reusable workout sharedWorkout for your clients
             </Text>
           </VStack>
         </HStack>
 
         {/* Basic Information */}
-        <Card bg={bgColor}>
+        <Card bg={colors.bgCard}>
           <CardHeader>
-            <Heading size="md">Basic Information</Heading>
+            <Heading size="md" color={colors.textPrimary}>Basic Information</Heading>
           </CardHeader>
           <CardBody>
             <VStack spacing={4}>
               <FormControl>
-                <FormLabel>Client Name</FormLabel>
+                <FormLabel color={colors.textPrimary}>Client Name</FormLabel>
                 {isClientPrefilled ? (
-                  <Text fontWeight="semibold">
+                  <Text fontWeight="semibold" color={colors.textPrimary}>
                     {capitalizeName(sharedWorkout.clientName)}
                   </Text>
                 ) : isLoadingClients ? (
                   <HStack>
                     <Spinner size="sm" />
-                    <Text fontSize="sm" color="gray.500">
+                    <Text fontSize="sm" color={colors.textMuted}>
                       Loading clients...
                     </Text>
                   </HStack>
@@ -256,6 +255,9 @@ const CreateSharedWorkout = () => {
                         handleInputChange("clientName", e.target.value)
                       }
                       list="clients-list"
+                      color={colors.textPrimary}
+                      borderColor={colors.borderColorInput}
+                      _placeholder={{ color: colors.textMuted }}
                     />
                     <datalist id="clients-list">
                       {clients.map((client) => (
@@ -267,36 +269,41 @@ const CreateSharedWorkout = () => {
                   </VStack>
                 )}
                 {!isClientPrefilled && (
-                  <FormHelperText>
+                  <FormHelperText color={colors.textMuted}>
                     Type a new client name or select from existing clients
                   </FormHelperText>
                 )}
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel>Workout Name</FormLabel>
+                <FormLabel color={colors.textPrimary}>Workout Name</FormLabel>
                 <Input
                   placeholder="e.g., Upper Body Strength, Lower Body Strength"
                   value={sharedWorkout.workoutName}
                   onChange={(e) =>
                     handleInputChange("workoutName", e.target.value)
                   }
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
               </FormControl>
 
               <FormControl>
-                <FormLabel>Workout Date</FormLabel>
+                <FormLabel color={colors.textPrimary}>Workout Date</FormLabel>
                 <Input
                   type="date"
                   value={sharedWorkout.createdAt}
                   onChange={(e) =>
                     handleInputChange("createdAt", e.target.value)
                   }
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
                 />
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel>Workout</FormLabel>
+                <FormLabel color={colors.textPrimary}>Workout</FormLabel>
                 <Textarea
                   placeholder="Workout Example:
   Workout Name & Weight - Rep Count:
@@ -312,12 +319,15 @@ const CreateSharedWorkout = () => {
                   }
                   fontSize="sm"
                   fontFamily="monospace"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
               </FormControl>
 
               {/* Image Upload */}
               <FormControl>
-                <FormLabel>Workout Image (Optional)</FormLabel>
+                <FormLabel color={colors.textPrimary}>Workout Image (Optional)</FormLabel>
                 <FileUploader
                   handleFile={handleFileUpload}
                   maxSizeMB={5}

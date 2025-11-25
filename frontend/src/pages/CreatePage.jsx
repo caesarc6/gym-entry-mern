@@ -7,7 +7,6 @@ import {
   Image,
   Text,
   Textarea,
-  useColorModeValue,
   useToast,
   VStack,
 } from "@chakra-ui/react";
@@ -20,6 +19,7 @@ import night from "../assets/night.jpg";
 import day from "../assets/light.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const CreatePage = () => {
   const [newEntry, setNewEntry] = useState({
@@ -36,7 +36,8 @@ const CreatePage = () => {
   });
 
   const navigate = useNavigate(); // Initialize useNavigate
-  const bgColorMode = useColorModeValue(defaultBg, defaultBgNight);
+  const colors = useThemeColors();
+  const bgColorMode = colors.currentTheme === "light" ? defaultBg : defaultBgNight;
 
   const handleFileUpload = (file) => {
     console.log("🔍 [CREATE_PAGE] handleFileUpload called");
@@ -94,7 +95,7 @@ const CreatePage = () => {
 
   const { createPost } = useProductStore();
 
-  const defaultImage = useColorModeValue(day, night);
+  const defaultImage = colors.currentTheme === "light" ? day : night;
 
   const handleAddEntry = async () => {
     console.log("🔍 [CREATE_PAGE] handleAddEntry called");
@@ -150,7 +151,7 @@ const CreatePage = () => {
     <Container maxW={"container.sm"}>
       <VStack spacing={8}>
         <Heading
-          color={useColorModeValue("gray.800", "whiteAlpha.700")}
+          color={colors.textPrimary}
           p={3}
           as={"h1"}
           size={"2xl"}
@@ -163,7 +164,7 @@ const CreatePage = () => {
 
         <Box
           w={"full"}
-          bg={useColorModeValue("white", "gray.800")}
+          bg={colors.bgCard}
           p={6}
           rounded={"lg"}
           shadow={"md"}
@@ -181,6 +182,9 @@ const CreatePage = () => {
                 setNewPost({ ...newPost, name: e.target.value });
               }}
               w="full"
+              color={colors.textPrimary}
+              borderColor={colors.borderColorInput}
+              _placeholder={{ color: colors.textMuted }}
             />
             <Textarea
               style={{ height: "185px" }}
@@ -198,6 +202,9 @@ DumbBell Curls 6lbs: 3 sets of 10 reps"
                 setNewPost({ ...newPost, description: e.target.value });
               }}
               w="full"
+              color={colors.textPrimary}
+              borderColor={colors.borderColorInput}
+              _placeholder={{ color: colors.textMuted }}
             />
 
             {/* <Input
@@ -213,7 +220,7 @@ DumbBell Curls 6lbs: 3 sets of 10 reps"
             <Image
               src={newPost.postImage || bgColorMode}
               alt="Profile Picture"
-              backgroundColor={useColorModeValue("gray.200", "gray.700")}
+              backgroundColor={colors.bgMuted}
               boxSize="150px"
               objectFit="cover"
               borderRadius="md"
