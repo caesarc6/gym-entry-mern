@@ -356,154 +356,158 @@ export const HeroHeader = () => {
 
             <div className="flex items-center gap-4">
               {/* Mobile Search and Create */}
-              <div className="flex items-center gap-2 md:hidden">
-                {!isSearchOpen ? (
-                  <ChakraButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsSearchOpen(true)}
-                    color={colors.textSecondary}
-                    _hover={{
-                      bg: colors.bgHover,
-                      color: colors.textPrimary,
-                    }}
-                    aria-label="Open search"
-                  >
-                    <Search className="h-5 w-5" />
-                  </ChakraButton>
-                ) : (
-                  <div
-                    className="relative flex items-center gap-2"
-                    ref={searchRef}
-                  >
-                    <Input
-                      borderRadius="16px"
-                      placeholder="Search Users..."
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setHasSearched(false);
-                        searchUsers(e.target.value);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
+              {isSignedIn && (
+                <div className="flex items-center gap-2 md:hidden">
+                  {!isSearchOpen ? (
+                    <ChakraButton
+                      variant="ghost"
                       size="sm"
-                      autoFocus
-                      className={cn(
-                        colorMode === "light"
-                          ? "bg-gray-100 text-gray-700"
-                          : "bg-gray-700 text-gray-200",
-                        "!w-[111px]"
-                      )}
-                    />
-                    {searchQuery && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSearchQuery("");
-                          setSearchResults([]);
+                      onClick={() => setIsSearchOpen(true)}
+                      color={colors.textSecondary}
+                      _hover={{
+                        bg: colors.bgHover,
+                        color: colors.textPrimary,
+                      }}
+                      aria-label="Open search"
+                    >
+                      <Search className="h-5 w-5" />
+                    </ChakraButton>
+                  ) : (
+                    <div
+                      className="relative flex items-center gap-2"
+                      ref={searchRef}
+                    >
+                      <Input
+                        borderRadius="16px"
+                        placeholder="Search Users..."
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
                           setHasSearched(false);
-                          setIsSearchOpen(false);
+                          searchUsers(e.target.value);
                         }}
+                        onClick={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        size="sm"
+                        autoFocus
                         className={cn(
-                          "px-1",
                           colorMode === "light"
-                            ? "text-gray-500 hover:text-gray-700"
-                            : "text-gray-400 hover:text-gray-200"
+                            ? "bg-gray-100 text-gray-700"
+                            : "bg-gray-700 text-gray-200",
+                          "!w-[111px]"
                         )}
-                        aria-label="Clear search"
-                      >
-                        <X className="h-1 w-1" />
-                      </Button>
-                    )}
-                    {searchQuery && (
-                      <VStack
-                        align="start"
-                        spacing={2}
-                        w={{ base: "full", md: "200px" }} // Full width on mobile
-                        bg={colors.bgCard}
-                        p={4}
-                        borderRadius="md"
-                        boxShadow="md"
-                        position="absolute"
-                        top="40px"
-                        left="0"
-                        right="0" // Ensure it spans the available width
-                        zIndex="50"
-                        ref={dropdownRef}
-                      >
-                        {searchResults.length > 0 ? (
-                          searchResults.map((user) => {
-                            const path =
-                              auth.currentUser &&
-                              user.uid === auth.currentUser.uid
-                                ? "/profile"
-                                : `/user/${user.uid}`;
-                            return (
-                              <Link
-                                key={user.uid}
-                                to={path}
-                                onClick={(e) => handleProfileClick(e, path)}
-                                aria-label={`View ${user.name}'s profile`}
-                                style={{ display: "block", width: "100%" }}
-                              >
-                                <Flex
-                                  align="center"
-                                  _hover={{ bg: colors.bgHover }}
-                                  p={2}
-                                  w="full"
-                                  bg={colors.bgCard}
+                      />
+                      {searchQuery && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSearchQuery("");
+                            setSearchResults([]);
+                            setHasSearched(false);
+                            setIsSearchOpen(false);
+                          }}
+                          className={cn(
+                            "px-1",
+                            colorMode === "light"
+                              ? "text-gray-500 hover:text-gray-700"
+                              : "text-gray-400 hover:text-gray-200"
+                          )}
+                          aria-label="Clear search"
+                        >
+                          <X className="h-1 w-1" />
+                        </Button>
+                      )}
+                      {searchQuery && (
+                        <VStack
+                          align="start"
+                          spacing={2}
+                          w={{ base: "full", md: "200px" }} // Full width on mobile
+                          bg={colors.bgCard}
+                          p={4}
+                          borderRadius="md"
+                          boxShadow="md"
+                          position="absolute"
+                          top="40px"
+                          left="0"
+                          right="0" // Ensure it spans the available width
+                          zIndex="50"
+                          ref={dropdownRef}
+                        >
+                          {searchResults.length > 0 ? (
+                            searchResults.map((user) => {
+                              const path =
+                                auth.currentUser &&
+                                user.uid === auth.currentUser.uid
+                                  ? "/profile"
+                                  : `/user/${user.uid}`;
+                              return (
+                                <Link
+                                  key={user.uid}
+                                  to={path}
+                                  onClick={(e) => handleProfileClick(e, path)}
+                                  aria-label={`View ${user.name}'s profile`}
+                                  style={{ display: "block", width: "100%" }}
                                 >
-                                  <Avatar src={user.picture} size="sm" mr={2} />
-                                  <Box flex={1}>
-                                    <Text
-                                      fontWeight={
-                                        auth.currentUser &&
-                                        user.uid === auth.currentUser.uid
-                                          ? "bold"
-                                          : "normal"
-                                      }
-                                      color={colors.textPrimary}
-                                    >
-                                      {user.name}
-                                    </Text>
-                                    {user.username &&
-                                      user.username !== user.name && (
+                                  <Flex
+                                    align="center"
+                                    _hover={{ bg: colors.bgHover }}
+                                    p={2}
+                                    w="full"
+                                    bg={colors.bgCard}
+                                  >
+                                    <Avatar
+                                      src={user.picture}
+                                      size="sm"
+                                      mr={2}
+                                    />
+                                    <Box flex={1}>
+                                      <Text
+                                        fontWeight={
+                                          auth.currentUser &&
+                                          user.uid === auth.currentUser.uid
+                                            ? "bold"
+                                            : "normal"
+                                        }
+                                        color={colors.textPrimary}
+                                      >
+                                        {user.name}
+                                      </Text>
+                                      {user.username &&
+                                        user.username !== user.name && (
+                                          <Text
+                                            fontSize="xs"
+                                            color={colors.textMuted}
+                                          >
+                                            @{user.username}
+                                          </Text>
+                                        )}
+                                      {user.isPrivate && (
                                         <Text
                                           fontSize="xs"
                                           color={colors.textMuted}
                                         >
-                                          @{user.username}
+                                          Private Profile
                                         </Text>
                                       )}
-                                    {user.isPrivate && (
-                                      <Text
-                                        fontSize="xs"
-                                        color={colors.textMuted}
-                                      >
-                                        Private Profile
-                                      </Text>
-                                    )}
-                                  </Box>
-                                </Flex>
-                              </Link>
-                            );
-                          })
-                        ) : hasSearched && searchResults.length === 0 ? (
-                          <Text w="full" color={colors.textSecondary}>
-                            No users found
-                          </Text>
-                        ) : (
-                          <Flex w="full" justify="center" align="center">
-                            <Spinner size="xs" />
-                          </Flex>
-                        )}
-                      </VStack>
-                    )}
-                  </div>
-                )}
-                {isSignedIn && (
+                                    </Box>
+                                  </Flex>
+                                </Link>
+                              );
+                            })
+                          ) : hasSearched && searchResults.length === 0 ? (
+                            <Text w="full" color={colors.textSecondary}>
+                              No users found
+                            </Text>
+                          ) : (
+                            <Flex w="full" justify="center" align="center">
+                              <Spinner size="xs" />
+                            </Flex>
+                          )}
+                        </VStack>
+                      )}
+                    </div>
+                  )}
                   <ChakraButton
                     variant="ghost"
                     size="sm"
@@ -518,8 +522,8 @@ export const HeroHeader = () => {
                   >
                     <PlusSquareIcon className="h-4 w-4" />
                   </ChakraButton>
-                )}
-              </div>
+                </div>
+              )}
 
               <button
                 onClick={() => setMenuState(!menuState)}
@@ -548,146 +552,152 @@ export const HeroHeader = () => {
             </div>
 
             {/* Desktop Centered Search */}
-            <div className="hidden md:flex flex-1 justify-center items-center">
-              <div className="relative flex items-center" ref={searchRef}>
-                <Input
-                  borderRadius="16px"
-                  placeholder="Search Users..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setHasSearched(false);
-                    searchUsers(e.target.value);
-                  }}
-                  size="sm"
-                  minWidth="90px"
-                  maxWidth={{
-                    base: "99px",
-                    sm: "99px",
-                    md: "300px",
-                    lg: "300px",
-                  }}
-                  width="full"
-                  className={cn(
-                    colorMode === "light"
-                      ? "bg-gray-100 text-gray-700"
-                      : "bg-gray-700 text-gray-200",
-                    "pr-8"
-                  )}
-                />
-                <ChakraButton
-                  variant="ghost"
-                  size="sm"
-                  className="py-0 px-[8px] ml-2"
-                  color={colors.textSecondary}
-                  _hover={{
-                    bg: colors.bgHover,
-                    color: colors.textPrimary,
-                  }}
-                  aria-label="Search"
-                >
-                  <Search className="h-5 w-5" />
-                </ChakraButton>
-                {searchQuery && (
-                  <Button
+            {isSignedIn && (
+              <div className="hidden md:flex flex-1 justify-center items-center">
+                <div className="relative flex items-center" ref={searchRef}>
+                  <Input
+                    borderRadius="16px"
+                    placeholder="Search Users..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setHasSearched(false);
+                      searchUsers(e.target.value);
+                    }}
+                    size="sm"
+                    minWidth="90px"
+                    maxWidth={{
+                      base: "99px",
+                      sm: "99px",
+                      md: "300px",
+                      lg: "300px",
+                    }}
+                    width="full"
+                    className={cn(
+                      colorMode === "light"
+                        ? "bg-gray-100 text-gray-700"
+                        : "bg-gray-700 text-gray-200",
+                      "pr-8"
+                    )}
+                  />
+                  <ChakraButton
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSearchResults([]);
-                      setHasSearched(false);
+                    className="py-0 px-[8px] ml-2"
+                    color={colors.textSecondary}
+                    _hover={{
+                      bg: colors.bgHover,
+                      color: colors.textPrimary,
                     }}
-                    className={cn(
-                      "absolute right-10 top-1/2 -translate-y-1/2 py-[0px] px-1",
-                      colorMode === "light"
-                        ? "text-gray-500 hover:text-gray-700"
-                        : "text-gray-400 hover:text-gray-200"
-                    )}
+                    aria-label="Search"
                   >
-                    <X className="h-1 w-2" />
-                  </Button>
-                )}
-                {searchQuery && (
-                  <VStack
-                    align="start"
-                    spacing={2}
-                    w={{ base: "full", md: "200px" }}
-                    bg={colors.bgCard}
-                    p={4}
-                    borderRadius="md"
-                    boxShadow="md"
-                    position="absolute"
-                    top="40px"
-                    left="0"
-                    zIndex="50"
-                    ref={dropdownRef}
-                  >
-                    {searchResults.length > 0 ? (
-                      searchResults.map((user) => {
-                        const path =
-                          auth.currentUser && user.uid === auth.currentUser.uid
-                            ? "/profile"
-                            : `/user/${user.uid}`;
-                        return (
-                          <Link
-                            key={user.uid}
-                            to={path}
-                            onClick={(e) => handleProfileClick(e, path)}
-                            aria-label={`View ${user.name}'s profile`}
-                            style={{ display: "block", width: "100%" }}
-                          >
-                            <Flex
-                              align="center"
-                              _hover={{ bg: colors.bgHover }}
-                              p={2}
-                              w="full"
-                              bg={colors.bgCard}
+                    <Search className="h-5 w-5" />
+                  </ChakraButton>
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSearchResults([]);
+                        setHasSearched(false);
+                      }}
+                      className={cn(
+                        "absolute right-10 top-1/2 -translate-y-1/2 py-[0px] px-1",
+                        colorMode === "light"
+                          ? "text-gray-500 hover:text-gray-700"
+                          : "text-gray-400 hover:text-gray-200"
+                      )}
+                    >
+                      <X className="h-1 w-2" />
+                    </Button>
+                  )}
+                  {searchQuery && (
+                    <VStack
+                      align="start"
+                      spacing={2}
+                      w={{ base: "full", md: "200px" }}
+                      bg={colors.bgCard}
+                      p={4}
+                      borderRadius="md"
+                      boxShadow="md"
+                      position="absolute"
+                      top="40px"
+                      left="0"
+                      zIndex="50"
+                      ref={dropdownRef}
+                    >
+                      {searchResults.length > 0 ? (
+                        searchResults.map((user) => {
+                          const path =
+                            auth.currentUser &&
+                            user.uid === auth.currentUser.uid
+                              ? "/profile"
+                              : `/user/${user.uid}`;
+                          return (
+                            <Link
+                              key={user.uid}
+                              to={path}
+                              onClick={(e) => handleProfileClick(e, path)}
+                              aria-label={`View ${user.name}'s profile`}
+                              style={{ display: "block", width: "100%" }}
                             >
-                              <Avatar src={user.picture} size="sm" mr={2} />
-                              <Box flex={1}>
-                                <Text
-                                  fontWeight={
-                                    auth.currentUser &&
-                                    user.uid === auth.currentUser.uid
-                                      ? "bold"
-                                      : "normal"
-                                  }
-                                  color={colors.textPrimary}
-                                >
-                                  {user.name}
-                                </Text>
-                                {user.username &&
-                                  user.username !== user.name && (
+                              <Flex
+                                align="center"
+                                _hover={{ bg: colors.bgHover }}
+                                p={2}
+                                w="full"
+                                bg={colors.bgCard}
+                              >
+                                <Avatar src={user.picture} size="sm" mr={2} />
+                                <Box flex={1}>
+                                  <Text
+                                    fontWeight={
+                                      auth.currentUser &&
+                                      user.uid === auth.currentUser.uid
+                                        ? "bold"
+                                        : "normal"
+                                    }
+                                    color={colors.textPrimary}
+                                  >
+                                    {user.name}
+                                  </Text>
+                                  {user.username &&
+                                    user.username !== user.name && (
+                                      <Text
+                                        fontSize="xs"
+                                        color={colors.textMuted}
+                                      >
+                                        @{user.username}
+                                      </Text>
+                                    )}
+                                  {user.isPrivate && (
                                     <Text
                                       fontSize="xs"
                                       color={colors.textMuted}
                                     >
-                                      @{user.username}
+                                      Private Profile
                                     </Text>
                                   )}
-                                {user.isPrivate && (
-                                  <Text fontSize="xs" color={colors.textMuted}>
-                                    Private Profile
-                                  </Text>
-                                )}
-                              </Box>
-                            </Flex>
-                          </Link>
-                        );
-                      })
-                    ) : hasSearched && searchResults.length === 0 ? (
-                      <Text w="full" color={colors.textSecondary}>
-                        No users found
-                      </Text>
-                    ) : (
-                      <Flex w="full" justify="center" align="center">
-                        <Spinner size="xs" />
-                      </Flex>
-                    )}
-                  </VStack>
-                )}
+                                </Box>
+                              </Flex>
+                            </Link>
+                          );
+                        })
+                      ) : hasSearched && searchResults.length === 0 ? (
+                        <Text w="full" color={colors.textSecondary}>
+                          No users found
+                        </Text>
+                      ) : (
+                        <Flex w="full" justify="center" align="center">
+                          <Spinner size="xs" />
+                        </Flex>
+                      )}
+                    </VStack>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Desktop Create and User Dropdown (Right-Aligned) */}
             <div className="hidden md:flex items-center gap-2">
