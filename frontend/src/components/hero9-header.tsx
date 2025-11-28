@@ -1026,7 +1026,22 @@ export const HeroHeader = () => {
                         <span>Sign Out</span>
                       </div>
                     </Button>
-                    <ThemeSelector onThemeChange={closeMenu} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "w-full justify-center",
+                        colorMode === "light"
+                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                      )}
+                      onClick={closeMenu}
+                    >
+                      <ThemeSelector
+                        onThemeChange={closeMenu}
+                        className="w-full"
+                      />
+                    </Button>
                   </>
                 ) : (
                   <>

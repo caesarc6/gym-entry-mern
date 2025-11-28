@@ -2022,9 +2022,14 @@ const ProductCard = ({
       {/* Edit Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader fontFamily="Arial, sans-serif">Update Entry</ModalHeader>
-          <ModalCloseButton />
+        <ModalContent bg={colors.bgCard}>
+          <ModalHeader 
+            fontFamily="Arial, sans-serif"
+            color={colors.textPrimary}
+          >
+            Update Entry
+          </ModalHeader>
+          <ModalCloseButton color={colors.textSecondary} />
           <ModalBody>
             <VStack spacing={4}>
               <Input
@@ -2035,6 +2040,11 @@ const ProductCard = ({
                   setUpdatedEntry({ ...updatedEntry, name: e.target.value })
                 }
                 fontFamily="Arial, sans-serif"
+                bg={colors.bgMuted}
+                color={colors.textPrimary}
+                borderColor={colors.border}
+                _placeholder={{ color: colors.textMuted }}
+                _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
               />
               <Textarea
                 placeholder="Workout Split"
@@ -2048,6 +2058,11 @@ const ProductCard = ({
                   })
                 }
                 fontFamily="Arial, sans-serif"
+                bg={colors.bgMuted}
+                color={colors.textPrimary}
+                borderColor={colors.border}
+                _placeholder={{ color: colors.textMuted }}
+                _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
               />
               <Image
                 src={
@@ -2076,6 +2091,8 @@ const ProductCard = ({
               variant="ghost"
               onClick={onClose}
               fontFamily="Arial, sans-serif"
+              color={colors.textSecondary}
+              _hover={{ bg: colors.bgHover }}
             >
               Cancel
             </Button>

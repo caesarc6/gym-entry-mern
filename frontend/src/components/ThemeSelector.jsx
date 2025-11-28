@@ -6,7 +6,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { cn } from "../lib/utils";
 
-const ThemeSelector = ({ onThemeChange }) => {
+const ThemeSelector = ({ onThemeChange, className }) => {
   const { currentTheme, setTheme } = useTheme();
   const colors = useThemeColors();
   const { colorMode } = useColorMode();
@@ -25,11 +25,14 @@ const ThemeSelector = ({ onThemeChange }) => {
     <Box
       display="flex"
       alignItems="center"
+      justifyContent="center"
       gap={2}
       onClick={toggleTheme}
       cursor="pointer"
       aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
       color={colors.textSecondary}
+      width={className?.includes("w-full") ? "100%" : "auto"}
+      className={className}
     >
       <Icon as={CurrentIcon} color={colors.textSecondary} w={5} h={5} />
       <Text fontSize="sm" color={colors.textSecondary}>
