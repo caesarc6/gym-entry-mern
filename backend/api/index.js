@@ -58,38 +58,84 @@ app.use(
   })
 );
 
+// Add request logging middleware BEFORE routes
+app.use((req, res, next) => {
+  console.log("🔍 [SERVER] Incoming request:", {
+    method: req.method,
+    url: req.url,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    bodySize: req.body ? JSON.stringify(req.body).length : 0,
+    hasAuth: !!req.headers.authorization,
+    contentType: req.headers["content-type"],
+  });
+  next();
+});
+
 const __dirname = path.resolve();
 // write a middleware to check if the user is authenticated and create a user in the database if it doesn't exist
 app.post("/api/protected", verifyIdToken, async (req, res) => {
-  const { uid, name, email, picture } = req.user;
-  // const { username } = req.body; // Get the username from the request body
+  try {
+    // Check if req.user exists (should be set by verifyIdToken middleware)
+    if (!req.user) {
+      console.error("❌ [PROTECTED] req.user is undefined");
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
 
-  // if (!username) {
-  //   return res.status(400).json({ error: "Username is required" });
-  // }
-  let user = await User.findOne({ uid });
+    const { uid, name, email, picture } = req.user;
 
-  if (!user) {
-    // Generate username from name: remove spaces and convert to lowercase
-    const generatedUsername = name
-      ? name.replace(/\s+/g, "").toLowerCase()
-      : `user${Date.now()}`;
+    // Check database connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error("❌ [PROTECTED] Database not connected. State:", mongoose.connection.readyState);
+      return res.status(500).json({
+        success: false,
+        message: "Database connection error",
+      });
+    }
 
-    user = new User({
-      uid,
-      name,
-      email,
-      picture,
-      username: generatedUsername,
-      profileImage: null, // Additional field initialized with null
-      bio: null, // Additional field initialized with null
-      goal: null, // Additional field initialized with null
-      gymName: null, // Additional field initialized with null
-      backgroundPicture: null, // Additional field initialized with null
+    let user = await User.findOne({ uid });
+
+    if (!user) {
+      // Generate username from name: remove spaces and convert to lowercase
+      const generatedUsername = name
+        ? name.replace(/\s+/g, "").toLowerCase()
+        : `user${Date.now()}`;
+
+      user = new User({
+        uid,
+        name,
+        email,
+        picture,
+        username: generatedUsername,
+        profileImage: null, // Additional field initialized with null
+        bio: null, // Additional field initialized with null
+        goal: null, // Additional field initialized with null
+        gymName: null, // Additional field initialized with null
+        backgroundPicture: null, // Additional field initialized with null
+      });
+      await user.save();
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: user,
     });
-    await user.save();
+  } catch (error) {
+    console.error("❌ [PROTECTED] Error:", error);
+    console.error("❌ [PROTECTED] Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
-  res.send(user);
 });
 // Routes
 
@@ -118,20 +164,6 @@ app.get("/api", (req, res) => {
 // Test route to check if the server is working
 app.get("/api/test", (req, res) => {
   res.json({ success: true, message: "API is working" });
-});
-
-// Add request logging middleware
-app.use((req, res, next) => {
-  console.log("🔍 [SERVER] Incoming request:", {
-    method: req.method,
-    url: req.url,
-    hasBody: !!req.body,
-    bodyKeys: req.body ? Object.keys(req.body) : [],
-    bodySize: req.body ? JSON.stringify(req.body).length : 0,
-    hasAuth: !!req.headers.authorization,
-    contentType: req.headers["content-type"],
-  });
-  next();
 });
 
 // Error handling middleware

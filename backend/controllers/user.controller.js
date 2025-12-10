@@ -3,6 +3,7 @@ import Entry from "../models/entry.model.js";
 import { supabase } from "../supabase/supabase.js";
 import multer from "multer";
 import path from "path";
+import mongoose from "mongoose";
 import {
   filterEntriesForPublicView,
   filterUserDataForPublicView,
@@ -171,12 +172,30 @@ export const updateUserPrivacy = async (req, res) => {
 // Get batch profile images for multiple users (optimized for mobile)
 export const getBatchProfileImages = async (req, res) => {
   try {
+    // Check if req.user exists (should be set by verifyIdToken middleware)
+    if (!req.user || !req.user.uid) {
+      console.error("❌ [getBatchProfileImages] req.user or req.user.uid is undefined");
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
+
     const { uids } = req.body;
 
     if (!uids || !Array.isArray(uids) || uids.length === 0) {
       return res.status(400).json({
         success: false,
         message: "No UIDs provided",
+      });
+    }
+
+    // Check database connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error("❌ [getBatchProfileImages] Database not connected. State:", mongoose.connection.readyState);
+      return res.status(500).json({
+        success: false,
+        message: "Database connection error",
       });
     }
 
@@ -200,10 +219,16 @@ export const getBatchProfileImages = async (req, res) => {
       data: profileData,
     });
   } catch (error) {
-    console.error("Error fetching batch profile images:", error);
+    console.error("❌ [getBatchProfileImages] Error:", error);
+    console.error("❌ [getBatchProfileImages] Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
     res.status(500).json({
       success: false,
       message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -268,13 +293,52 @@ export const checkFollowing = async (req, res) => {
 
 // Existing controller functions (abridged for brevity)
 export const getCurrentMongoDBUser = async (req, res) => {
-  const { uid } = req.user;
-
   try {
+    // Check if req.user exists (should be set by verifyIdToken middleware)
+    if (!req.user || !req.user.uid) {
+      console.error("❌ [getCurrentMongoDBUser] req.user or req.user.uid is undefined");
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
+
+    const { uid } = req.user;
+
+    // Check database connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error("❌ [getCurrentMongoDBUser] Database not connected. State:", mongoose.connection.readyState);
+      return res.status(500).json({
+        success: false,
+        message: "Database connection error",
+      });
+    }
+
     const user = await User.findOne({ uid });
-    res.status(200).json(user);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
   } catch (error) {
-    res.status(500).json({ error: "Failed to retrieve user" });
+    console.error("❌ [getCurrentMongoDBUser] Error:", error);
+    console.error("❌ [getCurrentMongoDBUser] Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve user",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
 
