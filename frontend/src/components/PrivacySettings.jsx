@@ -51,20 +51,13 @@ const PrivacySettings = () => {
       }
 
       try {
-        const token = await user.getIdToken();
-        const response = await fetch(
-          "http://localhost:5001/api/getCurrentMongoDBUser",
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
+        // Use apiClient instead of fetch to ensure proper token handling
+        const response = await apiClient.get(
+          API_ENDPOINTS.GET_CURRENT_MONGODB_USER
         );
 
-        if (!response.ok) throw new Error("Failed to fetch user data");
-        const userData = await response.json();
+        if (!response.data) throw new Error("Failed to fetch user data");
+        const userData = response.data.data || response.data;
         setPrivacySettings({
           isPrivate: userData.privacy.isPrivate,
           showEntries: userData.privacy.showEntries,
@@ -116,18 +109,14 @@ const PrivacySettings = () => {
       const user = auth.currentUser;
       if (!user) throw new Error("User not authenticated");
 
-      const token = await user.getIdToken();
-      const response = await fetch("http://localhost:5001/api/privacy", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(privacySettings),
-      });
+      // Use apiClient instead of fetch to ensure proper token handling
+      const response = await apiClient.put(
+        API_ENDPOINTS.PRIVACY,
+        privacySettings
+      );
 
-      if (!response.ok) throw new Error("Failed to update privacy settings");
-      const result = await response.json();
+      if (!response.data) throw new Error("Failed to update privacy settings");
+      const result = response.data;
 
       // Check if any follow requests were auto-approved
       if (result.autoApprovedRequests > 0) {

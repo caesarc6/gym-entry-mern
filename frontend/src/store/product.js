@@ -332,8 +332,15 @@ export const useProductStore = create((set) => ({
 // Add an authentication state listener to ensure the user is authenticated
 auth.onAuthStateChanged(async (user) => {
   if (user) {
-    // Fetch full user info from backend
+    // Wait a bit to ensure token is ready, then fetch full user info from backend
+    // This prevents race conditions where the token isn't ready yet
     try {
+      // Ensure token is ready before making API calls
+      await user.getIdToken(true); // Force refresh to ensure token is ready
+      
+      // Small delay to ensure token is fully propagated
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
       const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
       if (response.data) {
         useProductStore.getState().setCurrentUserInfo(response.data);
@@ -349,20 +356,28 @@ auth.onAuthStateChanged(async (user) => {
         // If there are claimed workouts, show them in a modal
         if (
           createUserResponse.data &&
-          createUserResponse.data.claimedWorkouts > 0 &&
-          createUserResponse.data.workouts
+          (createUserResponse.data.data || createUserResponse.data) &&
+          (createUserResponse.data.data?.claimedWorkouts > 0 ||
+            createUserResponse.data.claimedWorkouts > 0)
         ) {
-          useProductStore
-            .getState()
-            .setClaimedWorkouts(createUserResponse.data.workouts);
+          const userData = createUserResponse.data.data || createUserResponse.data;
+          if (userData.workouts) {
+            useProductStore
+              .getState()
+              .setClaimedWorkouts(userData.workouts);
 
-          // Only show the modal if it's a new user
-          if (createUserResponse.data.isNewUser) {
-            useProductStore.getState().setShowClaimedWorkoutsModal(true);
+            // Only show the modal if it's a new user
+            if (userData.isNewUser) {
+              useProductStore.getState().setShowClaimedWorkoutsModal(true);
+            }
           }
         }
       } catch (claimError) {
-        console.log("No claimed workouts or error checking:", claimError);
+        // Silently handle errors - user might not have claimed workouts
+        // Only log if it's not a 403/401 (auth) error
+        if (claimError.response?.status !== 403 && claimError.response?.status !== 401) {
+          console.log("No claimed workouts or error checking:", claimError);
+        }
       }
     } catch (e) {
       console.error("Error fetching current user info:", e); // Debug log

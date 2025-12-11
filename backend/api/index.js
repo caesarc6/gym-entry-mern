@@ -42,19 +42,42 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
   : ["http://localhost:5173"];
 
+// Add production domains that should always be allowed
+const productionDomains = [
+  "https://www.etherealgains.com",
+  "https://etherealgains.com",
+  "https://etherealgains.vercel.app",
+];
+
+// Combine allowed origins with production domains
+const allAllowedOrigins = [...new Set([...allowedOrigins, ...productionDomains])];
+
+console.log("🌐 [CORS] Allowed origins:", allAllowedOrigins);
+
 app.use(
   cors({
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
+      if (!origin) {
+        console.log("🌐 [CORS] Request with no origin - allowing");
+        return callback(null, true);
+      }
 
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log("🌐 [CORS] Checking origin:", origin);
+      
+      // Check if origin is in allowed list
+      if (allAllowedOrigins.indexOf(origin) !== -1) {
+        console.log("✅ [CORS] Origin allowed:", origin);
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        console.error("❌ [CORS] Origin not allowed:", origin);
+        console.error("❌ [CORS] Allowed origins:", allAllowedOrigins);
+        callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
       }
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -96,7 +119,17 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
       });
     }
 
-    let user = await User.findOne({ uid });
+    let user;
+    try {
+      user = await User.findOne({ uid });
+    } catch (dbError) {
+      console.error("❌ [PROTECTED] Database query error:", dbError);
+      return res.status(500).json({
+        success: false,
+        message: "Database query error",
+        error: process.env.NODE_ENV === "development" ? dbError.message : undefined,
+      });
+    }
 
     if (!user) {
       // Generate username from name: remove spaces and convert to lowercase
@@ -104,19 +137,41 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
         ? name.replace(/\s+/g, "").toLowerCase()
         : `user${Date.now()}`;
 
-      user = new User({
-        uid,
-        name,
-        email,
-        picture,
-        username: generatedUsername,
-        profileImage: null, // Additional field initialized with null
-        bio: null, // Additional field initialized with null
-        goal: null, // Additional field initialized with null
-        gymName: null, // Additional field initialized with null
-        backgroundPicture: null, // Additional field initialized with null
-      });
-      await user.save();
+      try {
+        user = new User({
+          uid,
+          name,
+          email,
+          picture,
+          username: generatedUsername,
+          profileImage: null, // Additional field initialized with null
+          bio: null, // Additional field initialized with null
+          goal: null, // Additional field initialized with null
+          gymName: null, // Additional field initialized with null
+          backgroundPicture: null, // Additional field initialized with null
+        });
+        await user.save();
+      } catch (saveError) {
+        console.error("❌ [PROTECTED] User save error:", saveError);
+        // Check if it's a duplicate key error (user already exists)
+        if (saveError.code === 11000) {
+          // User was created between findOne and save, try to fetch again
+          user = await User.findOne({ uid });
+          if (!user) {
+            return res.status(500).json({
+              success: false,
+              message: "Failed to create user",
+              error: process.env.NODE_ENV === "development" ? saveError.message : undefined,
+            });
+          }
+        } else {
+          return res.status(500).json({
+            success: false,
+            message: "Failed to create user",
+            error: process.env.NODE_ENV === "development" ? saveError.message : undefined,
+          });
+        }
+      }
     }
     
     res.status(200).json({
@@ -175,8 +230,21 @@ app.use((err, req, res, next) => {
     stack: err.stack,
     url: req.url,
     method: req.method,
+    origin: req.headers.origin,
     body: req.body ? Object.keys(req.body) : "No body",
   });
+
+  // Handle CORS errors specifically
+  if (err.message && err.message.includes("Not allowed by CORS")) {
+    console.error("❌ [SERVER] CORS error detected");
+    return res.status(403).json({
+      success: false,
+      message: "CORS Error: Origin not allowed",
+      error: process.env.NODE_ENV === "development" 
+        ? `Origin ${req.headers.origin} is not in ALLOWED_ORIGINS` 
+        : "Origin not allowed",
+    });
+  }
 
   // Handle payload too large errors specifically
   if (err.type === "entity.too.large") {
