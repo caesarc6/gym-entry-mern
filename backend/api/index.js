@@ -23,7 +23,12 @@ import bodyParser from "body-parser";
 // Load environment variables first
 dotenv.config();
 
-connectDB();
+// Connect to database (don't await - let it connect in background)
+// But we'll check connection state in routes
+connectDB().catch((error) => {
+  console.error("❌ [DB] Failed to connect to database:", error);
+  // Don't exit in serverless - let it retry on next request
+});
 
 connectAuth();
 
@@ -110,9 +115,38 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
 
     const { uid, name, email, picture } = req.user;
 
-    // Check database connection
-    if (mongoose.connection.readyState !== 1) {
-      console.error("❌ [PROTECTED] Database not connected. State:", mongoose.connection.readyState);
+    // Check database connection and wait if connecting
+    const dbState = mongoose.connection.readyState;
+    if (dbState === 0) {
+      // Disconnected - try to reconnect
+      console.error("❌ [PROTECTED] Database disconnected. Attempting reconnect...");
+      try {
+        await connectDB();
+      } catch (reconnectError) {
+        console.error("❌ [PROTECTED] Reconnect failed:", reconnectError);
+        return res.status(500).json({
+          success: false,
+          message: "Database connection error",
+        });
+      }
+    } else if (dbState === 2) {
+      // Connecting - wait a bit for connection to establish
+      console.log("⏳ [PROTECTED] Database connecting, waiting...");
+      let waitTime = 0;
+      const maxWait = 5000; // 5 seconds max wait
+      while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        waitTime += 100;
+      }
+      if (mongoose.connection.readyState !== 1) {
+        console.error("❌ [PROTECTED] Database still not connected after wait");
+        return res.status(500).json({
+          success: false,
+          message: "Database connection timeout",
+        });
+      }
+    } else if (dbState !== 1) {
+      console.error("❌ [PROTECTED] Database not ready. State:", dbState);
       return res.status(500).json({
         success: false,
         message: "Database connection error",

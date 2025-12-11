@@ -75,7 +75,10 @@ const PrivacySettings = () => {
             });
           }
         } catch (accessError) {
-          console.error("Error fetching trainer dashboard access:", accessError);
+          console.error(
+            "Error fetching trainer dashboard access:",
+            accessError
+          );
           // Don't fail the whole page if this fails
         }
       } catch (error) {
@@ -305,9 +308,7 @@ const PrivacySettings = () => {
             <Alert status="info" borderRadius="md">
               <AlertIcon />
               <VStack align="start" spacing={1}>
-                <Text fontWeight="semibold">
-                  Access request pending review
-                </Text>
+                <Text fontWeight="semibold">Access request pending review</Text>
                 <Text fontSize="sm">
                   Your request for trainer dashboard access is being reviewed.
                   We'll notify you once it's approved.

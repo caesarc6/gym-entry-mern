@@ -190,9 +190,39 @@ export const getBatchProfileImages = async (req, res) => {
       });
     }
 
-    // Check database connection
-    if (mongoose.connection.readyState !== 1) {
-      console.error("❌ [getBatchProfileImages] Database not connected. State:", mongoose.connection.readyState);
+    // Check database connection and wait if connecting
+    const dbState = mongoose.connection.readyState;
+    if (dbState === 0) {
+      // Disconnected - try to reconnect
+      console.error("❌ [getBatchProfileImages] Database disconnected. Attempting reconnect...");
+      const { connectDB } = await import("../config/db.js");
+      try {
+        await connectDB();
+      } catch (reconnectError) {
+        console.error("❌ [getBatchProfileImages] Reconnect failed:", reconnectError);
+        return res.status(500).json({
+          success: false,
+          message: "Database connection error",
+        });
+      }
+    } else if (dbState === 2) {
+      // Connecting - wait a bit for connection to establish
+      console.log("⏳ [getBatchProfileImages] Database connecting, waiting...");
+      let waitTime = 0;
+      const maxWait = 5000; // 5 seconds max wait
+      while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        waitTime += 100;
+      }
+      if (mongoose.connection.readyState !== 1) {
+        console.error("❌ [getBatchProfileImages] Database still not connected after wait");
+        return res.status(500).json({
+          success: false,
+          message: "Database connection timeout",
+        });
+      }
+    } else if (dbState !== 1) {
+      console.error("❌ [getBatchProfileImages] Database not ready. State:", dbState);
       return res.status(500).json({
         success: false,
         message: "Database connection error",
@@ -305,9 +335,39 @@ export const getCurrentMongoDBUser = async (req, res) => {
 
     const { uid } = req.user;
 
-    // Check database connection
-    if (mongoose.connection.readyState !== 1) {
-      console.error("❌ [getCurrentMongoDBUser] Database not connected. State:", mongoose.connection.readyState);
+    // Check database connection and wait if connecting
+    const dbState = mongoose.connection.readyState;
+    if (dbState === 0) {
+      // Disconnected - try to reconnect
+      console.error("❌ [getCurrentMongoDBUser] Database disconnected. Attempting reconnect...");
+      const { connectDB } = await import("../config/db.js");
+      try {
+        await connectDB();
+      } catch (reconnectError) {
+        console.error("❌ [getCurrentMongoDBUser] Reconnect failed:", reconnectError);
+        return res.status(500).json({
+          success: false,
+          message: "Database connection error",
+        });
+      }
+    } else if (dbState === 2) {
+      // Connecting - wait a bit for connection to establish
+      console.log("⏳ [getCurrentMongoDBUser] Database connecting, waiting...");
+      let waitTime = 0;
+      const maxWait = 5000; // 5 seconds max wait
+      while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        waitTime += 100;
+      }
+      if (mongoose.connection.readyState !== 1) {
+        console.error("❌ [getCurrentMongoDBUser] Database still not connected after wait");
+        return res.status(500).json({
+          success: false,
+          message: "Database connection timeout",
+        });
+      }
+    } else if (dbState !== 1) {
+      console.error("❌ [getCurrentMongoDBUser] Database not ready. State:", dbState);
       return res.status(500).json({
         success: false,
         message: "Database connection error",

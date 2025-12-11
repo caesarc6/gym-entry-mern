@@ -3,18 +3,57 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+let isConnecting = false;
+let connectionPromise = null;
+
 export const connectDB = async () => {
+  // If already connected, return
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  // If already connecting, return the existing promise
+  if (isConnecting && connectionPromise) {
+    return connectionPromise;
+  }
+
   const mongoUri = process.env.MONGO_URI;
   if (!mongoUri) {
-    console.error("Error: MONGO_URI is not defined in environment variables.");
+    const error = new Error("MONGO_URI is not defined in environment variables.");
+    console.error("❌ [DB]", error.message);
+    // In serverless, don't exit - throw error instead
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
     process.exit(1);
   }
 
-  try {
-    const conn = await mongoose.connect(mongoUri);
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1); // 1 code means exit with failure, 0 means success
-  }
+  isConnecting = true;
+  connectionPromise = (async () => {
+    try {
+      // If disconnected, close existing connection first
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.connection.close();
+      }
+
+      const conn = await mongoose.connect(mongoUri, {
+        serverSelectionTimeoutMS: 5000, // 5 second timeout
+        socketTimeoutMS: 45000, // 45 second socket timeout
+      });
+      console.log(`✅ [DB] MongoDB Connected: ${conn.connection.host}`);
+      isConnecting = false;
+      return conn;
+    } catch (error) {
+      isConnecting = false;
+      connectionPromise = null;
+      console.error(`❌ [DB] Connection error: ${error.message}`);
+      // In serverless, don't exit - throw error instead
+      if (process.env.NODE_ENV === "production") {
+        throw error;
+      }
+      process.exit(1);
+    }
+  })();
+
+  return connectionPromise;
 };

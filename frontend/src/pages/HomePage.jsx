@@ -169,12 +169,20 @@ const HomePage = () => {
   // Preload profile images to reduce individual API calls
   const preloadProfileImages = useCallback(
     async (uids) => {
+      // Check if user is authenticated before making API call
+      if (!auth.currentUser) {
+        return; // Skip if not authenticated
+      }
+
       const newCache = new Map(profileCache);
       const uncachedUids = uids.filter((uid) => !newCache.has(uid));
 
       if (uncachedUids.length === 0) return;
 
       try {
+        // Ensure token is ready before making request
+        await auth.currentUser.getIdToken(true);
+        
         // Use the new batch endpoint for better performance
         const response = await apiClient.post(
           API_ENDPOINTS.BATCH_PROFILE_IMAGES,
