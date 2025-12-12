@@ -192,11 +192,6 @@ apiClient.interceptors.request.use(
           try {
             token = await auth.currentUser.getIdToken(true);
           } catch (refreshError) {
-            console.error(
-              "❌ Failed to refresh token:",
-              refreshError.code,
-              refreshError.message
-            );
             throw refreshError;
           }
         }
@@ -205,18 +200,13 @@ apiClient.interceptors.request.use(
           config.headers.Authorization = `Bearer ${token}`;
         }
       } catch (error) {
-        console.error(
-          "❌ Error getting auth token:",
-          error.code,
-          error.message
-        );
         // If token refresh fails, try to continue without token (backend will handle auth)
         // This prevents blocking all requests when Firebase has issues
         if (
           error.code === "auth/user-token-expired" ||
           error.code === "auth/user-disabled"
         ) {
-          console.error("User token expired or disabled, redirecting to login");
+          // User token expired or disabled, redirecting to login
           // You might want to redirect to login page here
         }
       }
@@ -225,7 +215,6 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error("Request interceptor error:", error);
     return Promise.reject(error);
   }
 );
@@ -236,19 +225,6 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Log detailed error information from backend
-    if (error.response) {
-      console.error("❌ Backend Error Response:", {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        url: error.config?.url,
-        message: error.response.data?.message,
-        code: error.response.data?.code,
-        fullError: error.response.data,
-      });
-    } else {
-      console.error("❌ Network Error:", error.message);
-    }
     return Promise.reject(error);
   }
 );

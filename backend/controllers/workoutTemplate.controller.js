@@ -73,7 +73,6 @@ export const createSharedWorkout = async (req, res) => {
       data: sharedWorkout,
     });
   } catch (error) {
-    console.error("Error creating shared workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -116,7 +115,6 @@ export const getTrainerSharedWorkouts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting trainer shared workouts:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -145,7 +143,6 @@ export const getWorkoutTemplate = async (req, res) => {
       data: template,
     });
   } catch (error) {
-    console.error("Error getting workout template:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -176,7 +173,6 @@ export const updateWorkoutTemplate = async (req, res) => {
       data: template,
     });
   } catch (error) {
-    console.error("Error updating workout template:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -205,7 +201,6 @@ export const deleteWorkoutTemplate = async (req, res) => {
       message: "Workout template deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting workout template:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -283,7 +278,6 @@ export const assignWorkoutToUser = async (req, res) => {
       data: assignment,
     });
   } catch (error) {
-    console.error("Error assigning workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -325,7 +319,6 @@ export const getTrainerAssignments = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting trainer assignments:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -349,7 +342,6 @@ export const getUserAssignments = async (req, res) => {
       data: assignments,
     });
   } catch (error) {
-    console.error("Error getting user assignments:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -379,7 +371,6 @@ export const markWorkoutAsSaved = async (req, res) => {
       data: assignment,
     });
   } catch (error) {
-    console.error("Error marking workout as saved:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -424,7 +415,6 @@ export const updateWorkoutAssignment = async (req, res) => {
       data: updatedAssignment,
     });
   } catch (error) {
-    console.error("Error updating workout assignment:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -514,7 +504,6 @@ export const continueAssignedWorkout = async (req, res) => {
       data: assignment,
     });
   } catch (error) {
-    console.error("Error continuing workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -578,7 +567,6 @@ export const completeAssignedWorkout = async (req, res) => {
       data: assignment,
     });
   } catch (error) {
-    console.error("Error completing workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };

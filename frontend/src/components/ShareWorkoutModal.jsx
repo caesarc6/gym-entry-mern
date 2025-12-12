@@ -76,7 +76,6 @@ const ShareWorkoutModal = ({ isOpen, onClose, entry, onShareGenerated }) => {
         );
       }
     } catch (error) {
-      console.error("Error generating share link:", error);
       toast({
         title: "Error",
         description:
@@ -107,7 +106,6 @@ const ShareWorkoutModal = ({ isOpen, onClose, entry, onShareGenerated }) => {
       // Reset copied state after 2 seconds
       setTimeout(() => setIsCopied(false), 2000);
     } catch (error) {
-      console.error("Failed to copy link:", error);
       toast({
         title: "Copy failed",
         description: "Could not copy link to clipboard",

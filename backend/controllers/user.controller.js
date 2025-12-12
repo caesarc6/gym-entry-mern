@@ -33,33 +33,22 @@ const upload = multer({
 
 // Middleware to handle file upload errors
 export const handleFileUpload = (req, res, next) => {
-  console.log("🔍 [USER] handleFileUpload middleware called");
-  console.log("🔍 [USER] Request body keys:", Object.keys(req.body));
 
   upload.single("profileImage")(req, res, (err) => {
     if (err instanceof multer.MulterError) {
-      console.error("❌ [USER] Multer error:", err.code, err.message);
       if (err.code === "LIMIT_FILE_SIZE") {
         return res.status(400).json({
           message: "File too large. Please upload a smaller image (max 20MB).",
         });
       }
     } else if (err) {
-      console.error("❌ [USER] File upload error:", err.message);
       return res.status(400).json({
         error: err.message,
       });
     }
     if (!req.file) {
-      console.error("❌ [USER] No file uploaded");
       return res.status(400).json({ error: "No file uploaded" });
     }
-    console.log("✅ [USER] File upload validation passed:", {
-      fieldname: req.file.fieldname,
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-    });
     next();
   });
 };
@@ -164,7 +153,6 @@ export const updateUserPrivacy = async (req, res) => {
       autoApprovedRequests: 0,
     });
   } catch (error) {
-    console.error("Error updating privacy settings:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -174,7 +162,6 @@ export const getBatchProfileImages = async (req, res) => {
   try {
     // Check if req.user exists (should be set by verifyIdToken middleware)
     if (!req.user || !req.user.uid) {
-      console.error("❌ [getBatchProfileImages] req.user or req.user.uid is undefined");
       return res.status(403).json({
         success: false,
         message: "Unauthorized: User information not found",
@@ -194,12 +181,10 @@ export const getBatchProfileImages = async (req, res) => {
     const dbState = mongoose.connection.readyState;
     if (dbState === 0) {
       // Disconnected - try to reconnect
-      console.error("❌ [getBatchProfileImages] Database disconnected. Attempting reconnect...");
       const { connectDB } = await import("../config/db.js");
       try {
         await connectDB();
       } catch (reconnectError) {
-        console.error("❌ [getBatchProfileImages] Reconnect failed:", reconnectError);
         return res.status(500).json({
           success: false,
           message: "Database connection error",
@@ -207,7 +192,6 @@ export const getBatchProfileImages = async (req, res) => {
       }
     } else if (dbState === 2) {
       // Connecting - wait a bit for connection to establish
-      console.log("⏳ [getBatchProfileImages] Database connecting, waiting...");
       let waitTime = 0;
       const maxWait = 5000; // 5 seconds max wait
       while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
@@ -215,14 +199,12 @@ export const getBatchProfileImages = async (req, res) => {
         waitTime += 100;
       }
       if (mongoose.connection.readyState !== 1) {
-        console.error("❌ [getBatchProfileImages] Database still not connected after wait");
         return res.status(500).json({
           success: false,
           message: "Database connection timeout",
         });
       }
     } else if (dbState !== 1) {
-      console.error("❌ [getBatchProfileImages] Database not ready. State:", dbState);
       return res.status(500).json({
         success: false,
         message: "Database connection error",
@@ -249,12 +231,6 @@ export const getBatchProfileImages = async (req, res) => {
       data: profileData,
     });
   } catch (error) {
-    console.error("❌ [getBatchProfileImages] Error:", error);
-    console.error("❌ [getBatchProfileImages] Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -295,7 +271,6 @@ export const getUserProfileByUsername = async (req, res) => {
       entries: filteredEntries,
     });
   } catch (error) {
-    console.error("Error fetching user profile:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -316,7 +291,6 @@ export const checkFollowing = async (req, res) => {
 
     return res.status(200).json({ isFollowing });
   } catch (error) {
-    console.error("Error checking follow status:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -326,7 +300,6 @@ export const getCurrentMongoDBUser = async (req, res) => {
   try {
     // Check if req.user exists (should be set by verifyIdToken middleware)
     if (!req.user || !req.user.uid) {
-      console.error("❌ [getCurrentMongoDBUser] req.user or req.user.uid is undefined");
       return res.status(403).json({
         success: false,
         message: "Unauthorized: User information not found",
@@ -339,12 +312,10 @@ export const getCurrentMongoDBUser = async (req, res) => {
     const dbState = mongoose.connection.readyState;
     if (dbState === 0) {
       // Disconnected - try to reconnect
-      console.error("❌ [getCurrentMongoDBUser] Database disconnected. Attempting reconnect...");
       const { connectDB } = await import("../config/db.js");
       try {
         await connectDB();
       } catch (reconnectError) {
-        console.error("❌ [getCurrentMongoDBUser] Reconnect failed:", reconnectError);
         return res.status(500).json({
           success: false,
           message: "Database connection error",
@@ -352,7 +323,6 @@ export const getCurrentMongoDBUser = async (req, res) => {
       }
     } else if (dbState === 2) {
       // Connecting - wait a bit for connection to establish
-      console.log("⏳ [getCurrentMongoDBUser] Database connecting, waiting...");
       let waitTime = 0;
       const maxWait = 5000; // 5 seconds max wait
       while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
@@ -360,14 +330,12 @@ export const getCurrentMongoDBUser = async (req, res) => {
         waitTime += 100;
       }
       if (mongoose.connection.readyState !== 1) {
-        console.error("❌ [getCurrentMongoDBUser] Database still not connected after wait");
         return res.status(500).json({
           success: false,
           message: "Database connection timeout",
         });
       }
     } else if (dbState !== 1) {
-      console.error("❌ [getCurrentMongoDBUser] Database not ready. State:", dbState);
       return res.status(500).json({
         success: false,
         message: "Database connection error",
@@ -388,12 +356,6 @@ export const getCurrentMongoDBUser = async (req, res) => {
       data: user,
     });
   } catch (error) {
-    console.error("❌ [getCurrentMongoDBUser] Error:", error);
-    console.error("❌ [getCurrentMongoDBUser] Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
     res.status(500).json({
       success: false,
       message: "Failed to retrieve user",
@@ -443,7 +405,6 @@ export const updateUserProfile = async (req, res) => {
           });
 
         if (error) {
-          console.error("Supabase upload error details:", error);
           return res.status(500).json({
             error: "Failed to upload image",
             details: error.message,
@@ -457,7 +418,6 @@ export const updateUserProfile = async (req, res) => {
           { new: true }
         );
       } catch (error) {
-        console.error("Detailed upload error:", error);
         return res.status(500).json({
           success: false,
           message: "Failed to upload image",
@@ -492,7 +452,6 @@ export const updateUserProfile = async (req, res) => {
       data: user,
     });
   } catch (error) {
-    console.error("Update user profile error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -504,16 +463,10 @@ export const checkSupabaseConnection = async () => {
   try {
     const { data, error } = await supabase.storage.listBuckets();
     if (error) {
-      console.error("Bucket Listing Error:", error);
       return false;
     }
-    console.log(
-      "Available Buckets:",
-      data.map((bucket) => bucket.name)
-    );
     return true;
   } catch (err) {
-    console.error("Supabase Connection Check Failed:", err);
     return false;
   }
 };
@@ -581,12 +534,8 @@ export const createUser = async (req, res) => {
             );
 
             claimedWorkouts = await Promise.all(updatePromises);
-            console.log(
-              `✅ Automatically claimed ${claimedWorkouts.length} workout(s) for new user ${name}`
-            );
           }
         } catch (claimError) {
-          console.error("Error auto-claiming workouts:", claimError);
           // Don't fail user creation if claiming workouts fails
         }
       }
@@ -599,71 +548,29 @@ export const createUser = async (req, res) => {
       isNewUser,
     });
   } catch (error) {
-    console.error("Error creating user:", error);
     res.status(500).json({ error: "Failed to create user" });
   }
 };
 
 export const createPost = async (req, res) => {
-  console.log("🔍 [USER_CONTROLLER] createPost function called");
-  console.log("🔍 [USER_CONTROLLER] Request body keys:", Object.keys(req.body));
-  console.log("🔍 [USER_CONTROLLER] Request body data:", {
-    name: req.body.name,
-    description: req.body.description,
-    hasImage: !!req.body.image,
-    imageName: req.body.imageName,
-    imageLength: req.body.image ? req.body.image.length : 0,
-    uid: req.user.uid,
-  });
 
   const { name, description, image, imageName } = req.body;
   const { uid } = req.user;
 
-  console.log("🔍 [USER_CONTROLLER] Extracted data:", {
-    name,
-    description,
-    hasImage: !!image,
-    imageName,
-    uid,
-  });
 
   if (!name || !description) {
-    console.error("❌ [USER_CONTROLLER] Missing required fields:", {
-      hasName: !!name,
-      hasDescription: !!description,
-    });
     return res
       .status(400)
       .json({ success: false, message: "Please provide all fields" });
   }
 
   try {
-    console.log("🔍 [USER_CONTROLLER] Creating new Entry object...");
     const post = new Entry({ uid, name, description, image, imageName });
-    console.log("🔍 [USER_CONTROLLER] Entry object created:", {
-      uid: post.uid,
-      name: post.name,
-      description: post.description,
-      hasImage: !!post.image,
-      imageName: post.imageName,
-    });
 
-    console.log("🔍 [USER_CONTROLLER] Saving entry to database...");
     await post.save();
-    console.log("✅ [USER_CONTROLLER] Entry saved successfully:", {
-      id: post._id,
-      name: post.name,
-      hasImage: !!post.image,
-    });
 
     res.status(201).json(post);
   } catch (error) {
-    console.error("❌ [USER_CONTROLLER] Error creating post:", error);
-    console.error("❌ [USER_CONTROLLER] Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
     res.status(500).json({ error: "Failed to create post" });
   }
 };
@@ -740,7 +647,6 @@ export const getPostsByUID = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching posts by UID:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -776,7 +682,6 @@ export const isFollowing = async (req, res) => {
       isFollowing,
     });
   } catch (error) {
-    console.error("Error checking follow status:", error);
     res.status(500).json({
       success: false,
       message: "Error checking follow status",
@@ -824,7 +729,6 @@ export const getUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error retrieving user:", error);
     res
       .status(500)
       .json({ success: false, message: "Failed to retrieve user" });
@@ -897,7 +801,6 @@ export const searchUsers = async (req, res) => {
 
     res.status(200).json({ success: true, data: filteredUsers });
   } catch (error) {
-    console.error("Error searching users:", error);
     res.status(500).json({ success: false, message: "Failed to search users" });
   }
 };
@@ -905,28 +808,12 @@ export const searchUsers = async (req, res) => {
 export const uploadBackgroundPicture = [
   handleFileUpload,
   async (req, res) => {
-    console.log("🔍 [USER] uploadBackgroundPicture function called");
-    console.log("🔍 [USER] User UID:", req.user.uid);
-    console.log(
-      "🔍 [USER] File details:",
-      req.file
-        ? {
-            fieldname: req.file.fieldname,
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size,
-          }
-        : "No file"
-    );
 
     try {
-      console.log("🔍 [USER] Checking Supabase connection...");
       const isConnected = await checkSupabaseConnection();
       if (!isConnected) {
-        console.error("❌ [USER] Supabase connection failed");
         return res.status(500).json({ error: "Supabase connection failed" });
       }
-      console.log("✅ [USER] Supabase connection successful");
 
       const user = req.user;
       const fileName = generateSafeFilePath(
@@ -936,10 +823,7 @@ export const uploadBackgroundPicture = [
       );
       const filePath = fileName;
 
-      console.log("🔍 [USER] Generated file path:", filePath);
-      console.log("🔍 [USER] File buffer size:", req.file.buffer.length);
 
-      console.log("🔍 [USER] Uploading to Supabase storage...");
       const { error } = await supabase.storage
         .from("user_backgrounds")
         .upload(filePath, req.file.buffer, {
@@ -948,33 +832,19 @@ export const uploadBackgroundPicture = [
         });
 
       if (error) {
-        console.error("❌ [USER] Supabase upload error:", error);
-        console.error("❌ [USER] Error details:", {
-          message: error.message,
-          statusCode: error.statusCode,
-          error: error.error,
-        });
         return res.status(500).json({ error: "Failed to upload image" });
       }
-      console.log("✅ [USER] Supabase upload successful");
 
-      console.log("🔍 [USER] Getting public URL...");
       const {
         data: { publicUrl },
       } = supabase.storage.from("user_backgrounds").getPublicUrl(filePath);
-      console.log("🔍 [USER] Generated public URL:", publicUrl);
 
-      console.log("🔍 [USER] Updating user in database...");
       const updatedUser = await User.findOneAndUpdate(
         { uid: user.uid },
         { backgroundPicture: publicUrl },
         { new: true }
       );
 
-      console.log("✅ [USER] Background picture updated successfully:", {
-        uid: updatedUser.uid,
-        backgroundPicture: updatedUser.backgroundPicture,
-      });
 
       res.json({
         url: publicUrl,
@@ -982,8 +852,6 @@ export const uploadBackgroundPicture = [
         user: updatedUser,
       });
     } catch (error) {
-      console.error("❌ [USER] Upload error:", error);
-      console.error("❌ [USER] Error stack:", error.stack);
       res.status(500).json({ error: error.message });
     }
   },
@@ -992,28 +860,12 @@ export const uploadBackgroundPicture = [
 export const uploadProfilePic = [
   handleFileUpload,
   async (req, res) => {
-    console.log("🔍 [USER] uploadProfilePic function called");
-    console.log("🔍 [USER] User UID:", req.user.uid);
-    console.log(
-      "🔍 [USER] File details:",
-      req.file
-        ? {
-            fieldname: req.file.fieldname,
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size,
-          }
-        : "No file"
-    );
 
     try {
-      console.log("🔍 [USER] Checking Supabase connection...");
       const isConnected = await checkSupabaseConnection();
       if (!isConnected) {
-        console.error("❌ [USER] Supabase connection failed");
         return res.status(500).json({ error: "Supabase connection failed" });
       }
-      console.log("✅ [USER] Supabase connection successful");
 
       const user = req.user;
       const fileName = generateSafeFilePath(
@@ -1023,10 +875,7 @@ export const uploadProfilePic = [
       );
       const filePath = fileName;
 
-      console.log("🔍 [USER] Generated file path:", filePath);
-      console.log("🔍 [USER] File buffer size:", req.file.buffer.length);
 
-      console.log("🔍 [USER] Uploading to Supabase storage...");
       const { error } = await supabase.storage
         .from("user_profiles")
         .upload(filePath, req.file.buffer, {
@@ -1035,33 +884,19 @@ export const uploadProfilePic = [
         });
 
       if (error) {
-        console.error("❌ [USER] Supabase upload error:", error);
-        console.error("❌ [USER] Error details:", {
-          message: error.message,
-          statusCode: error.statusCode,
-          error: error.error,
-        });
         return res.status(500).json({ error: "Failed to upload image" });
       }
-      console.log("✅ [USER] Supabase upload successful");
 
-      console.log("🔍 [USER] Getting public URL...");
       const {
         data: { publicUrl },
       } = supabase.storage.from("user_profiles").getPublicUrl(filePath);
-      console.log("🔍 [USER] Generated public URL:", publicUrl);
 
-      console.log("🔍 [USER] Updating user in database...");
       const updatedUser = await User.findOneAndUpdate(
         { uid: user.uid },
         { picture: publicUrl },
         { new: true }
       );
 
-      console.log("✅ [USER] Profile picture updated successfully:", {
-        uid: updatedUser.uid,
-        picture: updatedUser.picture,
-      });
 
       res.json({
         url: publicUrl,
@@ -1069,8 +904,6 @@ export const uploadProfilePic = [
         user: updatedUser,
       });
     } catch (error) {
-      console.error("❌ [USER] Upload error:", error);
-      console.error("❌ [USER] Error stack:", error.stack);
       res.status(500).json({ error: error.message });
     }
   },
@@ -1100,7 +933,6 @@ export const followUser = async (req, res) => {
 
     return res.status(200).json({ message: "Already following" });
   } catch (error) {
-    console.error("Error in followUser:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1129,7 +961,6 @@ export const unfollowUser = async (req, res) => {
 
     return res.status(200).json({ message: "Not following" });
   } catch (error) {
-    console.error("Error in unfollowUser:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1178,7 +1009,6 @@ export const getUserProfile = async (req, res) => {
     if (req.user?.uid) {
       viewerUser = await User.findOne({ uid: req.user.uid });
       if (!viewerUser) {
-        console.warn(`Viewer user not found for uid: ${req.user.uid}`);
       }
     }
 
@@ -1258,7 +1088,6 @@ export const getUserProfile = async (req, res) => {
 
     res.status(200).json(responseData);
   } catch (error) {
-    console.error("Error fetching user profile:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
@@ -1269,15 +1098,10 @@ export const sendFollowRequest = async (req, res) => {
     const { uid } = req.user;
     const { userId } = req.params;
 
-    console.log("sendFollowRequest called with:", { uid, userId });
 
     const requester = await User.findOne({ uid });
     const recipient = await User.findOne({ uid: userId });
 
-    console.log("Found users:", {
-      requester: requester ? { _id: requester._id, uid: requester.uid } : null,
-      recipient: recipient ? { _id: recipient._id, uid: recipient.uid } : null,
-    });
 
     if (!requester || !recipient) {
       return res.status(404).json({
@@ -1301,10 +1125,6 @@ export const sendFollowRequest = async (req, res) => {
       });
     }
 
-    console.log("Profile privacy check:", {
-      recipientPrivacy: recipient.privacy,
-      isPrivate: recipient.privacy?.isPrivate,
-    });
 
     // Check if profile is private
     if (!recipient.privacy?.isPrivate) {
@@ -1321,7 +1141,6 @@ export const sendFollowRequest = async (req, res) => {
       });
     }
 
-    console.log("Creating follow request...");
 
     // Use findOneAndUpdate with upsert to handle existing requests properly
     const followRequest = await FollowRequest.findOneAndUpdate(
@@ -1347,7 +1166,6 @@ export const sendFollowRequest = async (req, res) => {
       }
     );
 
-    console.log("Follow request result:", followRequest);
 
     // Check if this was an existing request that was updated
     if (
@@ -1366,7 +1184,6 @@ export const sendFollowRequest = async (req, res) => {
       hasRequest: true,
     });
   } catch (error) {
-    console.error("Error sending follow request:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1444,7 +1261,6 @@ export const acceptFollowRequest = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error accepting follow request:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1509,7 +1325,6 @@ export const rejectFollowRequest = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error rejecting follow request:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1545,7 +1360,6 @@ export const getPendingFollowRequests = async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("Error getting pending follow requests:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1587,7 +1401,6 @@ export const checkFollowRequestStatus = async (req, res) => {
       requestId: followRequest?._id,
     });
   } catch (error) {
-    console.error("Error checking follow request status:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1649,7 +1462,6 @@ export const getFeedPosts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching feed posts:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -1710,7 +1522,6 @@ export const requestTrainerDashboardAccess = async (req, res) => {
       accessStatus: "requested",
     });
   } catch (error) {
-    console.error("Error requesting trainer dashboard access:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1741,7 +1552,6 @@ export const checkTrainerDashboardAccess = async (req, res) => {
       hasAccess,
     });
   } catch (error) {
-    console.error("Error checking trainer dashboard access:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1768,7 +1578,6 @@ export const checkIsAdmin = async (req, res) => {
       isAdmin: user.isAdmin || false,
     });
   } catch (error) {
-    console.error("Error checking admin status:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1822,7 +1631,6 @@ export const getTrainerDashboardRequests = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching trainer dashboard requests:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1867,7 +1675,6 @@ export const approveTrainerDashboardAccess = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error approving trainer dashboard access:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1912,7 +1719,6 @@ export const rejectTrainerDashboardAccess = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error rejecting trainer dashboard access:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1941,7 +1747,6 @@ export const getFollowers = async (req, res) => {
       data: user.followers || [],
     });
   } catch (error) {
-    console.error("Get followers error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -1967,7 +1772,6 @@ export const getFollowing = async (req, res) => {
       data: user.following || [],
     });
   } catch (error) {
-    console.error("Get following error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -1981,15 +1785,10 @@ export const cancelFollowRequest = async (req, res) => {
     const { uid } = req.user;
     const { userId } = req.params;
 
-    console.log("cancelFollowRequest called with:", { uid, userId });
 
     const requester = await User.findOne({ uid });
     const recipient = await User.findOne({ uid: userId });
 
-    console.log("Found users:", {
-      requester: requester ? { _id: requester._id, uid: requester.uid } : null,
-      recipient: recipient ? { _id: recipient._id, uid: recipient.uid } : null,
-    });
 
     if (!requester || !recipient) {
       return res.status(404).json({
@@ -2027,7 +1826,6 @@ export const cancelFollowRequest = async (req, res) => {
       });
     }
 
-    console.log("Follow request cancelled:", deletedRequest);
 
     res.status(200).json({
       success: true,
@@ -2036,7 +1834,6 @@ export const cancelFollowRequest = async (req, res) => {
       hasRequest: false,
     });
   } catch (error) {
-    console.error("Error cancelling follow request:", error);
     res.status(500).json({
       success: false,
       message: "Server error",

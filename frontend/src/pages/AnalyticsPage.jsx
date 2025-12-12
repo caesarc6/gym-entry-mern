@@ -90,8 +90,6 @@ const AnalyticsPage = () => {
       );
       setAnalytics(response.data.data);
     } catch (error) {
-      console.error("Error fetching analytics:", error);
-      console.error("Error details:", error.response?.data);
       if (error.response?.status === 403) {
         showToast({
           title: "Authentication Required",
@@ -120,8 +118,6 @@ const AnalyticsPage = () => {
       const response = await apiClient.get(API_ENDPOINTS.PERSONAL_RECORDS);
       setPersonalRecords(response.data.data);
     } catch (error) {
-      console.error("Error fetching personal records:", error);
-      console.error("Error details:", error.response?.data);
     }
   };
 
@@ -135,7 +131,6 @@ const AnalyticsPage = () => {
       );
       setExerciseProgress(response.data.data);
     } catch (error) {
-      console.error("Error fetching exercise progress:", error);
       showToast({
         title: "Error",
         description: "Failed to load exercise progress",
@@ -217,7 +212,6 @@ const AnalyticsPage = () => {
         }
       }
     } catch (error) {
-      console.error("Error fetching user entries:", error);
     }
   };
 
@@ -240,7 +234,6 @@ const AnalyticsPage = () => {
 
       return processedIds;
     } catch (error) {
-      console.error("Error checking processed entries:", error);
       return new Set();
     }
   };
@@ -266,11 +259,6 @@ const AnalyticsPage = () => {
         );
       } catch (error) {
         errorCount++;
-        console.error(`Error auto-processing entry ${entry._id}:`, error);
-        console.error(`Entry details:`, {
-          name: entry.name,
-          description: entry.description,
-        });
 
         // Handle different types of errors
         if (error.response?.data?.message?.includes("already processed")) {
@@ -292,10 +280,6 @@ const AnalyticsPage = () => {
           ]);
         } else {
           // For other errors, show more details
-          console.error(
-            `Failed to process entry ${entry._id}:`,
-            error.response?.data
-          );
           setSkippedEntries((prev) => [
             ...prev,
             {
@@ -351,7 +335,6 @@ const AnalyticsPage = () => {
       fetchPersonalRecords();
       fetchUserEntries(); // Refresh the entries list
     } catch (error) {
-      console.error("Error processing entry:", error);
       if (error.response?.data?.message?.includes("already processed")) {
         showToast({
           title: "Already Processed",
@@ -417,7 +400,6 @@ const AnalyticsPage = () => {
         });
       } catch (error) {
         errorCount++;
-        console.error(`Error processing entry ${entry._id}:`, error);
 
         // If already processed, mark it as such
         if (error.response?.data?.message?.includes("already processed")) {
@@ -475,7 +457,6 @@ const AnalyticsPage = () => {
       fetchAnalytics();
       fetchPersonalRecords();
     } catch (error) {
-      console.error("Error reprocessing workouts:", error);
       showToast({
         title: "Error",
         description: "Failed to reprocess workouts",

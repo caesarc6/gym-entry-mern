@@ -119,7 +119,6 @@ const EditSharedWorkoutModal = ({
         throw new Error(response.data.message || "Failed to update workout");
       }
     } catch (error) {
-      console.error("Error updating workout:", error);
       toast.error(
         "Error",
         error.response?.data?.message || "Failed to update workout"

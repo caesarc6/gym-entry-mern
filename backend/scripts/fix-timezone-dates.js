@@ -9,13 +9,11 @@ import WorkoutAssignment from "../models/workoutAssignment.model.js";
 
 const fixTimezoneDates = async () => {
   try {
-    console.log("Starting timezone date fix migration...");
 
     // Connect to database
     await mongoose.connect(
       process.env.MONGODB_URI || "mongodb://localhost:27017/gym-entry-mern"
     );
-    console.log("Connected to database");
 
     // Fix SharedWorkout dates
     const sharedWorkouts = await SharedWorkout.find({});
@@ -44,11 +42,6 @@ const fixTimezoneDates = async () => {
           });
 
           fixedSharedWorkouts++;
-          console.log(
-            `Fixed SharedWorkout ${
-              workout._id
-            }: ${createdAt.toISOString()} -> ${correctedDate.toISOString()}`
-          );
         }
       }
     }
@@ -94,18 +87,12 @@ const fixTimezoneDates = async () => {
       if (needsUpdate) {
         await WorkoutAssignment.findByIdAndUpdate(assignment._id, updateData);
         fixedAssignments++;
-        console.log(`Fixed WorkoutAssignment ${assignment._id}`);
       }
     }
 
-    console.log(
-      `Migration completed! Fixed ${fixedSharedWorkouts} SharedWorkouts and ${fixedAssignments} WorkoutAssignments.`
-    );
   } catch (error) {
-    console.error("Error during migration:", error);
   } finally {
     await mongoose.disconnect();
-    console.log("Disconnected from database");
   }
 };
 

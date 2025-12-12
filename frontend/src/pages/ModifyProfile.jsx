@@ -106,7 +106,6 @@ const ModifyProfile = ({ entry }) => {
         // fetchUserProfile(user);
         fetchUserProfile(user);
       } else {
-        // console.error("User not authenticated");
         setUid(null);
         clearEntrys();
         setUserProfile({
@@ -253,18 +252,15 @@ const ModifyProfile = ({ entry }) => {
     //     .getIdToken()
     //     .then((idToken) => {
     //       // Send token to your backend via HTTPS
-    //       // console.log("ID Token:", idToken);
     //     })
     //     .catch((error) => {
     //       // Handle error
-    //       console.error("Error getting ID token:", error);
     //     });
     // } else {
     //   // No user is signed in.
     // }
     try {
       if (!token) {
-        console.error("No authenticated token found");
         return;
       }
 
@@ -298,11 +294,8 @@ const ModifyProfile = ({ entry }) => {
             "https://johnjayathletics.com/images/logos/site/site.png",
         });
       } else {
-        console.error("Failed to fetch user profile:", data.message);
       }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-    }
+    } catch (error) {}
   };
 
   return (

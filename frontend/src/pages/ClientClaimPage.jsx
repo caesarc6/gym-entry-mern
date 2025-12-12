@@ -103,7 +103,6 @@ const ClientClaimPage = () => {
           );
         }
       } catch (error) {
-        console.error("Error fetching client workouts:", error);
         setError(
           error.response?.data?.message || "Workouts not found or expired"
         );
@@ -150,7 +149,6 @@ const ClientClaimPage = () => {
         throw new Error(response.data.message || "Failed to claim workouts");
       }
     } catch (error) {
-      console.error("Error claiming workouts:", error);
       toast.error(
         "Claim failed",
         error.response?.data?.message ||

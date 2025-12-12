@@ -88,7 +88,6 @@ const CreateSharedWorkout = () => {
 
       setClients(uniqueClients);
     } catch (error) {
-      console.error("Error fetching clients:", error);
       toast.error("Error", "Failed to load client list");
     } finally {
       setIsLoadingClients(false);
@@ -197,7 +196,6 @@ const CreateSharedWorkout = () => {
         );
       }
     } catch (error) {
-      console.error("Error creating sharedWorkout:", error);
       toast.error(
         "Error",
         error.response?.data?.message ||

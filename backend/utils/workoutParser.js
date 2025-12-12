@@ -326,11 +326,6 @@ export const cleanExerciseName = (name, weight = 0) => {
       return b.percentage - a.percentage;
     });
 
-    console.log(
-      `Exercise normalization: "${name}" -> "${
-        specificMatches[0].normalized
-      }" (${Math.round(specificMatches[0].percentage * 100)}% match)`
-    );
     
     let normalizedName = specificMatches[0].normalized;
     
@@ -467,7 +462,6 @@ export const parseExerciseLine = (line) => {
           };
         }
       } catch (error) {
-        console.error(`Error parsing exercise line "${trimmedLine}":`, error);
         continue;
       }
     }

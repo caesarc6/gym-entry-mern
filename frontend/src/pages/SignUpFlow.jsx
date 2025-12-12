@@ -74,7 +74,6 @@ const SignUpFlow = () => {
       // Redirect to the intended page (shared workout page or home)
       navigate(redirectPath, { replace: true });
     } catch (error) {
-      console.error("Error during sign-up:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to sign in. Please try again.",

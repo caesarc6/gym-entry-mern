@@ -40,27 +40,13 @@ const CreatePage = () => {
   const bgColorMode = colors.currentTheme === "light" ? defaultBg : defaultBgNight;
 
   const handleFileUpload = (file) => {
-    console.log("🔍 [CREATE_PAGE] handleFileUpload called");
-    console.log("🔍 [CREATE_PAGE] File received:", {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      lastModified: file.lastModified,
-    });
 
     const reader = new FileReader();
 
     reader.onloadstart = () => {
-      console.log("🔍 [CREATE_PAGE] FileReader started reading file");
     };
 
     reader.onloadend = () => {
-      console.log("🔍 [CREATE_PAGE] FileReader finished reading file");
-      console.log(
-        "🔍 [CREATE_PAGE] Reader result length:",
-        reader.result ? reader.result.length : 0
-      );
-      console.log("🔍 [CREATE_PAGE] Reader result type:", typeof reader.result);
 
       const updatedPost = {
         ...newPost,
@@ -68,26 +54,16 @@ const CreatePage = () => {
         postImageName: file.name,
       };
 
-      console.log("🔍 [CREATE_PAGE] Updating newPost state:", {
-        hasPostImage: !!updatedPost.postImage,
-        postImageName: updatedPost.postImageName,
-        postImageLength: updatedPost.postImage
-          ? updatedPost.postImage.length
-          : 0,
-      });
 
       setNewPost(updatedPost);
     };
 
     reader.onerror = (error) => {
-      console.error("❌ [CREATE_PAGE] FileReader error:", error);
     };
 
     if (file) {
-      console.log("🔍 [CREATE_PAGE] Starting to read file as data URL");
       reader.readAsDataURL(file);
     } else {
-      console.log("❌ [CREATE_PAGE] No file provided to handleFileUpload");
     }
   };
 
@@ -98,35 +74,16 @@ const CreatePage = () => {
   const defaultImage = colors.currentTheme === "light" ? day : night;
 
   const handleAddEntry = async () => {
-    console.log("🔍 [CREATE_PAGE] handleAddEntry called");
-    console.log("🔍 [CREATE_PAGE] Current newPost state:", {
-      name: newPost.name,
-      description: newPost.description,
-      hasPostImage: !!newPost.postImage,
-      postImageName: newPost.postImageName,
-      postImageLength: newPost.postImage ? newPost.postImage.length : 0,
-    });
 
     // get current user from auth
     const currentUser = { uid: auth.currentUser.uid };
     const currUser = currentUser.uid;
-    console.log("🔍 [CREATE_PAGE] Current user UID:", currUser);
 
     const postWithUID = { ...newPost, uid: currUser };
-    console.log("🔍 [CREATE_PAGE] Post with UID:", {
-      name: postWithUID.name,
-      description: postWithUID.description,
-      uid: postWithUID.uid,
-      hasPostImage: !!postWithUID.postImage,
-      postImageName: postWithUID.postImageName,
-    });
 
-    console.log("🔍 [CREATE_PAGE] Calling createPost...");
     const { success, message } = await createPost(postWithUID);
-    console.log("🔍 [CREATE_PAGE] createPost result:", { success, message });
 
     if (!success) {
-      console.error("❌ [CREATE_PAGE] Post creation failed:", message);
       toast({
         title: "Error",
         description: message,
@@ -134,7 +91,6 @@ const CreatePage = () => {
         isClosable: true,
       });
     } else {
-      console.log("✅ [CREATE_PAGE] Post created successfully");
       toast({
         title: "Success",
         description: message,
@@ -175,10 +131,6 @@ const CreatePage = () => {
               name="title"
               value={newPost.name}
               onChange={(e) => {
-                console.log(
-                  "🔍 [CREATE_PAGE] Name input changed:",
-                  e.target.value
-                );
                 setNewPost({ ...newPost, name: e.target.value });
               }}
               w="full"
@@ -195,10 +147,6 @@ DumbBell Curls 6lbs: 3 sets of 10 reps"
               name="description"
               value={newPost.description}
               onChange={(e) => {
-                console.log(
-                  "🔍 [CREATE_PAGE] Description input changed:",
-                  e.target.value.substring(0, 50) + "..."
-                );
                 setNewPost({ ...newPost, description: e.target.value });
               }}
               w="full"
@@ -254,24 +202,6 @@ DumbBell Curls 6lbs: 3 sets of 10 reps"
             <Button
               colorScheme="blue"
               onClick={(e) => {
-                console.log("🔍 [CREATE_PAGE] Add Entry button clicked");
-                console.log("🔍 [CREATE_PAGE] Event details:", {
-                  type: e.type,
-                  target: e.target,
-                  currentTarget: e.currentTarget,
-                });
-                console.log(
-                  "🔍 [CREATE_PAGE] Current newPost state at button click:",
-                  {
-                    name: newPost.name,
-                    description: newPost.description,
-                    hasPostImage: !!newPost.postImage,
-                    postImageName: newPost.postImageName,
-                    postImageLength: newPost.postImage
-                      ? newPost.postImage.length
-                      : 0,
-                  }
-                );
                 handleAddEntry();
               }}
               w="3xs"

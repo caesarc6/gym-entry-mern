@@ -100,7 +100,6 @@ const SharedWorkoutPage = () => {
           );
         }
       } catch (error) {
-        console.error("Error fetching shared workout:", error);
         setError(
           error.response?.data?.message || "Workout not found or expired"
         );
@@ -135,7 +134,6 @@ const SharedWorkoutPage = () => {
         throw new Error(response.data.message || "Failed to save workout");
       }
     } catch (error) {
-      console.error("Error saving workout:", error);
       toast.error(
         "Save failed",
         error.response?.data?.message ||

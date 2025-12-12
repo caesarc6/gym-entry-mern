@@ -54,7 +54,6 @@ function ProfilePictureUpload() {
 
             if (!res.ok) {
               const errorData = await res.json();
-              console.error("Error response from server:", errorData);
               throw new Error(errorData.message || "Upload failed");
             }
 
@@ -74,7 +73,6 @@ function ProfilePictureUpload() {
               });
             }
           } catch (uploadError) {
-            console.error("Upload failed", uploadError);
             setError(uploadError.message || "Upload failed");
           } finally {
             setIsProcessing(false);
@@ -88,7 +86,6 @@ function ProfilePictureUpload() {
         { maxSizeMB: 5 }
       );
     } catch (error) {
-      console.error("File processing error:", error);
       setError("Failed to process image. Please try again.");
       setIsProcessing(false);
     }

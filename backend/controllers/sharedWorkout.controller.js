@@ -183,9 +183,6 @@ export const createSharedWorkout = async (req, res) => {
           });
         }
 
-        console.log(
-          `Automatically assigned new workout to ${autoAssignedCount} existing client(s) for ${clientName}`
-        );
       }
 
       // Build response message
@@ -213,7 +210,6 @@ export const createSharedWorkout = async (req, res) => {
       data: sharedWorkout,
     });
   } catch (error) {
-    console.error("Error creating shared workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -254,7 +250,6 @@ export const getTrainerSharedWorkouts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting trainer shared workouts:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -283,7 +278,6 @@ export const getSharedWorkout = async (req, res) => {
       data: template,
     });
   } catch (error) {
-    console.error("Error getting shared workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -362,9 +356,6 @@ export const updateSharedWorkout = async (req, res) => {
         sharedWorkoutId: workoutObjectId,
       });
 
-      console.log(
-        `🔍 [SHARED_WORKOUT] Found ${linkedEntries.length} Entry post(s) linked to SharedWorkout ${sharedWorkoutId}`
-      );
 
       if (linkedEntries.length > 0) {
         const updateResult = await Entry.updateMany(
@@ -372,17 +363,7 @@ export const updateSharedWorkout = async (req, res) => {
           { $set: entryUpdates }
         );
 
-        console.log(
-          `✅ [SHARED_WORKOUT] Updated ${updateResult.modifiedCount} Entry post(s) linked to SharedWorkout ${sharedWorkoutId}`
-        );
-        console.log(
-          `✅ [SHARED_WORKOUT] Updated fields:`,
-          Object.keys(entryUpdates)
-        );
       } else {
-        console.log(
-          `⚠️ [SHARED_WORKOUT] No Entry posts found with sharedWorkoutId: ${sharedWorkoutId}`
-        );
         // Try to find entries by workout name as fallback (for entries created before sharedWorkoutId was added)
         const fallbackEntries = await Entry.find({
           name: template.workoutName,
@@ -391,9 +372,6 @@ export const updateSharedWorkout = async (req, res) => {
         });
 
         if (fallbackEntries.length > 0) {
-          console.log(
-            `⚠️ [SHARED_WORKOUT] Found ${fallbackEntries.length} Entry post(s) by name fallback - updating them and adding sharedWorkoutId`
-          );
 
           // Update these entries with sharedWorkoutId and new data
           const fallbackUpdate = {
@@ -408,9 +386,6 @@ export const updateSharedWorkout = async (req, res) => {
             { $set: fallbackUpdate }
           );
 
-          console.log(
-            `✅ [SHARED_WORKOUT] Updated ${fallbackResult.modifiedCount} fallback Entry post(s) and added sharedWorkoutId`
-          );
         }
       }
     }
@@ -421,7 +396,6 @@ export const updateSharedWorkout = async (req, res) => {
       data: template,
     });
   } catch (error) {
-    console.error("Error updating shared workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -450,7 +424,6 @@ export const deleteSharedWorkout = async (req, res) => {
       message: "Shared workout deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting shared workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -528,7 +501,6 @@ export const shareWorkoutToUser = async (req, res) => {
       data: share,
     });
   } catch (error) {
-    console.error("Error assigning workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -570,7 +542,6 @@ export const getTrainerAssignments = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting trainer shares:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -594,7 +565,6 @@ export const getUserAssignments = async (req, res) => {
       data: shares,
     });
   } catch (error) {
-    console.error("Error getting user shares:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -624,7 +594,6 @@ export const markWorkoutAsSaved = async (req, res) => {
       data: share,
     });
   } catch (error) {
-    console.error("Error marking workout as saved:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -669,7 +638,6 @@ export const updateWorkoutAssignment = async (req, res) => {
       data: updatedAssignment,
     });
   } catch (error) {
-    console.error("Error updating workout share:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -758,7 +726,6 @@ export const continueAssignedWorkout = async (req, res) => {
       data: share,
     });
   } catch (error) {
-    console.error("Error continuing workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -822,7 +789,6 @@ export const completeAssignedWorkout = async (req, res) => {
       data: share,
     });
   } catch (error) {
-    console.error("Error completing workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -882,7 +848,6 @@ export const checkPendingWorkouts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error checking pending workouts:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -999,7 +964,6 @@ export const claimPendingWorkouts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error claiming pending workouts:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -1049,7 +1013,6 @@ export const generateShareableLink = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error generating shareable link:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -1103,7 +1066,6 @@ export const getSharedWorkoutByToken = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting shared workout by token:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -1210,7 +1172,6 @@ export const saveSharedWorkoutToAccount = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error saving shared workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -1303,7 +1264,6 @@ export const getTrainerClients = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting trainer clients:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -1365,7 +1325,6 @@ export const generateClientShareableLink = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error generating client shareable link:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -1401,7 +1360,6 @@ export const getClientWorkoutsByToken = async (req, res) => {
         base64Token + "=".repeat((4 - (base64Token.length % 4)) % 4);
       tokenData = Buffer.from(paddedToken, "base64").toString("utf-8");
     } catch (error) {
-      console.error("Error decoding token:", error);
       return res.status(400).json({
         success: false,
         message: "Invalid share token - decoding failed",
@@ -1411,11 +1369,6 @@ export const getClientWorkoutsByToken = async (req, res) => {
     // Split token data
     const tokenParts = tokenData.split(":");
     if (tokenParts.length !== 4) {
-      console.error(
-        "Invalid token format. Expected 4 parts, got:",
-        tokenParts.length,
-        tokenData
-      );
       return res.status(400).json({
         success: false,
         message: "Invalid share token format",
@@ -1427,11 +1380,6 @@ export const getClientWorkoutsByToken = async (req, res) => {
 
     // Validate token components
     if (!uid || !normalizedClientName || isNaN(expiresAt)) {
-      console.error("Invalid token components:", {
-        uid,
-        normalizedClientName,
-        expiresAt,
-      });
       return res.status(400).json({
         success: false,
         message: "Invalid share token - missing required components",
@@ -1486,7 +1434,6 @@ export const getClientWorkoutsByToken = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting client workouts by token:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -1523,7 +1470,6 @@ export const claimClientWorkoutsByToken = async (req, res) => {
         base64Token + "=".repeat((4 - (base64Token.length % 4)) % 4);
       tokenData = Buffer.from(paddedToken, "base64").toString("utf-8");
     } catch (error) {
-      console.error("Error decoding token:", error);
       return res.status(400).json({
         success: false,
         message: "Invalid share token - decoding failed",
@@ -1533,11 +1479,6 @@ export const claimClientWorkoutsByToken = async (req, res) => {
     // Split token data
     const tokenParts = tokenData.split(":");
     if (tokenParts.length !== 4) {
-      console.error(
-        "Invalid token format. Expected 4 parts, got:",
-        tokenParts.length,
-        tokenData
-      );
       return res.status(400).json({
         success: false,
         message: "Invalid share token format",
@@ -1549,11 +1490,6 @@ export const claimClientWorkoutsByToken = async (req, res) => {
 
     // Validate token components
     if (!trainerUid || !normalizedClientName || isNaN(expiresAt)) {
-      console.error("Invalid token components:", {
-        trainerUid,
-        normalizedClientName,
-        expiresAt,
-      });
       return res.status(400).json({
         success: false,
         message: "Invalid share token - missing required components",
@@ -1661,9 +1597,6 @@ export const claimClientWorkoutsByToken = async (req, res) => {
         image: workoutPost.image,
         createdAt: workoutPost.createdAt,
       });
-      console.log(
-        `Created missing Entry post for workout: ${workout.workoutName}`
-      );
     }
 
     // If all workouts are already claimed and we've created all missing entries,
@@ -1797,7 +1730,6 @@ export const claimClientWorkoutsByToken = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error claiming client workouts:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };

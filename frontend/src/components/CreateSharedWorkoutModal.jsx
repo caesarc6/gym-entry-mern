@@ -87,7 +87,6 @@ const CreateSharedWorkoutModal = ({
 
       setClients(uniqueClients);
     } catch (error) {
-      console.error("Error fetching clients:", error);
       toast.error("Error", "Failed to load client list");
     } finally {
       setIsLoadingClients(false);
@@ -181,7 +180,6 @@ const CreateSharedWorkoutModal = ({
         throw new Error(response.data.message || "Failed to create workout");
       }
     } catch (error) {
-      console.error("Error creating workout:", error);
       toast.error(
         "Error",
         error.response?.data?.message || "Failed to create workout"

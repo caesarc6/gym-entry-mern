@@ -91,7 +91,6 @@ const UserProfilePage = () => {
       setIsFollowing(followStatusData.isFollowing || false);
       setHasFollowRequest(followStatusData.hasRequest || false);
     } catch (error) {
-      console.error("Error checking follow status:", error);
     }
   }, [userId]);
 
@@ -198,7 +197,6 @@ const UserProfilePage = () => {
         });
       }
     } catch (error) {
-      console.error("Error fetching user profile:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to load profile",
@@ -311,16 +309,6 @@ const UserProfilePage = () => {
         }
       }
     } catch (error) {
-      console.error(
-        `Error ${
-          isFollowing
-            ? "unfollowing"
-            : hasFollowRequest
-            ? "cancelling follow request"
-            : "following"
-        } user:`,
-        error
-      );
       toast({
         title: "Error",
         description: error.message,

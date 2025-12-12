@@ -76,7 +76,6 @@ export const processWorkoutEntry = async (req, res) => {
       data: workout,
     });
   } catch (error) {
-    console.error("Error processing workout entry:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -97,7 +96,6 @@ export const getAllWorkouts = async (req, res) => {
 
     res.status(200).json(workouts);
   } catch (error) {
-    console.error("Error getting all workouts:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -228,7 +226,6 @@ export const getWorkoutAnalytics = async (req, res) => {
       data: analytics,
     });
   } catch (error) {
-    console.error("Error getting workout analytics:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -322,7 +319,6 @@ export const getExerciseProgress = async (req, res) => {
       data: progress,
     });
   } catch (error) {
-    console.error("Error getting exercise progress:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -388,7 +384,6 @@ export const getPersonalRecords = async (req, res) => {
       data: prs,
     });
   } catch (error) {
-    console.error("Error getting personal records:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -428,9 +423,6 @@ export const reprocessAllWorkouts = async (req, res) => {
         if (originalName !== normalizedName) {
           exercise.name = normalizedName;
           hasChanges = true;
-          console.log(
-            `Updated exercise name: "${originalName}" → "${normalizedName}"`
-          );
         }
       }
 
@@ -455,7 +447,6 @@ export const reprocessAllWorkouts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error reprocessing workouts:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -530,7 +521,6 @@ export const reprocessAllWorkoutsWithGymNormalization = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error reprocessing workouts with gym normalization:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -626,7 +616,6 @@ export const completelyReprocessAllWorkouts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error completely reprocessing workouts:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",

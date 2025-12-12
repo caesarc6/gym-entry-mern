@@ -26,7 +26,6 @@ dotenv.config();
 // Connect to database (don't await - let it connect in background)
 // But we'll check connection state in routes
 connectDB().catch((error) => {
-  console.error("❌ [DB] Failed to connect to database:", error);
   // Don't exit in serverless - let it retry on next request
 });
 
@@ -57,26 +56,20 @@ const productionDomains = [
 // Combine allowed origins with production domains
 const allAllowedOrigins = [...new Set([...allowedOrigins, ...productionDomains])];
 
-console.log("🌐 [CORS] Allowed origins:", allAllowedOrigins);
 
 app.use(
   cors({
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) {
-        console.log("🌐 [CORS] Request with no origin - allowing");
         return callback(null, true);
       }
 
-      console.log("🌐 [CORS] Checking origin:", origin);
       
       // Check if origin is in allowed list
       if (allAllowedOrigins.indexOf(origin) !== -1) {
-        console.log("✅ [CORS] Origin allowed:", origin);
         callback(null, true);
       } else {
-        console.error("❌ [CORS] Origin not allowed:", origin);
-        console.error("❌ [CORS] Allowed origins:", allAllowedOrigins);
         callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
       }
     },
@@ -88,15 +81,6 @@ app.use(
 
 // Add request logging middleware BEFORE routes
 app.use((req, res, next) => {
-  console.log("🔍 [SERVER] Incoming request:", {
-    method: req.method,
-    url: req.url,
-    hasBody: !!req.body,
-    bodyKeys: req.body ? Object.keys(req.body) : [],
-    bodySize: req.body ? JSON.stringify(req.body).length : 0,
-    hasAuth: !!req.headers.authorization,
-    contentType: req.headers["content-type"],
-  });
   next();
 });
 
@@ -106,7 +90,6 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
   try {
     // Check if req.user exists (should be set by verifyIdToken middleware)
     if (!req.user) {
-      console.error("❌ [PROTECTED] req.user is undefined");
       return res.status(403).json({
         success: false,
         message: "Unauthorized: User information not found",
@@ -119,11 +102,9 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
     const dbState = mongoose.connection.readyState;
     if (dbState === 0) {
       // Disconnected - try to reconnect
-      console.error("❌ [PROTECTED] Database disconnected. Attempting reconnect...");
       try {
         await connectDB();
       } catch (reconnectError) {
-        console.error("❌ [PROTECTED] Reconnect failed:", reconnectError);
         return res.status(500).json({
           success: false,
           message: "Database connection error",
@@ -131,7 +112,6 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
       }
     } else if (dbState === 2) {
       // Connecting - wait a bit for connection to establish
-      console.log("⏳ [PROTECTED] Database connecting, waiting...");
       let waitTime = 0;
       const maxWait = 5000; // 5 seconds max wait
       while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
@@ -139,14 +119,12 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
         waitTime += 100;
       }
       if (mongoose.connection.readyState !== 1) {
-        console.error("❌ [PROTECTED] Database still not connected after wait");
         return res.status(500).json({
           success: false,
           message: "Database connection timeout",
         });
       }
     } else if (dbState !== 1) {
-      console.error("❌ [PROTECTED] Database not ready. State:", dbState);
       return res.status(500).json({
         success: false,
         message: "Database connection error",
@@ -157,7 +135,6 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
     try {
       user = await User.findOne({ uid });
     } catch (dbError) {
-      console.error("❌ [PROTECTED] Database query error:", dbError);
       return res.status(500).json({
         success: false,
         message: "Database query error",
@@ -186,7 +163,6 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
         });
         await user.save();
       } catch (saveError) {
-        console.error("❌ [PROTECTED] User save error:", saveError);
         // Check if it's a duplicate key error (user already exists)
         if (saveError.code === 11000) {
           // User was created between findOne and save, try to fetch again
@@ -213,12 +189,6 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
       data: user,
     });
   } catch (error) {
-    console.error("❌ [PROTECTED] Error:", error);
-    console.error("❌ [PROTECTED] Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -257,20 +227,9 @@ app.get("/api/test", (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error("❌ [SERVER] Global error handler triggered");
-  console.error("❌ [SERVER] Error details:", {
-    message: err.message,
-    type: err.type,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
-    origin: req.headers.origin,
-    body: req.body ? Object.keys(req.body) : "No body",
-  });
 
   // Handle CORS errors specifically
   if (err.message && err.message.includes("Not allowed by CORS")) {
-    console.error("❌ [SERVER] CORS error detected");
     return res.status(403).json({
       success: false,
       message: "CORS Error: Origin not allowed",
@@ -282,7 +241,6 @@ app.use((err, req, res, next) => {
 
   // Handle payload too large errors specifically
   if (err.type === "entity.too.large") {
-    console.error("❌ [SERVER] Payload too large error detected");
     return res.status(413).json({
       success: false,
       message: "File too large. Please upload a smaller image.",
@@ -290,7 +248,6 @@ app.use((err, req, res, next) => {
     });
   }
 
-  console.error("❌ [SERVER] Sending 500 error response");
   res.status(500).json({
     success: false,
     message: "Internal Server Error",

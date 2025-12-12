@@ -230,7 +230,6 @@ const ProductCard = ({
           setUserDisplayName("Unknown User");
         }
       } catch (error) {
-        console.error("Error fetching profile image:", error);
         // Only set to default if we don't already have a profile image
         if (
           !profileImage ||
@@ -291,7 +290,6 @@ const ProductCard = ({
         }
       }
     } catch (error) {
-      console.error("Error fetching trainer profile:", error);
       // If we have trainer name/username from entry, still show it
       if (entry.trainerName || entry.trainerUsername) {
         setTrainerDisplayName(entry.trainerName || entry.trainerUsername);
@@ -440,7 +438,6 @@ const ProductCard = ({
         { maxSizeMB: 5 }
       );
     } catch (error) {
-      console.error("File processing error:", error);
       toast({
         title: "Error",
         description: "Failed to process image. Please try again.",
@@ -649,7 +646,6 @@ const ProductCard = ({
         }));
       }
     } catch (error) {
-      console.error("Error liking comment:", error);
       toast({
         title: "Error",
         description: "Failed to like comment",
@@ -702,7 +698,6 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      console.error("Error replying to comment:", error);
       toast({
         title: "Error",
         description: "Failed to add reply",
@@ -742,7 +737,6 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      console.error("Error editing comment:", error);
       toast({
         title: "Error",
         description: "Failed to edit comment",
@@ -777,7 +771,6 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      console.error("Error deleting comment:", error);
       toast({
         title: "Error",
         description: "Failed to delete comment",
@@ -832,7 +825,6 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      console.error("Error processing workout:", error);
       toast({
         title: "Error",
         description:

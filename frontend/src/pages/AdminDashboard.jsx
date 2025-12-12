@@ -63,7 +63,6 @@ const AdminDashboard = () => {
         setApprovedUsers(response.data.data.approvedUsers || []);
       }
     } catch (error) {
-      console.error("Error fetching requests:", error);
       toast.error(
         "Error",
         error.response?.data?.message || "Failed to fetch requests"
@@ -106,7 +105,6 @@ const AdminDashboard = () => {
           }
         }
       } catch (error) {
-        console.error("Error checking admin status:", error);
         toast.error("Error", "Failed to verify admin access. Please try again.");
         setTimeout(() => navigate("/"), 2000);
       } finally {
@@ -143,7 +141,6 @@ const AdminDashboard = () => {
         fetchRequests(); // Refresh the list
       }
     } catch (error) {
-      console.error("Error approving access:", error);
       toast.error(
         "Error",
         error.response?.data?.message || "Failed to approve access"
@@ -177,7 +174,6 @@ const AdminDashboard = () => {
         setUserToReject(null);
       }
     } catch (error) {
-      console.error("Error rejecting access:", error);
       toast.error(
         "Error",
         error.response?.data?.message || "Failed to reject access"

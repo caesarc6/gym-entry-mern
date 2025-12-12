@@ -103,7 +103,6 @@ export const HeroHeader = () => {
       const data = response.data;
       setSearchResults(data.data || []);
     } catch (error) {
-      console.error("Error searching users:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to search users",
@@ -182,7 +181,6 @@ export const HeroHeader = () => {
             setHasTrainerDashboardAccess(response.data.hasAccess || false);
           }
         } catch (error) {
-          console.error("Error checking trainer dashboard access:", error);
           // Default to false on error
           setHasTrainerDashboardAccess(false);
         }
@@ -201,7 +199,6 @@ export const HeroHeader = () => {
             setIsAdmin(response.data.isAdmin || false);
           }
         } catch (error) {
-          console.error("Error checking admin status:", error);
           // Default to false on error
           setIsAdmin(false);
         }
@@ -293,7 +290,6 @@ export const HeroHeader = () => {
         });
       }
     } catch (error) {
-      console.error("Google sign-in error:", error);
       toast({
         title: "Sign-in Failed",
         description: error.message || "Failed to sign in with Google",
@@ -311,7 +307,7 @@ export const HeroHeader = () => {
       setUid(null);
       setEntries([]);
     } catch (error) {
-      console.error("Error signing out:", error);
+      // Error signing out
     }
   };
 

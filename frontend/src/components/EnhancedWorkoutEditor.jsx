@@ -216,7 +216,6 @@ const EnhancedWorkoutEditor = ({
         isClosable: true,
       });
     } catch (error) {
-      console.error("Auto-save failed:", error);
     } finally {
       setIsLoading(false);
     }
@@ -246,7 +245,6 @@ const EnhancedWorkoutEditor = ({
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error("Save failed:", error);
       toast({
         title: "Error",
         description: "Failed to save workout changes",

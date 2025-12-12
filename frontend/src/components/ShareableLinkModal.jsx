@@ -103,7 +103,6 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
         }
       }
     } catch (error) {
-      console.error("Error generating shareable link:", error);
       toast({
         title: "Error generating link",
         description:

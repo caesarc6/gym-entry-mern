@@ -50,7 +50,6 @@ const Navbar = () => {
       const userExists = userCheckResponse.status === 200;
       return userExists;
     } catch (error) {
-      console.error("Error checking user existence:", error);
       return false;
     }
   };
@@ -68,7 +67,6 @@ const Navbar = () => {
 
       const currentUserData = currentUserResponse.data;
     } catch (error) {
-      console.error("Error during sign-in:", error);
       handleSignOut();
       toast({
         title: "Error",
@@ -86,7 +84,6 @@ const Navbar = () => {
       setUid(null);
       setIsSignedIn(false);
     } catch (error) {
-      console.error("Error during sign-out:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to sign out",
@@ -102,7 +99,6 @@ const Navbar = () => {
       const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
       const currentUserData = response.data;
     } catch (error) {
-      console.error("Error checking current user:", error);
     }
   };
 
@@ -146,7 +142,6 @@ const Navbar = () => {
       await checkCurrentUser();
     } catch (error) {
       // clear feed and user sign in state to sign out
-      console.error("Error during sign-in:", error);
       handleSignOut();
     }
   };

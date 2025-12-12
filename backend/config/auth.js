@@ -14,7 +14,6 @@ export const connectAuth = async () => {
       };
       return user;
     } catch (error) {
-      console.error("Error while verifying Firebase ID token:", error);
       res.status(403).send("Unauthorized");
     }
   }
@@ -22,7 +21,6 @@ export const connectAuth = async () => {
 
 // export const connectAuth = async () => {
 //   try {
-//     console.log(result);
 //     const token = await result.user.getIdToken();
 
 //     const response = await fetch("http://localhost:5001/api/protected", {
@@ -37,9 +35,7 @@ export const connectAuth = async () => {
 //     }
 
 //     const userData = await response.json();
-//     console.log("User Data:", userData);
 //   } catch (error) {
-//     console.error("Error during sign-in:", error);
 //   }
 // };
 
@@ -55,10 +51,8 @@ export const connectAuth = async () => {
 // //   try {
 // //     const decodedToken = await admin.auth().verifyIdToken(idToken);
 // //     req.user = decodedToken;
-// //     console.log("User1:", req.user);
 // //     next();
 // //   } catch (error) {
-// //     console.error("Error while verifying Firebase ID token:", error);
 // //     res.status(403).send("Unauthorized");
 // //   }
 // // }
@@ -84,7 +78,6 @@ export const connectAuth = async () => {
 // //     await user.save();
 // //   }
 // //   res.send(user);
-// //   console.log("User2:", user);
 // // });
 
 // // export { verifyIdToken };

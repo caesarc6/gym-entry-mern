@@ -120,7 +120,6 @@ const ContinueWorkoutModal = ({
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error("Error continuing workout:", error);
       toast({
         title: "Error",
         description:
@@ -162,7 +161,6 @@ const ContinueWorkoutModal = ({
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error("Error completing workout:", error);
       toast({
         title: "Error",
         description:

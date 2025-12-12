@@ -46,7 +46,6 @@ const AssignedWorkouts = ({ uid }) => {
       const response = await apiClient.get(API_ENDPOINTS.GET_USER_ASSIGNMENTS);
       setAssignments(response.data.data || []);
     } catch (error) {
-      console.error("Error fetching user assignments:", error);
       toast.error("Error", "Failed to load assigned workouts");
     } finally {
       setIsLoading(false);
@@ -70,7 +69,6 @@ const AssignedWorkouts = ({ uid }) => {
 
       toast.success("Success", "Workout saved to your account!");
     } catch (error) {
-      console.error("Error saving workout:", error);
       toast.error("Error", "Failed to save workout");
     } finally {
       setSavingIds((prev) => {
@@ -267,7 +265,6 @@ const AssignedWorkouts = ({ uid }) => {
                         variant="outline"
                         onClick={() => {
                           // TODO: Navigate to workout details
-                          console.log("View workout:", assignment);
                         }}
                       >
                         View

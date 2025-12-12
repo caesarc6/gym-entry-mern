@@ -41,46 +41,25 @@ const uploadMiddleware = multer({
 
 // Middleware to handle file upload errors
 export const handleFileUpload = (req, res, next) => {
-  console.log("🔍 [ENTRY] handleFileUpload middleware called");
-  console.log(
-    "🔍 [ENTRY] Request file:",
-    req.file
-      ? {
-          fieldname: req.file.fieldname,
-          originalname: req.file.originalname,
-          mimetype: req.file.mimetype,
-          size: req.file.size,
-        }
-      : "No file"
-  );
-  console.log("🔍 [ENTRY] Request body keys:", Object.keys(req.body));
-
   if (!req.file) {
-    console.log("🔍 [ENTRY] No file uploaded, proceeding to next middleware");
     return next(); // No file uploaded, skip to the next middleware
   }
 
   // Check for Multer errors
   if (req.fileError) {
-    console.error("❌ [ENTRY] File upload error detected:", req.fileError);
     if (req.fileError instanceof multer.MulterError) {
-      console.error("❌ [ENTRY] Multer error code:", req.fileError.code);
       if (req.fileError.code === "LIMIT_FIELD_VALUE") {
         return res.status(400).json({
           message: "File too large. Please upload a smaller image (max 10MB).",
         });
       }
     } else {
-      console.error("❌ [ENTRY] Non-multer file error:", req.fileError.message);
       return res.status(400).json({
         error: req.fileError.message,
       });
     }
   }
 
-  console.log(
-    "✅ [ENTRY] File upload validation passed, proceeding to next middleware"
-  );
   // Proceed to the next middleware
   next();
 };
@@ -97,21 +76,10 @@ export const getEntrys = async (req, res) => {
 
 // create product
 export const createEntry = async (req, res) => {
-  console.log("🔍 [ENTRY] createEntry function called");
-  console.log("🔍 [ENTRY] Request body:", {
-    name: req.body.name,
-    description: req.body.description,
-    hasImage: !!req.body.image,
-    imageName: req.body.imageName,
-    imageLength: req.body.image ? req.body.image.length : 0,
-  });
-  console.log("🔍 [ENTRY] User UID:", req.user.uid);
-
   const entry = req.body; // user will send this data
   const { uid } = req.user; // Get the authenticated user's UID
 
   if (!entry.name && !entry.description) {
-    console.error("❌ [ENTRY] Missing required fields: name and description");
     return res
       .status(400)
       .json({ success: false, message: "Please provide Name and Description" });
@@ -123,40 +91,20 @@ export const createEntry = async (req, res) => {
   const newEntry = new Entry(entry);
 
   try {
-    console.log("🔍 [ENTRY] Saving entry to database...");
     await newEntry.save();
-    console.log("✅ [ENTRY] Entry saved successfully:", {
-      id: newEntry._id,
-      name: newEntry.name,
-      hasImage: !!newEntry.image,
-    });
     res.status(201).json({ success: true, data: newEntry });
   } catch (error) {
-    console.error("❌ [ENTRY] Error in Create entry:", error.message);
-    console.error("❌ [ENTRY] Error stack:", error.stack);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
 // update workout entry
 export const updateEntry = async (req, res) => {
-  console.log("🔍 [ENTRY] updateEntry function called");
-  console.log("🔍 [ENTRY] Request body:", {
-    pid: req.body.pid,
-    name: req.body.name,
-    description: req.body.description,
-    hasImage: !!req.body.image,
-    imageName: req.body.imageName,
-    imageLength: req.body.image ? req.body.image.length : 0,
-  });
-  console.log("🔍 [ENTRY] User UID:", req.user.uid);
-
   const { pid, name, description, image, imageName } = req.body; // Extract fields directly from req.body
   const { uid } = req.user;
 
   // Check if at least one of the fields (name or description) is provided
   if (!name) {
-    console.error("❌ [ENTRY] Missing required field: name");
     return res.status(400).json({ error: "Missing required fields" });
   }
 
@@ -165,23 +113,12 @@ export const updateEntry = async (req, res) => {
 
     // Check if a new image is provided
     if (imageName !== "undefined") {
-      console.log("🔍 [ENTRY] Processing image upload for update...");
-      console.log("🔍 [ENTRY] Image name:", imageName);
-      console.log(
-        "🔍 [ENTRY] Image data length:",
-        image ? image.length : "No image data"
-      );
-
       try {
         const base64Data = image.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
         const filePath = generateSafeFilePath(uid, imageName, "images");
 
-        console.log("🔍 [ENTRY] Generated file path:", filePath);
-        console.log("🔍 [ENTRY] Image buffer size:", imageBuffer.length);
-
         // Upload the new image to Supabase storage
-        console.log("🔍 [ENTRY] Uploading to Supabase storage...");
         const { data: file, error } = await supabase.storage
           .from("post_images")
           .upload(filePath, imageBuffer, {
@@ -191,33 +128,21 @@ export const updateEntry = async (req, res) => {
           });
 
         if (error) {
-          console.error("❌ [ENTRY] Supabase upload error:", error);
-          console.error("❌ [ENTRY] Error details:", {
-            message: error.message,
-            statusCode: error.statusCode,
-            error: error.error,
-          });
           return res.status(500).json({
             error: "Failed to upload image",
             details: error.message,
           });
         }
 
-        console.log("✅ [ENTRY] Supabase upload successful:", file);
         // Generate the URL for the newly uploaded image
         postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
-        console.log("🔍 [ENTRY] Generated image URL:", postImageUrl);
       } catch (imageError) {
-        console.error("❌ [ENTRY] Image processing error:", imageError);
         return res.status(500).json({
           error: "Failed to process image",
           details: imageError.message,
         });
       }
     } else {
-      console.log(
-        "🔍 [ENTRY] No image provided for update, skipping image upload"
-      );
     }
 
     // Prepare the update object
@@ -227,16 +152,15 @@ export const updateEntry = async (req, res) => {
       ...(postImageUrl && { image: postImageUrl }), // Only include image URL if a new image is uploaded
     };
 
-    console.log("🔍 [ENTRY] Update data:", updateData);
-
     // Get the entry first to check if it's linked to a SharedWorkout
     const existingEntry = await Entry.findById(pid);
     if (!existingEntry) {
-      return res.status(404).json({ success: false, message: "Entry not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
     }
 
     // Update the entry in the database
-    console.log("🔍 [ENTRY] Updating entry in database...");
     const entryData = await Entry.findByIdAndUpdate(pid, updateData, {
       new: true,
     });
@@ -244,7 +168,8 @@ export const updateEntry = async (req, res) => {
     // If this entry is linked to a SharedWorkout, sync the update back to the SharedWorkout
     if (existingEntry.sharedWorkoutId) {
       try {
-        const SharedWorkout = (await import("../models/sharedWorkout.model.js")).default;
+        const SharedWorkout = (await import("../models/sharedWorkout.model.js"))
+          .default;
         const sharedWorkoutUpdates = {};
 
         // Description is now stored without prefix - trainer info is separate
@@ -277,29 +202,22 @@ export const updateEntry = async (req, res) => {
 
           if (Object.keys(otherEntryUpdates).length > 0) {
             const updateResult = await Entry.updateMany(
-              { sharedWorkoutId: existingEntry.sharedWorkoutId, _id: { $ne: pid } },
+              {
+                sharedWorkoutId: existingEntry.sharedWorkoutId,
+                _id: { $ne: pid },
+              },
               { $set: otherEntryUpdates }
             );
-            console.log(`✅ [ENTRY] Synced update to SharedWorkout ${existingEntry.sharedWorkoutId} and ${updateResult.modifiedCount} other Entry posts`);
           } else {
-            console.log(`✅ [ENTRY] Synced update to SharedWorkout ${existingEntry.sharedWorkoutId}`);
           }
         }
       } catch (syncError) {
-        console.error("❌ [ENTRY] Error syncing to SharedWorkout:", syncError);
         // Don't fail the request if sync fails, just log it
       }
     }
 
-    console.log("✅ [ENTRY] Entry updated successfully:", {
-      id: entryData._id,
-      name: entryData.name,
-      hasImage: !!entryData.image,
-    });
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
-    console.error("❌ [ENTRY] Update entry error:", error);
-    console.error("❌ [ENTRY] Error stack:", error.stack);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -311,7 +229,6 @@ export const updateEntryPut = async (req, res) => {
 
   // Check if user is authenticated
   if (!req.user || !req.user.uid) {
-    console.error("User not authenticated or missing uid:", req.user);
     return res.status(401).json({
       success: false,
       message: "User not authenticated",
@@ -368,7 +285,6 @@ export const updateEntryPut = async (req, res) => {
         });
 
       if (error) {
-        console.error("Supabase upload error:", error);
         return res.status(500).json({
           success: false,
           message: "Failed to upload image",
@@ -395,7 +311,8 @@ export const updateEntryPut = async (req, res) => {
     // If this entry is linked to a SharedWorkout, sync the update back to the SharedWorkout
     if (existingEntry.sharedWorkoutId) {
       try {
-        const SharedWorkout = (await import("../models/sharedWorkout.model.js")).default;
+        const SharedWorkout = (await import("../models/sharedWorkout.model.js"))
+          .default;
         const sharedWorkoutUpdates = {};
 
         // Description is now stored without prefix - trainer info is separate
@@ -428,26 +345,22 @@ export const updateEntryPut = async (req, res) => {
 
           if (Object.keys(otherEntryUpdates).length > 0) {
             const updateResult = await Entry.updateMany(
-              { sharedWorkoutId: existingEntry.sharedWorkoutId, _id: { $ne: id } },
+              {
+                sharedWorkoutId: existingEntry.sharedWorkoutId,
+                _id: { $ne: id },
+              },
               { $set: otherEntryUpdates }
             );
-            console.log(`✅ [ENTRY PUT] Synced update to SharedWorkout ${existingEntry.sharedWorkoutId} and ${updateResult.modifiedCount} other Entry posts`);
           } else {
-            console.log(`✅ [ENTRY PUT] Synced update to SharedWorkout ${existingEntry.sharedWorkoutId}`);
           }
         }
       } catch (syncError) {
-        console.error("❌ [ENTRY PUT] Error syncing to SharedWorkout:", syncError);
         // Don't fail the request if sync fails, just log it
       }
     }
 
-    console.log("PUT Updated entry data:", entryData); // Debug log
-    console.log("PUT route - postImageUrl:", postImageUrl); // Debug log
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
-    console.error("Error in updating entry:", error.message);
-    console.error("Full error:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -484,7 +397,6 @@ export const deleteEntry = async (req, res) => {
     await Entry.findByIdAndDelete(id);
     res.status(200).json({ success: true, message: "Entry deleted" });
   } catch (error) {
-    // console.error("Error in deleting entry", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -561,8 +473,6 @@ export const likeEntry = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error in liking/unliking entry:", error.message);
-    console.error("Full error:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -615,7 +525,6 @@ export const commentEntry = async (req, res) => {
 
     res.status(200).json({ success: true, data: entry });
   } catch (error) {
-    console.error("Error in commenting entry:", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -678,7 +587,6 @@ export const likeComment = async (req, res) => {
     await entry.save();
     res.status(200).json({ success: true, data: entry });
   } catch (error) {
-    console.error("Error liking comment:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -739,7 +647,6 @@ export const replyToComment = async (req, res) => {
 
     res.status(200).json({ success: true, data: entry });
   } catch (error) {
-    console.error("Error replying to comment:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -788,7 +695,6 @@ export const editComment = async (req, res) => {
 
     res.status(200).json({ success: true, data: entry });
   } catch (error) {
-    console.error("Error editing comment:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -825,7 +731,6 @@ export const cleanupMalformedComments = async (req, res) => {
       updatedCount,
     });
   } catch (error) {
-    console.error("Error cleaning up malformed comments:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -872,7 +777,6 @@ export const deleteComment = async (req, res) => {
 
     res.status(200).json({ success: true, data: entry });
   } catch (error) {
-    console.error("Error deleting comment:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -924,7 +828,6 @@ export const generateShareLink = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error generating share link:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -968,7 +871,6 @@ export const getSharedWorkout = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting shared workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -1025,7 +927,6 @@ export const saveSharedWorkout = async (req, res) => {
       data: newEntry,
     });
   } catch (error) {
-    console.error("Error saving shared workout:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -1041,7 +942,6 @@ const getUserProfileForSharing = async (uid) => {
       username: null,
     };
   } catch (error) {
-    console.error("Error getting user profile for sharing:", error);
     return {
       uid,
       name: "Anonymous",

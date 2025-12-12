@@ -127,7 +127,6 @@ const TrainerDashboard = () => {
           }
         }
       } catch (error) {
-        console.error("Error checking trainer dashboard access:", error);
         toast.error(
           "Error",
           "Failed to verify trainer dashboard access. Please try again."
@@ -170,7 +169,6 @@ const TrainerDashboard = () => {
           toast.success("Success", "General workouts deleted successfully");
           fetchData(); // Refresh the data
         } catch (error) {
-          console.error("Error deleting general workouts:", error);
           toast.error("Error", "Failed to delete some general workouts");
         }
       }
@@ -227,7 +225,6 @@ const TrainerDashboard = () => {
       }
       */
     } catch (error) {
-      console.error("Error fetching data:", error);
       toast.error("Error", "Failed to fetch dashboard data");
     } finally {
       setIsLoading(false);
@@ -359,7 +356,6 @@ const TrainerDashboard = () => {
 
       toast.success("Success", "Workout deleted successfully!");
     } catch (error) {
-      console.error("Error deleting workout:", error);
       toast.error(
         "Error",
         error.response?.data?.message || "Failed to delete workout"

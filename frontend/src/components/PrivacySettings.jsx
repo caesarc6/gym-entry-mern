@@ -75,14 +75,9 @@ const PrivacySettings = () => {
             });
           }
         } catch (accessError) {
-          console.error(
-            "Error fetching trainer dashboard access:",
-            accessError
-          );
           // Don't fail the whole page if this fails
         }
       } catch (error) {
-        console.error("Error fetching privacy settings:", error);
         toast({
           title: "Error",
           description: error.message,
@@ -156,7 +151,6 @@ const PrivacySettings = () => {
         });
       }
     } catch (error) {
-      console.error("Error updating privacy settings:", error);
       toast({
         title: "Error",
         description: error.message,
@@ -193,7 +187,6 @@ const PrivacySettings = () => {
         });
       }
     } catch (error) {
-      console.error("Error requesting trainer dashboard access:", error);
       toast({
         title: "Error",
         description:

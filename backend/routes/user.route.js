@@ -82,7 +82,6 @@ router.get("/profile-image/:uid", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error retrieving user profile image:", error);
     res.status(500).json({
       success: false,
       message: "Failed to retrieve user profile image",
@@ -249,7 +248,6 @@ export default router;
 //         });
 
 //       if (error) {
-//         console.error("Supabase upload error:", error);
 //         return res.status(500).json({
 //           success: false,
 //           message: "Failed to upload background picture",
@@ -278,7 +276,6 @@ export default router;
 //         data: user,
 //       });
 //     } catch (error) {
-//       console.error("Update background picture error:", error);
 //       res.status(500).json({
 //         success: false,
 //         message: error.message,
@@ -319,7 +316,6 @@ export default router;
 //           });
 
 //         if (error) {
-//           console.error("Supabase upload error:", error);
 //           return res.status(500).json({
 //             success: false,
 //             message: "Failed to upload profile image",
@@ -356,7 +352,6 @@ export default router;
 //         data: user,
 //       });
 //     } catch (error) {
-//       console.error("Update user profile error:", error);
 //       res.status(500).json({
 //         success: false,
 //         message: error.message,

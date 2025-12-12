@@ -24,7 +24,6 @@ const PhotoUpload = ({ onUpload }) => {
         setProgress(progress);
       },
       (error) => {
-        console.error("Upload failed:", error);
       },
       () => {
         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {

@@ -149,7 +149,6 @@ const HomePage = () => {
           throw new Error(data.message || "Failed to fetch following");
         }
       } catch (error) {
-        console.error("Error fetching following UIDs:", error);
         setFollowingUids([]);
         toast({
           title: "Error",
@@ -203,7 +202,6 @@ const HomePage = () => {
           setProfileCache(newCache);
         }
       } catch (error) {
-        console.error("Error preloading profile images:", error);
         // Fallback to individual requests if batch fails
         const batchSize = 5;
         const batches = [];
@@ -231,7 +229,6 @@ const HomePage = () => {
               }
               return null;
             } catch (error) {
-              console.warn(`Failed to fetch profile for ${uid}:`, error);
               return null;
             }
           });
@@ -296,7 +293,6 @@ const HomePage = () => {
             }
             return [];
           } catch (error) {
-            console.warn(`Error fetching posts for UID ${fetchUid}:`, error);
             return [];
           }
         });
@@ -339,7 +335,6 @@ const HomePage = () => {
           });
         }
       } catch (error) {
-        console.error("Error fetching feed posts:", error);
         toast({
           title: "Error",
           description: error.message || "Failed to load feed",
@@ -395,7 +390,6 @@ const HomePage = () => {
 
       const currentUserData = currentUserResponse.data;
     } catch (error) {
-      console.error("Error during sign-in:", error);
       handleSignOutUser();
       toast({
         title: "Error",
@@ -415,7 +409,6 @@ const HomePage = () => {
       setEntries([]);
       setFollowingUids([]);
     } catch (error) {
-      console.error("Error during sign-out:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to sign out",

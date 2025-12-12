@@ -457,7 +457,6 @@ export const parseExerciseLine = (line) => {
           };
         }
       } catch (error) {
-        console.error(`Error parsing exercise line "${trimmedLine}":`, error);
         continue;
       }
     }

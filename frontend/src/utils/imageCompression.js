@@ -21,30 +21,16 @@ const defaultOptions = {
  * @returns {Promise<File>} - Compressed file or original file if no compression needed
  */
 export const compressImageIfNeeded = async (file, options = {}) => {
-  console.log("🔍 [COMPRESSION] Starting compression check");
-  console.log("🔍 [COMPRESSION] File details:", {
-    name: file.name,
-    size: file.size,
-    type: file.type,
-  });
 
   const compressionOptions = { ...defaultOptions, ...options };
   const maxSizeBytes = compressionOptions.maxSizeMB * 1024 * 1024;
 
-  console.log("🔍 [COMPRESSION] Compression options:", compressionOptions);
-  console.log("🔍 [COMPRESSION] Max size bytes:", maxSizeBytes);
 
   // Check if file needs compression
   if (file.size <= maxSizeBytes) {
-    console.log(
-      "✅ [COMPRESSION] File size is within limits, no compression needed"
-    );
     return file;
   }
 
-  console.log(
-    "🔍 [COMPRESSION] File exceeds size limit, starting compression..."
-  );
   try {
     const compressedFile = await imageCompression(file, compressionOptions);
 
@@ -55,15 +41,9 @@ export const compressImageIfNeeded = async (file, options = {}) => {
       100
     ).toFixed(1);
 
-    console.log("✅ [COMPRESSION] Compression completed:", {
-      originalSize: `${originalSize}MB`,
-      compressedSize: `${compressedSize}MB`,
-      compressionRatio: `${compressionRatio}%`,
-    });
 
     return compressedFile;
   } catch (error) {
-    console.error("❌ [COMPRESSION] Image compression failed:", error);
     // Return original file if compression fails
     return file;
   }
@@ -177,44 +157,22 @@ export const handleImageUploadWithCompression = async (
   onError,
   options = {}
 ) => {
-  console.log("🔍 [IMAGE_COMPRESSION] Starting image upload with compression");
-  console.log("🔍 [IMAGE_COMPRESSION] Input file:", {
-    name: file.name,
-    size: file.size,
-    type: file.type,
-  });
-  console.log("🔍 [IMAGE_COMPRESSION] Options:", options);
 
   try {
     // Validate file first
-    console.log("🔍 [IMAGE_COMPRESSION] Validating file...");
     const validation = validateImageFile(file, options.maxSizeMB || 5);
-    console.log("🔍 [IMAGE_COMPRESSION] Validation result:", validation);
 
     if (!validation.success) {
-      console.error(
-        "❌ [IMAGE_COMPRESSION] File validation failed:",
-        validation.message
-      );
       onError(validation.message);
       return;
     }
 
-    console.log("✅ [IMAGE_COMPRESSION] File validation passed");
 
     // Compress if needed
-    console.log("🔍 [IMAGE_COMPRESSION] Starting compression process...");
     const processedFile = await compressImageIfNeeded(file, options);
-    console.log("🔍 [IMAGE_COMPRESSION] Compression completed:", {
-      originalSize: file.size,
-      processedSize: processedFile.size,
-      wasCompressed: file.size !== processedFile.size,
-    });
 
     // Create preview
-    console.log("🔍 [IMAGE_COMPRESSION] Creating preview URL...");
     const previewUrl = createImagePreview(processedFile);
-    console.log("🔍 [IMAGE_COMPRESSION] Preview URL created:", previewUrl);
 
     // Call success callback with processed file and preview
     const result = {
@@ -225,13 +183,8 @@ export const handleImageUploadWithCompression = async (
       wasCompressed: file.size !== processedFile.size,
     };
 
-    console.log(
-      "✅ [IMAGE_COMPRESSION] Processing complete, calling success callback:",
-      result
-    );
     onSuccess(result);
   } catch (error) {
-    console.error("❌ [IMAGE_COMPRESSION] Image processing failed:", error);
     onError("Failed to process image. Please try again.");
   }
 };

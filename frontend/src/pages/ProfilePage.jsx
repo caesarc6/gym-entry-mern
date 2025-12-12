@@ -158,7 +158,6 @@ const ProfilePage = () => {
       const data = response.data;
       setFollowRequests(data.data || []);
     } catch (error) {
-      console.error("Error fetching follow requests:", error);
       toast.error(
         "Failed to load requests",
         "Unable to fetch follow requests at this time."
@@ -197,7 +196,6 @@ const ProfilePage = () => {
         fetchUserProfile(auth.currentUser);
       }
     } catch (error) {
-      console.error("Error processing follow request:", error);
       toast({
         title: "Error",
         description: "Failed to process request",
@@ -236,7 +234,6 @@ const ProfilePage = () => {
         followingCount: data.data.followingCount || 0,
       });
     } catch (error) {
-      console.error("Error fetching user profile:", error);
       toast.error(
         "Profile load failed",
         error.message || "Unable to load profile data."
@@ -262,7 +259,6 @@ const ProfilePage = () => {
         setEntries(normalizedPosts);
         setPagination(data.pagination);
       } else {
-        console.error("Failed to fetch posts:", data.message);
         toast({
           title: "Error",
           description: data.message || "Failed to fetch posts",
@@ -272,7 +268,6 @@ const ProfilePage = () => {
         });
       }
     } catch (error) {
-      console.error("Error fetching user posts:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to fetch posts",
@@ -302,7 +297,6 @@ const ProfilePage = () => {
         .updateEntry(pid, updatedEntry);
       if (!success) {
         setEntries(previousEntries);
-        console.error("Failed to update entry:", message);
         toast.error("Update failed", message || "Unable to update post.");
       } else {
         setEntries((prevEntries) =>
@@ -313,7 +307,6 @@ const ProfilePage = () => {
       }
     } catch (error) {
       setEntries(previousEntries);
-      console.error("Error updating entry:", error);
       toast.error("Update failed", error.message || "Unable to update post.");
     }
   };
@@ -422,7 +415,6 @@ const ProfilePage = () => {
             useProductStore.getState().setCurrentUserInfo(response.data);
           }
         } catch (error) {
-          console.error("Error updating current user info:", error);
         }
       }
     } catch (error) {
@@ -507,7 +499,6 @@ const ProfilePage = () => {
 
       return Array.isArray(followersWithFallback) ? followersWithFallback : [];
     } catch (error) {
-      console.error("Error fetching followers:", error);
       toast({
         title: "Error",
         description: error.message,
@@ -541,7 +532,6 @@ const ProfilePage = () => {
 
       return Array.isArray(followingWithFallback) ? followingWithFallback : [];
     } catch (error) {
-      console.error("Error fetching following:", error);
       toast({
         title: "Error",
         description: error.message,

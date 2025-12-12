@@ -31,34 +31,17 @@ export const useProductStore = create((set) => ({
 
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
-    console.log("🔍 [STORE] createPost called");
-    console.log("🔍 [STORE] Input newPost:", {
-      name: newPost.name,
-      description: newPost.description,
-      uid: newPost.uid,
-      hasPostImage: !!newPost.postImage,
-      postImageName: newPost.postImageName,
-      postImageLength: newPost.postImage ? newPost.postImage.length : 0,
-    });
-
     const token = await auth.currentUser.getIdToken();
-    console.log("🔍 [STORE] Auth token obtained:", !!token);
 
     if (!newPost.name || !newPost.description) {
-      console.error("❌ [STORE] Missing required fields:", {
-        hasName: !!newPost.name,
-        hasDescription: !!newPost.description,
-      });
       return { success: false, message: "Please fill in all fields." };
     }
 
     // Handle image data - check if we have postImage (base64) or use default
     if (!newPost.image && !newPost.postImage) {
-      console.log("🔍 [STORE] No image provided, using default image");
       newPost.image =
         "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
     } else if (newPost.postImage) {
-      console.log("🔍 [STORE] Using uploaded image (base64)");
       newPost.image = newPost.postImage;
       // Also set imageName if available
       if (newPost.postImageName) {
@@ -66,60 +49,14 @@ export const useProductStore = create((set) => ({
       }
     }
 
-    console.log("🔍 [STORE] Final post data being sent:", {
-      name: newPost.name,
-      description: newPost.description,
-      uid: newPost.uid,
-      hasImage: !!newPost.image,
-      imageLength: newPost.image ? newPost.image.length : 0,
-      imageName: newPost.imageName,
-    });
-
     try {
-      console.log("🔍 [STORE] Making API call to:", API_ENDPOINTS.CREATE_POST);
-      console.log(
-        "🔍 [STORE] Request payload size:",
-        JSON.stringify(newPost).length,
-        "bytes"
-      );
-      console.log("🔍 [STORE] Request payload preview:", {
-        name: newPost.name,
-        description: newPost.description?.substring(0, 50) + "...",
-        hasImage: !!newPost.image,
-        imageLength: newPost.image ? newPost.image.length : 0,
-        imageName: newPost.imageName,
-      });
-
       const response = await apiClient.post(API_ENDPOINTS.CREATE_POST, newPost);
-      console.log("🔍 [STORE] API response received:", {
-        status: response.status,
-        statusText: response.statusText,
-        hasData: !!response.data,
-        dataKeys: response.data ? Object.keys(response.data) : [],
-        responseData: response.data,
-      });
 
       const data = response.data;
-      console.log("🔍 [STORE] Processing response data:", data);
 
       set((state) => ({ posts: [...state.posts, data.data] }));
-      console.log("✅ [STORE] Post created successfully and added to state");
       return { success: true, message: "Post created successfully" };
     } catch (error) {
-      console.error("❌ [STORE] Error creating post:", error);
-      console.error("❌ [STORE] Error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          dataSize: error.config?.data
-            ? JSON.stringify(error.config.data).length
-            : 0,
-        },
-      });
       throw new Error(error.response?.data?.error || "Failed to create post");
     }
   },
@@ -143,7 +80,6 @@ export const useProductStore = create((set) => ({
       set((state) => ({ entrys: [...state.entrys, data.data] }));
       return { success: true, message: "Entry created successfully" };
     } catch (error) {
-      console.error("Error creating entry:", error);
       throw new Error(error.response?.data?.error || "Failed to create entry");
     }
   },
@@ -160,7 +96,6 @@ export const useProductStore = create((set) => ({
       }));
       return { success: true, message: data.message };
     } catch (error) {
-      console.error("Error deleting entry:", error);
       throw new Error(error.response?.data?.error || "Failed to delete entry");
     }
   },
@@ -187,7 +122,6 @@ export const useProductStore = create((set) => ({
 
       return { success: true, message: data.message };
     } catch (error) {
-      console.error("Error updating background profile:", error);
       throw new Error(
         error.response?.data?.message || "Failed to update background profile"
       );
@@ -211,7 +145,6 @@ export const useProductStore = create((set) => ({
       }));
       return { success: true, message: data.message, data: data.data };
     } catch (error) {
-      console.error("Error updating entry:", error);
       throw new Error(error.response?.data?.error || "Failed to update entry");
     }
   },
@@ -235,7 +168,6 @@ export const useProductStore = create((set) => ({
         likes: data.likes, // now an array of user objects
       };
     } catch (error) {
-      console.error("Error liking entry:", error);
       throw new Error(error.response?.data?.error || "Failed to like entry");
     }
   },
@@ -256,7 +188,6 @@ export const useProductStore = create((set) => ({
       }));
       return { success: true, message: data.message };
     } catch (error) {
-      console.error("Error commenting on entry:", error);
       throw new Error(
         error.response?.data?.error || "Failed to comment on entry"
       );
@@ -285,7 +216,6 @@ export const useProductStore = create((set) => ({
 
       return { success: true, message: data.message };
     } catch (error) {
-      console.error("Error uploading profile picture:", error);
       throw new Error(
         error.response?.data?.message || "Failed to upload profile picture"
       );
@@ -317,14 +247,13 @@ export const useProductStore = create((set) => ({
       );
       if (!res.ok) {
         const errorData = await res.json();
-        // console.error("Error creating post:", errorData);
         throw new Error(errorData.error || "Failed to create post");
       }
 
       // Update UI with new image URL
       // setProfilePictureUrl(res.data.url); // This line was removed as per the edit hint
     } catch (error) {
-      console.error("Upload failed", error);
+      // Upload failed
     }
   },
 }));
@@ -337,10 +266,10 @@ auth.onAuthStateChanged(async (user) => {
     try {
       // Ensure token is ready before making API calls
       await user.getIdToken(true); // Force refresh to ensure token is ready
-      
+
       // Small delay to ensure token is fully propagated
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
+
       const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
       if (response.data) {
         useProductStore.getState().setCurrentUserInfo(response.data);
@@ -360,11 +289,10 @@ auth.onAuthStateChanged(async (user) => {
           (createUserResponse.data.data?.claimedWorkouts > 0 ||
             createUserResponse.data.claimedWorkouts > 0)
         ) {
-          const userData = createUserResponse.data.data || createUserResponse.data;
+          const userData =
+            createUserResponse.data.data || createUserResponse.data;
           if (userData.workouts) {
-            useProductStore
-              .getState()
-              .setClaimedWorkouts(userData.workouts);
+            useProductStore.getState().setClaimedWorkouts(userData.workouts);
 
             // Only show the modal if it's a new user
             if (userData.isNewUser) {
@@ -374,13 +302,8 @@ auth.onAuthStateChanged(async (user) => {
         }
       } catch (claimError) {
         // Silently handle errors - user might not have claimed workouts
-        // Only log if it's not a 403/401 (auth) error
-        if (claimError.response?.status !== 403 && claimError.response?.status !== 401) {
-          console.log("No claimed workouts or error checking:", claimError);
-        }
       }
     } catch (e) {
-      console.error("Error fetching current user info:", e); // Debug log
       // fallback: just store Firebase info
       const fallbackInfo = {
         uid: user.uid,

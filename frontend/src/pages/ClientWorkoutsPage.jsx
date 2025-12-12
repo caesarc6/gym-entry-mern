@@ -205,7 +205,6 @@ const ClientWorkoutsPage = () => {
         completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
       });
     } catch (error) {
-      console.error("Error fetching client data:", error);
       toast.error("Error", "Failed to fetch client data");
     } finally {
       setIsLoading(false);
@@ -339,7 +338,6 @@ const ClientWorkoutsPage = () => {
 
       toast.success("Success", "Workout deleted successfully!");
     } catch (error) {
-      console.error("Error deleting workout:", error);
       toast.error(
         "Error",
         error.response?.data?.message || "Failed to delete workout"
