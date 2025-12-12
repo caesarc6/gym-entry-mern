@@ -735,11 +735,9 @@ export const HeroHeader = () => {
                     as={Button}
                     variant="ghost"
                     size="sm"
-                    display="flex"
-                    alignItems="center"
+                    className="flex items-center justify-center"
                     px={2}
                     border="1px solid red" // Debug: Visualize button boundaries
-                    style={{ justifyContent: "center" }}
                     color={
                       colors.currentTheme === "light"
                         ? "black"

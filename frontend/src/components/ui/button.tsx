@@ -48,13 +48,17 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const Comp = asChild ? Slot : "button";
 
+    // Filter out non-DOM props that might be passed from Chakra UI or other libraries
+    const { alignItems, justifyContent, display, flexDirection, ...domProps } =
+      props as any;
+
     // When using asChild, we need to handle leftIcon differently to avoid multiple children
     if (asChild) {
       return (
         <Comp
           className={cn(buttonVariants({ variant, size, className }))}
           ref={ref}
-          {...props}
+          {...domProps}
         >
           {children}
         </Comp>
@@ -65,7 +69,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        {...props}
+        {...domProps}
       >
         {leftIcon && <span className="mr-2">{leftIcon}</span>}
         {children}
