@@ -15,7 +15,6 @@ import CreateSharedWorkout from "./pages/CreateSharedWorkout";
 import ClientWorkoutsPage from "./pages/ClientWorkoutsPage";
 import ClientClaimPage from "./pages/ClientClaimPage";
 import AdminDashboard from "./pages/AdminDashboard";
-import ModalToastTestPage from "./pages/ModalToastTestPage";
 import { useTheme } from "./contexts/ThemeContext";
 
 function App() {
@@ -75,7 +74,6 @@ function App() {
           element={<ClientWorkoutsPage />}
         />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/test/modal-toast" element={<ModalToastTestPage />} />
       </Routes>
     </Box>
   );
