@@ -7,7 +7,6 @@ import {
   Button,
   Box,
   Spinner,
-  useToast,
   Avatar,
   Badge,
   Divider,
@@ -316,7 +315,9 @@ const ClientClaimPage = () => {
             </Heading>
             <Text textAlign="center" color={colors.textSecondary} maxW="md">
               {isSignedIn
-                ? `By claiming these workouts, you will add all ${workouts.length} workout${
+                ? `By claiming these workouts, you will add all ${
+                    workouts.length
+                  } workout${
                     workouts.length > 1 ? "s" : ""
                   } to your profile. They will appear in your profile page and you can start tracking your progress.`
                 : `Sign up or sign in to claim all ${workouts.length} workout${
@@ -345,8 +346,8 @@ const ClientClaimPage = () => {
             </HStack>
 
             <Text fontSize="sm" color={colors.textMuted} textAlign="center">
-              By claiming these workouts, they will be added to your profile
-              and you'll be able to track your progress.
+              By claiming these workouts, they will be added to your profile and
+              you'll be able to track your progress.
             </Text>
           </VStack>
         </Box>
@@ -405,4 +406,3 @@ const ClientClaimPage = () => {
 };
 
 export default ClientClaimPage;
-

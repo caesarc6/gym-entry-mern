@@ -19,12 +19,12 @@ import {
   Badge,
   Box,
   IconButton,
-  useToast,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 const ContinueWorkoutModal = ({
   isOpen,
@@ -51,7 +51,7 @@ const ContinueWorkoutModal = ({
   );
   const [isLoading, setIsLoading] = useState(false);
 
-  const toast = useToast();
+  const toast = useCustomToast();
   const colors = useThemeColors();
 
   const handleAddExercise = () => {
@@ -110,23 +110,15 @@ const ContinueWorkoutModal = ({
         }
       );
 
-      toast({
-        title: "Success",
-        description: "Workout continued successfully!",
-        status: "success",
-        isClosable: true,
-      });
+      toast.success("Success", "Workout continued successfully!");
 
       onSuccess?.();
       onClose();
     } catch (error) {
-      toast({
-        title: "Error",
-        description:
-          error.response?.data?.message || "Failed to continue workout",
-        status: "error",
-        isClosable: true,
-      });
+      toast.error(
+        "Error",
+        error.response?.data?.message || "Failed to continue workout"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -151,23 +143,15 @@ const ContinueWorkoutModal = ({
         }
       );
 
-      toast({
-        title: "Success",
-        description: "Workout completed successfully!",
-        status: "success",
-        isClosable: true,
-      });
+      toast.success("Success", "Workout completed successfully!");
 
       onSuccess?.();
       onClose();
     } catch (error) {
-      toast({
-        title: "Error",
-        description:
-          error.response?.data?.message || "Failed to complete workout",
-        status: "error",
-        isClosable: true,
-      });
+      toast.error(
+        "Error",
+        error.response?.data?.message || "Failed to complete workout"
+      );
     } finally {
       setIsLoading(false);
     }

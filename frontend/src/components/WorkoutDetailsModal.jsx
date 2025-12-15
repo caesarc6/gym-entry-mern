@@ -70,10 +70,15 @@ const WorkoutDetailsModal = ({
     <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
       <ModalOverlay />
       <ModalContent bg={colors.bgCard}>
-        <ModalHeader>
+        <ModalHeader color={colors.textPrimary} bg={colors.bgCard}>
           <VStack align="start" spacing={1}>
             <HStack spacing={2} w="full" align="start">
-              <Text fontSize="lg" fontWeight="bold" flex="1">
+              <Text
+                fontSize="lg"
+                fontWeight="bold"
+                flex="1"
+                color={colors.textPrimary}
+              >
                 {exerciseName}
               </Text>
               <Text fontSize="sm" color={colors.textMuted} flexShrink={0}>
@@ -85,9 +90,9 @@ const WorkoutDetailsModal = ({
             </Badge>
           </VStack>
         </ModalHeader>
-        <ModalCloseButton />
+        <ModalCloseButton color={colors.textMuted} />
 
-        <ModalBody>
+        <ModalBody bg={colors.bgCard}>
           <VStack spacing={6} align="stretch">
             {/* Workout Summary */}
             <Box
@@ -95,31 +100,45 @@ const WorkoutDetailsModal = ({
               border="1px solid"
               borderColor={colors.borderColor}
               borderRadius="lg"
+              bg={colors.bgMuted}
             >
-              <Text fontWeight="bold" mb={3} fontSize="md">
+              <Text
+                fontWeight="bold"
+                mb={3}
+                fontSize="md"
+                color={colors.textPrimary}
+              >
                 Workout Summary
               </Text>
               <SimpleGrid columns={2} spacing={4}>
                 <Stat>
-                  <StatLabel>Weight Used</StatLabel>
+                  <StatLabel color={colors.textSecondary}>
+                    Weight Used
+                  </StatLabel>
                   <StatNumber color="blue.500">
                     {workoutData.weight} lbs
                   </StatNumber>
                 </Stat>
                 <Stat>
-                  <StatLabel>Total Reps</StatLabel>
+                  <StatLabel color={colors.textSecondary}>Total Reps</StatLabel>
                   <StatNumber color="green.500">{workoutData.reps}</StatNumber>
                 </Stat>
                 <Stat>
-                  <StatLabel>Number of Sets</StatLabel>
+                  <StatLabel color={colors.textSecondary}>
+                    Number of Sets
+                  </StatLabel>
                   <StatNumber color="purple.500">{workoutData.sets}</StatNumber>
                 </Stat>
                 <Stat>
-                  <StatLabel>Total Volume</StatLabel>
+                  <StatLabel color={colors.textSecondary}>
+                    Total Volume
+                  </StatLabel>
                   <StatNumber color="orange.500">
                     {workoutData.volume.toLocaleString()}
                   </StatNumber>
-                  <StatHelpText>lbs lifted</StatHelpText>
+                  <StatHelpText color={colors.textMuted}>
+                    lbs lifted
+                  </StatHelpText>
                 </Stat>
               </SimpleGrid>
             </Box>
@@ -130,26 +149,38 @@ const WorkoutDetailsModal = ({
               border="1px solid"
               borderColor={colors.borderColor}
               borderRadius="lg"
+              bg={colors.bgMuted}
             >
-              <Text fontWeight="bold" mb={3} fontSize="md">
+              <Text
+                fontWeight="bold"
+                mb={3}
+                fontSize="md"
+                color={colors.textPrimary}
+              >
                 Performance Metrics
               </Text>
               <VStack spacing={3} align="stretch">
                 <HStack justify="space-between">
-                  <Text fontSize="sm">Average Reps per Set</Text>
+                  <Text fontSize="sm" color={colors.textPrimary}>
+                    Average Reps per Set
+                  </Text>
                   <Badge colorScheme="green">
                     {(workoutData.reps / workoutData.sets).toFixed(1)}
                   </Badge>
                 </HStack>
                 <HStack justify="space-between">
-                  <Text fontSize="sm">Volume per Set</Text>
+                  <Text fontSize="sm" color={colors.textPrimary}>
+                    Volume per Set
+                  </Text>
                   <Badge colorScheme="blue">
                     {(workoutData.volume / workoutData.sets).toLocaleString()}{" "}
                     lbs
                   </Badge>
                 </HStack>
                 <HStack justify="space-between">
-                  <Text fontSize="sm">Intensity (Weight/Rep Ratio)</Text>
+                  <Text fontSize="sm" color={colors.textPrimary}>
+                    Intensity (Weight/Rep Ratio)
+                  </Text>
                   <Badge colorScheme="purple">
                     {(
                       workoutData.weight /
@@ -167,19 +198,33 @@ const WorkoutDetailsModal = ({
               border="1px solid"
               borderColor={colors.borderColor}
               borderRadius="lg"
+              bg={colors.bgMuted}
             >
-              <Text fontWeight="bold" mb={3} fontSize="md">
+              <Text
+                fontWeight="bold"
+                mb={3}
+                fontSize="md"
+                color={colors.textPrimary}
+              >
                 Workout Context
               </Text>
               <VStack spacing={2} align="stretch">
                 <HStack justify="space-between">
-                  <Text fontSize="sm">Workout ID</Text>
-                  <Text fontSize="sm" fontFamily="mono" color="gray.500">
+                  <Text fontSize="sm" color={colors.textPrimary}>
+                    Workout ID
+                  </Text>
+                  <Text
+                    fontSize="sm"
+                    fontFamily="mono"
+                    color={colors.textMuted}
+                  >
                     {workoutData.workoutId?.slice(-8) || "N/A"}
                   </Text>
                 </HStack>
                 <HStack justify="space-between">
-                  <Text fontSize="sm">Exercise Type</Text>
+                  <Text fontSize="sm" color={colors.textPrimary}>
+                    Exercise Type
+                  </Text>
                   <Badge colorScheme="teal" variant="outline">
                     {exerciseName}
                   </Badge>
@@ -193,13 +238,21 @@ const WorkoutDetailsModal = ({
               border="1px solid"
               borderColor={colors.borderColor}
               borderRadius="lg"
+              bg={colors.bgMuted}
             >
-              <Text fontWeight="bold" mb={3} fontSize="md">
+              <Text
+                fontWeight="bold"
+                mb={3}
+                fontSize="md"
+                color={colors.textPrimary}
+              >
                 Progress Context
               </Text>
               <VStack spacing={2} align="stretch">
                 <HStack justify="space-between">
-                  <Text fontSize="sm">This workout represents</Text>
+                  <Text fontSize="sm" color={colors.textPrimary}>
+                    This workout represents
+                  </Text>
                   <Badge colorScheme="cyan">
                     {(
                       (workoutData.volume / (workoutData.volume * 100)) *
@@ -208,7 +261,7 @@ const WorkoutDetailsModal = ({
                     % of your volume
                   </Badge>
                 </HStack>
-                <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                <Text fontSize="xs" color={colors.textMuted} fontStyle="italic">
                   💡 This workout data contributes to your overall progress
                   tracking and analytics.
                 </Text>
@@ -217,7 +270,7 @@ const WorkoutDetailsModal = ({
           </VStack>
         </ModalBody>
 
-        <ModalFooter>
+        <ModalFooter bg={colors.bgCard}>
           <Button colorScheme="blue" mr={3} onClick={onClose}>
             Close
           </Button>
@@ -226,6 +279,8 @@ const WorkoutDetailsModal = ({
             onClick={() => {
               // You can add functionality to edit or share the workout here
             }}
+            color={colors.textPrimary}
+            _hover={{ bg: colors.bgHover }}
           >
             Edit Workout
           </Button>

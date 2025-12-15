@@ -123,7 +123,7 @@ const TrainerDashboard = () => {
               "Access Required",
               "You need trainer dashboard access to view this page. Please request access in Settings."
             );
-            setTimeout(() => navigate("/privacy"), 2000);
+            setTimeout(() => navigate("/profile"), 2000);
           }
         }
       } catch (error) {
@@ -457,7 +457,7 @@ const TrainerDashboard = () => {
                 : "The trainer dashboard is currently in beta. Please request access in Settings to use this feature."}
             </Text>
             <HStack spacing={4}>
-              <Button onClick={() => navigate("/privacy")}>
+              <Button onClick={() => navigate("/profile")}>
                 Go to Settings
               </Button>
               <Button variant="outline" onClick={() => navigate("/")}>

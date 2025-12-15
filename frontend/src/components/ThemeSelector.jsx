@@ -21,18 +21,23 @@ const ThemeSelector = ({ onThemeChange, className }) => {
   const isDark = currentTheme === "dark-black";
   const CurrentIcon = isDark ? IoMoon : LuSun;
 
+  // Check if we're in a mobile menu (has w-full class) to center, otherwise left-align for desktop menu
+  const isMobileMenu = className?.includes("w-full");
+
   return (
     <Box
       display="flex"
       alignItems="center"
-      justifyContent="center"
+      justifyContent={isMobileMenu ? "center" : "flex-start"}
       gap={2}
       onClick={toggleTheme}
       cursor="pointer"
       aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
       color={colors.textSecondary}
-      width={className?.includes("w-full") ? "100%" : "auto"}
+      width="100%"
       className={className}
+      w="100%"
+      _hover={{ opacity: 0.8 }}
     >
       <Icon as={CurrentIcon} color={colors.textSecondary} w={5} h={5} />
       <Text fontSize="sm" color={colors.textSecondary}>

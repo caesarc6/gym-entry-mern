@@ -4,10 +4,10 @@ import {
   Text,
   VStack,
   Button,
-  useToast,
   Box,
   Progress,
 } from "@chakra-ui/react";
+import { useCustomToast } from "../hooks/useCustomToast";
 import path from "path";
 import { auth, googleProvider } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
@@ -20,7 +20,7 @@ function ProfilePictureUpload() {
   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const toast = useToast();
+  const toast = useCustomToast();
 
   const handleFileUpload = async (file) => {
     setIsProcessing(true);
@@ -64,13 +64,10 @@ function ProfilePictureUpload() {
 
             // Show compression info if image was compressed
             if (result.wasCompressed) {
-              toast({
-                title: "Image Compressed",
-                description: `Image compressed from ${result.originalSize} to ${result.compressedSize}`,
-                status: "success",
-                duration: 4000,
-                isClosable: true,
-              });
+              toast.success(
+                "Image Compressed",
+                `Image compressed from ${result.originalSize} to ${result.compressedSize}`
+              );
             }
           } catch (uploadError) {
             setError(uploadError.message || "Upload failed");

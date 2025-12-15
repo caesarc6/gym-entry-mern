@@ -12,7 +12,6 @@ import {
   Text,
   Input,
   Textarea,
-  useToast,
   useColorModeValue,
   Box,
   IconButton,
@@ -26,12 +25,13 @@ import { useState } from "react";
 import { CopyIcon, ExternalLinkIcon } from "@chakra-ui/icons";
 import { FiShare2 } from "react-icons/fi";
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 const ShareWorkoutModal = ({ isOpen, onClose, entry, onShareGenerated }) => {
   const [shareUrl, setShareUrl] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const toast = useToast();
+  const toast = useCustomToast();
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
 
@@ -57,15 +57,10 @@ const ShareWorkoutModal = ({ isOpen, onClose, entry, onShareGenerated }) => {
         const { shareUrl: generatedUrl, expiryDate } = response.data.data;
         setShareUrl(generatedUrl);
 
-        toast({
-          title: "Share link generated!",
-          description: `Link expires on ${new Date(
-            expiryDate
-          ).toLocaleDateString()}`,
-          status: "success",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.success(
+          "Share link generated!",
+          `Link expires on ${new Date(expiryDate).toLocaleDateString()}`
+        );
 
         if (onShareGenerated) {
           onShareGenerated(generatedUrl);
@@ -76,14 +71,10 @@ const ShareWorkoutModal = ({ isOpen, onClose, entry, onShareGenerated }) => {
         );
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description:
-          error.response?.data?.message || "Failed to generate share link",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(
+        "Error",
+        error.response?.data?.message || "Failed to generate share link"
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -106,13 +97,7 @@ const ShareWorkoutModal = ({ isOpen, onClose, entry, onShareGenerated }) => {
       // Reset copied state after 2 seconds
       setTimeout(() => setIsCopied(false), 2000);
     } catch (error) {
-      toast({
-        title: "Copy failed",
-        description: "Could not copy link to clipboard",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast.error("Copy failed", "Could not copy link to clipboard");
     }
   };
 

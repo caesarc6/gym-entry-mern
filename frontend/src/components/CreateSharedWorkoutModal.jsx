@@ -246,7 +246,9 @@ const CreateSharedWorkoutModal = ({
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel color={colors.textPrimary}>Workout Description</FormLabel>
+                <FormLabel color={colors.textPrimary}>
+                  Workout Description
+                </FormLabel>
                 <Textarea
                   placeholder="Workout Example:
   Workout Name & Weight - Rep Count:
@@ -270,7 +272,9 @@ const CreateSharedWorkoutModal = ({
 
               {/* Image Upload */}
               <FormControl>
-                <FormLabel color={colors.textPrimary}>Workout Image (Optional)</FormLabel>
+                <FormLabel color={colors.textPrimary}>
+                  Workout Image (Optional)
+                </FormLabel>
                 <FileUploader
                   handleFile={handleFileUpload}
                   maxSizeMB={5}
@@ -297,7 +301,7 @@ const CreateSharedWorkoutModal = ({
 
         <ModalFooter>
           <HStack spacing={3}>
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} type="button">
               Cancel
             </Button>
             <Button
@@ -305,6 +309,10 @@ const CreateSharedWorkoutModal = ({
               onClick={handleSubmit}
               isLoading={isSubmitting}
               loadingText="Creating..."
+              type="button"
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+              style={{ position: "relative", zIndex: 10 }}
             >
               {clientName || displayClientName
                 ? `Create Workout for ${capitalizeName(

@@ -20,7 +20,6 @@ import {
   Badge,
   Box,
   IconButton,
-  useToast,
   Card,
   CardBody,
   CardHeader,
@@ -36,6 +35,7 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
+import { useCustomToast } from "../hooks/useCustomToast";
 import {
   AddIcon,
   DeleteIcon,
@@ -68,7 +68,7 @@ const EnhancedWorkoutEditor = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const { isOpen: showAdvanced, onToggle: toggleAdvanced } = useDisclosure();
-  const toast = useToast();
+  const toast = useCustomToast();
   const bgColor = useColorModeValue("white", "gray.800");
   const cardBg = useColorModeValue("gray.50", "gray.700");
 
@@ -208,13 +208,7 @@ const EnhancedWorkoutEditor = ({
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
 
-      toast({
-        title: "Auto-saved",
-        description: "Workout changes saved automatically",
-        status: "success",
-        duration: 1000,
-        isClosable: true,
-      });
+      toast.success("Auto-saved", "Workout changes saved automatically");
     } catch (error) {
     } finally {
       setIsLoading(false);
@@ -234,24 +228,12 @@ const EnhancedWorkoutEditor = ({
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
 
-      toast({
-        title: "Saved",
-        description: "Workout updated successfully",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast.success("Saved", "Workout updated successfully");
 
       onSuccess?.();
       onClose();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save workout changes",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast.error("Error", "Failed to save workout changes");
     } finally {
       setIsLoading(false);
     }

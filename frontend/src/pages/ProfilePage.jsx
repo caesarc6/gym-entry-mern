@@ -6,7 +6,6 @@ import {
   Button,
   Box,
   Spinner,
-  useToast,
   Heading,
   Avatar,
   Center,
@@ -50,6 +49,7 @@ const defaultBgNightUrl = new URL(
 ).href;
 import { useCustomToast } from "../hooks/useCustomToast";
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import PrivacySettings from "../components/PrivacySettings";
 
 const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -101,6 +101,11 @@ const ProfilePage = () => {
     isOpen: isBackgroundOpen,
     onOpen: onBackgroundOpen,
     onClose: onBackgroundClose,
+  } = useDisclosure();
+  const {
+    isOpen: isPrivacyOpen,
+    onOpen: onPrivacyOpen,
+    onClose: onPrivacyClose,
   } = useDisclosure();
 
   const navigate = useNavigate();
@@ -181,28 +186,17 @@ const ProfilePage = () => {
         prev.filter((request) => request._id !== requestId)
       );
 
-      toast({
-        title: "Success",
-        description: `Request ${
-          action === "accept" ? "accepted" : "rejected"
-        } successfully`,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast.success(
+        "Success",
+        `Request ${action === "accept" ? "accepted" : "rejected"} successfully`
+      );
 
       // Refresh user profile to update follower count
       if (uid) {
         fetchUserProfile(auth.currentUser);
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to process request",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", "Failed to process request");
     }
   };
 
@@ -259,22 +253,10 @@ const ProfilePage = () => {
         setEntries(normalizedPosts);
         setPagination(data.pagination);
       } else {
-        toast({
-          title: "Error",
-          description: data.message || "Failed to fetch posts",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.error("Error", data.message || "Failed to fetch posts");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to fetch posts",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message || "Failed to fetch posts");
     }
   };
 
@@ -345,24 +327,12 @@ const ProfilePage = () => {
 
     // Basic validation
     if (!userProfile.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Name is required",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", "Name is required");
       return;
     }
 
     if (userProfile.username && userProfile.username.includes(" ")) {
-      toast({
-        title: "Error",
-        description: "Username cannot contain spaces",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", "Username cannot contain spaces");
       return;
     }
 
@@ -414,8 +384,7 @@ const ProfilePage = () => {
           if (response.data) {
             useProductStore.getState().setCurrentUserInfo(response.data);
           }
-        } catch (error) {
-        }
+        } catch (error) {}
       }
     } catch (error) {
       toast.error(
@@ -499,13 +468,7 @@ const ProfilePage = () => {
 
       return Array.isArray(followersWithFallback) ? followersWithFallback : [];
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message);
       return [];
     }
   };
@@ -532,13 +495,7 @@ const ProfilePage = () => {
 
       return Array.isArray(followingWithFallback) ? followingWithFallback : [];
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message);
       return [];
     }
   };
@@ -668,14 +625,20 @@ const ProfilePage = () => {
                 colorScheme="blue"
                 variant="outline"
                 w={"full"}
+                color={colors.textPrimary}
+                borderColor={colors.borderColor}
+                _hover={{ bg: colors.bgHover }}
               >
                 Edit Profile
               </Button>
               <Button
-                onClick={() => navigate("/privacy")}
+                onClick={onPrivacyOpen}
                 colorScheme="gray"
                 variant="outline"
                 w={"full"}
+                color={colors.textPrimary}
+                borderColor={colors.borderColor}
+                _hover={{ bg: colors.bgHover }}
               >
                 Privacy Settings
               </Button>
@@ -759,8 +722,8 @@ const ProfilePage = () => {
       {/* Followers Modal */}
       <Modal isOpen={isFollowersOpen} onClose={() => setIsFollowersOpen(false)}>
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
+        <ModalContent bg={colors.bgCard}>
+          <ModalHeader color={colors.textPrimary} bg={colors.bgCard}>
             Followers
             {followRequests.length > 0 && (
               <Badge colorScheme="red" ml={2}>
@@ -768,11 +731,11 @@ const ProfilePage = () => {
               </Badge>
             )}
           </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
+          <ModalCloseButton color={colors.textMuted} />
+          <ModalBody bg={colors.bgCard}>
             {followRequests.length > 0 && (
               <Box mb={6}>
-                <Heading size="sm" mb={3}>
+                <Heading size="sm" mb={3} color={colors.textPrimary}>
                   Follow Requests
                 </Heading>
                 <VStack align="start" spacing={3}>
@@ -786,6 +749,7 @@ const ProfilePage = () => {
                       borderWidth={1}
                       borderRadius="md"
                       bg={colors.bgMuted}
+                      borderColor={colors.borderColor}
                     >
                       <Flex align="center" flex={1}>
                         <Link to={`/user/${request.requester.uid}`}>
@@ -800,6 +764,7 @@ const ProfilePage = () => {
                             <Text
                               fontWeight="medium"
                               fontSize="md"
+                              color={colors.textPrimary}
                               _hover={{ textDecoration: "underline" }}
                             >
                               {request.requester.name ||
@@ -851,11 +816,11 @@ const ProfilePage = () => {
               </Box>
             )}
 
-            <Heading size="sm" mb={3}>
+            <Heading size="sm" mb={3} color={colors.textPrimary}>
               Current Followers
             </Heading>
             {followersList.length === 0 ? (
-              <Text>No followers yet</Text>
+              <Text color={colors.textMuted}>No followers yet</Text>
             ) : (
               <VStack align="start" spacing={4} pb={4}>
                 {followersList.map((user) => (
@@ -876,6 +841,7 @@ const ProfilePage = () => {
                         <Box>
                           <Text
                             fontWeight="medium"
+                            color={colors.textPrimary}
                             _hover={{ textDecoration: "underline" }}
                           >
                             {user.name || user.username}
@@ -908,12 +874,14 @@ const ProfilePage = () => {
       {/* Following Modal */}
       <Modal isOpen={isFollowingOpen} onClose={() => setIsFollowingOpen(false)}>
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Following</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
+        <ModalContent bg={colors.bgCard}>
+          <ModalHeader color={colors.textPrimary} bg={colors.bgCard}>
+            Following
+          </ModalHeader>
+          <ModalCloseButton color={colors.textMuted} />
+          <ModalBody bg={colors.bgCard}>
             {followingList.length === 0 ? (
-              <Text>Not following anyone yet</Text>
+              <Text color={colors.textMuted}>Not following anyone yet</Text>
             ) : (
               <VStack align="start" spacing={4} pb={4}>
                 {followingList.map((user) => (
@@ -934,6 +902,7 @@ const ProfilePage = () => {
                         <Box>
                           <Text
                             fontWeight="medium"
+                            color={colors.textPrimary}
                             _hover={{ textDecoration: "underline" }}
                           >
                             {user.name || user.username}
@@ -967,10 +936,12 @@ const ProfilePage = () => {
       <Modal isOpen={isProfileOpen} onClose={onProfileClose}>
         <form onSubmit={handleProfileSubmit}>
           <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Update Profile</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
+          <ModalContent bg={colors.bgCard}>
+            <ModalHeader color={colors.textPrimary} bg={colors.bgCard}>
+              Update Profile
+            </ModalHeader>
+            <ModalCloseButton color={colors.textMuted} />
+            <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
                 <Image
                   src={userProfile.profileImage}
@@ -994,6 +965,9 @@ const ProfilePage = () => {
                     }))
                   }
                   placeholder="Name"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
                 <Input
                   type="text"
@@ -1006,6 +980,9 @@ const ProfilePage = () => {
                     }))
                   }
                   placeholder="Username"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
                 <Text fontSize="xs" color={colors.textMuted} textAlign="center">
                   Username must be unique and cannot contain spaces
@@ -1021,6 +998,9 @@ const ProfilePage = () => {
                     }))
                   }
                   placeholder="Fitness Goal"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
                 <Textarea
                   name="bio"
@@ -1029,6 +1009,9 @@ const ProfilePage = () => {
                     setUserProfile((prev) => ({ ...prev, bio: e.target.value }))
                   }
                   placeholder="Bio"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
                 <Input
                   type="text"
@@ -1041,14 +1024,23 @@ const ProfilePage = () => {
                     }))
                   }
                   placeholder="Gym Name"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
               </VStack>
             </ModalBody>
-            <ModalFooter>
+            <ModalFooter bg={colors.bgCard}>
               <Button type="submit" colorScheme="blue" mr={3}>
                 Save Changes
               </Button>
-              <Button onClick={onProfileClose}>Cancel</Button>
+              <Button
+                onClick={onProfileClose}
+                color={colors.textPrimary}
+                _hover={{ bg: colors.bgHover }}
+              >
+                Cancel
+              </Button>
             </ModalFooter>
           </ModalContent>
         </form>
@@ -1058,10 +1050,12 @@ const ProfilePage = () => {
       <Modal isOpen={isBackgroundOpen} onClose={onBackgroundClose}>
         <form onSubmit={handleBackgroundSubmit}>
           <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Update Background</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
+          <ModalContent bg={colors.bgCard}>
+            <ModalHeader color={colors.textPrimary} bg={colors.bgCard}>
+              Update Background
+            </ModalHeader>
+            <ModalCloseButton color={colors.textMuted} />
+            <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
                 <Image
                   src={userProfile.backgroundPicture}
@@ -1077,15 +1071,28 @@ const ProfilePage = () => {
                 />
               </VStack>
             </ModalBody>
-            <ModalFooter>
+            <ModalFooter bg={colors.bgCard}>
               <Button type="submit" colorScheme="blue" mr={3}>
                 Save Changes
               </Button>
-              <Button onClick={onBackgroundClose}>Cancel</Button>
+              <Button
+                onClick={onBackgroundClose}
+                color={colors.textPrimary}
+                _hover={{ bg: colors.bgHover }}
+              >
+                Cancel
+              </Button>
             </ModalFooter>
           </ModalContent>
         </form>
       </Modal>
+
+      {/* Privacy Settings Modal */}
+      <PrivacySettings
+        isOpen={isPrivacyOpen}
+        onClose={onPrivacyClose}
+        isModal={true}
+      />
     </Container>
   );
 };

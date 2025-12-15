@@ -10,7 +10,6 @@ import { PlusSquareIcon } from "@chakra-ui/icons";
 import { useColorMode } from "@chakra-ui/react";
 import { RxAvatar } from "react-icons/rx";
 import { PiSignOutThin } from "react-icons/pi";
-import { MdPrivacyTip } from "react-icons/md";
 import { FiUsers } from "react-icons/fi";
 import { MdArrowDropDown } from "react-icons/md";
 import { HiShieldCheck } from "react-icons/hi";
@@ -20,7 +19,6 @@ import {
   Text,
   Avatar,
   Spinner,
-  useToast,
   Flex,
   Menu as ChakraMenu,
   MenuButton,
@@ -34,6 +32,7 @@ import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useTheme } from "../contexts/ThemeContext";
 import ThemeSelector from "./ThemeSelector";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 export const HeroHeader = () => {
   const [menuState, setMenuState] = React.useState(false);
@@ -47,7 +46,7 @@ export const HeroHeader = () => {
   const { colorMode } = useColorMode();
   const { currentTheme } = useTheme();
   const colors = useThemeColors();
-  const toast = useToast();
+  const toast = useCustomToast();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -103,13 +102,7 @@ export const HeroHeader = () => {
       const data = response.data;
       setSearchResults(data.data || []);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to search users",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message || "Failed to search users");
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -230,14 +223,10 @@ export const HeroHeader = () => {
 
       if (mode === "login" && !userExists) {
         // User tried to login but doesn't have an account
-        toast({
-          title: "Account Not Found",
-          description:
-            "No account found with this Google account. Please use Sign Up instead.",
-          status: "warning",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.warning(
+          "Account Not Found",
+          "No account found with this Google account. Please use Sign Up instead."
+        );
         // Sign out the user since they don't have an account
         await signOut(auth);
         return;
@@ -245,14 +234,10 @@ export const HeroHeader = () => {
 
       if (mode === "signup" && userExists) {
         // User tried to signup but already has an account
-        toast({
-          title: "Account Already Exists",
-          description:
-            "An account already exists with this Google account. Please use Login instead.",
-          status: "info",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.info(
+          "Account Already Exists",
+          "An account already exists with this Google account. Please use Login instead."
+        );
         // Don't sign out, let them stay logged in
         setIsSignedIn(true);
         return;
@@ -272,31 +257,21 @@ export const HeroHeader = () => {
 
       // Show appropriate success message
       if (mode === "signup") {
-        toast({
-          title: "Account Created Successfully",
-          description:
-            "Welcome to Ethereal Gains! Your account has been created.",
-          status: "success",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.success(
+          "Account Created Successfully",
+          "Welcome to Ethereal Gains! Your account has been created."
+        );
       } else {
-        toast({
-          title: "Welcome Back",
-          description: "Successfully logged in to your account.",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
+        toast.success(
+          "Welcome Back",
+          "Successfully logged in to your account."
+        );
       }
     } catch (error) {
-      toast({
-        title: "Sign-in Failed",
-        description: error.message || "Failed to sign in with Google",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(
+        "Sign-in Failed",
+        error.message || "Failed to sign in with Google"
+      );
     }
   };
 
@@ -828,17 +803,6 @@ export const HeroHeader = () => {
                       </MenuItem>
                     )}
                     <MenuItem
-                      as={Link}
-                      to="/privacy"
-                      className="flex items-center gap-2"
-                      bg={colors.bgCard}
-                      color={colors.textSecondary}
-                      _hover={{ bg: colors.bgHover }}
-                    >
-                      <MdPrivacyTip className="!w-5 !h-5" />
-                      Privacy Settings
-                    </MenuItem>
-                    <MenuItem
                       onClick={handleSignOut}
                       className="flex items-center gap-2"
                       bg={colors.bgCard}
@@ -853,8 +817,9 @@ export const HeroHeader = () => {
                       color={colors.textSecondary}
                       _hover={{ bg: colors.bgHover }}
                       className="flex items-center gap-2"
+                      onClick={closeMenu}
                     >
-                      <ThemeSelector />
+                      <ThemeSelector onThemeChange={closeMenu} />
                     </MenuItem>
                   </MenuList>
                 </ChakraMenu>
@@ -989,22 +954,6 @@ export const HeroHeader = () => {
                         </Link>
                       </Button>
                     )}
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
-                      )}
-                      onClick={closeMenu}
-                    >
-                      <Link to="/privacy" className="flex items-center gap-2">
-                        <MdPrivacyTip className="!w-5 !h-5" />
-                        <span>Privacy Settings</span>
-                      </Link>
-                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

@@ -14,7 +14,6 @@ import {
   InputRightElement,
   IconButton,
   Tooltip,
-  useToast,
   HStack,
   Badge,
   Box,
@@ -25,11 +24,12 @@ import { CopyIcon, ExternalLinkIcon, LinkIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [shareData, setShareData] = useState(null);
-  const toast = useToast();
+  const toast = useCustomToast();
   const colors = useThemeColors();
 
   const { hasCopied, onCopy } = useClipboard(shareData?.shareUrl || "");
@@ -39,7 +39,7 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
 
     try {
       setIsGenerating(true);
-      
+
       // Check if this is a client link request
       if (workout.isClientLink && workout.clientName) {
         const response = await apiClient.post(
@@ -59,15 +59,12 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
             }, 100);
           }
 
-          toast({
-            title: "Client shareable link generated!",
-            description: isDesktop
+          toast.success(
+            "Client shareable link generated!",
+            isDesktop
               ? `Your client link (${response.data.data.workoutCount} workouts) has been copied to clipboard and is ready to share.`
-              : `Your client link (${response.data.data.workoutCount} workouts) is ready to share.`,
-            status: "success",
-            duration: 3000,
-            isClosable: true,
-          });
+              : `Your client link (${response.data.data.workoutCount} workouts) is ready to share.`
+          );
         } else {
           throw new Error(response.data.message || "Failed to generate link");
         }
@@ -89,28 +86,21 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
             }, 100);
           }
 
-          toast({
-            title: "Shareable link generated!",
-            description: isDesktop
+          toast.success(
+            "Shareable link generated!",
+            isDesktop
               ? "Your workout link has been copied to clipboard and is ready to share."
-              : "Your workout link is ready to share.",
-            status: "success",
-            duration: 3000,
-            isClosable: true,
-          });
+              : "Your workout link is ready to share."
+          );
         } else {
           throw new Error(response.data.message || "Failed to generate link");
         }
       }
     } catch (error) {
-      toast({
-        title: "Error generating link",
-        description:
-          error.response?.data?.message || "Failed to generate shareable link",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(
+        "Error generating link",
+        error.response?.data?.message || "Failed to generate shareable link"
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -118,13 +108,10 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
 
   const handleCopyLink = () => {
     onCopy();
-    toast({
-      title: "Link copied!",
-      description: "The shareable link has been copied to your clipboard.",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
-    });
+    toast.success(
+      "Link copied!",
+      "The shareable link has been copied to your clipboard."
+    );
   };
 
   const handleClose = () => {
@@ -156,24 +143,42 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
         <ModalBody overflowY="auto">
           <VStack spacing={6} align="stretch">
             {workout && (
-              <Box p={4} bg={colors.bgMuted} borderRadius="md" borderWidth="1px" borderColor={colors.border}>
+              <Box
+                p={4}
+                bg={colors.bgMuted}
+                borderRadius="md"
+                borderWidth="1px"
+                borderColor={colors.border}
+              >
                 <VStack align="start" spacing={2}>
                   {workout.isClientLink ? (
                     <>
-                      <Text fontWeight="bold" fontSize="lg" color={colors.textPrimary}>
+                      <Text
+                        fontWeight="bold"
+                        fontSize="lg"
+                        color={colors.textPrimary}
+                      >
                         Client: {workout.clientName}
                       </Text>
                       <Text fontSize="sm" color={colors.textSecondary}>
-                        Generate a link that will allow clients to claim all workouts
-                        assigned to this client name.
+                        Generate a link that will allow clients to claim all
+                        workouts assigned to this client name.
                       </Text>
                     </>
                   ) : (
                     <>
-                      <Text fontWeight="bold" fontSize="lg" color={colors.textPrimary}>
+                      <Text
+                        fontWeight="bold"
+                        fontSize="lg"
+                        color={colors.textPrimary}
+                      >
                         {workout.workoutName}
                       </Text>
-                      <Text fontSize="sm" color={colors.textSecondary} noOfLines={3}>
+                      <Text
+                        fontSize="sm"
+                        color={colors.textSecondary}
+                        noOfLines={3}
+                      >
                         {workout.description}
                       </Text>
                       <HStack fontSize="xs" color={colors.textMuted}>
@@ -197,7 +202,13 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
                     ? "Generate a shareable link that allows clients to claim all workouts assigned to this client name."
                     : "Generate a shareable link that allows clients to view and save this workout to their account."}
                 </Text>
-                <Box bg={colors.processBg} p={3} borderRadius="md" border="1px solid" borderColor={colors.border}>
+                <Box
+                  bg={colors.processBg}
+                  p={3}
+                  borderRadius="md"
+                  border="1px solid"
+                  borderColor={colors.border}
+                >
                   <Text fontSize="sm" color={colors.textPrimary}>
                     💡 <strong>How it works:</strong>{" "}
                     {workout?.isClientLink
@@ -227,7 +238,11 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
                 </Text>
 
                 <VStack spacing={3}>
-                  <Text fontSize="sm" fontWeight="semibold" color={colors.textPrimary}>
+                  <Text
+                    fontSize="sm"
+                    fontWeight="semibold"
+                    color={colors.textPrimary}
+                  >
                     Share Link:
                   </Text>
                   <InputGroup>
@@ -274,14 +289,26 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
                   </HStack>
                 </VStack>
 
-                <Box bg={colors.bgMuted} p={3} borderRadius="md" border="1px solid" borderColor={colors.border}>
+                <Box
+                  bg={colors.bgMuted}
+                  p={3}
+                  borderRadius="md"
+                  border="1px solid"
+                  borderColor={colors.border}
+                >
                   <Text fontSize="sm" color={colors.textPrimary}>
                     ⏰ <strong>Expires:</strong>{" "}
                     {formatExpirationDate(shareData.expiresAt)}
                   </Text>
                 </Box>
 
-                <Box bg={colors.bgMuted} p={3} borderRadius="md" border="1px solid" borderColor={colors.border}>
+                <Box
+                  bg={colors.bgMuted}
+                  p={3}
+                  borderRadius="md"
+                  border="1px solid"
+                  borderColor={colors.border}
+                >
                   <Text fontSize="sm" color={colors.textPrimary}>
                     <strong>Instructions for sharing:</strong>
                   </Text>

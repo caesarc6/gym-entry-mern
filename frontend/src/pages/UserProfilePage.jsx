@@ -1,5 +1,4 @@
 import {
-  useToast,
   Container,
   SimpleGrid,
   Text,
@@ -23,6 +22,7 @@ import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -68,7 +68,7 @@ const UserProfilePage = () => {
     limit: 6,
   });
 
-  const toast = useToast();
+  const toast = useCustomToast();
   const colors = useThemeColors();
   const profileColorMode =
     colors.currentTheme === "light" ? lightUrl : nightUrl;
@@ -90,8 +90,7 @@ const UserProfilePage = () => {
       const followStatusData = response.data;
       setIsFollowing(followStatusData.isFollowing || false);
       setHasFollowRequest(followStatusData.hasRequest || false);
-    } catch (error) {
-    }
+    } catch (error) {}
   }, [userId]);
 
   // Listen for storage events to refresh follow status when privacy settings change
@@ -197,13 +196,7 @@ const UserProfilePage = () => {
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load profile",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message || "Failed to load profile");
     } finally {
       setIsLoading(false);
     }
@@ -249,13 +242,7 @@ const UserProfilePage = () => {
             ...prev,
             followersCount: prev.followersCount - 1,
           }));
-          toast({
-            title: "Success",
-            description: `You have unfollowed ${userProfile.name}`,
-            status: "success",
-            duration: 5000,
-            isClosable: true,
-          });
+          toast.success("Success", `You have unfollowed ${userProfile.name}`);
         }
       } else if (hasFollowRequest) {
         // Cancel follow request
@@ -266,13 +253,10 @@ const UserProfilePage = () => {
 
         if (data.success) {
           setHasFollowRequest(false);
-          toast({
-            title: "Follow Request Cancelled",
-            description: `Follow request to ${userProfile.name} has been cancelled`,
-            status: "info",
-            duration: 5000,
-            isClosable: true,
-          });
+          toast.info(
+            "Follow Request Cancelled",
+            `Follow request to ${userProfile.name} has been cancelled`
+          );
         }
       } else {
         // Send follow request
@@ -289,33 +273,18 @@ const UserProfilePage = () => {
             ...prev,
             followersCount: prev.followersCount + 1,
           }));
-          toast({
-            title: "Success",
-            description: `You are now following ${userProfile.name}`,
-            status: "success",
-            duration: 5000,
-            isClosable: true,
-          });
+          toast.success("Success", `You are now following ${userProfile.name}`);
         } else if (data.hasRequest) {
           // Follow request sent (private profile)
           setHasFollowRequest(true);
-          toast({
-            title: "Follow Request Sent",
-            description: `Follow request sent to ${userProfile.name}`,
-            status: "info",
-            duration: 5000,
-            isClosable: true,
-          });
+          toast.info(
+            "Follow Request Sent",
+            `Follow request sent to ${userProfile.name}`
+          );
         }
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message);
     } finally {
       setIsFollowingLoading(false);
     }

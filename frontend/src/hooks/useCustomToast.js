@@ -1,8 +1,6 @@
-import { useToast } from "@chakra-ui/react";
+import { toast as sonnerToast } from "sonner";
 
 export const useCustomToast = () => {
-  const toast = useToast();
-
   const showToast = ({
     title,
     description,
@@ -12,42 +10,69 @@ export const useCustomToast = () => {
     position = "top-right",
     variant = "solid",
   }) => {
-    return toast({
-      title,
-      description,
-      status,
+    // Map Chakra UI status to Sonner types
+    const sonnerType =
+      status === "success"
+        ? "success"
+        : status === "error"
+        ? "error"
+        : status === "warning"
+        ? "warning"
+        : "info";
+
+    // Map Chakra UI position to Sonner position
+    const sonnerPosition =
+      position === "top"
+        ? "top-center"
+        : position === "top-left"
+        ? "top-left"
+        : position === "top-right"
+        ? "top-right"
+        : position === "bottom"
+        ? "bottom-center"
+        : position === "bottom-left"
+        ? "bottom-left"
+        : position === "bottom-right"
+        ? "bottom-right"
+        : "top-right";
+
+    // Combine title and description for Sonner
+    // Sonner supports description as a second parameter or in options
+    const message = title;
+    const options = {
       duration,
-      isClosable,
-      position,
-      variant,
-      // Custom styling for modern look
-      containerStyle: {
-        minWidth: "320px",
-        maxWidth: "400px",
-        padding: "16px",
-        margin: "8px",
-        borderRadius: "16px",
-        boxShadow:
-          "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-        backdropFilter: "blur(16px)",
-        border: "1px solid",
-        borderColor: "rgba(255, 255, 255, 0.1)",
-      },
-    });
+      dismissible: isClosable,
+      position: sonnerPosition,
+      ...(description && { description }),
+    };
+
+    return sonnerToast[sonnerType](message, options);
   };
 
   // Convenience methods for different toast types
-  const success = (title, description) =>
-    showToast({ title, description, status: "success" });
+  const success = (title, description) => {
+    return description
+      ? sonnerToast.success(title, { description })
+      : sonnerToast.success(title);
+  };
 
-  const error = (title, description) =>
-    showToast({ title, description, status: "error" });
+  const error = (title, description) => {
+    return description
+      ? sonnerToast.error(title, { description })
+      : sonnerToast.error(title);
+  };
 
-  const warning = (title, description) =>
-    showToast({ title, description, status: "warning" });
+  const warning = (title, description) => {
+    return description
+      ? sonnerToast.warning(title, { description })
+      : sonnerToast.warning(title);
+  };
 
-  const info = (title, description) =>
-    showToast({ title, description, status: "info" });
+  const info = (title, description) => {
+    return description
+      ? sonnerToast.info(title, { description })
+      : sonnerToast.info(title);
+  };
 
   return {
     showToast,
@@ -55,6 +80,6 @@ export const useCustomToast = () => {
     error,
     warning,
     info,
-    toast, // Original toast function for advanced usage
+    toast: sonnerToast, // Original sonner toast function for advanced usage
   };
 };

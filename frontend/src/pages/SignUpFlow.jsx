@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import PhotoUpload from "../components/PhotoUpload.jsx"; // Adjust the import according to your project structure
 import ProfilePictureUpload from "./ProfilePictureUpload.jsx";
 import { API_ENDPOINTS, apiClient } from "../config/api";
-import { useToast } from "@chakra-ui/react";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 const SignUpFlow = () => {
   const [step, setStep] = useState("google"); // Start directly with Google Sign-In
@@ -15,7 +15,7 @@ const SignUpFlow = () => {
   const [profileImage, setProfileImage] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const toast = useToast();
+  const toast = useCustomToast();
 
   // Get the redirect path from location state, default to home
   const redirectPath = location.state?.from || "/";
@@ -63,24 +63,15 @@ const SignUpFlow = () => {
       const userData = await response.json();
 
       // Show success message
-      toast({
-        title: "Success",
-        description: "Successfully signed in!",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast.success("Success", "Successfully signed in!");
 
       // Redirect to the intended page (shared workout page or home)
       navigate(redirectPath, { replace: true });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign in. Please try again.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(
+        "Error",
+        error.message || "Failed to sign in. Please try again."
+      );
     }
   };
 

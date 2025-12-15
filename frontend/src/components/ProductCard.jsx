@@ -19,7 +19,6 @@ import {
   Text,
   Textarea,
   useDisclosure,
-  useToast,
   VStack,
   useColorMode,
   Menu,
@@ -46,6 +45,7 @@ import {
 import ShareWorkoutModal from "./ShareWorkoutModal";
 import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -98,7 +98,7 @@ const ProductCard = ({
   const [isUsername, setIsUsername] = useState(
     cachedProfile?.isUsername || false
   );
-  
+
   // Trainer profile info for shared workouts
   const [trainerProfileImage, setTrainerProfileImage] = useState(
     colorMode === "dark" ? nightUrl : lightUrl
@@ -111,7 +111,8 @@ const ProductCard = ({
     // Initialize from entry data if available
     return !!entry.trainerUsername;
   });
-  const [trainerProfileImageLoaded, setTrainerProfileImageLoaded] = useState(false);
+  const [trainerProfileImageLoaded, setTrainerProfileImageLoaded] =
+    useState(false);
   const [isLiked, setIsLiked] = useState(false); // Track if current user has liked this post
   const [imageLoaded, setImageLoaded] = useState(false);
   const [profileImageLoaded, setProfileImageLoaded] = useState(false);
@@ -151,7 +152,7 @@ const ProductCard = ({
     );
   };
 
-  const toast = useToast();
+  const toast = useCustomToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isDeleteOpen,
@@ -238,26 +239,28 @@ const ProductCard = ({
           setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
         }
         setUserDisplayName("Unknown User");
-        toast({
-          title: "Error",
-          description: "Failed to load profile image.",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.error("Error", "Failed to load profile image.");
       }
     };
 
     if (entry.uid && !cachedProfile) {
       fetchProfileImage();
     }
-    
+
     // Always fetch trainer profile if this is a shared workout (independent of cachedProfile)
     if (entry.trainerUid) {
       fetchTrainerProfile();
     }
-  }, [entry.uid, entry.trainerUid, entry.trainerName, entry.trainerUsername, toast, cachedProfile, colorMode]);
-  
+  }, [
+    entry.uid,
+    entry.trainerUid,
+    entry.trainerName,
+    entry.trainerUsername,
+    toast,
+    cachedProfile,
+    colorMode,
+  ]);
+
   // Fetch trainer profile info
   const fetchTrainerProfile = async () => {
     // If we already have trainer name/username from entry, use those
@@ -265,10 +268,10 @@ const ProductCard = ({
       setTrainerDisplayName(entry.trainerName || entry.trainerUsername);
       setTrainerIsUsername(!!entry.trainerUsername);
     }
-    
+
     // Always try to fetch profile image even if we have name/username
     if (!entry.trainerUid) return;
-    
+
     try {
       const token = await auth.currentUser?.getIdToken();
       const response = await apiClient.get(
@@ -277,7 +280,7 @@ const ProductCard = ({
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         }
       );
-      
+
       if (response.data.success) {
         const data = response.data.data;
         if (data.picture) {
@@ -297,12 +300,12 @@ const ProductCard = ({
       }
     }
   };
-  
+
   const handleTrainerProfileImageError = () => {
     setTrainerProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
     setTrainerProfileImageLoaded(true);
   };
-  
+
   const handleTrainerProfileImageLoad = () => {
     setTrainerProfileImageLoaded(true);
   };
@@ -416,56 +419,29 @@ const ProductCard = ({
 
           // Show compression info if image was compressed
           if (result.wasCompressed) {
-            toast({
-              title: "Image Compressed",
-              description: `Image compressed from ${result.originalSize} to ${result.compressedSize}`,
-              status: "success",
-              duration: 4000,
-              isClosable: true,
-            });
+            toast.success(
+              "Image Compressed",
+              `Image compressed from ${result.originalSize} to ${result.compressedSize}`
+            );
           }
         },
         (error) => {
           // Error callback
-          toast({
-            title: "Upload Error",
-            description: error,
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
+          toast.error("Upload Error", error);
         },
         { maxSizeMB: 5 }
       );
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to process image. Please try again.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", "Failed to process image. Please try again.");
     }
   };
 
   const handleDeleteEntry = async (pid) => {
     const { success, message } = await deleteEntry(pid);
     if (!success) {
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", message);
     } else {
-      toast({
-        title: "Success",
-        description: message,
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.success("Success", message);
       onDeleteClose();
     }
   };
@@ -478,13 +454,7 @@ const ProductCard = ({
     onClose();
     if (!success) {
       setUpdatedEntry(previousEntry);
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", message);
     } else {
       if (data) {
         const { name, description, likes, comments, image } = data;
@@ -501,13 +471,7 @@ const ProductCard = ({
         });
         onUpdate(pid, data);
       }
-      toast({
-        title: "Success",
-        description: "Entry updated successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.success("Success", "Entry updated successfully");
     }
   };
 
@@ -569,7 +533,7 @@ const ProductCard = ({
         ...prevEntry,
         likes: prevLikes,
       }));
-      toast({ title: "Error", description: error.message, status: "error" });
+      toast.error("Error", error.message);
     }
   };
 
@@ -646,13 +610,7 @@ const ProductCard = ({
         }));
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to like comment",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast.error("Error", "Failed to like comment");
     }
   };
 
@@ -698,13 +656,7 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add reply",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast.error("Error", "Failed to add reply");
     }
   };
 
@@ -737,13 +689,7 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to edit comment",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast.error("Error", "Failed to edit comment");
     }
   };
 
@@ -771,13 +717,7 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete comment",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast.error("Error", "Failed to delete comment");
     }
   };
 
@@ -800,14 +740,10 @@ const ProductCard = ({
       const { split } = parseWorkoutTitle(updatedEntry.name);
 
       if (exercises.length === 0) {
-        toast({
-          title: "Not a workout post",
-          description:
-            "This post doesn't contain workout data in the expected format.",
-          status: "warning",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.warning(
+          "Not a workout post",
+          "This post doesn't contain workout data in the expected format."
+        );
         return;
       }
 
@@ -816,13 +752,10 @@ const ProductCard = ({
       );
 
       if (response.data.success) {
-        toast({
-          title: "Success",
-          description: `Workout data processed! Found ${exercises.length} exercises.`,
-          status: "success",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.success(
+          "Success",
+          `Workout data processed! Found ${exercises.length} exercises.`
+        );
       }
     } catch (error) {
       toast({
@@ -1084,7 +1017,9 @@ const ProductCard = ({
                   _hover={{ textDecoration: "underline" }}
                   cursor="pointer"
                 >
-                  {trainerIsUsername && trainerDisplayName ? `@${trainerDisplayName}` : trainerDisplayName || "Trainer"}
+                  {trainerIsUsername && trainerDisplayName
+                    ? `@${trainerDisplayName}`
+                    : trainerDisplayName || "Trainer"}
                 </Text>
               </Link>
               <Text fontSize="12px" color={colors.textMuted} fontWeight="500">
@@ -1405,12 +1340,15 @@ const ProductCard = ({
           aspectRatio={{ base: "2/3", md: "3/4" }}
           minH={{ base: "80vh", md: "600px" }}
           borderRadius="4px"
+          bg={colors.bgCard}
         >
           <ModalHeader
             fontFamily="Arial, sans-serif"
             px={{ base: 3, md: 6 }}
             py={{ base: 3, md: 4 }}
             fontSize={{ base: "md", md: "lg" }}
+            color={colors.textPrimary}
+            bg={colors.bgCard}
           >
             <HStack spacing={{ base: 2, md: 3 }}>
               <Box position="relative" boxSize={{ base: "32px", md: "40px" }}>
@@ -1430,6 +1368,7 @@ const ProductCard = ({
                     fontSize={{ base: "sm", md: "lg" }}
                     noOfLines={1}
                     flex="1"
+                    color={colors.textPrimary}
                   >
                     {isUsername ? `@${userDisplayName}` : userDisplayName}
                   </Text>
@@ -1445,13 +1384,17 @@ const ProductCard = ({
               </VStack>
             </HStack>
           </ModalHeader>
-          <ModalCloseButton size={{ base: "sm", md: "md" }} />
+          <ModalCloseButton
+            size={{ base: "sm", md: "md" }}
+            color={colors.textMuted}
+          />
           <ModalBody
             px={{ base: 2, md: 3 }}
             py={{ base: 1, md: 2 }}
             overflowY="auto"
             display="flex"
             flexDirection="column"
+            bg={colors.bgCard}
           >
             <VStack spacing={{ base: 3, md: 4 }} align="stretch">
               {/* Image Section */}
@@ -1999,11 +1942,14 @@ const ProductCard = ({
             px={{ base: 3, md: 6 }}
             py={{ base: 2, md: 4 }}
             flexShrink={0}
+            bg={colors.bgCard}
           >
             <Button
               variant="ghost"
               onClick={onDetailClose}
               size={{ base: "sm", md: "md" }}
+              color={colors.textPrimary}
+              _hover={{ bg: colors.bgHover }}
             >
               Close
             </Button>
@@ -2015,7 +1961,7 @@ const ProductCard = ({
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent bg={colors.bgCard}>
-          <ModalHeader 
+          <ModalHeader
             fontFamily="Arial, sans-serif"
             color={colors.textPrimary}
           >
@@ -2095,11 +2041,13 @@ const ProductCard = ({
       {/* Delete Modal */}
       <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Confirm Delete</ModalHeader>
-          <ModalCloseButton />
+        <ModalContent bg={colors.bgCard}>
+          <ModalHeader color={colors.textPrimary}>Confirm Delete</ModalHeader>
+          <ModalCloseButton color={colors.textMuted} />
           <ModalBody>
-            <Text>Are you sure you want to delete this entry?</Text>
+            <Text color={colors.textPrimary}>
+              Are you sure you want to delete this entry?
+            </Text>
           </ModalBody>
           <ModalFooter>
             <Button
@@ -2108,7 +2056,12 @@ const ProductCard = ({
             >
               Delete
             </Button>
-            <Button variant="ghost" onClick={onDeleteClose}>
+            <Button
+              variant="ghost"
+              onClick={onDeleteClose}
+              color={colors.textPrimary}
+              _hover={{ bg: colors.bgHover }}
+            >
               Cancel
             </Button>
           </ModalFooter>
@@ -2129,13 +2082,7 @@ const ProductCard = ({
         entry={entry}
         onUpdate={handleUpdateEntry}
         onSuccess={() => {
-          toast({
-            title: "Success",
-            description: "Workout updated successfully",
-            status: "success",
-            duration: 3000,
-            isClosable: true,
-          });
+          toast.success("Success", "Workout updated successfully");
         }}
       />
     </>

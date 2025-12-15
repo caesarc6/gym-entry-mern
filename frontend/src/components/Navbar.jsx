@@ -5,7 +5,6 @@ import {
   Button,
   HStack,
   useColorMode,
-  useToast,
 } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 import { PlusSquareIcon } from "@chakra-ui/icons";
@@ -16,6 +15,7 @@ import { auth, googleProvider } from "../firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import ThemeSelector from "./ThemeSelector";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -23,7 +23,7 @@ const Navbar = () => {
   const [entries, setEntries] = useState([]);
   const [uid, setUid] = useState(null);
   const [isLoading, setIsLoading] = useState(true); // Add loading state
-  const toast = useToast();
+  const toast = useCustomToast();
 
   // Add this useEffect to handle initial auth state
   useEffect(() => {
@@ -68,13 +68,7 @@ const Navbar = () => {
       const currentUserData = currentUserResponse.data;
     } catch (error) {
       handleSignOut();
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign in",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message || "Failed to sign in");
     }
   };
 
@@ -84,13 +78,7 @@ const Navbar = () => {
       setUid(null);
       setIsSignedIn(false);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign out",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message || "Failed to sign out");
     }
   };
 
@@ -98,8 +86,7 @@ const Navbar = () => {
     try {
       const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
       const currentUserData = response.data;
-    } catch (error) {
-    }
+    } catch (error) {}
   };
 
   const handleGoogleSignIn = async (mode = "login") => {

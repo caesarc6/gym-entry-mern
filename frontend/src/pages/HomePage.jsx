@@ -7,7 +7,6 @@ import {
   Box,
   Spinner,
   useColorModeValue,
-  useToast,
   Skeleton,
   SkeletonText,
 } from "@chakra-ui/react";
@@ -22,6 +21,7 @@ import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
 import ClaimedWorkoutsModal from "../components/ClaimedWorkoutsModal";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 // Optimized feed loading with lazy loading and caching
 const HomePage = () => {
@@ -42,7 +42,7 @@ const HomePage = () => {
   const [followingUids, setFollowingUids] = useState([]);
   const [profileCache, setProfileCache] = useState(new Map()); // Cache for profile images
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const toast = useToast();
+  const toast = useCustomToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
 
   // Performance optimization refs
@@ -117,54 +117,6 @@ const HomePage = () => {
     }
   }, [currentUserInfo]);
 
-  // Optimized following UIDs fetch with caching
-  useEffect(() => {
-    const fetchFollowing = async () => {
-      if (!uid) return;
-
-      try {
-        const response = await apiClient.get(
-          API_ENDPOINTS.USERS_FOLLOWING(uid)
-        );
-
-        const data = response.data;
-        if (data.success) {
-          const uids = data.data.map((user) => user.uid);
-          setFollowingUids(uids.length > 0 ? uids : []);
-
-          // Pre-cache profile images for followed users
-          const uidsToCache = [...new Set([uid, ...uids])];
-          await preloadProfileImages(uidsToCache);
-
-          if (uids.length === 0) {
-            toast({
-              title: "No followed users",
-              description: "Follow users to see their posts in your feed.",
-              status: "info",
-              duration: 5000,
-              isClosable: true,
-            });
-          }
-        } else {
-          throw new Error(data.message || "Failed to fetch following");
-        }
-      } catch (error) {
-        setFollowingUids([]);
-        toast({
-          title: "Error",
-          description: error.message || "Failed to load followed users",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    };
-
-    if (uid) {
-      fetchFollowing();
-    }
-  }, [uid, toast]);
-
   // Preload profile images to reduce individual API calls
   const preloadProfileImages = useCallback(
     async (uids) => {
@@ -181,7 +133,7 @@ const HomePage = () => {
       try {
         // Ensure token is ready before making request
         await auth.currentUser.getIdToken(true);
-        
+
         // Use the new batch endpoint for better performance
         const response = await apiClient.post(
           API_ENDPOINTS.BATCH_PROFILE_IMAGES,
@@ -247,13 +199,54 @@ const HomePage = () => {
     [profileCache]
   );
 
+  // Optimized following UIDs fetch with caching
+  useEffect(() => {
+    const fetchFollowing = async () => {
+      if (!uid) return;
+
+      try {
+        const response = await apiClient.get(
+          API_ENDPOINTS.USERS_FOLLOWING(uid)
+        );
+
+        const data = response.data;
+        if (data.success) {
+          const uids = data.data.map((user) => user.uid);
+          setFollowingUids(uids.length > 0 ? uids : []);
+
+          // Pre-cache profile images for followed users
+          const uidsToCache = [...new Set([uid, ...uids])];
+          await preloadProfileImages(uidsToCache);
+
+          if (uids.length === 0) {
+            toast.info(
+              "No followed users",
+              "Follow users to see their posts in your feed."
+            );
+          }
+        } else {
+          throw new Error(data.message || "Failed to fetch following");
+        }
+      } catch (error) {
+        setFollowingUids([]);
+        toast.error("Error", error.message || "Failed to load followed users");
+      }
+    };
+
+    if (uid) {
+      fetchFollowing();
+    }
+    // preloadProfileImages is memoized and stable, safe to omit from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid]);
+
   // Optimized feed posts fetch with better error handling
   // Fetch all posts when following list changes
   useEffect(() => {
     const fetchAllPosts = async () => {
       try {
         setIsLoading(true);
-        if (!uid || followingUids === null) {
+        if (!uid) {
           setEntries([]);
           setAllPosts([]);
           setPagination({
@@ -325,33 +318,33 @@ const HomePage = () => {
         }));
 
         if (sortedPosts.length === 0) {
-          toast({
-            title: "Empty feed",
-            description:
-              "No posts available. Create or follow users to see more.",
-            status: "info",
-            duration: 5000,
-            isClosable: true,
-          });
+          toast.info(
+            "Empty feed",
+            "No posts available. Create or follow users to see more."
+          );
         }
       } catch (error) {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to load feed",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
+        toast.error("Error", error.message || "Failed to load feed");
       } finally {
         setIsLoading(false);
         setIsInitialLoad(false);
       }
     };
 
-    if (uid && followingUids.length >= 0) {
+    if (uid) {
       fetchAllPosts();
+    } else {
+      // Clear posts when not signed in
+      setEntries([]);
+      setAllPosts([]);
+      setPagination({
+        currentPage: 1,
+        totalPages: 0,
+        totalPosts: 0,
+        limit,
+      });
     }
-  }, [uid, followingUids, limit, toast]);
+  }, [uid, followingUids, limit]);
 
   // Apply pagination when currentPage or allPosts changes
   useEffect(() => {
@@ -391,13 +384,7 @@ const HomePage = () => {
       const currentUserData = currentUserResponse.data;
     } catch (error) {
       handleSignOutUser();
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign in",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message || "Failed to sign in");
     }
   };
 
@@ -409,13 +396,7 @@ const HomePage = () => {
       setEntries([]);
       setFollowingUids([]);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign out",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", error.message || "Failed to sign out");
     }
   };
 

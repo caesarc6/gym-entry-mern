@@ -5,6 +5,7 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { BrowserRouter } from "react-router-dom";
 import theme from "./theme.js";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
+import { Toaster } from "./components/ui/sonner";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -17,6 +18,7 @@ createRoot(document.getElementById("root")).render(
       <ThemeProvider>
         <ChakraProvider theme={theme}>
           <App />
+          <Toaster />
         </ChakraProvider>
       </ThemeProvider>
     </BrowserRouter>

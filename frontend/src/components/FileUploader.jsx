@@ -40,11 +40,11 @@ import {
   VStack,
   HStack,
   Progress,
-  useToast,
   useColorModeValue,
   Box,
   Badge,
 } from "@chakra-ui/react";
+import { useCustomToast } from "../hooks/useCustomToast";
 import {
   handleImageUploadWithCompression,
   formatFileSize,
@@ -59,7 +59,7 @@ export const FileUploader = ({
   const hiddenFileInput = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [compressionInfo, setCompressionInfo] = useState(null);
-  const toast = useToast();
+  const toast = useCustomToast();
   const bgColor = useColorModeValue("gray.50", "gray.700");
   const borderColor = useColorModeValue("gray.200", "gray.600");
 
@@ -70,12 +70,10 @@ export const FileUploader = ({
   };
 
   const handleChange = async (event) => {
-
     const fileUploaded = event.target.files[0];
     if (!fileUploaded) {
       return;
     }
-
 
     setIsProcessing(true);
     setCompressionInfo(null);
@@ -90,26 +88,17 @@ export const FileUploader = ({
           setCompressionInfo(result);
 
           if (result.wasCompressed && showCompressionInfo) {
-            toast({
-              title: "Image Compressed",
-              description: `Image compressed from ${result.originalSize} to ${result.compressedSize}`,
-              status: "success",
-              duration: 4000,
-              isClosable: true,
-            });
+            toast.success(
+              "Image Compressed",
+              `Image compressed from ${result.originalSize} to ${result.compressedSize}`
+            );
           }
 
           setIsProcessing(false);
         },
         (error) => {
           // Error callback
-          toast({
-            title: "Upload Error",
-            description: error,
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
+          toast.error("Upload Error", error);
           setIsProcessing(false);
         },
         { maxSizeMB }
@@ -132,6 +121,8 @@ export const FileUploader = ({
         variant="outline"
         onMouseDown={(e) => e.stopPropagation()}
         onMouseUp={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
       >
         {isProcessing ? "Processing Image..." : "Add Image"}
       </Button>

@@ -7,7 +7,6 @@ import {
   Image,
   Text,
   Textarea,
-  useToast,
   VStack,
 } from "@chakra-ui/react";
 import { useState } from "react";
@@ -20,6 +19,7 @@ import day from "../assets/light.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { useCustomToast } from "../hooks/useCustomToast";
 
 const CreatePage = () => {
   const [newEntry, setNewEntry] = useState({
@@ -37,29 +37,25 @@ const CreatePage = () => {
 
   const navigate = useNavigate(); // Initialize useNavigate
   const colors = useThemeColors();
-  const bgColorMode = colors.currentTheme === "light" ? defaultBg : defaultBgNight;
+  const bgColorMode =
+    colors.currentTheme === "light" ? defaultBg : defaultBgNight;
 
   const handleFileUpload = (file) => {
-
     const reader = new FileReader();
 
-    reader.onloadstart = () => {
-    };
+    reader.onloadstart = () => {};
 
     reader.onloadend = () => {
-
       const updatedPost = {
         ...newPost,
         postImage: reader.result,
         postImageName: file.name,
       };
 
-
       setNewPost(updatedPost);
     };
 
-    reader.onerror = (error) => {
-    };
+    reader.onerror = (error) => {};
 
     if (file) {
       reader.readAsDataURL(file);
@@ -67,14 +63,13 @@ const CreatePage = () => {
     }
   };
 
-  const toast = useToast();
+  const toast = useCustomToast();
 
   const { createPost } = useProductStore();
 
   const defaultImage = colors.currentTheme === "light" ? day : night;
 
   const handleAddEntry = async () => {
-
     // get current user from auth
     const currentUser = { uid: auth.currentUser.uid };
     const currUser = currentUser.uid;
@@ -84,19 +79,9 @@ const CreatePage = () => {
     const { success, message } = await createPost(postWithUID);
 
     if (!success) {
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        isClosable: true,
-      });
+      toast.error("Error", message);
     } else {
-      toast({
-        title: "Success",
-        description: message,
-        status: "success",
-        isClosable: true,
-      });
+      toast.success("Success", message);
       // Redirect to the main page after successful entry creation
       navigate("/"); // Replace "/" with the path to your main page
     }
@@ -118,13 +103,7 @@ const CreatePage = () => {
           Create New Post
         </Heading>
 
-        <Box
-          w={"full"}
-          bg={colors.bgCard}
-          p={6}
-          rounded={"lg"}
-          shadow={"md"}
-        >
+        <Box w={"full"} bg={colors.bgCard} p={6} rounded={"lg"} shadow={"md"}>
           <VStack spacing={4} w="full">
             <Input
               placeholder="Name of Workout Session*"

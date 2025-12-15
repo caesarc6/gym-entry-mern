@@ -18,11 +18,12 @@ import {
   Textarea,
   useColorModeValue,
   useDisclosure,
-  useToast,
   VStack,
   useColorMode,
 } from "@chakra-ui/react";
 import { useProductStore } from "../store/product";
+import { useCustomToast } from "../hooks/useCustomToast";
+import { useThemeColors } from "../hooks/useThemeColors";
 import { useState, useEffect } from "react";
 // import PropTypes from "prop-types";
 import { auth } from "../firebase";
@@ -48,7 +49,8 @@ const ModifyProfile = ({ entry }) => {
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
     useProductStore();
 
-  const toast = useToast();
+  const toast = useCustomToast();
+  const colors = useThemeColors();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isDeleteOpen,
@@ -80,21 +82,9 @@ const ModifyProfile = ({ entry }) => {
   const handleDeleteEntry = async (pid) => {
     const { success, message } = await deleteEntry(pid);
     if (!success) {
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", message);
     } else {
-      toast({
-        title: "Success",
-        description: message,
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.success("Success", message);
     }
   };
 
@@ -126,59 +116,29 @@ const ModifyProfile = ({ entry }) => {
     const { success, message } = await updateEntry(pid, updatedEntry);
     onClose();
     if (!success) {
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", message);
     } else {
-      toast({
-        title: "Success",
-        description: "Product updated successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.success("Success", "Product updated successfully");
     }
   };
 
   const handleLikeEntry = async (pid) => {
     const { success, message } = await likeEntry(pid);
     if (!success) {
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", message);
     } else {
       setUpdatedEntry((prevEntry) => ({
         ...prevEntry,
         likes: prevEntry.likes + 1,
       }));
-      toast({
-        title: "Success",
-        description: "Entry liked successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.success("Success", "Entry liked successfully");
     }
   };
 
   const handleCommentEntry = async (pid, comment) => {
     const { success, message } = await commentEntry(pid, comment);
     if (!success) {
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error("Error", message);
     } else {
       setUpdatedEntry((prevEntry) => ({
         ...prevEntry,
@@ -188,13 +148,7 @@ const ModifyProfile = ({ entry }) => {
         ],
       }));
       setComment("");
-      toast({
-        title: "Success",
-        description: "Comment added successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.success("Success", "Comment added successfully");
     }
   };
 
@@ -368,12 +322,19 @@ const ModifyProfile = ({ entry }) => {
       </VStack>
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader fontFamily="Arial, sans-serif">
+        <ModalContent bg={colors.bgCard}>
+          <ModalHeader
+            fontFamily="Arial, sans-serif"
+            color={colors.textPrimary}
+            bg={colors.bgCard}
+          >
             Update Profile
           </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody className="min-w-[360px] max-w-[360px] mx-auto">
+          <ModalCloseButton color={colors.textMuted} />
+          <ModalBody
+            className="min-w-[360px] max-w-[360px] mx-auto"
+            bg={colors.bgCard}
+          >
             <VStack spacing={4}>
               <Image
                 src={userProfile.profileImage || profileColorMode}
@@ -385,7 +346,7 @@ const ModifyProfile = ({ entry }) => {
               <Text
                 className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
                 fontFamily="Arial, sans-serif"
-                color={textColorDesc}
+                color={colors.textPrimary}
               >
                 Avatar
               </Text>
@@ -407,12 +368,14 @@ const ModifyProfile = ({ entry }) => {
                   }
                 }}
                 fontFamily="Arial, sans-serif"
+                color={colors.textPrimary}
+                borderColor={colors.borderColorInput}
               />
 
               <Text
                 className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
                 fontFamily="Arial, sans-serif"
-                color={textColorDesc}
+                color={colors.textPrimary}
               >
                 Name
               </Text>
@@ -425,11 +388,14 @@ const ModifyProfile = ({ entry }) => {
                   setUpdatedEntry({ ...updatedEntry, name: e.target.value })
                 }
                 fontFamily="Arial, sans-serif"
+                color={colors.textPrimary}
+                borderColor={colors.borderColorInput}
+                _placeholder={{ color: colors.textMuted }}
               />
               <Text
                 className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
                 fontFamily="Arial, sans-serif"
-                color={textColorDesc}
+                color={colors.textPrimary}
               >
                 Goal
               </Text>
@@ -446,11 +412,14 @@ const ModifyProfile = ({ entry }) => {
                   })
                 }
                 fontFamily="Arial, sans-serif"
+                color={colors.textPrimary}
+                borderColor={colors.borderColorInput}
+                _placeholder={{ color: colors.textMuted }}
               />
               <Text
                 className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
                 fontFamily="Arial, sans-serif"
-                color={textColorDesc}
+                color={colors.textPrimary}
               >
                 Bio
               </Text>
@@ -466,11 +435,14 @@ const ModifyProfile = ({ entry }) => {
                   })
                 }
                 fontFamily="Arial, sans-serif"
+                color={colors.textPrimary}
+                borderColor={colors.borderColorInput}
+                _placeholder={{ color: colors.textMuted }}
               />
               <Text
                 className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"
                 fontFamily="Arial, sans-serif"
-                color={textColorDesc}
+                color={colors.textPrimary}
               >
                 Gym
               </Text>
@@ -482,9 +454,13 @@ const ModifyProfile = ({ entry }) => {
                   Select an option
                 </label> */}
                 <select
-                  color={textColorDesc}
                   id="countries"
-                  className="!w-[263px] bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-300 focus:border-blue-300 block p-2.5 dark:bg-inherit dark:border-gray-300 dark:placeholder-gray-400 dark:text-gray-500 dark:focus:ring-blue-500 dark:focus:border-blue-500 "
+                  className="!w-[263px] text-sm rounded-lg block p-2.5"
+                  style={{
+                    backgroundColor: colors.bgMuted,
+                    borderColor: colors.borderColorInput,
+                    color: colors.textPrimary,
+                  }}
                 >
                   <option selected>Select a location</option>
                   <option value="BL">Blink Fit</option>
@@ -495,7 +471,7 @@ const ModifyProfile = ({ entry }) => {
               </form>
             </VStack>
           </ModalBody>
-          <ModalFooter>
+          <ModalFooter bg={colors.bgCard}>
             <Button
               colorScheme="blue"
               mr={3}
@@ -508,6 +484,8 @@ const ModifyProfile = ({ entry }) => {
               variant="ghost"
               onClick={onClose}
               fontFamily="Arial, sans-serif"
+              color={colors.textPrimary}
+              _hover={{ bg: colors.bgHover }}
             >
               Cancel
             </Button>
