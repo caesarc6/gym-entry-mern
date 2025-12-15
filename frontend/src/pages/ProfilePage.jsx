@@ -32,6 +32,7 @@ import ProductCard from "../components/ProductCard";
 import { FileUploader } from "../components/FileUploader";
 import { auth } from "../firebase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
+import { HiShieldCheck } from "react-icons/hi";
 import light from "../assets/light.jpg";
 import PaginationComponent from "../components/Pagination";
 import night from "../assets/night.jpg";
@@ -84,6 +85,7 @@ const ProfilePage = () => {
   const [followingList, setFollowingList] = useState([]);
   const [followRequests, setFollowRequests] = useState([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const toast = useCustomToast();
   const colors = useThemeColors();
@@ -148,6 +150,26 @@ const ProfilePage = () => {
       fetchUserPosts(uid, currentPage);
     }
   }, [currentPage, uid]);
+
+  // Check admin status when user is signed in
+  useEffect(() => {
+    if (isSignedIn && uid) {
+      const checkAdminStatus = async () => {
+        try {
+          const response = await apiClient.get(API_ENDPOINTS.CHECK_IS_ADMIN);
+          if (response.data.success) {
+            setIsAdmin(response.data.isAdmin || false);
+          }
+        } catch (error) {
+          // Default to false on error
+          setIsAdmin(false);
+        }
+      };
+      checkAdminStatus();
+    } else {
+      setIsAdmin(false);
+    }
+  }, [isSignedIn, uid]);
 
   // Fetch follow requests
   const fetchFollowRequests = async () => {
@@ -619,7 +641,7 @@ const ProfilePage = () => {
                 </Text>
               </Stack>
             </Stack>
-            <Stack direction={"row"} spacing={4} mt={6}>
+            <Stack direction={{ base: "column", md: "row" }} spacing={4} mt={6}>
               <Button
                 onClick={onProfileOpen}
                 colorScheme="blue"
@@ -642,6 +664,21 @@ const ProfilePage = () => {
               >
                 Privacy Settings
               </Button>
+              {isAdmin && (
+                <Button
+                  as={Link}
+                  to="/admin/dashboard"
+                  colorScheme="purple"
+                  variant="outline"
+                  w={"full"}
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColor}
+                  _hover={{ bg: colors.bgHover }}
+                  leftIcon={<HiShieldCheck />}
+                >
+                  Admin Dashboard
+                </Button>
+              )}
             </Stack>
 
             {/* Follow Requests Badge */}

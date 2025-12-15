@@ -789,19 +789,6 @@ export const HeroHeader = () => {
                         Trainer Dashboard
                       </MenuItem>
                     )}
-                    {isAdmin && (
-                      <MenuItem
-                        as={Link}
-                        to="/admin/dashboard"
-                        className="flex items-center gap-2"
-                        bg={colors.bgCard}
-                        color={colors.textSecondary}
-                        _hover={{ bg: colors.bgHover }}
-                      >
-                        <HiShieldCheck className="!w-5 !h-5" />
-                        Admin Dashboard
-                      </MenuItem>
-                    )}
                     <MenuItem
                       onClick={handleSignOut}
                       className="flex items-center gap-2"
@@ -930,27 +917,6 @@ export const HeroHeader = () => {
                         >
                           <FiUsers className="!w-5 !h-5" />
                           <span>Trainer Dashboard</span>
-                        </Link>
-                      </Button>
-                    )}
-                    {isAdmin && (
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          colorMode === "light"
-                            ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                            : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
-                        )}
-                        onClick={closeMenu}
-                      >
-                        <Link
-                          to="/admin/dashboard"
-                          className="flex items-center gap-2"
-                        >
-                          <HiShieldCheck className="!w-5 !h-5" />
-                          <span>Admin Dashboard</span>
                         </Link>
                       </Button>
                     )}
