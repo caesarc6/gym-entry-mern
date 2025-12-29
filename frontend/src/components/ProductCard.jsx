@@ -966,7 +966,7 @@ const ProductCard = ({
           top="12px"
           left="12px"
           spacing={2}
-          bg="rgba(255, 255, 255, 0.95)"
+          bg={colors.currentTheme === "light" ? "rgba(255, 255, 255, 0.95)" : "rgba(45, 55, 72, 0.95)"}
           px={3}
           py={2}
           borderRadius="12px"
