@@ -51,27 +51,39 @@ export const useCustomToast = () => {
 
   // Convenience methods for different toast types
   const success = (title, description) => {
-    return description
-      ? sonnerToast.success(title, { description })
-      : sonnerToast.success(title);
+    const options = {
+      duration: 3000,
+      dismissible: true,
+      ...(description && { description }),
+    };
+    return sonnerToast.success(title, options);
   };
 
   const error = (title, description) => {
-    return description
-      ? sonnerToast.error(title, { description })
-      : sonnerToast.error(title);
+    const options = {
+      duration: 3000,
+      dismissible: true,
+      ...(description && { description }),
+    };
+    return sonnerToast.error(title, options);
   };
 
   const warning = (title, description) => {
-    return description
-      ? sonnerToast.warning(title, { description })
-      : sonnerToast.warning(title);
+    const options = {
+      duration: 3000,
+      dismissible: true,
+      ...(description && { description }),
+    };
+    return sonnerToast.warning(title, options);
   };
 
   const info = (title, description) => {
-    return description
-      ? sonnerToast.info(title, { description })
-      : sonnerToast.info(title);
+    const options = {
+      duration: 3000,
+      dismissible: true,
+      ...(description && { description }),
+    };
+    return sonnerToast.info(title, options);
   };
 
   return {

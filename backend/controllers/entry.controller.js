@@ -109,10 +109,18 @@ export const updateEntry = async (req, res) => {
   }
 
   try {
+    // Get the entry first to check if it exists and to preserve existing image
+    const existingEntry = await Entry.findById(pid);
+    if (!existingEntry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+
     let postImageUrl = null;
 
     // Check if a new image is provided
-    if (imageName !== "undefined") {
+    if (imageName && imageName !== "undefined" && image) {
       try {
         const base64Data = image.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
@@ -142,23 +150,18 @@ export const updateEntry = async (req, res) => {
           details: imageError.message,
         });
       }
-    } else {
     }
 
     // Prepare the update object
     const updateData = {
       ...(name && { name }), // Only include name if it's provided
       ...(description && { description }), // Only include description if it's provided
-      ...(postImageUrl && { image: postImageUrl }), // Only include image URL if a new image is uploaded
+      ...(postImageUrl
+        ? { image: postImageUrl }
+        : existingEntry.image
+        ? { image: existingEntry.image }
+        : {}), // Use new image if uploaded, otherwise preserve existing image
     };
-
-    // Get the entry first to check if it's linked to a SharedWorkout
-    const existingEntry = await Entry.findById(pid);
-    if (!existingEntry) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Entry not found" });
-    }
 
     // Update the entry in the database
     const entryData = await Entry.findByIdAndUpdate(pid, updateData, {
@@ -300,7 +303,11 @@ export const updateEntryPut = async (req, res) => {
     const updateData = {
       ...(name && { name }), // Only include name if it's provided
       ...(description && { description }), // Only include description if it's provided
-      ...(postImageUrl && { image: postImageUrl }), // Only include image URL if a new image is uploaded
+      ...(postImageUrl
+        ? { image: postImageUrl }
+        : existingEntry.image
+        ? { image: existingEntry.image }
+        : {}), // Use new image if uploaded, otherwise preserve existing image
     };
 
     // Update the entry in the database

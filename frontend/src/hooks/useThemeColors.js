@@ -52,7 +52,7 @@ export const useThemeColors = () => {
     textPrimary: getThemeColor("gray.900", "gray.100"),
     textSecondary: getThemeColor("gray.600", "gray.400"),
     textMuted: getThemeColor("gray.500", "gray.500"),
-    textTitle: getThemeColor("gray.800", "gray.300"),
+    textTitle: getThemeColor("gray.800", "gray.200"),
     textDesc: getThemeColor("gray.700", "gray.400"),
     textOne: getThemeColor("gray.300", "gray.600"),
 

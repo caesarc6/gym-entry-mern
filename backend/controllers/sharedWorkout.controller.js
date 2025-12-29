@@ -312,6 +312,13 @@ export const updateSharedWorkout = async (req, res) => {
       });
     }
 
+    // Preserve existing image if no new image is provided or if image is empty string
+    // Only update image if a new non-empty image value is provided
+    if (updates.image === "" || (updates.image === undefined && existingDoc.image)) {
+      // Don't update image field - preserve existing image
+      delete updates.image;
+    }
+
     // Use native MongoDB update with ObjectId
     const result = await collection.updateOne(
       { _id: new ObjectId(sharedWorkoutId), creatorUid: uid },
