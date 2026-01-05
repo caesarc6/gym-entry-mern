@@ -391,10 +391,50 @@ const ProductCard = ({
     }
   }, [profileImage]);
 
+  // Helper function to check if image is the placeholder SVG
+  const isPlaceholderImage = (imageUrl) => {
+    if (!imageUrl) return true;
+    // Check if it's the "No Image" placeholder SVG
+    if (imageUrl.includes("data:image/svg+xml") && imageUrl.includes("No Image")) {
+      return true;
+    }
+    // Check if it's a data URL that's not a real image (just the placeholder)
+    if (imageUrl.startsWith("data:image/svg+xml") && imageUrl.includes("%3ENo Image%3C")) {
+      return true;
+    }
+    return false;
+  };
+
   // Debug log when updatedEntry changes
   useEffect(() => {
     // updatedEntry changes tracked
   }, [updatedEntry]);
+
+  // Sync entry.image to updatedEntry.image when entry changes
+  // This ensures we always use the actual entry image, not the placeholder
+  useEffect(() => {
+    // Only update if:
+    // 1. entry has an image
+    // 2. entry image is not the placeholder
+    // 3. entry image is different from current updatedEntry image
+    if (
+      entry.image &&
+      !isPlaceholderImage(entry.image) &&
+      entry.image !== updatedEntry.image
+    ) {
+      // Check if current updatedEntry image is placeholder or missing before updating
+      setUpdatedEntry((prev) => {
+        // Only update if current image is placeholder or missing
+        if (isPlaceholderImage(prev.image) || !prev.image) {
+          return {
+            ...prev,
+            image: entry.image,
+          };
+        }
+        return prev;
+      });
+    }
+  }, [entry.image, entry._id]);
 
   const handleFileUpload = async (file) => {
     try {
@@ -449,7 +489,23 @@ const ProductCard = ({
   const handleUpdateEntry = async (pid, updatedEntry) => {
     const previousEntry = { ...updatedEntry };
     setUpdatedEntry((prevEntry) => ({ ...prevEntry, ...updatedEntry }));
-    const { success, message, data } = await updateEntry(pid, updatedEntry);
+    
+    // Prepare the payload - only include image/imageName if a new image was uploaded
+    const payload = {
+      name: updatedEntry.name,
+      description: updatedEntry.description,
+    };
+    
+    // Only include image fields if:
+    // 1. imageName exists (new image was uploaded)
+    // 2. AND image is not the placeholder SVG
+    if (updatedEntry.imageName && updatedEntry.imageName !== "undefined" && 
+        updatedEntry.image && !isPlaceholderImage(updatedEntry.image)) {
+      payload.image = updatedEntry.image;
+      payload.imageName = updatedEntry.imageName;
+    }
+    
+    const { success, message, data } = await updateEntry(pid, payload);
 
     onClose();
     if (!success) {
