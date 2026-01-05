@@ -39,8 +39,11 @@ export const useCustomToast = () => {
     // Combine title and description for Sonner
     // Sonner supports description as a second parameter or in options
     const message = title;
+    // Ensure duration is a valid number (not 0 or Infinity) - default to 5000ms
+    const validDuration =
+      duration && duration > 0 && duration !== Infinity ? duration : 5000;
     const options = {
-      duration,
+      duration: validDuration,
       dismissible: isClosable,
       position: sonnerPosition,
       ...(description && { description }),
@@ -56,6 +59,10 @@ export const useCustomToast = () => {
       dismissible: true,
       ...(description && { description }),
     };
+    // Ensure duration is a valid number (not 0 or Infinity)
+    if (!options.duration || options.duration <= 0) {
+      options.duration = 3000;
+    }
     return sonnerToast.success(title, options);
   };
 
@@ -65,6 +72,10 @@ export const useCustomToast = () => {
       dismissible: true,
       ...(description && { description }),
     };
+    // Ensure duration is a valid number (not 0 or Infinity)
+    if (!options.duration || options.duration <= 0) {
+      options.duration = 3000;
+    }
     return sonnerToast.error(title, options);
   };
 
@@ -74,6 +85,10 @@ export const useCustomToast = () => {
       dismissible: true,
       ...(description && { description }),
     };
+    // Ensure duration is a valid number (not 0 or Infinity)
+    if (!options.duration || options.duration <= 0) {
+      options.duration = 3000;
+    }
     return sonnerToast.warning(title, options);
   };
 
@@ -83,6 +98,10 @@ export const useCustomToast = () => {
       dismissible: true,
       ...(description && { description }),
     };
+    // Ensure duration is a valid number (not 0 or Infinity)
+    if (!options.duration || options.duration <= 0) {
+      options.duration = 3000;
+    }
     return sonnerToast.info(title, options);
   };
 
