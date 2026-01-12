@@ -144,7 +144,7 @@ const EditSharedWorkoutModal = ({
     <Modal isOpen={isOpen} onClose={handleClose} size="2xl">
       <ModalOverlay />
       <ModalContent bg={colors.bgCard} maxW="800px">
-        <ModalHeader>
+        <ModalHeader color="gray.950">
           {sharedWorkout?.clientName
             ? `Edit ${capitalizeName(sharedWorkout.clientName)}'s Workout`
             : "Edit Workout"}
@@ -155,29 +155,34 @@ const EditSharedWorkoutModal = ({
             {/* Basic Information */}
             <VStack spacing={4}>
               <FormControl isRequired>
-                <FormLabel>Workout Name</FormLabel>
+                <FormLabel color="gray.950" fontWeight="semibold">Workout Name</FormLabel>
                 <Input
                   placeholder="e.g., Upper Body Strength, Lower Body Strength"
                   value={formData.workoutName}
                   onChange={(e) =>
                     handleInputChange("workoutName", e.target.value)
                   }
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
               </FormControl>
 
               <FormControl>
-                <FormLabel>Workout Date</FormLabel>
+                <FormLabel color="gray.950" fontWeight="semibold">Workout Date</FormLabel>
                 <Input
                   type="date"
                   value={formData.createdAt}
                   onChange={(e) =>
                     handleInputChange("createdAt", e.target.value)
                   }
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
                 />
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel>Workout Description</FormLabel>
+                <FormLabel color="gray.950" fontWeight="semibold">Workout Description</FormLabel>
                 <Textarea
                   placeholder="Workout Example:
   Workout Name & Weight - Rep Count:
@@ -193,12 +198,15 @@ const EditSharedWorkoutModal = ({
                   }
                   fontSize="sm"
                   fontFamily="monospace"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                 />
               </FormControl>
 
               {/* Image Upload */}
               <FormControl>
-                <FormLabel>Workout Image (Optional)</FormLabel>
+                <FormLabel color="gray.950" fontWeight="semibold">Workout Image (Optional)</FormLabel>
                 <FileUploader
                   handleFile={handleFileUpload}
                   maxSizeMB={5}
@@ -225,7 +233,13 @@ const EditSharedWorkoutModal = ({
 
         <ModalFooter>
           <HStack spacing={3}>
-            <Button variant="outline" onClick={handleClose}>
+            <Button 
+              variant="outline" 
+              onClick={handleClose}
+              borderColor={colors.borderColorInput}
+              color="gray.950"
+              _hover={{ bg: colors.bgHover, borderColor: colors.borderColor }}
+            >
               Cancel
             </Button>
             <Button
@@ -233,6 +247,9 @@ const EditSharedWorkoutModal = ({
               onClick={handleSubmit}
               isLoading={isSubmitting}
               loadingText="Updating..."
+              bg="blue.500"
+              color="white"
+              _hover={{ bg: "blue.600" }}
             >
               Update Workout
             </Button>

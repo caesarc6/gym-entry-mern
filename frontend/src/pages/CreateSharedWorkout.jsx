@@ -232,7 +232,7 @@ const CreateSharedWorkout = () => {
           <CardBody>
             <VStack spacing={4}>
               <FormControl>
-                <FormLabel color={colors.textPrimary}>Client Name</FormLabel>
+                <FormLabel color="gray.950" fontWeight="semibold">Client Name</FormLabel>
                 {isClientPrefilled ? (
                   <Text fontWeight="semibold" color={colors.textPrimary}>
                     {capitalizeName(sharedWorkout.clientName)}
@@ -240,7 +240,7 @@ const CreateSharedWorkout = () => {
                 ) : isLoadingClients ? (
                   <HStack>
                     <Spinner size="sm" />
-                    <Text fontSize="sm" color={colors.textMuted}>
+                    <Text fontSize="sm" color="gray.700">
                       Loading clients...
                     </Text>
                   </HStack>
@@ -267,14 +267,14 @@ const CreateSharedWorkout = () => {
                   </VStack>
                 )}
                 {!isClientPrefilled && (
-                  <FormHelperText color={colors.textMuted}>
+                  <FormHelperText color="gray.700">
                     Type a new client name or select from existing clients
                   </FormHelperText>
                 )}
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel color={colors.textPrimary}>Workout Name</FormLabel>
+                <FormLabel color="gray.950" fontWeight="semibold">Workout Name</FormLabel>
                 <Input
                   placeholder="e.g., Upper Body Strength, Lower Body Strength"
                   value={sharedWorkout.workoutName}
@@ -288,7 +288,7 @@ const CreateSharedWorkout = () => {
               </FormControl>
 
               <FormControl>
-                <FormLabel color={colors.textPrimary}>Workout Date</FormLabel>
+                <FormLabel color="gray.950" fontWeight="semibold">Workout Date</FormLabel>
                 <Input
                   type="date"
                   value={sharedWorkout.createdAt}
@@ -301,7 +301,7 @@ const CreateSharedWorkout = () => {
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel color={colors.textPrimary}>Workout</FormLabel>
+                <FormLabel color="gray.950" fontWeight="semibold">Workout</FormLabel>
                 <Textarea
                   placeholder="Workout Example:
   Workout Name & Weight - Rep Count:
@@ -325,7 +325,7 @@ const CreateSharedWorkout = () => {
 
               {/* Image Upload */}
               <FormControl>
-                <FormLabel color={colors.textPrimary}>Workout Image (Optional)</FormLabel>
+                <FormLabel color="gray.950" fontWeight="semibold">Workout Image (Optional)</FormLabel>
                 <FileUploader
                   handleFile={handleFileUpload}
                   maxSizeMB={5}
@@ -355,6 +355,9 @@ const CreateSharedWorkout = () => {
           <Button
             variant="outline"
             onClick={() => navigate("/trainer/dashboard")}
+            borderColor={colors.borderColorInput}
+            color="gray.950"
+            _hover={{ bg: colors.bgHover, borderColor: colors.borderColor }}
           >
             Cancel
           </Button>
@@ -363,6 +366,9 @@ const CreateSharedWorkout = () => {
             onClick={handleSubmit}
             isLoading={isSubmitting}
             loadingText="Creating Workout..."
+            bg="blue.500"
+            color="white"
+            _hover={{ bg: "blue.600" }}
           >
             Create Workout
           </Button>
