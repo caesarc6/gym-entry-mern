@@ -366,8 +366,19 @@ const PORT = process.env.PORT || 5001;
 
 // Only start the server if we're not in Vercel
 if (process.env.NODE_ENV !== "production") {
-  app.listen(PORT, () => {
-    // connectDB();
+  const server = app.listen(PORT, () => {
+    console.log(`API listening on http://localhost:${PORT}`);
+  });
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(
+        `Port ${PORT} is already in use. Stop the other server or run: lsof -nP -iTCP:${PORT} -sTCP:LISTEN`
+      );
+    } else {
+      console.error(err);
+    }
+    process.exit(1);
   });
 }
 
