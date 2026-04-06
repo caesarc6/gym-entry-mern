@@ -13,6 +13,11 @@ dist-ssr
 *.local
 
 .env
+.env.*
+
+# Firebase / GCP service account keys (never commit)
+*firebase-adminsdk*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -3,27 +3,11 @@ import "./polyfills/buffer.js";
 import dotenv from "dotenv";
 import { admin } from "./firebase.js";
 import { supabase } from "./supabase/supabase.js";
-import fs from "fs";
-import path from "path";
-
 dotenv.config();
-
 
 // Check Firebase
 async function testFirebase() {
   try {
-
-    // Check if service account file exists
-    const serviceAccountPath = path.join(
-      process.cwd(),
-      "ethereal-gains-firebase-adminsdk-ipqvh-32d83a52d2.json"
-    );
-    const fileExists = fs.existsSync(serviceAccountPath);
-
-    if (!fileExists) {
-      return false;
-    }
-
     // Check if admin is initialized
     if (!admin) {
       return false;

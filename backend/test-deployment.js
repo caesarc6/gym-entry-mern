@@ -5,16 +5,6 @@ import { admin } from "./firebase.js";
 
 dotenv.config();
 
-// Check for Firebase JSON file in development
-if (process.env.NODE_ENV !== "production") {
-  const fs = await import("fs");
-  const path = await import("path");
-  const firebaseJsonPath = path.join(
-    process.cwd(),
-    "ethereal-gains-firebase-adminsdk-ipqvh-32d83a52d2.json"
-  );
-}
-
 // Test MongoDB connection
 async function testMongoDB() {
   try {
