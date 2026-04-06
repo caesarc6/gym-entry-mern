@@ -5,7 +5,7 @@ export const useCustomToast = () => {
     title,
     description,
     status = "info",
-    duration = 5000,
+    duration = 1300,
     isClosable = true,
     position = "top-right",
     variant = "solid",
@@ -39,9 +39,9 @@ export const useCustomToast = () => {
     // Combine title and description for Sonner
     // Sonner supports description as a second parameter or in options
     const message = title;
-    // Ensure duration is a valid number (not 0 or Infinity) - default to 5000ms
+    // Ensure duration is a valid number (not 0 or Infinity) - default to 1300ms
     const validDuration =
-      duration && duration > 0 && duration !== Infinity ? duration : 5000;
+      duration && duration > 0 && duration !== Infinity ? duration : 1300;
     const options = {
       duration: validDuration,
       dismissible: isClosable,
@@ -55,52 +55,52 @@ export const useCustomToast = () => {
   // Convenience methods for different toast types
   const success = (title, description) => {
     const options = {
-      duration: 3000,
+      duration: 1300,
       dismissible: true,
       ...(description && { description }),
     };
     // Ensure duration is a valid number (not 0 or Infinity)
     if (!options.duration || options.duration <= 0) {
-      options.duration = 3000;
+      options.duration = 1300;
     }
     return sonnerToast.success(title, options);
   };
 
   const error = (title, description) => {
     const options = {
-      duration: 3000,
+      duration: 1300,
       dismissible: true,
       ...(description && { description }),
     };
     // Ensure duration is a valid number (not 0 or Infinity)
     if (!options.duration || options.duration <= 0) {
-      options.duration = 3000;
+      options.duration = 1300;
     }
     return sonnerToast.error(title, options);
   };
 
   const warning = (title, description) => {
     const options = {
-      duration: 3000,
+      duration: 1300,
       dismissible: true,
       ...(description && { description }),
     };
     // Ensure duration is a valid number (not 0 or Infinity)
     if (!options.duration || options.duration <= 0) {
-      options.duration = 3000;
+      options.duration = 1300;
     }
     return sonnerToast.warning(title, options);
   };
 
   const info = (title, description) => {
     const options = {
-      duration: 3000,
+      duration: 1300,
       dismissible: true,
       ...(description && { description }),
     };
     // Ensure duration is a valid number (not 0 or Infinity)
     if (!options.duration || options.duration <= 0) {
-      options.duration = 3000;
+      options.duration = 1300;
     }
     return sonnerToast.info(title, options);
   };

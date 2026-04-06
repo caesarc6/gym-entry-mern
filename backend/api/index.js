@@ -17,6 +17,7 @@ import sharedWorkoutRoutes from "../routes/sharedWorkout.route.js";
 
 import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
+import Entry from "../models/entry.model.js";
 import bodyParser from "body-parser";
 // const bodyParser = require("body-parser");
 
@@ -131,9 +132,34 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
       });
     }
 
+    // Determine auth provider from req.user (set by middleware)
+    const authProvider = req.user.authProvider || "firebase";
+    const firebaseUid =
+      req.user.firebaseUid || (authProvider === "firebase" ? uid : null);
+    const supabaseUid =
+      req.user.supabaseUid || (authProvider === "supabase" ? uid : null);
+
     let user;
+    let created = false;
     try {
-      user = await User.findOne({ uid });
+      const lookupConditions = [{ uid }];
+
+      if (firebaseUid) {
+        lookupConditions.push({ firebaseUid });
+      }
+
+      if (supabaseUid) {
+        lookupConditions.push({ supabaseUid });
+      }
+
+      if (email) {
+        lookupConditions.push({ email });
+      }
+
+      // Try to find user by any matching UID (uid, firebaseUid, or supabaseUid)
+      user = await User.findOne({
+        $or: lookupConditions,
+      });
     } catch (dbError) {
       return res.status(500).json({
         success: false,
@@ -149,24 +175,45 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
         : `user${Date.now()}`;
 
       try {
-        user = new User({
-          uid,
+        // Create new user with appropriate UID fields based on auth provider
+        const userData = {
+          uid, // Primary UID
           name,
           email,
           picture,
           username: generatedUsername,
-          profileImage: null, // Additional field initialized with null
-          bio: null, // Additional field initialized with null
-          goal: null, // Additional field initialized with null
-          gymName: null, // Additional field initialized with null
-          backgroundPicture: null, // Additional field initialized with null
-        });
+          authProvider,
+          bio: null,
+          goal: null,
+          gymName: null,
+          backgroundPicture: null,
+        };
+
+        // Set provider-specific UID fields
+        if (authProvider === "firebase") {
+          userData.firebaseUid = uid;
+        } else if (authProvider === "supabase") {
+          userData.supabaseUid = uid;
+        }
+
+        user = new User(userData);
         await user.save();
+        created = true;
       } catch (saveError) {
         // Check if it's a duplicate key error (user already exists)
         if (saveError.code === 11000) {
           // User was created between findOne and save, try to fetch again
-          user = await User.findOne({ uid });
+          const retryConditions = [{ uid }];
+          if (firebaseUid) {
+            retryConditions.push({ firebaseUid });
+          }
+          if (supabaseUid) {
+            retryConditions.push({ supabaseUid });
+          }
+
+          user = await User.findOne({
+            $or: retryConditions,
+          });
           if (!user) {
             return res.status(500).json({
               success: false,
@@ -182,10 +229,54 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
           });
         }
       }
+    } else {
+      const previousUid = user.uid;
+      // User exists - update UID fields if needed (for migration)
+      const updateFields = {};
+      
+      const isSameProvider = !user.authProvider || user.authProvider === authProvider;
+
+      // If user doesn't have the current provider's UID field set, update it
+      if (authProvider === "firebase" && !user.firebaseUid) {
+        updateFields.firebaseUid = uid;
+      } else if (authProvider === "supabase" && !user.supabaseUid) {
+        updateFields.supabaseUid = uid;
+      }
+
+      // Link Supabase login to existing Firebase user by email without flipping primary UID.
+      if (authProvider === "supabase" && !user.supabaseUid && email) {
+        updateFields.supabaseUid = uid;
+      }
+
+      // Only set authProvider/uid when it matches the user's current primary provider.
+      // Migration to a new primary UID must happen explicitly via migration endpoint.
+      if (isSameProvider) {
+        updateFields.authProvider = authProvider;
+        if (user.uid !== uid) {
+          updateFields.uid = uid;
+        }
+      }
+
+      if (Object.keys(updateFields).length > 0) {
+        try {
+          user = await User.findOneAndUpdate(
+            { _id: user._id },
+            { $set: updateFields },
+            { new: true }
+          );
+        } catch (updateError) {
+          // Log error but don't fail the request
+          console.error("Error updating user UID fields:", updateError);
+        }
+      }
+
+      // Do not migrate data here. Data migration should be done explicitly via
+      // the migration endpoint to avoid accidental UID flips.
     }
     
     res.status(200).json({
       success: true,
+      created,
       data: user,
     });
   } catch (error) {

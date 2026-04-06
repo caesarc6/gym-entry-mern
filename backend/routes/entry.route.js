@@ -80,9 +80,6 @@ router.get("/test", (req, res) => {
 // Database connection test route
 router.get("/db-test", async (req, res) => {
   try {
-    const mongoose = await import("mongoose");
-    const Entry = await import("../models/entry.model.js");
-
     const connectionState = mongoose.connection.readyState;
     const connectionStates = {
       0: "disconnected",
@@ -92,7 +89,7 @@ router.get("/db-test", async (req, res) => {
     };
 
     // Try to count entries to test database access
-    const entryCount = await Entry.default.countDocuments();
+    const entryCount = await Entry.countDocuments();
 
     res.json({
       success: true,

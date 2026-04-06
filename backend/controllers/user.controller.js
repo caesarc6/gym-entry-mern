@@ -1,6 +1,7 @@
 import { User, Post, Comment, FollowRequest } from "../models/user.model.js";
 import Entry from "../models/entry.model.js";
-import { supabase } from "../supabase/supabase.js";
+import { supabase, supabaseAdmin } from "../supabase/supabase.js";
+import { admin } from "../firebase.js";
 import multer from "multer";
 import path from "path";
 import mongoose from "mongoose";
@@ -10,6 +11,81 @@ import {
 } from "../utils/userUtils.js";
 import { generateSafeFilePath } from "../utils/fileUtils.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
+
+const buildUidQuery = (uid) => ({
+  $or: [{ uid }, { firebaseUid: uid }, { supabaseUid: uid }],
+});
+
+const findUserByAnyUid = (uid, select) => {
+  const query = User.findOne(buildUidQuery(uid));
+  return select ? query.select(select) : query;
+};
+
+const PROFILE_IMAGE_SELECT = "picture name username email";
+
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const findUserByEmailCaseInsensitive = (email, select = PROFILE_IMAGE_SELECT) => {
+  const trimmed = String(email || "").trim();
+  if (!trimmed) return null;
+  let q = User.findOne({
+    email: new RegExp(`^${escapeRegex(trimmed)}$`, "i"),
+  });
+  if (select != null) q = q.select(select);
+  return q;
+};
+
+/**
+ * When the client passes a Supabase UUID but Mongo still only has the legacy
+ * Firebase-backed row (supabaseUid not set yet), resolve via Auth API + email.
+ */
+const resolveMongoUserByAuthUid = async (uid) => {
+  if (!uid || typeof uid !== "string") return null;
+  const trimmed = uid.trim();
+  if (!trimmed) return null;
+
+  let user = await User.findOne(buildUidQuery(trimmed));
+  if (user) return user;
+
+  try {
+    const fbUser = await admin.auth().getUser(trimmed);
+    if (fbUser?.email) {
+      user = await findUserByEmailCaseInsensitive(fbUser.email, null);
+      if (user) return user;
+    }
+  } catch {
+    // Not a Firebase Auth uid or user deleted from Auth
+  }
+
+  if (supabaseAdmin) {
+    try {
+      const { data, error } =
+        await supabaseAdmin.auth.admin.getUserById(trimmed);
+      const email = data?.user?.email;
+      if (!error && email) {
+        user = await findUserByEmailCaseInsensitive(email, null);
+        if (user) return user;
+      }
+    } catch {
+      // Invalid id for Supabase or admin unavailable
+    }
+  }
+
+  return null;
+};
+
+/** All string ids that can refer to the same Mongo user (Firebase ↔ Supabase migration). */
+const linkedUidStrings = (userDoc) => {
+  if (!userDoc) return [];
+  return [userDoc.uid, userDoc.firebaseUid, userDoc.supabaseUid].filter(Boolean);
+};
+
+const accountsMatch = (a, b) => {
+  if (!a || !b) return false;
+  const ua = linkedUidStrings(a);
+  const ub = linkedUidStrings(b);
+  return ua.some((id) => ub.includes(id));
+};
 
 // Multer configuration
 const fileFilter = (req, file, cb) => {
@@ -211,20 +287,38 @@ export const getBatchProfileImages = async (req, res) => {
       });
     }
 
-    // Limit the number of UIDs to prevent abuse
-    const limitedUids = uids.slice(0, 20);
+    const limitedUids = [...new Set(uids.slice(0, 20).filter(Boolean))];
 
     const users = await User.find(
-      { uid: { $in: limitedUids } },
-      { uid: 1, name: 1, username: 1, picture: 1 }
+      {
+        $or: [
+          { uid: { $in: limitedUids } },
+          { firebaseUid: { $in: limitedUids } },
+          { supabaseUid: { $in: limitedUids } },
+        ],
+      },
+      { uid: 1, firebaseUid: 1, supabaseUid: 1, name: 1, username: 1, picture: 1 }
     );
 
-    const profileData = users.map((user) => ({
-      uid: user.uid,
-      profileImage: user.picture,
-      displayName: user.username || user.name || "Unknown User",
-      isUsername: !!user.username,
-    }));
+    const variantToUser = new Map();
+    for (const u of users) {
+      for (const v of linkedUidStrings(u)) {
+        variantToUser.set(v, u);
+      }
+    }
+
+    const profileData = limitedUids
+      .map((requestedUid) => {
+        const user = variantToUser.get(requestedUid);
+        if (!user) return null;
+        return {
+          uid: requestedUid,
+          profileImage: user.picture,
+          displayName: user.username || user.name || "Unknown User",
+          isUsername: !!user.username,
+        };
+      })
+      .filter(Boolean);
 
     res.status(200).json({
       success: true,
@@ -239,13 +333,71 @@ export const getBatchProfileImages = async (req, res) => {
   }
 };
 
+/**
+ * Public profile snippet for avatars. Resolves legacy Firebase UIDs even when
+ * Mongo only has matching email (firebaseUid not backfilled).
+ */
+export const getProfileImageByUid = async (req, res) => {
+  try {
+    const raw = req.params.uid;
+    const uid = typeof raw === "string" ? raw.trim() : "";
+    if (!uid) {
+      return res.status(400).json({ success: false, message: "Missing uid" });
+    }
+
+    let user = await resolveMongoUserByAuthUid(uid);
+
+    if (!user) {
+      const entry = await Entry.findOne({
+        $or: [{ uid }, { trainerUid: uid }],
+      })
+        .select("uid trainerUid")
+        .lean();
+      if (entry) {
+        const pool = [
+          ...new Set([uid, entry.uid, entry.trainerUid].filter(Boolean)),
+        ];
+        for (const id of pool) {
+          user = await findUserByAnyUid(id).select(PROFILE_IMAGE_SELECT);
+          if (user) break;
+        }
+      }
+    }
+
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          picture: null,
+          name: "Unknown User",
+          username: null,
+        },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        picture: user.picture || null,
+        name: user.name || "Unknown User",
+        username: user.username || null,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve user profile image",
+    });
+  }
+};
+
 // Get user profile by username (for public viewing)
 export const getUserProfileByUsername = async (req, res) => {
   try {
     const { username } = req.params;
     let viewerUser = null;
     if (req.user && req.user.uid) {
-      viewerUser = await User.findOne({ uid: req.user.uid });
+      viewerUser = await findUserByAnyUid(req.user.uid);
     }
     const user = await User.findOne({ username }).populate(
       "followers following"
@@ -280,7 +432,7 @@ export const checkFollowing = async (req, res) => {
   try {
     const { targetUserId } = req.params;
 
-    const user = await User.findOne({ uid: req.user.uid });
+    const user = await findUserByAnyUid(req.user.uid);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -342,7 +494,7 @@ export const getCurrentMongoDBUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ uid });
+    const user = await findUserByAnyUid(uid);
     
     if (!user) {
       return res.status(404).json({
@@ -475,7 +627,7 @@ export const createUser = async (req, res) => {
   const { uid, name, email, picture } = req.user;
 
   try {
-    let user = await User.findOne({ uid });
+    let user = await findUserByAnyUid(uid);
     let claimedWorkouts = [];
     let isNewUser = false;
 
@@ -586,7 +738,7 @@ export const getPostsByUID = async (req, res) => {
 
     // Get requester's UID from Firebase token
     const requesterUid = req.user.uid; // Set by verifyIdToken middleware
-    const user = await User.findOne({ uid });
+    let user = await resolveMongoUserByAuthUid(uid);
 
     if (!user) {
       return res.status(404).json({
@@ -596,10 +748,17 @@ export const getPostsByUID = async (req, res) => {
     }
 
     // Check if profile is private and requester is a follower
-    const isFollower = user.followers.some((followerId) =>
-      followerId.equals(req.user._id)
+    const requesterUser = await resolveMongoUserByAuthUid(requesterUid);
+    const isFollower =
+      requesterUser &&
+      user.followers.some((followerId) => followerId.equals(requesterUser._id));
+    const requesterIsOwner =
+      requesterUser && user._id.equals(requesterUser._id);
+    const isPrivate = user.privacy?.isPrivate === true;
+    const targetUids = [user.uid, user.firebaseUid, user.supabaseUid].filter(
+      Boolean
     );
-    if (user.isPrivate && !isFollower && requesterUid !== uid) {
+    if (isPrivate && !isFollower && !requesterIsOwner) {
       return res.status(403).json({
         success: false,
         message:
@@ -607,13 +766,13 @@ export const getPostsByUID = async (req, res) => {
       });
     }
 
-    const posts = await Entry.find({ uid })
+    const posts = await Entry.find({ uid: { $in: targetUids } })
       .populate("likes", "uid name username picture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const totalPosts = await Entry.countDocuments({ uid });
+    const totalPosts = await Entry.countDocuments({ uid: { $in: targetUids } });
     const totalPages = Math.ceil(totalPosts / limit);
 
     const normalizedPosts = posts.map((post) => ({
@@ -659,7 +818,7 @@ export const isFollowing = async (req, res) => {
     const { userId } = req.params;
     const currentUserUid = req.user.uid;
 
-    const currentUser = await User.findOne({ uid: currentUserUid });
+    const currentUser = await findUserByAnyUid(currentUserUid);
     if (!currentUser) {
       return res.status(404).json({
         success: false,
@@ -667,7 +826,7 @@ export const isFollowing = async (req, res) => {
       });
     }
 
-    const targetUser = await User.findOne({ uid: userId });
+    const targetUser = await findUserByAnyUid(userId);
     if (!targetUser) {
       return res.status(404).json({
         success: false,
@@ -694,8 +853,9 @@ export const getCurrentUser = async (req, res) => {
   const { uid } = req.user;
 
   try {
-    const user = await User.findOne({ uid }).select(
-      "uid name email picture username"
+    const user = await findUserByAnyUid(
+      uid,
+      "uid firebaseUid supabaseUid name email picture username"
     );
     res.status(200).json(user);
   } catch (error) {
@@ -707,8 +867,9 @@ export const getUser = async (req, res) => {
   const { uid } = req.params;
 
   try {
-    const user = await User.findOne({ uid }).select(
-      "name picture bio gymName goal followers following"
+    const user = await findUserByAnyUid(
+      uid,
+      "uid firebaseUid supabaseUid name picture bio gymName goal followers following"
     );
     if (!user) {
       return res
@@ -748,7 +909,7 @@ export const searchUsers = async (req, res) => {
     // Get the current user (viewer) for privacy filtering
     let viewerUser = null;
     if (req.user?.uid) {
-      viewerUser = await User.findOne({ uid: req.user.uid });
+      viewerUser = await findUserByAnyUid(req.user.uid);
     }
 
     // Find users matching the search query (only match from the beginning)
@@ -770,14 +931,18 @@ export const searchUsers = async (req, res) => {
         showEmail: false,
       };
 
-      // Check if viewer is a follower
+      const viewerIdStr = viewerUser ? viewerUser._id.toString() : null;
       const isFollower =
         viewerUser &&
         user.followers &&
-        user.followers.some((follower) => follower.uid === viewerUser.uid);
+        user.followers.some((follower) => {
+          const fid = follower._id
+            ? follower._id.toString()
+            : follower.toString();
+          return viewerIdStr && fid === viewerIdStr;
+        });
 
-      // Check if viewer is the profile owner
-      const isOwner = viewerUser && viewerUser.uid === user.uid;
+      const isOwner = viewerUser && accountsMatch(viewerUser, user);
 
       // For search results, always show basic info (name, username, picture)
       // but indicate if the profile is private
@@ -912,8 +1077,8 @@ export const uploadProfilePic = [
 export const followUser = async (req, res) => {
   try {
     const { uid } = req.user;
-    const userToFollow = await User.findOne({ uid: req.params.userId });
-    const currentUser = await User.findOne({ uid });
+    const userToFollow = await findUserByAnyUid(req.params.userId);
+    const currentUser = await findUserByAnyUid(uid);
 
     if (!userToFollow || !currentUser) {
       return res.status(404).json({ message: "User not found" });
@@ -940,8 +1105,8 @@ export const followUser = async (req, res) => {
 export const unfollowUser = async (req, res) => {
   try {
     const { uid } = req.user;
-    const userToUnfollow = await User.findOne({ uid: req.params.userId });
-    const currentUser = await User.findOne({ uid });
+    const userToUnfollow = await findUserByAnyUid(req.params.userId);
+    const currentUser = await findUserByAnyUid(uid);
 
     if (!userToUnfollow || !currentUser) {
       return res.status(404).json({ message: "User not found" });
@@ -1007,14 +1172,24 @@ export const getUserProfile = async (req, res) => {
 
     let viewerUser = null;
     if (req.user?.uid) {
-      viewerUser = await User.findOne({ uid: req.user.uid });
+      viewerUser = await findUserByAnyUid(req.user.uid);
       if (!viewerUser) {
+        viewerUser = await resolveMongoUserByAuthUid(req.user.uid);
       }
     }
 
-    const user = await User.findOne({ uid: userId })
+    let user = await findUserByAnyUid(userId)
       .populate("followers", "username name picture")
       .populate("following", "username name picture");
+
+    if (!user) {
+      const resolved = await resolveMongoUserByAuthUid(userId);
+      if (resolved) {
+        user = await User.findById(resolved._id)
+          .populate("followers", "username name picture")
+          .populate("following", "username name picture");
+      }
+    }
 
     if (!user) {
       return res
@@ -1033,7 +1208,7 @@ export const getUserProfile = async (req, res) => {
     const isFollower =
       viewerUser &&
       user.followers.some((follower) => follower._id.equals(viewerUser._id));
-    const isOwner = viewerUser && viewerUser.uid === userId;
+    const isOwner = viewerUser && accountsMatch(viewerUser, user);
     const canViewPosts =
       isOwner ||
       !user.privacy.isPrivate ||
@@ -1041,15 +1216,20 @@ export const getUserProfile = async (req, res) => {
 
     // Fetch posts only if allowed
     let posts = [];
+    const targetUids = [user.uid, user.firebaseUid, user.supabaseUid].filter(
+      Boolean
+    );
     if (canViewPosts && user.privacy.showEntries) {
-      posts = await Entry.find({ uid: userId }).populate(
+      posts = await Entry.find({ uid: { $in: targetUids } }).populate(
         "likes",
         "uid name username picture"
       );
     }
 
     // Get total posts count (unfiltered) for display purposes
-    const totalPostsCount = await Entry.countDocuments({ uid: userId });
+    const totalPostsCount = await Entry.countDocuments({
+      uid: { $in: targetUids },
+    });
 
     const userData = filterUserDataForPublicView(user, viewerUser);
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
@@ -1077,6 +1257,7 @@ export const getUserProfile = async (req, res) => {
 
     const responseData = {
       success: true,
+      viewerIsOwner: !!(viewerUser && accountsMatch(viewerUser, user)),
       data: {
         user: userData,
         posts: normalizedPosts,
@@ -1099,8 +1280,8 @@ export const sendFollowRequest = async (req, res) => {
     const { userId } = req.params;
 
 
-    const requester = await User.findOne({ uid });
-    const recipient = await User.findOne({ uid: userId });
+    const requester = await findUserByAnyUid(uid);
+    const recipient = await findUserByAnyUid(userId);
 
 
     if (!requester || !recipient) {
@@ -1198,7 +1379,7 @@ export const acceptFollowRequest = async (req, res) => {
     const { uid } = req.user;
     const { requestId } = req.params;
 
-    const user = await User.findOne({ uid });
+    const user = await findUserByAnyUid(uid);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -1275,7 +1456,7 @@ export const rejectFollowRequest = async (req, res) => {
     const { uid } = req.user;
     const { requestId } = req.params;
 
-    const user = await User.findOne({ uid });
+    const user = await findUserByAnyUid(uid);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -1337,7 +1518,7 @@ export const rejectFollowRequest = async (req, res) => {
 export const getPendingFollowRequests = async (req, res) => {
   try {
     const { uid } = req.user;
-    const user = await User.findOne({ uid });
+    const user = await findUserByAnyUid(uid);
 
     if (!user) {
       return res.status(404).json({
@@ -1374,8 +1555,10 @@ export const checkFollowRequestStatus = async (req, res) => {
     const { uid } = req.user;
     const { userId } = req.params;
 
-    const requester = await User.findOne({ uid });
-    const recipient = await User.findOne({ uid: userId });
+    let requester = await findUserByAnyUid(uid);
+    if (!requester) requester = await resolveMongoUserByAuthUid(uid);
+    let recipient = await findUserByAnyUid(userId);
+    if (!recipient) recipient = await resolveMongoUserByAuthUid(userId);
 
     if (!requester || !recipient) {
       return res.status(404).json({
@@ -1469,6 +1652,111 @@ export const getFeedPosts = async (req, res) => {
   }
 };
 
+const collectUserUidVariants = (user, intoSet) => {
+  if (!user) return;
+  [user.uid, user.firebaseUid, user.supabaseUid]
+    .filter(Boolean)
+    .forEach((u) => intoSet.add(u));
+};
+
+/**
+ * Single-query home feed: current user + everyone they follow (server-side, privacy-safe).
+ * Paginated globally by createdAt (newest first).
+ */
+export const getHomeFeed = async (req, res) => {
+  try {
+    const requesterUid = req.user.uid;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 6));
+    const skip = (page - 1) * limit;
+
+    const requester = await findUserByAnyUid(requesterUid).populate({
+      path: "following",
+      select: "uid firebaseUid supabaseUid",
+    });
+
+    if (!requester) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const allowedUids = new Set();
+    collectUserUidVariants(requester, allowedUids);
+    (requester.following || []).forEach((followed) =>
+      collectUserUidVariants(followed, allowedUids)
+    );
+
+    const uidArray = [...allowedUids];
+
+    if (uidArray.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: {
+          currentPage: page,
+          totalPages: 1,
+          totalPosts: 0,
+          limit,
+        },
+      });
+    }
+
+    const query = { uid: { $in: uidArray } };
+
+    const [posts, totalPosts] = await Promise.all([
+      Entry.find(query)
+        .populate("likes", "uid name username picture")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Entry.countDocuments(query),
+    ]);
+
+    const normalizedPosts = posts.map((post) => ({
+      _id: post._id.toString(),
+      uid: post.uid,
+      ownerId: post.uid,
+      name: post.name || "Untitled",
+      description: post.description || "No description",
+      image: post.image || null,
+      likes: (post.likes || []).map((user) => ({
+        _id: user._id,
+        uid: user.uid,
+        name: user.name,
+        username: user.username,
+        picture: user.picture,
+      })),
+      comments: post.comments || [],
+      createdAt: post.createdAt || new Date().toISOString(),
+      trainerUid: post.trainerUid || null,
+      trainerName: post.trainerName || null,
+      trainerUsername: post.trainerUsername || null,
+    }));
+
+    const totalPages =
+      totalPosts === 0 ? 1 : Math.ceil(totalPosts / limit);
+
+    res.status(200).json({
+      success: true,
+      data: normalizedPosts,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalPosts,
+        limit,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 export const getUsers = async (req, res) => {
   try {
     const users = await User.find()
@@ -1494,7 +1782,7 @@ export const getUsers = async (req, res) => {
 export const requestTrainerDashboardAccess = async (req, res) => {
   try {
     const { uid } = req.user;
-    const user = await User.findOne({ uid });
+    const user = await findUserByAnyUid(uid);
 
     if (!user) {
       return res.status(404).json({
@@ -1534,7 +1822,7 @@ export const requestTrainerDashboardAccess = async (req, res) => {
 export const checkTrainerDashboardAccess = async (req, res) => {
   try {
     const { uid } = req.user;
-    const user = await User.findOne({ uid }).select("trainerDashboardAccess");
+    const user = await findUserByAnyUid(uid, "trainerDashboardAccess");
 
     if (!user) {
       return res.status(404).json({
@@ -1564,7 +1852,7 @@ export const checkTrainerDashboardAccess = async (req, res) => {
 export const checkIsAdmin = async (req, res) => {
   try {
     const { uid } = req.user;
-    const user = await User.findOne({ uid }).select("isAdmin");
+    const user = await findUserByAnyUid(uid, "isAdmin");
 
     if (!user) {
       return res.status(404).json({
@@ -1590,7 +1878,7 @@ export const checkIsAdmin = async (req, res) => {
 export const getTrainerDashboardRequests = async (req, res) => {
   try {
     const { uid } = req.user;
-    const currentUser = await User.findOne({ uid }).select("isAdmin");
+    const currentUser = await findUserByAnyUid(uid, "isAdmin");
 
     if (!currentUser) {
       return res.status(404).json({
@@ -1645,7 +1933,7 @@ export const approveTrainerDashboardAccess = async (req, res) => {
     const { uid } = req.user;
     const { userId } = req.params; // The user ID to approve
 
-    const currentUser = await User.findOne({ uid }).select("isAdmin");
+    const currentUser = await findUserByAnyUid(uid, "isAdmin");
     if (!currentUser || !currentUser.isAdmin) {
       return res.status(403).json({
         success: false,
@@ -1653,7 +1941,7 @@ export const approveTrainerDashboardAccess = async (req, res) => {
       });
     }
 
-    const userToApprove = await User.findOne({ uid: userId });
+    const userToApprove = await findUserByAnyUid(userId);
     if (!userToApprove) {
       return res.status(404).json({
         success: false,
@@ -1689,7 +1977,7 @@ export const rejectTrainerDashboardAccess = async (req, res) => {
     const { uid } = req.user;
     const { userId } = req.params; // The user ID to reject
 
-    const currentUser = await User.findOne({ uid }).select("isAdmin");
+    const currentUser = await findUserByAnyUid(uid, "isAdmin");
     if (!currentUser || !currentUser.isAdmin) {
       return res.status(403).json({
         success: false,
@@ -1697,7 +1985,7 @@ export const rejectTrainerDashboardAccess = async (req, res) => {
       });
     }
 
-    const userToReject = await User.findOne({ uid: userId });
+    const userToReject = await findUserByAnyUid(userId);
     if (!userToReject) {
       return res.status(404).json({
         success: false,
@@ -1730,7 +2018,7 @@ export const rejectTrainerDashboardAccess = async (req, res) => {
 export const getFollowers = async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findOne({ uid: userId }).populate({
+    const user = await findUserByAnyUid(userId).populate({
       path: "followers",
       select: "uid name picture bio",
     });
@@ -1757,7 +2045,7 @@ export const getFollowers = async (req, res) => {
 export const getFollowing = async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findOne({ uid: userId }).populate({
+    const user = await findUserByAnyUid(userId).populate({
       path: "following",
       select: "uid name picture bio",
     });
@@ -1786,8 +2074,8 @@ export const cancelFollowRequest = async (req, res) => {
     const { userId } = req.params;
 
 
-    const requester = await User.findOne({ uid });
-    const recipient = await User.findOne({ uid: userId });
+    const requester = await findUserByAnyUid(uid);
+    const recipient = await findUserByAnyUid(userId);
 
 
     if (!requester || !recipient) {

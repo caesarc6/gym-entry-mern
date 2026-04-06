@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { auth, googleProvider } from "../firebase.js"; // Adjust the import according to your project structure
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 const PhotoUpload = ({ onUpload }) => {

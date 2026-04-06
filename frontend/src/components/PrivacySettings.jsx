@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { auth } from "../firebase";
+import { supabase } from "../supabase/supabase";
 import {
   Box,
   Heading,
@@ -26,6 +26,7 @@ import { useColorMode } from "@chakra-ui/react";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { getCurrentAuthUser } from "../utils/auth";
 
 const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
   const [privacySettings, setPrivacySettings] = useState({
@@ -47,7 +48,7 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
 
   useEffect(() => {
     const fetchPrivacySettings = async () => {
-      const user = auth.currentUser;
+      const user = await getCurrentAuthUser();
       if (!user) {
         if (!isModal) {
           toast.error("Error", "You must be signed in to view this page.");
@@ -95,15 +96,17 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
       fetchPrivacySettings();
     } else if (!isModal) {
       // For page version, use auth state listener
-      const unsubscribe = auth.onAuthStateChanged(async (user) => {
-        if (!user) {
-          toast.error("Error", "You must be signed in to view this page.");
-          navigate("/login");
-          return;
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (_event, session) => {
+          if (!session?.user) {
+            toast.error("Error", "You must be signed in to view this page.");
+            navigate("/login");
+            return;
+          }
+          await fetchPrivacySettings();
         }
-        await fetchPrivacySettings();
-      });
-      return () => unsubscribe();
+      );
+      return () => subscription.unsubscribe();
     }
   }, [isModal, isOpen, navigate, toast]);
 
@@ -117,7 +120,7 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
     setIsSubmitting(true);
 
     try {
-      const user = auth.currentUser;
+      const user = await getCurrentAuthUser();
       if (!user) throw new Error("User not authenticated");
 
       // Use apiClient instead of fetch to ensure proper token handling

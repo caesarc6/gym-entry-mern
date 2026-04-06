@@ -12,7 +12,6 @@ import {
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
-import { auth } from "../firebase";
 import { FileUploader } from "../components/FileUploader"; // Import the FileUploader component
 import night from "../assets/night.jpg";
 import day from "../assets/light.jpg";
@@ -20,6 +19,7 @@ import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
+import { getCurrentAuthUser } from "../utils/auth";
 
 const CreatePage = () => {
   const [newEntry, setNewEntry] = useState({
@@ -71,7 +71,11 @@ const CreatePage = () => {
 
   const handleAddEntry = async () => {
     // get current user from auth
-    const currentUser = { uid: auth.currentUser.uid };
+    const currentUser = await getCurrentAuthUser();
+    if (!currentUser) {
+      toast.error("Error", "You must be signed in to create a post.");
+      return;
+    }
     const currUser = currentUser.uid;
 
     const postWithUID = { ...newPost, uid: currUser };

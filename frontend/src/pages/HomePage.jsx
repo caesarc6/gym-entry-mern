@@ -7,26 +7,37 @@ import {
   Box,
   Spinner,
   useColorModeValue,
-  Skeleton,
-  SkeletonText,
 } from "@chakra-ui/react";
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
-import { auth, googleProvider } from "../firebase";
-import { signInWithPopup } from "firebase/auth";
+import { supabase } from "../supabase/supabase";
 import { Hero } from "../components/Hero";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
 import ClaimedWorkoutsModal from "../components/ClaimedWorkoutsModal";
 import { useCustomToast } from "../hooks/useCustomToast";
+import {
+  getCurrentAuthUser,
+  pushAuthDebug,
+  setAuthRedirect,
+  signOutAll,
+} from "../utils/auth";
 
 // Optimized feed loading with lazy loading and caching
 const HomePage = () => {
   const { clearEntrys, updateEntry } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [uid, setUid] = useState(null);
   const [entries, setEntries] = useState([]);
@@ -38,16 +49,70 @@ const HomePage = () => {
     totalPosts: 0,
     limit: 6,
   });
-  const [allPosts, setAllPosts] = useState([]);
-  const [followingUids, setFollowingUids] = useState([]);
   const [profileCache, setProfileCache] = useState(new Map()); // Cache for profile images
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const toast = useCustomToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
 
   // Performance optimization refs
   const resizeTimeoutRef = useRef(null);
   const isMountedRef = useRef(true);
+  const profileCacheRef = useRef(profileCache);
+
+  useEffect(() => {
+    profileCacheRef.current = profileCache;
+  }, [profileCache]);
+
+  // Batch-load avatars for everyone on the current feed page (not only following list)
+  useEffect(() => {
+    if (!uid || entries.length === 0) return;
+
+    const ids = [
+      ...new Set(
+        entries.flatMap((e) =>
+          [e.uid, e.ownerId, e.trainerUid].filter(Boolean)
+        )
+      ),
+    ];
+
+    let cancelled = false;
+
+    (async () => {
+      const authUser = await getCurrentAuthUser();
+      if (!authUser || cancelled) return;
+
+      const uncached = ids.filter((id) => !profileCacheRef.current.has(id));
+      if (uncached.length === 0) return;
+
+      try {
+        const response = await apiClient.post(
+          API_ENDPOINTS.BATCH_PROFILE_IMAGES,
+          { uids: uncached }
+        );
+        if (cancelled || !response.data?.success || !response.data?.data) {
+          return;
+        }
+
+        setProfileCache((prev) => {
+          const next = new Map(prev);
+          for (const row of response.data.data) {
+            next.set(row.uid, {
+              uid: row.uid,
+              profileImage: row.profileImage,
+              displayName: row.displayName,
+              isUsername: row.isUsername,
+            });
+          }
+          return next;
+        });
+      } catch {
+        // ProductCard deduped fallback can still load single images
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [entries, uid]);
 
   // Memoized function to handle page change
   const handlePageChange = useCallback(
@@ -59,14 +124,15 @@ const HomePage = () => {
     [pagination.totalPages, currentPage]
   );
 
-  // Reset to page 1 when following list changes
-  useEffect(() => {
+  // Reset to page 1 when signed-in user changes (before feed fetch effect runs)
+  useLayoutEffect(() => {
     setCurrentPage(1);
-  }, [followingUids]);
+  }, [uid]);
 
   // Optimized auth state handler
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const syncAuth = async () => {
+      const user = await getCurrentAuthUser();
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
@@ -75,16 +141,49 @@ const HomePage = () => {
         setIsSignedIn(false);
         setUid(null);
         setEntries([]);
-        setFollowingUids([]);
         setProfileCache(new Map());
+        setPagination({
+          currentPage: 1,
+          totalPages: 1,
+          totalPosts: 0,
+          limit,
+        });
         clearEntrys();
         useProductStore.getState().setCurrentUser(null);
       }
+      setIsAuthReady(true);
       setIsLoading(false);
-    });
+    };
+
+    syncAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          const user = {
+            uid: session.user.id,
+            email: session.user.email,
+            name:
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email?.split("@")[0],
+            picture:
+              session.user.user_metadata?.avatar_url ||
+              session.user.user_metadata?.picture ||
+              "",
+            authProvider: "supabase",
+          };
+          setIsSignedIn(true);
+          setUid(user.uid);
+          useProductStore.getState().setCurrentUser(user);
+        } else {
+          syncAuth();
+        }
+      }
+    );
 
     return () => {
-      unsubscribe();
+      subscription.unsubscribe();
     };
   }, [clearEntrys]);
 
@@ -121,7 +220,8 @@ const HomePage = () => {
   const preloadProfileImages = useCallback(
     async (uids) => {
       // Check if user is authenticated before making API call
-      if (!auth.currentUser) {
+      const authUser = await getCurrentAuthUser();
+      if (!authUser) {
         return; // Skip if not authenticated
       }
 
@@ -131,9 +231,6 @@ const HomePage = () => {
       if (uncachedUids.length === 0) return;
 
       try {
-        // Ensure token is ready before making request
-        await auth.currentUser.getIdToken(true);
-
         // Use the new batch endpoint for better performance
         const response = await apiClient.post(
           API_ENDPOINTS.BATCH_PROFILE_IMAGES,
@@ -212,11 +309,8 @@ const HomePage = () => {
         const data = response.data;
         if (data.success) {
           const uids = data.data.map((user) => user.uid);
-          setFollowingUids(uids.length > 0 ? uids : []);
-
-          // Pre-cache profile images for followed users
           const uidsToCache = [...new Set([uid, ...uids])];
-          await preloadProfileImages(uidsToCache);
+          preloadProfileImages(uidsToCache).catch(() => {});
 
           if (uids.length === 0) {
             toast.info(
@@ -228,7 +322,6 @@ const HomePage = () => {
           throw new Error(data.message || "Failed to fetch following");
         }
       } catch (error) {
-        setFollowingUids([]);
         toast.error("Error", error.message || "Failed to load followed users");
       }
     };
@@ -240,123 +333,77 @@ const HomePage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
 
-  // Optimized feed posts fetch with better error handling
-  // Fetch all posts when following list changes
+  // Single home-feed request (server merges self + following, paginated)
   useEffect(() => {
-    const fetchAllPosts = async () => {
+    const fetchHomeFeed = async () => {
+      if (!uid) {
+        setEntries([]);
+        setPagination({
+          currentPage: 1,
+          totalPages: 1,
+          totalPosts: 0,
+          limit,
+        });
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
-        if (!uid) {
-          setEntries([]);
-          setAllPosts([]);
-          setPagination({
-            currentPage: 1,
-            totalPages: 0,
-            totalPosts: 0,
-            limit,
-          });
-          return;
+        const response = await apiClient.get(
+          API_ENDPOINTS.HOME_FEED(currentPage, limit)
+        );
+        const data = response.data;
+
+        if (!data.success || !Array.isArray(data.data)) {
+          throw new Error(data.message || "Failed to load feed");
         }
 
-        const uidsToFetch = [...new Set([uid, ...followingUids])];
-
-        // Fetch all posts from all users (no pagination limits)
-        const fetchPromises = uidsToFetch.map(async (fetchUid) => {
-          try {
-            const response = await apiClient.get(
-              API_ENDPOINTS.POSTS(fetchUid, 1, 100) // Get more posts to ensure we have all data
-            );
-            const data = response.data;
-
-            if (data.success && Array.isArray(data.data)) {
-              return data.data.map((post) => ({
-                _id: post._id,
-                name: post.name || "Untitled",
-                description: post.description || "No description",
-                image: post.image || null,
-                likes: Array.isArray(post.likes) ? post.likes : [],
-                comments: Array.isArray(post.comments) ? post.comments : [],
-                createdAt: post.createdAt || new Date().toISOString(),
-                ownerId: post.uid || fetchUid,
-                uid: post.uid || fetchUid,
-                trainerUid: post.trainerUid || null,
-                trainerName: post.trainerName || null,
-                trainerUsername: post.trainerUsername || null,
-              }));
-            }
-            return [];
-          } catch (error) {
-            return [];
-          }
-        });
-
-        const results = await Promise.allSettled(fetchPromises);
-        let fetchedPosts = [];
-
-        results.forEach((result) => {
-          if (result.status === "fulfilled") {
-            fetchedPosts = [...fetchedPosts, ...result.value];
-          }
-        });
-
-        // Remove duplicates and sort
-        const sortedPosts = [
-          ...new Map(fetchedPosts.map((post) => [post._id, post])).values(),
-        ];
-        sortedPosts.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-        );
-
-        // Store all posts and calculate total pages
-        setAllPosts(sortedPosts);
-        const totalPages = Math.ceil(sortedPosts.length / limit) || 1;
-
-        setPagination((prev) => ({
-          ...prev,
-          totalPages,
-          totalPosts: sortedPosts.length,
+        const normalized = data.data.map((post) => ({
+          _id: post._id,
+          name: post.name || "Untitled",
+          description: post.description || "No description",
+          image: post.image || null,
+          likes: Array.isArray(post.likes) ? post.likes : [],
+          comments: Array.isArray(post.comments) ? post.comments : [],
+          createdAt: post.createdAt || new Date().toISOString(),
+          ownerId: post.ownerId || post.uid,
+          uid: post.uid,
+          trainerUid: post.trainerUid || null,
+          trainerName: post.trainerName || null,
+          trainerUsername: post.trainerUsername || null,
         }));
 
-        if (sortedPosts.length === 0) {
+        setEntries(normalized);
+
+        const p = data.pagination;
+        if (p) {
+          setPagination({
+            currentPage: p.currentPage ?? currentPage,
+            totalPages: p.totalPages ?? 1,
+            totalPosts: p.totalPosts ?? normalized.length,
+            limit: p.limit ?? limit,
+          });
+        }
+
+        if (currentPage === 1 && normalized.length === 0) {
           toast.info(
             "Empty feed",
             "No posts available. Create or follow users to see more."
           );
         }
       } catch (error) {
+        setEntries([]);
         toast.error("Error", error.message || "Failed to load feed");
       } finally {
         setIsLoading(false);
-        setIsInitialLoad(false);
       }
     };
 
-    if (uid) {
-      fetchAllPosts();
-    } else {
-      // Clear posts when not signed in
-      setEntries([]);
-      setAllPosts([]);
-      setPagination({
-        currentPage: 1,
-        totalPages: 0,
-        totalPosts: 0,
-        limit,
-      });
-    }
-  }, [uid, followingUids, limit]);
-
-  // Apply pagination when currentPage or allPosts changes
-  useEffect(() => {
-    if (allPosts.length > 0) {
-      const startIndex = (currentPage - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedPosts = allPosts.slice(startIndex, endIndex);
-      setEntries(paginatedPosts);
-    } else {
-      setEntries([]);
-    }
-  }, [currentPage, allPosts, limit]);
+    fetchHomeFeed();
+    // toast is stable from useCustomToast; omit to avoid effect churn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, currentPage, limit]);
 
   // Memoized entries to prevent unnecessary re-renders
   const memoizedEntries = useMemo(() => entries, [entries]);
@@ -372,16 +419,30 @@ const HomePage = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdToken();
-      const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
+      const redirectPath = window.location.pathname + window.location.search;
+      setAuthRedirect("login", redirectPath);
+      const redirectTo = `${window.location.origin}/auth/callback`;
 
-      const userData = response.data;
-      const currentUserResponse = await apiClient.get(
-        API_ENDPOINTS.GET_CURRENT_USER
-      );
+      pushAuthDebug("HomePage: starting OAuth", { redirectTo });
+      console.debug("[HomePage] starting OAuth", { redirectTo });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
 
-      const currentUserData = currentUserResponse.data;
+      if (error) {
+        throw error;
+      }
+      pushAuthDebug("HomePage: OAuth redirect", { url: data?.url });
+      console.debug("[HomePage] OAuth redirect", { url: data?.url });
+      if (data?.url) {
+        window.location.assign(data.url);
+      } else {
+        throw new Error("Missing OAuth redirect URL");
+      }
     } catch (error) {
       handleSignOutUser();
       toast.error("Error", error.message || "Failed to sign in");
@@ -390,7 +451,7 @@ const HomePage = () => {
 
   const handleSignOutUser = async () => {
     try {
-      await auth.signOut();
+      await signOutAll();
       setUid(null);
       setIsSignedIn(false);
       setEntries([]);
@@ -399,6 +460,27 @@ const HomePage = () => {
       toast.error("Error", error.message || "Failed to sign out");
     }
   };
+
+  if (!isAuthReady) {
+    return (
+      <Container maxW="container.xl" className="text-center z-0 relative">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minH="50vh"
+          pt="112px"
+        >
+          <Spinner
+            size="lg"
+            thickness="4px"
+            speed="1.2s"
+            color={spinnerColor}
+          />
+        </Box>
+      </Container>
+    );
+  }
 
   return (
     <Container maxW="container.xl" className="text-center z-0 relative">
@@ -446,7 +528,7 @@ const HomePage = () => {
                       key={entry._id}
                       entry={entry}
                       isOwner={
-                        auth.currentUser?.uid === (entry.ownerId || entry.uid)
+                        uid === (entry.ownerId || entry.uid)
                       }
                       onUpdate={handleUpdateEntry}
                       profileCache={profileCache}

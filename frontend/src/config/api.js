@@ -38,6 +38,8 @@ export const API_ENDPOINTS = {
   UPLOAD_PROFILE_PIC: buildApiUrl("upload/uploadProfilePic"),
 
   // Posts/Entries endpoints
+  HOME_FEED: (page = 1, pageLimit = 6) =>
+    buildApiUrl(`posts/home-feed?page=${page}&limit=${pageLimit}`),
   POSTS: (uid, page = 1, limit = 10) =>
     buildApiUrl(`posts/${uid}?page=${page}&limit=${limit}`),
   CREATE_POST: buildApiUrl("posts"),
@@ -76,7 +78,7 @@ export const API_ENDPOINTS = {
   // Admin endpoints
   CHECK_IS_ADMIN: buildApiUrl("admin/check"),
   GET_TRAINER_DASHBOARD_REQUESTS: buildApiUrl(
-    "admin/trainer-dashboard-requests"
+    "admin/trainer-dashboard-requests",
   ),
   APPROVE_TRAINER_DASHBOARD_ACCESS: (userId) =>
     buildApiUrl(`admin/trainer-dashboard/approve/${userId}`),
@@ -98,16 +100,16 @@ export const API_ENDPOINTS = {
   EXERCISE_PROGRESS: (exercise, timeframe = "30d") =>
     buildApiUrl(
       `workouts/progress?exercise=${encodeURIComponent(
-        exercise
-      )}&timeframe=${timeframe}`
+        exercise,
+      )}&timeframe=${timeframe}`,
     ),
   PERSONAL_RECORDS: buildApiUrl("workouts/prs"),
   REPROCESS_ALL_WORKOUTS: buildApiUrl("workouts/reprocess-all"),
   REPROCESS_ALL_WORKOUTS_WITH_GYM_NORMALIZATION: buildApiUrl(
-    "workouts/reprocess-all-with-gym-normalization"
+    "workouts/reprocess-all-with-gym-normalization",
   ),
   COMPLETELY_REPROCESS_ALL_WORKOUTS: buildApiUrl(
-    "workouts/completely-reprocess-all"
+    "workouts/completely-reprocess-all",
   ),
 
   // Workout sharing endpoints
@@ -156,12 +158,16 @@ export const API_ENDPOINTS = {
 
   // Client shareable link endpoints (for all workouts under a client name)
   GENERATE_CLIENT_SHAREABLE_LINK: buildApiUrl(
-    "shared-workouts/generate-client-link"
+    "shared-workouts/generate-client-link",
   ),
   GET_CLIENT_WORKOUTS_BY_TOKEN: (shareToken) =>
     buildApiUrl(`shared-workouts/client-claim/${shareToken}`),
   CLAIM_CLIENT_WORKOUTS_BY_TOKEN: (shareToken) =>
     buildApiUrl(`shared-workouts/client-claim/${shareToken}/claim`),
+
+  // Migration endpoints
+  MIGRATION_LINK: buildApiUrl("migration/link"),
+  MIGRATION_STATUS: buildApiUrl("migration/status"),
 };
 
 // Axios instance with default configuration
@@ -175,48 +181,39 @@ export const apiClient = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token (supports both Firebase and Supabase)
 apiClient.interceptors.request.use(
   async (config) => {
-    // Import auth dynamically to avoid circular dependencies
-    const { auth } = await import("../firebase");
+    try {
+      // Use dual-auth utility to get token from either provider
+      const {
+        getAuthToken,
+        getTempAccessToken,
+        getStoredSupabaseAccessToken,
+      } = await import("../utils/auth");
+      const token = await getAuthToken();
+      const tempToken = token ? null : getTempAccessToken();
+      const storedToken =
+        token || tempToken ? null : getStoredSupabaseAccessToken();
 
-    if (auth.currentUser) {
-      try {
-        // Try to get token without forcing refresh first (uses cached token if available)
-        let token;
-        try {
-          token = await auth.currentUser.getIdToken(false);
-        } catch (error) {
-          // If cached token fails, try with refresh
-          try {
-            token = await auth.currentUser.getIdToken(true);
-          } catch (refreshError) {
-            throw refreshError;
-          }
-        }
-
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (error) {
-        // If token refresh fails, try to continue without token (backend will handle auth)
-        // This prevents blocking all requests when Firebase has issues
-        if (
-          error.code === "auth/user-token-expired" ||
-          error.code === "auth/user-disabled"
-        ) {
-          // User token expired or disabled, redirecting to login
-          // You might want to redirect to login page here
-        }
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else if (tempToken) {
+        config.headers.Authorization = `Bearer ${tempToken}`;
+      } else if (storedToken) {
+        config.headers.Authorization = `Bearer ${storedToken}`;
       }
+    } catch (error) {
+      // If token retrieval fails, continue without token (backend will handle auth)
+      // This prevents blocking all requests when auth has issues
+      console.warn("Failed to get auth token:", error);
     }
 
     return config;
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor to log backend error messages
@@ -226,5 +223,5 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );

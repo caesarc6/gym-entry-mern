@@ -6,6 +6,8 @@ import { BrowserRouter } from "react-router-dom";
 import theme from "./theme.js";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import { Toaster } from "./components/ui/sonner";
+// Expose auth helpers to window for console debugging
+import "./utils/getMyUID.js";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

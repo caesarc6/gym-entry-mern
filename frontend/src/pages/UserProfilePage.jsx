@@ -12,9 +12,9 @@ import {
   Box,
 } from "@chakra-ui/react";
 import { Stack, Image } from "@chakra-ui/react";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { auth } from "../firebase";
+import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import ProductCard from "../components/ProductCard";
 import light from "../assets/light.jpg";
@@ -34,6 +34,7 @@ const defaultBgNightUrl = new URL(
 ).href;
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
+import { getCurrentAuthUser } from "../utils/auth";
 
 const UserProfilePage = () => {
   const { userId: paramUserId } = useParams(); // Rename to avoid confusion
@@ -50,6 +51,8 @@ const UserProfilePage = () => {
     followersCount: 0,
     followingCount: 0,
     isPrivate: false,
+    /** Same logic as post fetch permission; do not use isFollowing for layout (it can flicker). */
+    allowsPostView: false,
   });
   const [entries, setEntries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +62,7 @@ const UserProfilePage = () => {
   const [isFollowingLoading, setIsFollowingLoading] = useState(false);
   const [isFollowingLoadingInitial, setIsFollowingLoadingInitial] =
     useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(6);
   const [pagination, setPagination] = useState({
@@ -68,6 +72,15 @@ const UserProfilePage = () => {
     limit: 6,
   });
 
+  const profileFetchSeq = useRef(0);
+  /** Avoid unstable deps (toast / currentUser identity) recreating fetch every render → effect loop. */
+  const currentUserRef = useRef(currentUser);
+  const toastRef = useRef(null);
+  const themeFallbacksRef = useRef({
+    profile: lightUrl,
+    bg: defaultBgUrl,
+  });
+
   const toast = useCustomToast();
   const colors = useThemeColors();
   const profileColorMode =
@@ -75,13 +88,51 @@ const UserProfilePage = () => {
   const bgColorMode =
     colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
 
+  currentUserRef.current = currentUser;
+  toastRef.current = toast;
+  themeFallbacksRef.current = { profile: profileColorMode, bg: bgColorMode };
+
   // Determine userId: use paramUserId if available, otherwise use current user's UID
-  const userId = paramUserId || auth.currentUser?.uid;
+  const userId = paramUserId || currentUser?.uid;
+
+  useEffect(() => {
+    const syncAuthUser = async () => {
+      const user = await getCurrentAuthUser();
+      setCurrentUser(user);
+      setIsAuthLoading(false);
+    };
+
+    syncAuthUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          setCurrentUser({
+            uid: session.user.id,
+            email: session.user.email,
+            name:
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email?.split("@")[0],
+            picture:
+              session.user.user_metadata?.avatar_url ||
+              session.user.user_metadata?.picture ||
+              "",
+            authProvider: "supabase",
+          });
+        } else {
+          syncAuthUser();
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Check follow status and request status
   const checkFollowStatus = useCallback(async () => {
     try {
-      const user = auth.currentUser;
+      const user = currentUser;
       if (!user || user.uid === userId) return;
 
       const response = await apiClient.get(
@@ -109,45 +160,44 @@ const UserProfilePage = () => {
   }, [checkFollowStatus]);
 
   const fetchUserProfile = useCallback(async () => {
+    const seq = ++profileFetchSeq.current;
+    const user = currentUserRef.current;
+    const toastNotify = toastRef.current;
+    const { profile: profileFallback, bg: bgFallback } =
+      themeFallbacksRef.current;
     try {
       setIsLoading(true);
-      const user = auth.currentUser;
       if (!user) {
         throw new Error("User not authenticated");
+      }
+      if (!userId) {
+        return;
       }
 
       // Fetch user profile data
       const profileResponse = await apiClient.get(
         API_ENDPOINTS.GET_USER_PROFILE(userId)
       );
-      const profileData = profileResponse.data;
+      if (seq !== profileFetchSeq.current) return;
 
-      const userData = profileData.data.user;
+      const profilePayload = profileResponse.data;
+      const viewerIsOwner = profilePayload.viewerIsOwner === true;
+
+      const userData = profilePayload.data.user;
 
       const finalProfileImage =
-        userData.picture || userData.profileImage || profileColorMode;
+        userData.picture || userData.profileImage || profileFallback;
 
-      setUserProfile({
-        name: userData.name || "Name",
-        username: userData.username || userData.name || "Username",
-        goal: userData.goal || "Not set",
-        gymName: userData.gymName || "Not specified",
-        postsCount: profileData.data.postsCount || 0,
-        bio: userData.bio || "No bio available",
-        profileImage: finalProfileImage,
-        backgroundPicture: userData.backgroundPicture || bgColorMode,
-        followersCount: profileData.data.followersCount || 0,
-        followingCount: profileData.data.followingCount || 0,
-        isPrivate: userData.isPrivate || false,
-      });
-
-      // Check if current user is following this profile and follow request status
+      // Use API response for follow state — React `isFollowing` is stale in this same tick
+      let followingForPosts = false;
       if (user && user.uid !== userId) {
         const followStatusResponse = await apiClient.get(
           API_ENDPOINTS.FOLLOW_REQUEST_STATUS(userId)
         );
+        if (seq !== profileFetchSeq.current) return;
         const followStatusData = followStatusResponse.data;
-        setIsFollowing(followStatusData.isFollowing || false);
+        followingForPosts = followStatusData.isFollowing || false;
+        setIsFollowing(followingForPosts);
         setHasFollowRequest(followStatusData.hasRequest || false);
         setIsFollowingLoadingInitial(false);
       } else {
@@ -156,14 +206,32 @@ const UserProfilePage = () => {
         setIsFollowingLoadingInitial(false);
       }
 
-      // Only fetch posts if the profile is public OR if the current user is following OR if it's the user's own profile
-      const shouldFetchPosts =
-        !userData.isPrivate || isFollowing || user.uid === userId;
+      // Owner must match linked Firebase/Supabase ids (viewerIsOwner from API), not raw URL vs JWT string
+      const allowsPostView =
+        !userData.isPrivate || followingForPosts || viewerIsOwner;
+
+      setUserProfile({
+        name: userData.name || "Name",
+        username: userData.username || userData.name || "Username",
+        goal: userData.goal || "Not set",
+        gymName: userData.gymName || "Not specified",
+        postsCount: profilePayload.data.postsCount || 0,
+        bio: userData.bio || "No bio available",
+        profileImage: finalProfileImage,
+        backgroundPicture: userData.backgroundPicture || bgFallback,
+        followersCount: profilePayload.data.followersCount || 0,
+        followingCount: profilePayload.data.followingCount || 0,
+        isPrivate: userData.isPrivate || false,
+        allowsPostView,
+      });
+
+      const shouldFetchPosts = allowsPostView;
 
       if (shouldFetchPosts) {
         const postsResponse = await apiClient.get(
           API_ENDPOINTS.POSTS(userId, currentPage, limit)
         );
+        if (seq !== profileFetchSeq.current) return;
         const postsData = postsResponse.data;
 
         if (postsData.success) {
@@ -196,38 +264,31 @@ const UserProfilePage = () => {
         });
       }
     } catch (error) {
-      toast.error("Error", error.message || "Failed to load profile");
+      toastNotify?.error(
+        "Error",
+        error.message || "Failed to load profile"
+      );
     } finally {
-      setIsLoading(false);
-    }
-  }, [
-    userId,
-    currentPage,
-    limit,
-    toast,
-    profileColorMode,
-    bgColorMode,
-    isFollowing,
-  ]);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setIsAuthLoading(false);
-        fetchUserProfile();
-      } else {
-        setIsAuthLoading(false);
+      if (seq === profileFetchSeq.current) {
         setIsLoading(false);
       }
-    });
+    }
+  }, [userId, currentPage, limit]);
 
-    return () => unsubscribe();
-  }, [fetchUserProfile]);
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setIsAuthLoading(false);
+      setIsLoading(false);
+      return;
+    }
+    setIsAuthLoading(false);
+    fetchUserProfile();
+  }, [currentUser?.uid, fetchUserProfile]);
 
   const handleFollow = async () => {
     try {
       setIsFollowingLoading(true);
-      const user = auth.currentUser;
+      const user = currentUser;
       if (!user) throw new Error("You need to sign in to follow users");
 
       if (isFollowing) {
@@ -241,6 +302,7 @@ const UserProfilePage = () => {
           setUserProfile((prev) => ({
             ...prev,
             followersCount: prev.followersCount - 1,
+            allowsPostView: !prev.isPrivate,
           }));
           toast.success("Success", `You have unfollowed ${userProfile.name}`);
         }
@@ -272,6 +334,7 @@ const UserProfilePage = () => {
           setUserProfile((prev) => ({
             ...prev,
             followersCount: prev.followersCount + 1,
+            allowsPostView: true,
           }));
           toast.success("Success", `You are now following ${userProfile.name}`);
         } else if (data.hasRequest) {
@@ -367,7 +430,7 @@ const UserProfilePage = () => {
             </Stack>
           </Stack>
           <Stack direction={"row"} spacing={4} mt={6}>
-            {auth.currentUser?.uid === userId ? (
+            {currentUser?.uid === userId ? (
               <Button
                 onClick={() => navigate("/edit-profile")}
                 colorScheme="blue"
@@ -416,8 +479,8 @@ const UserProfilePage = () => {
         <Center>
           <Text fontSize="lg" color={colors.textMuted}>
             {userProfile.isPrivate &&
-            !isFollowing &&
-            auth.currentUser?.uid !== userId
+            !userProfile.allowsPostView &&
+            currentUser?.uid !== userId
               ? "This profile is private. Follow to see their posts."
               : "No posts yet"}
           </Text>
@@ -453,9 +516,9 @@ const UserProfilePage = () => {
     <Container maxW="container.xl" py={12}>
       {renderProfile()}
       {userProfile.isPrivate &&
-      !isFollowing &&
+      !userProfile.allowsPostView &&
       !hasFollowRequest &&
-      auth.currentUser?.uid !== userId ? (
+      currentUser?.uid !== userId ? (
         <Center py={6}>
           <Box
             maxW={"580px"}
@@ -470,7 +533,7 @@ const UserProfilePage = () => {
               This profile is private. Send a follow request to view their
               workout posts.
             </Text>
-            {auth.currentUser && (
+            {currentUser && (
               <Button
                 onClick={handleFollow}
                 colorScheme="blue"

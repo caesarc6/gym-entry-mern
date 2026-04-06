@@ -34,7 +34,7 @@ import { FileUploader } from "./FileUploader";
 import { useProductStore } from "../store/product";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import PropTypes from "prop-types";
-import { auth } from "../firebase"; // Import Firebase auth
+import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api"; // Import API configuration
 import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
@@ -46,6 +46,8 @@ import ShareWorkoutModal from "./ShareWorkoutModal";
 import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
+import { getCurrentAuthUser } from "../utils/auth";
+import { getProfileImageRequestDeduped } from "../utils/profileImageApi";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -57,7 +59,7 @@ const ProductCard = ({
   onUpdate,
   profileCache,
 }) => {
-  const currentUser = auth.currentUser;
+  const [currentUser, setCurrentUser] = useState(null);
   const isOwner = propIsOwner ?? currentUser?.uid === entry.uid;
   const { colorMode } = useColorMode();
   const colors = useThemeColors();
@@ -125,6 +127,39 @@ const ProductCard = ({
     useProductStore();
   const currentUserInfo = useProductStore((state) => state.currentUserInfo);
 
+  useEffect(() => {
+    const syncAuth = async () => {
+      const user = await getCurrentAuthUser();
+      setCurrentUser(user);
+    };
+
+    syncAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          setCurrentUser({
+            uid: session.user.id,
+            email: session.user.email,
+            name:
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email?.split("@")[0],
+            picture:
+              session.user.user_metadata?.avatar_url ||
+              session.user.user_metadata?.picture ||
+              "",
+            authProvider: "supabase",
+          });
+        } else {
+          syncAuth();
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Debug currentUserInfo changes
   useEffect(() => {
     // currentUserInfo changes tracked
@@ -134,7 +169,7 @@ const ProductCard = ({
   const getCurrentUserDisplayName = () => {
     if (!currentUserInfo) {
       // Check if user is authenticated but info not loaded yet
-      if (auth.currentUser) {
+      if (currentUser) {
         return "Loading...";
       }
       return "Anonymous";
@@ -196,16 +231,13 @@ const ProductCard = ({
       }
 
       try {
-        const token = await auth.currentUser?.getIdToken();
-        if (!token) {
+        if (!currentUser) {
           setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
           setUserDisplayName("Unknown User");
           return;
         }
 
-        const response = await apiClient.get(
-          API_ENDPOINTS.PROFILE_IMAGE(entry.uid)
-        );
+        const response = await getProfileImageRequestDeduped(entry.uid);
 
         // Check if the response has the expected structure
         if (response.data?.success && response.data?.data) {
@@ -231,7 +263,6 @@ const ProductCard = ({
           setUserDisplayName("Unknown User");
         }
       } catch (error) {
-        // Only set to default if we don't already have a profile image
         if (
           !profileImage ||
           profileImage === (colorMode === "dark" ? nightUrl : lightUrl)
@@ -239,7 +270,6 @@ const ProductCard = ({
           setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
         }
         setUserDisplayName("Unknown User");
-        toast.error("Error", "Failed to load profile image.");
       }
     };
 
@@ -256,9 +286,9 @@ const ProductCard = ({
     entry.trainerUid,
     entry.trainerName,
     entry.trainerUsername,
-    toast,
     cachedProfile,
     colorMode,
+    currentUser,
   ]);
 
   // Fetch trainer profile info
@@ -273,13 +303,7 @@ const ProductCard = ({
     if (!entry.trainerUid) return;
 
     try {
-      const token = await auth.currentUser?.getIdToken();
-      const response = await apiClient.get(
-        API_ENDPOINTS.PROFILE_IMAGE(entry.trainerUid),
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
+      const response = await getProfileImageRequestDeduped(entry.trainerUid);
 
       if (response.data.success) {
         const data = response.data.data;
@@ -594,16 +618,19 @@ const ProductCard = ({
   };
 
   const handleCommentEntry = async (pid, comment) => {
-    const { success, message } = await commentEntry(pid, comment);
-    if (!success) {
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } else {
+    try {
+      const { success, message } = await commentEntry(pid, comment);
+      if (!success) {
+        toast({
+          title: "Error",
+          description: message,
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+
       // Create comment object with current user info
       const newComment = {
         text: comment,
@@ -625,6 +652,15 @@ const ProductCard = ({
         title: "Success",
         description: "Comment added successfully",
         status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error?.message || "Failed to comment on entry",
+        status: "error",
         duration: 5000,
         isClosable: true,
       });

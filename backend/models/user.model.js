@@ -2,7 +2,14 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    uid: { type: String, required: true, unique: true },
+    uid: { type: String, required: true, unique: true }, // Primary UID (can be Firebase or Supabase)
+    firebaseUid: { type: String, sparse: true, unique: true }, // Firebase UID for existing users
+    supabaseUid: { type: String, sparse: true, unique: true }, // Supabase UID for new/migrated users
+    authProvider: { 
+      type: String, 
+      enum: ["firebase", "supabase"], 
+      default: "firebase" // Default to firebase for backward compatibility
+    },
     name: String,
     email: { type: String, required: true, unique: true },
     username: { type: String, required: false, unique: true },

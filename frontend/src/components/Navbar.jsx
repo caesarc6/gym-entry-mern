@@ -11,11 +11,10 @@ import { PlusSquareIcon } from "@chakra-ui/icons";
 import { IoMoon } from "react-icons/io5";
 import { LuSun } from "react-icons/lu";
 import { useState, useEffect } from "react";
-import { auth, googleProvider } from "../firebase";
-import { signInWithPopup, signOut } from "firebase/auth";
-import { API_ENDPOINTS, apiClient } from "../config/api";
+import { supabase } from "../supabase/supabase";
 import ThemeSelector from "./ThemeSelector";
 import { useCustomToast } from "../hooks/useCustomToast";
+import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 
 const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -25,111 +24,55 @@ const Navbar = () => {
   const [isLoading, setIsLoading] = useState(true); // Add loading state
   const toast = useCustomToast();
 
-  // Add this useEffect to handle initial auth state
+  // Add this useEffect to handle initial auth state (both Firebase and Supabase)
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setIsSignedIn(true);
-        setUid(user.uid);
-      } else {
+    const checkAuthState = async () => {
+      try {
+        const user = await getCurrentAuthUser();
+        if (user) {
+          setIsSignedIn(true);
+          setUid(user.uid);
+        } else {
+          setIsSignedIn(false);
+          setUid(null);
+          setEntries([]);
+        }
+      } catch (error) {
         setIsSignedIn(false);
         setUid(null);
-        setEntries([]);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false); // Set loading to false once we know the auth state
+    };
+
+    // Check initial auth state
+    checkAuthState();
+
+    // Listen to Supabase auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setIsSignedIn(true);
+        setUid(session.user.id);
+      } else if (event === "SIGNED_OUT") {
+        checkAuthState();
+      }
     });
 
-    return () => unsubscribe(); // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
-
-  const checkUserExists = async () => {
-    try {
-      const userCheckResponse = await apiClient.get(
-        API_ENDPOINTS.GET_CURRENT_USER
-      );
-      const userExists = userCheckResponse.status === 200;
-      return userExists;
-    } catch (error) {
-      return false;
-    }
-  };
-
-  const handleSignIn = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdToken();
-      const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
-
-      const userData = response.data;
-      const currentUserResponse = await apiClient.get(
-        API_ENDPOINTS.GET_CURRENT_USER
-      );
-
-      const currentUserData = currentUserResponse.data;
-    } catch (error) {
-      handleSignOut();
-      toast.error("Error", error.message || "Failed to sign in");
-    }
-  };
 
   const handleSignOut = async () => {
     try {
-      await auth.signOut();
+      await signOutAll();
       setUid(null);
       setIsSignedIn(false);
+      setEntries([]);
     } catch (error) {
       toast.error("Error", error.message || "Failed to sign out");
-    }
-  };
-
-  const checkCurrentUser = async () => {
-    try {
-      const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
-      const currentUserData = response.data;
-    } catch (error) {}
-  };
-
-  const handleGoogleSignIn = async (mode = "login") => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdToken();
-
-      // First, check if user already exists in our database
-      const userExists = await checkUserExists();
-
-      if (mode === "login" && !userExists) {
-        // User tried to login but doesn't have an account
-        alert(
-          "No account found with this Google account. Please use Sign Up instead."
-        );
-        // Sign out the user since they don't have an account
-        await signOut(auth);
-        return;
-      }
-
-      if (mode === "signup" && userExists) {
-        // User tried to signup but already has an account
-        alert(
-          "An account already exists with this Google account. Please use Login instead."
-        );
-        // Don't sign out, let them stay logged in
-        setIsSignedIn(true);
-        return;
-      }
-
-      // If it's a signup, create the user account
-      if (mode === "signup") {
-        const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
-        if (response.status !== 200) {
-          throw new Error(await response.text());
-        }
-        const userData = response.data;
-      }
-
-      await checkCurrentUser();
-    } catch (error) {
-      // clear feed and user sign in state to sign out
-      handleSignOut();
     }
   };
 
@@ -192,12 +135,9 @@ const Navbar = () => {
                 </Button> */}
                 <Button
                   size={"xs"}
-                  // variant={"outline"}
-                  onClick={async () => {
-                    await handleGoogleSignIn("signup");
-                    setIsSignedIn(true);
-                  }}
                   className="p-3  rounded-md"
+                  as={Link}
+                  to="/signup"
                 >
                   <Text as="span" color="neutral.400">
                     Sign Up
@@ -206,11 +146,9 @@ const Navbar = () => {
                 <Button
                   size={"xs"}
                   variant={"outline"}
-                  onClick={async () => {
-                    await handleGoogleSignIn("login");
-                    setIsSignedIn(true);
-                  }}
                   className="p-0 m-0  rounded-md"
+                  as={Link}
+                  to="/login"
                 >
                   Login
                 </Button>

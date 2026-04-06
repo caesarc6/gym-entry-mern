@@ -23,10 +23,11 @@ import {
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { auth } from "../firebase";
+import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { getCurrentAuthUser } from "../utils/auth";
 import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
@@ -67,12 +68,39 @@ const SharedWorkoutPage = () => {
 
   // Check authentication state
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setIsSignedIn(!!user);
-      setUser(user);
-    });
+    const syncAuth = async () => {
+      const authUser = await getCurrentAuthUser();
+      setIsSignedIn(!!authUser);
+      setUser(authUser);
+    };
 
-    return () => unsubscribe();
+    syncAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          const mappedUser = {
+            uid: session.user.id,
+            email: session.user.email,
+            name:
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email?.split("@")[0],
+            picture:
+              session.user.user_metadata?.avatar_url ||
+              session.user.user_metadata?.picture ||
+              "",
+            authProvider: "supabase",
+          };
+          setIsSignedIn(true);
+          setUser(mappedUser);
+        } else {
+          syncAuth();
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Fetch shared workout data

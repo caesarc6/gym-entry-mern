@@ -29,7 +29,7 @@ import {
   Icon,
 } from "@chakra-ui/react";
 import { FiExternalLink } from "react-icons/fi";
-import { auth } from "../firebase";
+import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
 import GymNameHelper from "../components/GymNameHelper";
@@ -37,6 +37,7 @@ import ExerciseProgressChart from "../components/ExerciseProgressChart";
 import MultiMetricProgressChart from "../components/MultiMetricProgressChart";
 import ProgressInsights from "../components/ProgressInsights";
 import WorkoutDetailsModal from "../components/WorkoutDetailsModal";
+import { getCurrentAuthUser } from "../utils/auth";
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -56,30 +57,50 @@ const AnalyticsPage = () => {
   const [chartType, setChartType] = useState("simple"); // 'simple' or 'multi'
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
 
   const { showToast } = useCustomToast();
   const bgColor = useColorModeValue("white", "gray.800");
   const cardBg = useColorModeValue("gray.50", "gray.700");
 
   useEffect(() => {
-    // Wait for user to be authenticated before making API calls
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const syncAuth = async () => {
+      const user = await getCurrentAuthUser();
       if (user) {
+        setIsAuthenticated(true);
         fetchAnalytics();
         fetchPersonalRecords();
         fetchUserEntries();
       } else {
+        setIsAuthenticated(false);
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
+    syncAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          setIsAuthenticated(true);
+          fetchAnalytics();
+          fetchPersonalRecords();
+          fetchUserEntries();
+        } else {
+          setIsAuthenticated(false);
+          setLoading(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, [timeframe]);
 
   const fetchAnalytics = async () => {
     try {
       // Check if user is authenticated
-      if (!auth.currentUser) {
+      const user = await getCurrentAuthUser();
+      if (!user) {
         setLoading(false);
         return;
       }
@@ -111,7 +132,8 @@ const AnalyticsPage = () => {
   const fetchPersonalRecords = async () => {
     try {
       // Check if user is authenticated
-      if (!auth.currentUser) {
+      const user = await getCurrentAuthUser();
+      if (!user) {
         return;
       }
 
@@ -148,13 +170,13 @@ const AnalyticsPage = () => {
 
   const fetchUserEntries = async () => {
     try {
-      // Check if user is authenticated
-      if (!auth.currentUser) {
+      const user = await getCurrentAuthUser();
+      if (!user) {
         return;
       }
 
       const response = await apiClient.get(
-        API_ENDPOINTS.POSTS(auth.currentUser.uid, 1, 100)
+        API_ENDPOINTS.POSTS(user.uid, 1, 100)
       );
       const entries = response.data.data || [];
 
@@ -481,7 +503,7 @@ const AnalyticsPage = () => {
   }
 
   // Check if user is not authenticated
-  if (!auth.currentUser) {
+  if (isAuthenticated === false) {
     return (
       <Container maxW="container.xl" py={8}>
         <Center>

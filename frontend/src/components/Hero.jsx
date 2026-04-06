@@ -4,8 +4,6 @@ import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
 import ProfilePage from "../pages/ProfilePage";
-import { auth, googleProvider } from "../firebase";
-import { signInWithPopup, signOut } from "firebase/auth";
 import { useColorModeValue } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 

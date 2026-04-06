@@ -1,14 +1,13 @@
 import { Container, Text, VStack } from "@chakra-ui/react";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
-import { useNavigate, useLocation } from "react-router-dom";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { maybeMigrateAccount } from "../utils/migration";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { pushAuthDebug, setAuthRedirect } from "../utils/auth";
 
-const SignUpFlow = () => {
-  const [fullName, setFullName] = useState("");
+const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -16,10 +15,8 @@ const SignUpFlow = () => {
   const location = useLocation();
   const toast = useCustomToast();
 
-  // Get the redirect path from location state, default to home
   const redirectPath = location.state?.from || "/";
 
-  // Check if user is already signed in and redirect them
   useEffect(() => {
     const checkSession = async () => {
       const {
@@ -43,13 +40,13 @@ const SignUpFlow = () => {
     return () => subscription.unsubscribe();
   }, [navigate, redirectPath]);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleLogin = async () => {
     try {
-      setAuthRedirect("signup", redirectPath);
+      setAuthRedirect("login", redirectPath);
       const redirectTo = `${window.location.origin}/auth/callback`;
 
-      pushAuthDebug("SignUpFlow: starting OAuth", { redirectTo });
-      console.debug("[SignUpFlow] starting OAuth", { redirectTo });
+      pushAuthDebug("Login: starting OAuth", { redirectTo });
+      console.debug("[Login] starting OAuth", { redirectTo });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -61,22 +58,19 @@ const SignUpFlow = () => {
       if (error) {
         throw error;
       }
-      pushAuthDebug("SignUpFlow: OAuth redirect", { url: data?.url });
-      console.debug("[SignUpFlow] OAuth redirect", { url: data?.url });
+      pushAuthDebug("Login: OAuth redirect", { url: data?.url });
+      console.debug("[Login] OAuth redirect", { url: data?.url });
       if (data?.url) {
         window.location.assign(data.url);
       } else {
         throw new Error("Missing OAuth redirect URL");
       }
     } catch (error) {
-      toast.error(
-        "Error",
-        error.message || "Failed to sign in. Please try again.",
-      );
+      toast.error("Error", error.message || "Failed to sign in.");
     }
   };
 
-  const handleEmailSignUp = async (e) => {
+  const handleEmailLogin = async (e) => {
     e.preventDefault();
 
     if (!email || !password) {
@@ -86,65 +80,38 @@ const SignUpFlow = () => {
 
     setIsSubmitting(true);
     try {
-      setAuthRedirect("signup", redirectPath);
-      const emailRedirectTo = `${window.location.origin}/auth/callback`;
-
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          emailRedirectTo,
-          data: {
-            full_name: fullName,
-          },
-        },
       });
 
       if (error) {
         throw error;
       }
 
-      if (data?.session?.access_token) {
-        const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
-        await maybeMigrateAccount(response?.data?.data);
-        toast.success("Success", "Account created successfully.");
-        navigate(redirectPath, { replace: true });
-      } else {
-        toast.success(
-          "Check your email",
-          "Please verify your email address to complete signup.",
-        );
-        navigate("/login", { replace: true });
-      }
+      const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
+      await maybeMigrateAccount(response?.data?.data);
+      toast.success("Success", "Signed in successfully.");
+      navigate(redirectPath, { replace: true });
     } catch (error) {
-      toast.error("Error", error.message || "Failed to sign up.");
+      toast.error("Error", error.message || "Failed to sign in.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    // <div className="relative w-screen h-screen mx-auto bg-white flex items-center justify-center overflow-hidden">
-    <Container
-      maxW="container.xl"
-      className="text-center"
-      py={12}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <Container maxW="container.xl" className="text-center" py={12}>
       <VStack spacing={8} mt={10}>
         <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg max-w-md mx-auto">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center">
-            Welcome to Ethereal Gains!
+            Welcome back
           </h2>
           <p className="text-center text-gray-600 dark:text-gray-400 mb-6">
-            Complete your signup with Google. Your username will be
-            automatically generated from your name.
+            Log in with Google or email and password.
           </p>
           <button
-            onClick={handleGoogleSignIn}
+            onClick={handleGoogleLogin}
             className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 
                      rounded-lg px-4 py-3 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-600 
                      transition-colors duration-200 focus:outline-none focus:ring-2 
@@ -171,16 +138,9 @@ const SignUpFlow = () => {
             Sign in with Google
           </button>
           <div className="my-6 text-sm text-gray-500 dark:text-gray-400">
-            Or sign up with email
+            Or log in with email
           </div>
-          <form onSubmit={handleEmailSignUp} className="space-y-3">
-            <input
-              type="text"
-              placeholder="Full name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-            />
+          <form onSubmit={handleEmailLogin} className="space-y-3">
             <input
               type="email"
               placeholder="Email"
@@ -202,13 +162,23 @@ const SignUpFlow = () => {
               disabled={isSubmitting}
               className="w-full rounded-lg bg-blue-600 text-white px-4 py-2 font-medium hover:bg-blue-700 disabled:opacity-60"
             >
-              {isSubmitting ? "Creating account..." : "Sign up"}
+              {isSubmitting ? "Signing in..." : "Log in"}
             </button>
           </form>
+          <Text className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+            Don&apos;t have an account?{" "}
+            <button
+              type="button"
+              onClick={() => navigate("/signup", { replace: true })}
+              className="text-blue-500 hover:text-blue-600"
+            >
+              Sign up
+            </button>
+          </Text>
         </div>
       </VStack>
     </Container>
   );
 };
 
-export default SignUpFlow;
+export default Login;

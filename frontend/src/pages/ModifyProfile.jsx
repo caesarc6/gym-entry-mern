@@ -26,7 +26,8 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useState, useEffect } from "react";
 // import PropTypes from "prop-types";
-import { auth } from "../firebase";
+import { supabase } from "../supabase/supabase";
+import { getCurrentAuthUser } from "../utils/auth";
 import light from "../assets/light.jpg";
 import night from "../assets/night.jpg";
 
@@ -89,11 +90,11 @@ const ModifyProfile = ({ entry }) => {
   };
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const syncAuth = async () => {
+      const user = await getCurrentAuthUser();
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
-        // fetchUserProfile(user);
         fetchUserProfile(user);
       } else {
         setUid(null);
@@ -107,9 +108,36 @@ const ModifyProfile = ({ entry }) => {
           bio: "",
         });
       }
-    });
+    };
 
-    return () => unsubscribe();
+    syncAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          const user = {
+            uid: session.user.id,
+            email: session.user.email,
+            name:
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email?.split("@")[0],
+            picture:
+              session.user.user_metadata?.avatar_url ||
+              session.user.user_metadata?.picture ||
+              "",
+            authProvider: "supabase",
+          };
+          setIsSignedIn(true);
+          setUid(user.uid);
+          fetchUserProfile(user);
+        } else {
+          syncAuth();
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, [clearEntrys]);
 
   const handleUpdateEntry = async (pid, updatedEntry) => {

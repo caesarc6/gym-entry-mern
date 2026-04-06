@@ -1,11 +1,10 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Menu, X, Search } from "lucide-react";
 import { Button } from "./ui/button";
 import React, { useEffect, useRef, useState } from "react";
 import { useScroll, motion } from "framer-motion";
 import { cn } from "../lib/utils";
-import { auth, googleProvider } from "../firebase";
-import { signInWithPopup, signOut } from "firebase/auth";
+import { supabase } from "../supabase/supabase";
 import { PlusSquareIcon } from "@chakra-ui/icons";
 import { useColorMode } from "@chakra-ui/react";
 import { RxAvatar } from "react-icons/rx";
@@ -33,6 +32,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import ThemeSelector from "./ThemeSelector";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
+import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 
 export const HeroHeader = () => {
   const [menuState, setMenuState] = React.useState(false);
@@ -41,13 +41,13 @@ export const HeroHeader = () => {
   const [uid, setUid] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [userName, setUserName] = React.useState("");
+  const [currentUser, setCurrentUser] = React.useState(null);
   const [entries, setEntries] = React.useState([]);
   const { scrollYProgress } = useScroll();
   const { colorMode } = useColorMode();
   const { currentTheme } = useTheme();
   const colors = useThemeColors();
   const toast = useCustomToast();
-  const location = useLocation();
   const navigate = useNavigate();
 
   // Search-related states
@@ -71,11 +71,6 @@ export const HeroHeader = () => {
     closeMenu();
   };
 
-  const handleGoogleSignInAndClose = async (mode = "login") => {
-    await handleGoogleSignIn(mode);
-    closeMenu();
-  };
-
   // Animation variants for the mobile menu
   const menuVariants = {
     closed: { y: -20, opacity: 0 },
@@ -95,8 +90,7 @@ export const HeroHeader = () => {
     }
     setIsSearching(true);
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("User not authenticated");
+      if (!currentUser) throw new Error("User not authenticated");
 
       const response = await apiClient.get(API_ENDPOINTS.SEARCH_USERS(query));
       const data = response.data;
@@ -145,21 +139,53 @@ export const HeroHeader = () => {
   }, []);
 
   React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const syncAuthState = async () => {
+      const user = await getCurrentAuthUser();
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
-        setUserName(user.displayName || "User");
+        setUserName(user.name || "User");
+        setCurrentUser(user);
       } else {
         setIsSignedIn(false);
         setUid(null);
         setUserName("");
         setEntries([]);
         setHasTrainerDashboardAccess(false);
+        setCurrentUser(null);
       }
       setIsLoading(false);
+    };
+
+    syncAuthState();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const user = {
+          uid: session.user.id,
+          email: session.user.email,
+          name:
+            session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.name ||
+            session.user.email?.split("@")[0],
+          picture:
+            session.user.user_metadata?.avatar_url ||
+            session.user.user_metadata?.picture ||
+            "",
+          authProvider: "supabase",
+        };
+        setIsSignedIn(true);
+        setUid(user.uid);
+        setUserName(user.name || "User");
+        setCurrentUser(user);
+      } else {
+        syncAuthState();
+      }
     });
-    return () => unsubscribe();
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Check trainer dashboard access when user is signed in
@@ -168,7 +194,7 @@ export const HeroHeader = () => {
       const checkAccess = async () => {
         try {
           const response = await apiClient.get(
-            API_ENDPOINTS.CHECK_TRAINER_DASHBOARD_ACCESS
+            API_ENDPOINTS.CHECK_TRAINER_DASHBOARD_ACCESS,
           );
           if (response.data.success) {
             setHasTrainerDashboardAccess(response.data.hasAccess || false);
@@ -209,78 +235,18 @@ export const HeroHeader = () => {
     return () => unsubscribe();
   }, [scrollYProgress]);
 
-  const handleGoogleSignIn = async (mode = "login") => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdToken();
-
-      // First, check if user already exists in our database
-      const userCheckResponse = await apiClient.get(
-        API_ENDPOINTS.GET_CURRENT_USER
-      );
-
-      const userExists = userCheckResponse.status === 200;
-
-      if (mode === "login" && !userExists) {
-        // User tried to login but doesn't have an account
-        toast.warning(
-          "Account Not Found",
-          "No account found with this Google account. Please use Sign Up instead."
-        );
-        // Sign out the user since they don't have an account
-        await signOut(auth);
-        return;
-      }
-
-      if (mode === "signup" && userExists) {
-        // User tried to signup but already has an account
-        toast.info(
-          "Account Already Exists",
-          "An account already exists with this Google account. Please use Login instead."
-        );
-        // Don't sign out, let them stay logged in
-        setIsSignedIn(true);
-        return;
-      }
-
-      // If it's a signup, create the user account
-      if (mode === "signup") {
-        const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
-        const userData = response.data;
-      }
-
-      // Get current user data
-      const userResponse = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
-      const resultOne = userResponse.data;
-
-      setIsSignedIn(true);
-
-      // Show appropriate success message
-      if (mode === "signup") {
-        toast.success(
-          "Account Created Successfully",
-          "Welcome to Ethereal Gains! Your account has been created."
-        );
-      } else {
-        toast.success(
-          "Welcome Back",
-          "Successfully logged in to your account."
-        );
-      }
-    } catch (error) {
-      toast.error(
-        "Sign-in Failed",
-        error.message || "Failed to sign in with Google"
-      );
-    }
+  const handleAuthNavigate = (path) => {
+    navigate(path);
+    closeMenu();
   };
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      await signOutAll();
       setIsSignedIn(false);
       setUid(null);
       setEntries([]);
+      setCurrentUser(null);
     } catch (error) {
       // Error signing out
     }
@@ -295,16 +261,16 @@ export const HeroHeader = () => {
             currentTheme === "light"
               ? "bg-background/80"
               : currentTheme === "dark"
-              ? "bg-gray-900/80"
-              : currentTheme === "dark-black"
-              ? "bg-gray-950/90"
-              : "bg-blue-950/90"
+                ? "bg-gray-900/80"
+                : currentTheme === "dark-black"
+                  ? "bg-gray-950/90"
+                  : "bg-blue-950/90",
           )}
         >
           <motion.div
             className={cn(
               "relative flex items-center justify-between gap-4 py-3 duration-200 lg:gap-4 lg:py-6  flex-wrap sm:flex-wrap",
-              scrolled && "lg:py-4"
+              scrolled && "lg:py-4",
             )}
           >
             {/* Logo and Hamburger */}
@@ -317,7 +283,7 @@ export const HeroHeader = () => {
               >
                 <span
                   className={cn(
-                    "text-xl md:text-2xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent"
+                    "text-xl md:text-2xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent",
                   )}
                 >
                   Ethereal Gains
@@ -365,7 +331,7 @@ export const HeroHeader = () => {
                           colorMode === "light"
                             ? "bg-gray-100 text-gray-700"
                             : "bg-gray-700 text-gray-200",
-                          "!w-[111px]"
+                          "!w-[111px]",
                         )}
                       />
                       {searchQuery && (
@@ -382,7 +348,7 @@ export const HeroHeader = () => {
                             "px-1",
                             colorMode === "light"
                               ? "text-gray-500 hover:text-gray-700"
-                              : "text-gray-400 hover:text-gray-200"
+                              : "text-gray-400 hover:text-gray-200",
                           )}
                           aria-label="Clear search"
                         >
@@ -408,8 +374,7 @@ export const HeroHeader = () => {
                           {searchResults.length > 0 ? (
                             searchResults.map((user) => {
                               const path =
-                                auth.currentUser &&
-                                user.uid === auth.currentUser.uid
+                                currentUser && user.uid === currentUser.uid
                                   ? "/profile"
                                   : `/user/${user.uid}`;
                               return (
@@ -435,8 +400,8 @@ export const HeroHeader = () => {
                                     <Box flex={1}>
                                       <Text
                                         fontWeight={
-                                          auth.currentUser &&
-                                          user.uid === auth.currentUser.uid
+                                          currentUser &&
+                                          user.uid === currentUser.uid
                                             ? "bold"
                                             : "normal"
                                         }
@@ -507,7 +472,7 @@ export const HeroHeader = () => {
                       "absolute inset-0 m-auto size-6 transition-transform duration-300 ease-in-out",
                       menuState
                         ? "rotate-90 opacity-0 scale-0"
-                        : "rotate-0 opacity-100 scale-100"
+                        : "rotate-0 opacity-100 scale-100",
                     )}
                   />
                   <X
@@ -515,7 +480,7 @@ export const HeroHeader = () => {
                       "absolute inset-0 m-auto size-6 transition-transform duration-300 ease-in-out",
                       menuState
                         ? "rotate-0 opacity-100 scale-100"
-                        : "-rotate-90 opacity-0 scale-0"
+                        : "-rotate-90 opacity-0 scale-0",
                     )}
                   />
                 </span>
@@ -548,7 +513,7 @@ export const HeroHeader = () => {
                       colorMode === "light"
                         ? "bg-gray-100 text-gray-700"
                         : "bg-gray-700 text-gray-200",
-                      "pr-8"
+                      "pr-8",
                     )}
                   />
                   <ChakraButton
@@ -577,7 +542,7 @@ export const HeroHeader = () => {
                         "absolute right-10 top-1/2 -translate-y-1/2 py-[0px] px-1",
                         colorMode === "light"
                           ? "text-gray-500 hover:text-gray-700"
-                          : "text-gray-400 hover:text-gray-200"
+                          : "text-gray-400 hover:text-gray-200",
                       )}
                     >
                       <X className="h-1 w-2" />
@@ -601,8 +566,7 @@ export const HeroHeader = () => {
                       {searchResults.length > 0 ? (
                         searchResults.map((user) => {
                           const path =
-                            auth.currentUser &&
-                            user.uid === auth.currentUser.uid
+                            currentUser && user.uid === currentUser.uid
                               ? "/profile"
                               : `/user/${user.uid}`;
                           return (
@@ -624,8 +588,8 @@ export const HeroHeader = () => {
                                 <Box flex={1}>
                                   <Text
                                     fontWeight={
-                                      auth.currentUser &&
-                                      user.uid === auth.currentUser.uid
+                                      currentUser &&
+                                      user.uid === currentUser.uid
                                         ? "bold"
                                         : "normal"
                                     }
@@ -695,7 +659,7 @@ export const HeroHeader = () => {
                   className={cn(
                     colorMode === "light"
                       ? "bg-gray-200 text-gray-700"
-                      : "bg-gray-700 text-gray-200"
+                      : "bg-gray-700 text-gray-200",
                   )}
                 >
                   Loading...
@@ -815,11 +779,11 @@ export const HeroHeader = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleGoogleSignInAndClose("login")}
+                    onClick={() => handleAuthNavigate("/login")}
                     className={cn(
                       colorMode === "light"
                         ? "text-gray-700 hover:bg-gray-100 bg-stone-100"
-                        : "text-gray-200 hover:bg-gray-700"
+                        : "text-gray-200 hover:bg-gray-700",
                     )}
                   >
                     Login
@@ -827,11 +791,11 @@ export const HeroHeader = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleGoogleSignInAndClose("signup")}
+                    onClick={() => handleAuthNavigate("/signup")}
                     className={cn(
                       colorMode === "light"
                         ? "text-gray-500 bg-inherit hover:bg-gray-200 bg-stone-100"
-                        : "text-gray-200 hover:text-blue-400 hover:bg-gray-200"
+                        : "text-gray-200 hover:text-blue-400 hover:bg-gray-200",
                     )}
                   >
                     Sign Up
@@ -849,7 +813,7 @@ export const HeroHeader = () => {
                 "w-full md:hidden",
                 menuState
                   ? "block bg-background mb-6 rounded-xl border p-6 shadow-2xl shadow-zinc-400/20 mt-4"
-                  : "hidden"
+                  : "hidden",
               )}
             >
               <div className="mt-1 flex flex-col space-y-3">
@@ -860,7 +824,7 @@ export const HeroHeader = () => {
                     className={cn(
                       colorMode === "light"
                         ? "bg-gray-200 text-gray-700"
-                        : "bg-gray-700 text-gray-200"
+                        : "bg-gray-700 text-gray-200",
                     )}
                   >
                     Loading...
@@ -874,7 +838,7 @@ export const HeroHeader = () => {
                       className={cn(
                         colorMode === "light"
                           ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
                       )}
                       onClick={closeMenu}
                     >
@@ -890,7 +854,7 @@ export const HeroHeader = () => {
                       className={cn(
                         colorMode === "light"
                           ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
                       )}
                       onClick={closeMenu}
                     >
@@ -907,7 +871,7 @@ export const HeroHeader = () => {
                         className={cn(
                           colorMode === "light"
                             ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                            : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                            : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
                         )}
                         onClick={closeMenu}
                       >
@@ -927,7 +891,7 @@ export const HeroHeader = () => {
                       className={cn(
                         colorMode === "light"
                           ? "text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
                       )}
                     >
                       <div className="flex items-center gap-2">
@@ -942,7 +906,7 @@ export const HeroHeader = () => {
                         "w-full justify-center",
                         colorMode === "light"
                           ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
                       )}
                       onClick={closeMenu}
                     >
@@ -957,11 +921,11 @@ export const HeroHeader = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleGoogleSignInAndClose("login")}
+                      onClick={() => handleAuthNavigate("/login")}
                       className={cn(
                         colorMode === "light"
                           ? "text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
                       )}
                     >
                       Login
@@ -969,11 +933,11 @@ export const HeroHeader = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleGoogleSignInAndClose("signup")}
+                      onClick={() => handleAuthNavigate("/signup")}
                       className={cn(
                         colorMode === "light"
                           ? "text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200"
+                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
                       )}
                     >
                       Sign Up

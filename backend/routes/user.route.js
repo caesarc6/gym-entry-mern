@@ -28,6 +28,7 @@ import {
   getFollowers,
   getFollowing,
   getFeedPosts,
+  getHomeFeed,
   sendFollowRequest,
   acceptFollowRequest,
   rejectFollowRequest,
@@ -35,6 +36,7 @@ import {
   checkFollowRequestStatus,
   cancelFollowRequest,
   getBatchProfileImages,
+  getProfileImageByUid,
   requestTrainerDashboardAccess,
   checkTrainerDashboardAccess,
   checkIsAdmin,
@@ -42,6 +44,10 @@ import {
   approveTrainerDashboardAccess,
   rejectTrainerDashboardAccess,
 } from "../controllers/user.controller.js";
+import {
+  linkFirebaseToSupabase,
+  getMigrationStatus,
+} from "../controllers/migration.controller.js";
 
 const router = express.Router();
 
@@ -61,33 +67,7 @@ router.get("/users/:uid", getUser);
 router.post("/batch-profile-images", verifyIdToken, getBatchProfileImages);
 
 // Get user profile image by UID (public endpoint for ProductCard)
-router.get("/profile-image/:uid", async (req, res) => {
-  try {
-    const { uid } = req.params;
-    const user = await User.findOne({ uid }).select("picture name username");
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        picture: user.picture || null,
-        name: user.name || "Unknown User",
-        username: user.username || null,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve user profile image",
-    });
-  }
-});
+router.get("/profile-image/:uid", getProfileImageByUid);
 
 // Additional routes
 router.get("/getCurrentMongoDBUser", verifyIdToken, getCurrentMongoDBUser);
@@ -95,10 +75,11 @@ router.post(
   "/updateUserProfile",
   verifyIdToken,
   handleOptionalFileUpload,
-  updateUserProfile
+  updateUserProfile,
 );
 router.get("/createUsers", verifyIdToken, createUser);
 router.post("/posts", verifyIdToken, createPost);
+router.get("/posts/home-feed", verifyIdToken, getHomeFeed);
 router.get("/posts/:uid", verifyIdToken, getPostsByUID);
 router.get("/posts/userId/:userId", verifyIdToken, getPostsByUID);
 router.get("/isFollowing/:userId", verifyIdToken, isFollowing);
@@ -110,7 +91,7 @@ router.get("/searchUsers", searchUsers);
 router.post(
   "/updateUserBackgroundPicture",
   verifyIdToken,
-  uploadBackgroundPicture
+  uploadBackgroundPicture,
 );
 router.post("/updateUserProfilePic", verifyIdToken, uploadProfilePic);
 router.post("/follow/:userId", verifyIdToken, followUser);
@@ -127,30 +108,30 @@ router.delete("/follow-request/:userId", verifyIdToken, cancelFollowRequest);
 router.post(
   "/follow-request/:requestId/accept",
   verifyIdToken,
-  acceptFollowRequest
+  acceptFollowRequest,
 );
 router.post(
   "/follow-request/:requestId/reject",
   verifyIdToken,
-  rejectFollowRequest
+  rejectFollowRequest,
 );
 router.get("/follow-requests/pending", verifyIdToken, getPendingFollowRequests);
 router.get(
   "/follow-request/status/:userId",
   verifyIdToken,
-  checkFollowRequestStatus
+  checkFollowRequestStatus,
 );
 
 // Trainer dashboard access routes
 router.post(
   "/trainer-dashboard/request",
   verifyIdToken,
-  requestTrainerDashboardAccess
+  requestTrainerDashboardAccess,
 );
 router.get(
   "/trainer-dashboard/access",
   verifyIdToken,
-  checkTrainerDashboardAccess
+  checkTrainerDashboardAccess,
 );
 
 // Admin routes
@@ -158,18 +139,22 @@ router.get("/admin/check", verifyIdToken, checkIsAdmin);
 router.get(
   "/admin/trainer-dashboard-requests",
   verifyIdToken,
-  getTrainerDashboardRequests
+  getTrainerDashboardRequests,
 );
 router.post(
   "/admin/trainer-dashboard/approve/:userId",
   verifyIdToken,
-  approveTrainerDashboardAccess
+  approveTrainerDashboardAccess,
 );
 router.post(
   "/admin/trainer-dashboard/reject/:userId",
   verifyIdToken,
-  rejectTrainerDashboardAccess
+  rejectTrainerDashboardAccess,
 );
+
+// Migration routes
+router.post("/migration/link", verifyIdToken, linkFirebaseToSupabase);
+router.get("/migration/status", verifyIdToken, getMigrationStatus);
 
 export default router;
 

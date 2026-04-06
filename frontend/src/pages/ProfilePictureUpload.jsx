@@ -8,13 +8,10 @@ import {
   Progress,
 } from "@chakra-ui/react";
 import { useCustomToast } from "../hooks/useCustomToast";
-import path from "path";
-import { auth, googleProvider } from "../firebase";
-import { signInWithPopup } from "firebase/auth";
-
 import { useState } from "react";
-import { getAuth } from "firebase/auth";
 import { handleImageUploadWithCompression } from "../utils/imageCompression";
+import { apiClient, API_ENDPOINTS } from "../config/api";
+import { getCurrentAuthUser } from "../utils/auth";
 
 function ProfilePictureUpload() {
   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
@@ -32,32 +29,30 @@ function ProfilePictureUpload() {
         file,
         async (result) => {
           try {
-            // Get current Firebase user
-            const authResult = await signInWithPopup(auth, googleProvider);
-            const token = await authResult.user.getIdToken();
+            const user = await getCurrentAuthUser();
+            if (!user) {
+              throw new Error("You must be signed in to upload a profile photo.");
+            }
 
             // Create FormData for file upload with compressed file
             const formData = new FormData();
             formData.append("profileImage", result.file, result.file.name);
 
             // Send to backend
-            const res = await fetch(
-              "https://gym-tracker-brown.vercel.app/api/upload/uploadProfilePic",
+            const res = await apiClient.post(
+              API_ENDPOINTS.UPLOAD_PROFILE_PIC,
+              formData,
               {
-                method: "POST",
                 headers: {
-                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "multipart/form-data",
                 },
-                body: formData,
               }
             );
 
-            if (!res.ok) {
-              const errorData = await res.json();
-              throw new Error(errorData.message || "Upload failed");
+            const data = res.data;
+            if (!data?.url) {
+              throw new Error(data?.message || "Upload failed");
             }
-
-            const data = await res.json();
             // Update state with new image URL
             setProfilePictureUrl(data.url);
             setError(null);

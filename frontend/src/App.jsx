@@ -1,21 +1,31 @@
-import { Box, useColorModeValue, Text } from "@chakra-ui/react";
+import { Box, Spinner, Center } from "@chakra-ui/react";
+import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
-import CreatePage from "./pages/CreatePage";
-import HomePage from "./pages/HomePage";
-import ProfilePage from "./pages/ProfilePage";
-import SignUpFlow from "./pages/SignUpFlow";
-import ModifyProfile from "./pages/ModifyProfile";
 import { HeroHeader } from "./components/hero9-header";
 import "./index.css";
-import UserProfilePage from "./pages/UserProfilePage";
-import AnalyticsPage from "./pages/AnalyticsPage";
-import SharedWorkoutPage from "./pages/SharedWorkoutPage";
-import TrainerDashboard from "./pages/TrainerDashboard";
-import CreateSharedWorkout from "./pages/CreateSharedWorkout";
-import ClientWorkoutsPage from "./pages/ClientWorkoutsPage";
-import ClientClaimPage from "./pages/ClientClaimPage";
-import AdminDashboard from "./pages/AdminDashboard";
 import { useTheme } from "./contexts/ThemeContext";
+
+const CreatePage = lazy(() => import("./pages/CreatePage"));
+const HomePage = lazy(() => import("./pages/HomePage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const SignUpFlow = lazy(() => import("./pages/SignUpFlow"));
+const Login = lazy(() => import("./pages/Login"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const ModifyProfile = lazy(() => import("./pages/ModifyProfile"));
+const UserProfilePage = lazy(() => import("./pages/UserProfilePage"));
+const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
+const SharedWorkoutPage = lazy(() => import("./pages/SharedWorkoutPage"));
+const TrainerDashboard = lazy(() => import("./pages/TrainerDashboard"));
+const CreateSharedWorkout = lazy(() => import("./pages/CreateSharedWorkout"));
+const ClientWorkoutsPage = lazy(() => import("./pages/ClientWorkoutsPage"));
+const ClientClaimPage = lazy(() => import("./pages/ClientClaimPage"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+
+const RouteFallback = () => (
+  <Center minH="40vh" py={12}>
+    <Spinner size="lg" color="blue.400" />
+  </Center>
+);
 
 function App() {
   const { currentTheme } = useTheme();
@@ -47,34 +57,34 @@ function App() {
   return (
     <Box minH={"100vh"} {...getBackgroundStyle()} pb={"55px"}>
       <HeroHeader />
-      {/* <Text p={4} textAlign="center" fontSize="2xl" fontWeight="bold">
-        App is loading...
-      </Text> */}
-      {/* <Navbar /> */}
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/create" element={<CreatePage />} />
-        <Route path="/editProfile" element={<ModifyProfile />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/user/:userId" element={<UserProfilePage />} />
-        <Route path="/signup" element={<SignUpFlow />} />
-        <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route
-          path="/shared-workout/:shareToken"
-          element={<SharedWorkoutPage />}
-        />
-        <Route path="/client-claim/:shareToken" element={<ClientClaimPage />} />
-        <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
-        <Route
-          path="/trainer/create-shared-workout"
-          element={<CreateSharedWorkout />}
-        />
-        <Route
-          path="/trainer/client/:clientName"
-          element={<ClientWorkoutsPage />}
-        />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-      </Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/create" element={<CreatePage />} />
+          <Route path="/editProfile" element={<ModifyProfile />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/user/:userId" element={<UserProfilePage />} />
+          <Route path="/signup" element={<SignUpFlow />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route
+            path="/shared-workout/:shareToken"
+            element={<SharedWorkoutPage />}
+          />
+          <Route path="/client-claim/:shareToken" element={<ClientClaimPage />} />
+          <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
+          <Route
+            path="/trainer/create-shared-workout"
+            element={<CreateSharedWorkout />}
+          />
+          <Route
+            path="/trainer/client/:clientName"
+            element={<ClientWorkoutsPage />}
+          />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        </Routes>
+      </Suspense>
     </Box>
   );
 }

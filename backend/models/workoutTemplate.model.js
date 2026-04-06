@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const sharedWorkoutSchema = new mongoose.Schema(
+const workoutTemplateSchema = new mongoose.Schema(
   {
     // Shared Workout Information
     workoutName: {
@@ -88,9 +88,9 @@ const sharedWorkoutSchema = new mongoose.Schema(
 );
 
 // Index for better performance
-sharedWorkoutSchema.index({ creatorUid: 1, isActive: 1 });
-sharedWorkoutSchema.index({ category: 1, difficulty: 1 });
+workoutTemplateSchema.index({ creatorUid: 1, isActive: 1 });
+workoutTemplateSchema.index({ category: 1, difficulty: 1 });
 
-const SharedWorkout = mongoose.model("SharedWorkout", sharedWorkoutSchema);
+const WorkoutTemplate = mongoose.model("WorkoutTemplate", workoutTemplateSchema);
 
-export default SharedWorkout;
+export default WorkoutTemplate;

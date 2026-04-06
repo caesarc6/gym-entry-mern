@@ -30,7 +30,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
 import { FileUploader } from "../components/FileUploader";
-import { auth } from "../firebase";
+import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { HiShieldCheck } from "react-icons/hi";
 import light from "../assets/light.jpg";
@@ -49,6 +49,7 @@ const defaultBgNightUrl = new URL(
   import.meta.url
 ).href;
 import { useCustomToast } from "../hooks/useCustomToast";
+import { getCurrentAuthUser } from "../utils/auth";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PrivacySettings from "../components/PrivacySettings";
 
@@ -114,7 +115,8 @@ const ProfilePage = () => {
 
   // Handle auth state
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const syncAuth = async () => {
+      const user = await getCurrentAuthUser();
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
@@ -139,9 +141,38 @@ const ProfilePage = () => {
         });
       }
       setIsLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    syncAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          const user = {
+            uid: session.user.id,
+            email: session.user.email,
+            name:
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email?.split("@")[0],
+            picture:
+              session.user.user_metadata?.avatar_url ||
+              session.user.user_metadata?.picture ||
+              "",
+            authProvider: "supabase",
+          };
+          setIsSignedIn(true);
+          setUid(user.uid);
+          useProductStore.getState().setCurrentUser(user);
+          fetchUserProfile(user);
+          fetchUserPosts(user.uid);
+        } else {
+          syncAuth();
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Fetch posts when page changes
@@ -175,7 +206,7 @@ const ProfilePage = () => {
   const fetchFollowRequests = async () => {
     try {
       setIsLoadingRequests(true);
-      const user = auth.currentUser;
+      const user = await getCurrentAuthUser();
       if (!user) throw new Error("User not authenticated");
 
       const response = await apiClient.get(
@@ -215,7 +246,10 @@ const ProfilePage = () => {
 
       // Refresh user profile to update follower count
       if (uid) {
-        fetchUserProfile(auth.currentUser);
+        const currentUser = await getCurrentAuthUser();
+        if (currentUser) {
+          fetchUserProfile(currentUser);
+        }
       }
     } catch (error) {
       toast.error("Error", "Failed to process request");
@@ -345,7 +379,11 @@ const ProfilePage = () => {
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
-    const user = auth.currentUser;
+    const user = await getCurrentAuthUser();
+    if (!user) {
+      toast.error("Error", "You must be signed in to update your profile.");
+      return;
+    }
 
     // Basic validation
     if (!userProfile.name.trim()) {
@@ -398,8 +436,9 @@ const ProfilePage = () => {
       onProfileClose();
 
       // Refresh profile data to ensure everything is in sync
-      if (auth.currentUser) {
-        fetchUserProfile(auth.currentUser);
+      const currentUser = await getCurrentAuthUser();
+      if (currentUser) {
+        fetchUserProfile(currentUser);
         // Also update the global store with the new profile data
         try {
           const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
@@ -418,8 +457,11 @@ const ProfilePage = () => {
 
   const handleBackgroundSubmit = async (e) => {
     e.preventDefault();
-    const user = auth.currentUser;
-    const token = await user.getIdToken();
+    const user = await getCurrentAuthUser();
+    if (!user) {
+      toast.error("Error", "You must be signed in to update your background.");
+      return;
+    }
 
     try {
       if (!backgroundImage) {
@@ -430,25 +472,24 @@ const ProfilePage = () => {
       backgroundFormData.append("backgroundPicture", backgroundImage);
       backgroundFormData.append("backgroundPictureName", backgroundImage.name);
 
-      const backgroundResponse = await fetch(
-        "http://localhost:5001/api/updateUserBackgroundPicture",
+      const backgroundResponse = await apiClient.post(
+        API_ENDPOINTS.UPDATE_USER_BACKGROUND,
+        backgroundFormData,
         {
-          method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
           },
-          body: backgroundFormData,
         }
       );
 
-      if (!backgroundResponse.ok) {
-        const errorData = await backgroundResponse.json();
+      if (!backgroundResponse.data?.success && backgroundResponse.data?.message) {
         throw new Error(
-          errorData.message || "Failed to update background picture"
+          backgroundResponse.data.message ||
+            "Failed to update background picture"
         );
       }
 
-      const backgroundData = await backgroundResponse.json();
+      const backgroundData = backgroundResponse.data;
       setUserProfile((prev) => ({
         ...prev,
         backgroundPicture: backgroundData.data.backgroundPicture,
@@ -470,7 +511,7 @@ const ProfilePage = () => {
 
   const getFollowers = async (userId) => {
     try {
-      const user = auth.currentUser;
+      const user = await getCurrentAuthUser();
       if (!user) throw new Error("User not authenticated");
 
       const response = await apiClient.get(
@@ -497,7 +538,7 @@ const ProfilePage = () => {
 
   const getFollowing = async (userId) => {
     try {
-      const user = auth.currentUser;
+      const user = await getCurrentAuthUser();
       if (!user) throw new Error("User not authenticated");
 
       const response = await apiClient.get(
@@ -521,6 +562,16 @@ const ProfilePage = () => {
       return [];
     }
   };
+
+  if (isLoading) {
+    return (
+      <Container maxW="container.xl" py={12}>
+        <Center minH="50vh">
+          <Spinner size="xl" thickness="4px" />
+        </Center>
+      </Container>
+    );
+  }
 
   if (!isSignedIn) {
     return (
@@ -739,7 +790,7 @@ const ProfilePage = () => {
                 <ProductCard
                   key={entry._id}
                   entry={entry}
-                  isOwner={auth.currentUser?.uid === entry.uid}
+                  isOwner={uid === entry.uid}
                   onUpdate={handlePostUpdate}
                 />
               ))}

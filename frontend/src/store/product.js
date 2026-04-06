@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { auth } from "../firebase";
-import { getAuth, signInWithPopup } from "firebase/auth";
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import { supabase } from "../supabase/supabase";
+import { getCurrentAuthUser } from "../utils/auth";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
 // change fetch URL in dev mode to http://localhost:5173/api/entrys
@@ -31,8 +31,6 @@ export const useProductStore = create((set) => ({
 
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
-    const token = await auth.currentUser.getIdToken();
-
     if (!newPost.name || !newPost.description) {
       return { success: false, message: "Please fill in all fields." };
     }
@@ -101,9 +99,6 @@ export const useProductStore = create((set) => ({
   },
 
   updateBackgroundProfile: async (newBackgroundProfile) => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    const token = await user.getIdToken();
     const formData = new FormData();
     formData.append("backgroundProfile", newBackgroundProfile);
 
@@ -188,16 +183,17 @@ export const useProductStore = create((set) => ({
       }));
       return { success: true, message: data.message };
     } catch (error) {
-      throw new Error(
-        error.response?.data?.error || "Failed to comment on entry"
-      );
+      const message =
+        error.response?.data?.error ||
+        (error.code === "ERR_NETWORK"
+          ? "Cannot reach the API server. Start the backend or set VITE_API_BASE_URL."
+          : error.message) ||
+        "Failed to comment on entry";
+      throw new Error(message);
     }
   },
 
   uploadProfilePic: async (profilePic) => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    const token = await user.getIdToken();
     const formData = new FormData();
     formData.append("profilePic", profilePic);
 
@@ -227,27 +223,17 @@ export const useProductStore = create((set) => ({
   // handle upload image
   handleFileUpload: async (file) => {
     try {
-      // Get Firebase auth token
-      const token = await auth.currentUser.getIdToken();
-
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("profilePicture", file);
       // Send to backend
-      const res = await fetch(
-        "https://gym-tracker-brown.vercel.app/api/upload/uploadProfilePic",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-          body: formData,
-        }
-      );
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to create post");
+      const res = await apiClient.post(API_ENDPOINTS.UPLOAD_PROFILE_PIC, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      if (!res.data?.success && res.data?.error) {
+        throw new Error(res.data.error || "Failed to upload profile picture");
       }
 
       // Update UI with new image URL
@@ -258,31 +244,21 @@ export const useProductStore = create((set) => ({
   },
 }));
 
-// Add an authentication state listener to ensure the user is authenticated
-auth.onAuthStateChanged(async (user) => {
-  if (user) {
-    // Wait a bit to ensure token is ready, then fetch full user info from backend
-    // This prevents race conditions where the token isn't ready yet
+// Debounce: Supabase can emit several events at startup; avoids duplicate API bursts.
+let authBootstrapTimer = null;
+const runAuthBootstrap = async (session) => {
+  if (session?.user) {
     try {
-      // Ensure token is ready before making API calls
-      await user.getIdToken(true); // Force refresh to ensure token is ready
-
-      // Small delay to ensure token is fully propagated
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
       const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
       if (response.data) {
         useProductStore.getState().setCurrentUserInfo(response.data);
       }
 
-      // Check if the user just signed up and has claimed workouts
-      // This is done by calling the createUser endpoint which returns claimed workouts
       try {
         const createUserResponse = await apiClient.get(
           API_ENDPOINTS.GET_CURRENT_MONGODB_USER
         );
 
-        // If there are claimed workouts, show them in a modal
         if (
           createUserResponse.data &&
           (createUserResponse.data.data || createUserResponse.data) &&
@@ -294,7 +270,6 @@ auth.onAuthStateChanged(async (user) => {
           if (userData.workouts) {
             useProductStore.getState().setClaimedWorkouts(userData.workouts);
 
-            // Only show the modal if it's a new user
             if (userData.isNewUser) {
               useProductStore.getState().setShowClaimedWorkoutsModal(true);
             }
@@ -304,20 +279,33 @@ auth.onAuthStateChanged(async (user) => {
         // Silently handle errors - user might not have claimed workouts
       }
     } catch (e) {
-      // fallback: just store Firebase info
-      const fallbackInfo = {
-        uid: user.uid,
-        name: user.displayName || "User",
-        username: user.displayName || "user",
-        picture: user.photoURL || "",
-      };
-      useProductStore.getState().setCurrentUserInfo(fallbackInfo);
+      const fallbackInfo = await getCurrentAuthUser();
+      useProductStore.getState().setCurrentUserInfo(fallbackInfo || null);
     }
   } else {
     useProductStore.getState().setCurrentUserInfo(null);
     useProductStore.getState().setClaimedWorkouts([]);
     useProductStore.getState().setShowClaimedWorkoutsModal(false);
   }
+};
+
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_OUT" || !session?.user) {
+    if (authBootstrapTimer) {
+      clearTimeout(authBootstrapTimer);
+      authBootstrapTimer = null;
+    }
+    runAuthBootstrap(null);
+    return;
+  }
+  if (authBootstrapTimer) {
+    clearTimeout(authBootstrapTimer);
+  }
+  const snap = session;
+  authBootstrapTimer = setTimeout(() => {
+    authBootstrapTimer = null;
+    runAuthBootstrap(snap);
+  }, 120);
 });
 
 // Add sharing functionality to the store

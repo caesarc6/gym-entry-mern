@@ -28,7 +28,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { AddIcon, DeleteIcon, ArrowBackIcon } from "@chakra-ui/icons";
 import { FileUploader } from "../components/FileUploader";
 import { useCustomToast } from "../hooks/useCustomToast";
-import { auth } from "../firebase";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { normalizeNameForStorage, capitalizeName } from "../utils/nameUtils";
 import { useThemeColors } from "../hooks/useThemeColors";

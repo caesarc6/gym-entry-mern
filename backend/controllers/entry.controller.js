@@ -2,6 +2,7 @@
 import mongoose from "mongoose";
 import multer from "multer";
 import Entry from "../models/entry.model.js";
+import { User } from "../models/user.model.js";
 import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
@@ -38,6 +39,28 @@ const uploadMiddleware = multer({
     fieldSize: 20 * 1024 * 1024, // 2MB field size limit
   },
 }).single("image");
+
+const findUserByAuth = async (authUser) => {
+  if (!authUser) return null;
+  const conditions = [
+    { uid: authUser.uid },
+    { firebaseUid: authUser.uid },
+    { supabaseUid: authUser.uid },
+  ];
+  if (authUser.email) {
+    conditions.push({ email: authUser.email });
+  }
+  return User.findOne({ $or: conditions });
+};
+
+const getUserUidSet = (user, fallbackUid) => {
+  const uids = new Set();
+  if (fallbackUid) uids.add(fallbackUid);
+  if (user?.uid) uids.add(user.uid);
+  if (user?.firebaseUid) uids.add(user.firebaseUid);
+  if (user?.supabaseUid) uids.add(user.supabaseUid);
+  return uids;
+};
 
 // Middleware to handle file upload errors
 export const handleFileUpload = (req, res, next) => {
@@ -85,8 +108,11 @@ export const createEntry = async (req, res) => {
       .json({ success: false, message: "Please provide Name and Description" });
   }
 
-  // Set the uid from the authenticated user
-  entry.uid = uid;
+  const authUser = await findUserByAuth(req.user);
+  const canonicalUid = authUser?.uid || uid;
+
+  // Set the uid from the canonical user
+  entry.uid = canonicalUid;
 
   const newEntry = new Entry(entry);
 
@@ -102,6 +128,8 @@ export const createEntry = async (req, res) => {
 export const updateEntry = async (req, res) => {
   const { pid, name, description, image, imageName } = req.body; // Extract fields directly from req.body
   const { uid } = req.user;
+  const authUser = await findUserByAuth(req.user);
+  const canonicalUid = authUser?.uid || uid;
 
   // Check if at least one of the fields (name or description) is provided
   if (!name) {
@@ -124,7 +152,7 @@ export const updateEntry = async (req, res) => {
       try {
         const base64Data = image.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
-        const filePath = generateSafeFilePath(uid, imageName, "images");
+        const filePath = generateSafeFilePath(canonicalUid, imageName, "images");
 
         // Upload the new image to Supabase storage
         const { data: file, error } = await supabase.storage
@@ -239,6 +267,8 @@ export const updateEntryPut = async (req, res) => {
   }
 
   const { uid } = req.user;
+  const authUser = await findUserByAuth(req.user);
+  const uidSet = getUserUidSet(authUser, uid);
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -264,7 +294,7 @@ export const updateEntryPut = async (req, res) => {
     }
 
     // Check if the user is the owner of the entry
-    if (existingEntry.uid !== uid) {
+    if (!uidSet.has(existingEntry.uid)) {
       return res
         .status(403)
         .json({ success: false, message: "You can only edit your own posts" });
@@ -276,7 +306,8 @@ export const updateEntryPut = async (req, res) => {
     if (imageName && imageName !== "undefined" && image) {
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
-      const filePath = generateSafeFilePath(uid, imageName, "images");
+      const canonicalUid = authUser?.uid || uid;
+      const filePath = generateSafeFilePath(canonicalUid, imageName, "images");
 
       // Upload the new image to Supabase storage
       const { data: file, error } = await supabase.storage
@@ -376,6 +407,8 @@ export const updateEntryPut = async (req, res) => {
 export const deleteEntry = async (req, res) => {
   const { id } = req.params;
   const { uid } = req.user;
+  const authUser = await findUserByAuth(req.user);
+  const uidSet = getUserUidSet(authUser, uid);
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -394,7 +427,7 @@ export const deleteEntry = async (req, res) => {
     }
 
     // Check if the user is the owner of the entry
-    if (existingEntry.uid !== uid) {
+    if (!uidSet.has(existingEntry.uid)) {
       return res.status(403).json({
         success: false,
         message: "You can only delete your own posts",
@@ -428,7 +461,7 @@ export const likeEntry = async (req, res) => {
     }
 
     // Find the user by UID
-    const user = await mongoose.model("User").findOne({ uid });
+    const user = await findUserByAuth(req.user);
     if (!user) {
       return res
         .status(404)
@@ -504,7 +537,7 @@ export const commentEntry = async (req, res) => {
     }
 
     // Find the user by UID
-    const user = await mongoose.model("User").findOne({ uid });
+    const user = await findUserByAuth(req.user);
     if (!user) {
       return res
         .status(404)
@@ -558,7 +591,7 @@ export const likeComment = async (req, res) => {
         .json({ success: false, message: "Entry not found" });
     }
 
-    const user = await mongoose.model("User").findOne({ uid });
+    const user = await findUserByAuth(req.user);
     if (!user) {
       return res
         .status(404)
@@ -621,7 +654,7 @@ export const replyToComment = async (req, res) => {
         .json({ success: false, message: "Entry not found" });
     }
 
-    const user = await mongoose.model("User").findOne({ uid });
+    const user = await findUserByAuth(req.user);
     if (!user) {
       return res
         .status(404)
@@ -663,6 +696,8 @@ export const editComment = async (req, res) => {
   const { entryId, commentId } = req.params;
   const { text } = req.body;
   const { uid } = req.user;
+  const authUser = await findUserByAuth(req.user);
+  const uidSet = getUserUidSet(authUser, uid);
 
   if (
     !mongoose.Types.ObjectId.isValid(entryId) ||
@@ -689,7 +724,7 @@ export const editComment = async (req, res) => {
     }
 
     // Check if user can edit this comment (comment owner or post owner)
-    if (comment.uid !== uid && entry.uid !== uid) {
+    if (!uidSet.has(comment.uid) && !uidSet.has(entry.uid)) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to edit this comment",
@@ -746,6 +781,8 @@ export const cleanupMalformedComments = async (req, res) => {
 export const deleteComment = async (req, res) => {
   const { entryId, commentId } = req.params;
   const { uid } = req.user;
+  const authUser = await findUserByAuth(req.user);
+  const uidSet = getUserUidSet(authUser, uid);
 
   if (
     !mongoose.Types.ObjectId.isValid(entryId) ||
@@ -772,7 +809,7 @@ export const deleteComment = async (req, res) => {
     }
 
     // Check if user can delete this comment (comment owner or post owner)
-    if (comment.uid !== uid && entry.uid !== uid) {
+    if (!uidSet.has(comment.uid) && !uidSet.has(entry.uid)) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to delete this comment",
@@ -793,6 +830,8 @@ export const generateShareLink = async (req, res) => {
   try {
     const { entryId } = req.params;
     const { uid } = req.user;
+    const authUser = await findUserByAuth(req.user);
+    const uidSet = getUserUidSet(authUser, uid);
 
     // Find the entry
     const entry = await Entry.findById(entryId);
@@ -804,7 +843,7 @@ export const generateShareLink = async (req, res) => {
     }
 
     // Check if user owns the entry
-    if (entry.uid !== uid) {
+    if (!uidSet.has(entry.uid)) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to share this entry",
