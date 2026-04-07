@@ -8,7 +8,6 @@ import path from "path";
 import cors from "cors";
 import { connectAuth } from "../config/auth.js";
 import { connectDB, ensureMongoConnected } from "../config/db.js";
-import { admin } from "../firebase.js";
 import { verifyIdToken } from "../middleware/auth.js";
 import entryRoutes from "../routes/entry.route.js";
 import userRoutes from "../routes/user.route.js";
@@ -32,8 +31,6 @@ connectDB().catch((error) => {
 });
 
 connectAuth();
-
-verifyIdToken;
 
 const app = express();
 
@@ -209,10 +206,17 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
             });
           }
         } else {
+          console.error("[api/protected] user.save failed:", saveError?.message, saveError?.code);
           return res.status(500).json({
             success: false,
             message: "Failed to create user",
-            error: process.env.NODE_ENV === "development" ? saveError.message : undefined,
+            error:
+              saveError?.name === "ValidationError"
+                ? saveError.message
+                : process.env.NODE_ENV === "development"
+                  ? saveError.message
+                  : undefined,
+            code: saveError?.code,
           });
         }
       }
@@ -308,11 +312,13 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
       data: userJson,
     });
   } catch (error) {
-    console.error("[api/protected] error:", error?.message || error);
+    console.error("[api/protected] error:", error?.stack || error?.message || error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      details:
+        process.env.NODE_ENV === "development" ? error?.message : undefined,
+      code: error?.code,
     });
   }
 });
@@ -340,9 +346,22 @@ app.get("/api", (req, res) => {
 //   res.json({ message: "Posts endpoint is working!", uid: req.params.uid });
 // });
 
-// Test route to check if the server is working
-app.get("/api/test", (req, res) => {
-  res.json({ success: true, message: "API is working" });
+// Test route to check if the server is working (no auth)
+app.get("/api/test", async (req, res) => {
+  const mongoUriSet = Boolean(process.env.MONGO_URI);
+  let mongoState = "skipped";
+  if (mongoUriSet) {
+    const db = await ensureMongoConnected();
+    mongoState = db.ok ? "connected" : db.message || "error";
+  } else {
+    mongoState = "MONGO_URI not set";
+  }
+  res.json({
+    success: true,
+    message: "API is working",
+    mongoUriSet,
+    mongoState,
+  });
 });
 
 // Error handling middleware

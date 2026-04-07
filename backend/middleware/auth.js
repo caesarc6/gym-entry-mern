@@ -1,11 +1,14 @@
-import { admin } from "../firebase.js";
+import {
+  getFirebaseAdmin,
+  isFirebaseConfigured,
+} from "../firebase.js";
 import { supabaseAdmin } from "../supabase/supabase.js";
 
 /**
  * Dual authentication middleware that supports both Firebase and Supabase tokens
  * Tries Supabase first, then falls back to Firebase for backward compatibility
  */
-async function verifyIdToken(req, res, next) {
+async function verifyIdTokenInner(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader?.split("Bearer ")[1];
 
@@ -23,17 +26,22 @@ async function verifyIdToken(req, res, next) {
   // Try Supabase authentication first (for new users)
   if (supabaseAdmin) {
     try {
-      // Supabase tokens can be verified using getUser with the access token
-      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-      
+      const { data, error } = await supabaseAdmin.auth.getUser(token);
+      const user = data?.user;
+
       if (!error && user) {
-        // Supabase authentication successful
         req.user = {
           uid: user.id,
           supabaseUid: user.id,
           email: user.email,
-          name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0],
-          picture: user.user_metadata?.avatar_url || user.user_metadata?.picture || "",
+          name:
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            user.email?.split("@")[0],
+          picture:
+            user.user_metadata?.avatar_url ||
+            user.user_metadata?.picture ||
+            "",
           authProvider: "supabase",
         };
         return next();
@@ -50,14 +58,20 @@ async function verifyIdToken(req, res, next) {
         path: req.originalUrl,
         message: supabaseError?.message,
       });
-      // If Supabase verification fails, try Firebase (for backward compatibility)
-      // Continue to Firebase verification below
     }
   }
 
   // Fall back to Firebase authentication (for existing users)
+  if (!isFirebaseConfigured()) {
+    return res.status(403).json({
+      success: false,
+      message: "Unauthorized: Invalid or expired authentication token",
+      code: "AUTH_FAILED",
+    });
+  }
+
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
+    const decodedToken = await getFirebaseAdmin().auth().verifyIdToken(token);
     req.user = {
       uid: decodedToken.uid,
       firebaseUid: decodedToken.uid,
@@ -65,11 +79,10 @@ async function verifyIdToken(req, res, next) {
       name: decodedToken.name || decodedToken.email?.split("@")[0],
       picture: decodedToken.picture || "",
       authProvider: "firebase",
-      ...decodedToken, // Include all Firebase token fields for backward compatibility
+      ...decodedToken,
     };
     return next();
   } catch (error) {
-    // Provide more specific error messages
     if (error.code === "auth/id-token-expired") {
       return res.status(403).json({
         success: false,
@@ -86,27 +99,18 @@ async function verifyIdToken(req, res, next) {
   }
 }
 
-// Example usage in an Express route
-// import express from "express";
-// import User from "../models/user.model.js"; //Assuming you have a User model
-
-// const app = express();
-
-// app.post("/api/protected", verifyIdToken, async (req, res) => {
-//   const { uid, name, email, picture } = req.user;
-
-//   let user = await User.findOne({ uid });
-
-//   if (!user) {
-//     user = new User({
-//       uid,
-//       name,
-//       email,
-//       picture,
-//     });
-//     await user.save();
-//   }
-//   res.send(user);
-// });
+/**
+ * Express 4: wrap async middleware so rejections become 500 instead of silent failures.
+ */
+function verifyIdToken(req, res, next) {
+  verifyIdTokenInner(req, res, next).catch((err) => {
+    console.error("[auth] verifyIdToken unexpected error:", err?.message || err);
+    if (res.headersSent) return;
+    res.status(500).json({
+      success: false,
+      message: "Server error while verifying authentication",
+    });
+  });
+}
 
 export { verifyIdToken };

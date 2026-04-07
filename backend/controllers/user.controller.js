@@ -1,7 +1,7 @@
 import { User, Post, Comment, FollowRequest } from "../models/user.model.js";
 import Entry from "../models/entry.model.js";
 import { supabase, supabaseAdmin } from "../supabase/supabase.js";
-import { admin } from "../firebase.js";
+import { getFirebaseAdmin, isFirebaseConfigured } from "../firebase.js";
 import multer from "multer";
 import path from "path";
 import mongoose from "mongoose";
@@ -49,14 +49,16 @@ const resolveMongoUserByAuthUid = async (uid) => {
   let user = await User.findOne(buildUidQuery(trimmed));
   if (user) return user;
 
-  try {
-    const fbUser = await admin.auth().getUser(trimmed);
-    if (fbUser?.email) {
-      user = await findUserByEmailCaseInsensitive(fbUser.email, null);
-      if (user) return user;
+  if (isFirebaseConfigured()) {
+    try {
+      const fbUser = await getFirebaseAdmin().auth().getUser(trimmed);
+      if (fbUser?.email) {
+        user = await findUserByEmailCaseInsensitive(fbUser.email, null);
+        if (user) return user;
+      }
+    } catch {
+      // Not a Firebase Auth uid or user deleted from Auth
     }
-  } catch {
-    // Not a Firebase Auth uid or user deleted from Auth
   }
 
   if (supabaseAdmin) {

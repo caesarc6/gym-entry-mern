@@ -9,46 +9,71 @@ import admin from "firebase-admin";
 
 dotenv.config();
 
-const accountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-let initialized = false;
+/** True if env (or deployable JSON path) has Firebase credentials — no network, no throw. */
+export function isFirebaseConfigured() {
+  const accountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  if (accountPath) {
+    const resolved = path.isAbsolute(accountPath)
+      ? accountPath
+      : path.resolve(process.cwd(), accountPath);
+    if (fs.existsSync(resolved)) return true;
+  }
+  return Boolean(
+    process.env.FIREBASE_PROJECT_ID &&
+      process.env.FIREBASE_CLIENT_EMAIL &&
+      process.env.FIREBASE_PRIVATE_KEY,
+  );
+}
 
-if (accountPath) {
-  const resolved = path.isAbsolute(accountPath)
-    ? accountPath
-    : path.resolve(process.cwd(), accountPath);
-  if (fs.existsSync(resolved)) {
-    const serviceAccount = JSON.parse(fs.readFileSync(resolved, "utf8"));
+/**
+ * Lazy-init Firebase Admin (Vercel: no crash on import if you only use Supabase).
+ * Throws only when Firebase is required but credentials are missing.
+ */
+export function getFirebaseAdmin() {
+  if (admin.apps.length > 0) {
+    return admin;
+  }
+
+  const accountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  let initialized = false;
+
+  if (accountPath) {
+    const resolved = path.isAbsolute(accountPath)
+      ? accountPath
+      : path.resolve(process.cwd(), accountPath);
+    if (fs.existsSync(resolved)) {
+      const serviceAccount = JSON.parse(fs.readFileSync(resolved, "utf8"));
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      initialized = true;
+    } else {
+      console.warn(
+        `[firebase] FIREBASE_SERVICE_ACCOUNT_PATH file not found (${resolved}); using FIREBASE_* env vars if set.`,
+      );
+    }
+  }
+
+  if (!initialized) {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+
+    if (!projectId || !clientEmail || !privateKey) {
+      throw new Error(
+        "Firebase admin is not configured. Add FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, " +
+          "and FIREBASE_PRIVATE_KEY to the server environment (or a readable FIREBASE_SERVICE_ACCOUNT_PATH JSON file).",
+      );
+    }
+
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
     });
-    initialized = true;
-  } else {
-    // Vercel/production often sets a local path that is not deployed — fall back to env vars.
-    console.warn(
-      `[firebase] FIREBASE_SERVICE_ACCOUNT_PATH file not found (${resolved}); using FIREBASE_* env vars if set.`,
-    );
-  }
-}
-
-if (!initialized) {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      "Firebase admin needs either a readable FIREBASE_SERVICE_ACCOUNT_PATH JSON file " +
-        "or FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in the environment.",
-    );
   }
 
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-  });
+  return admin;
 }
-
-export { admin };

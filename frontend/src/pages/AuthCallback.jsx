@@ -306,17 +306,21 @@ const AuthCallback = () => {
           parsedParams,
         });
         console.error("[AuthCallback] error", error);
+        const apiBody = error?.response?.data;
+        const apiHint =
+          (apiBody && typeof apiBody.message === "string" && apiBody.message) ||
+          (apiBody?.error && typeof apiBody.error === "string" && apiBody.error) ||
+          null;
+        const userMessage =
+          apiHint ||
+          error.message ||
+          "Please try again.";
         const tempToken = getTempAccessToken();
         if (!tempToken) {
           await signOutAll();
         }
-        toast.error(
-          "Authentication Failed",
-          error.message || "Please try again."
-        );
-        setStatusMessage(
-          `Authentication failed: ${error.message || "Please try again."}`
-        );
+        toast.error("Authentication Failed", userMessage);
+        setStatusMessage(`Authentication failed: ${userMessage}`);
       } finally {
         clearTimeout(failSafeTimer);
       }
