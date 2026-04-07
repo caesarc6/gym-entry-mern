@@ -60,7 +60,9 @@ const AuthCallback = () => {
       const redirectTo = redirectParam
         ? decodeURIComponent(redirectParam)
         : stored.redirectTo || "/";
-      const code = params.get("code");
+      // Capture before any await: Supabase may strip ?code= during PKCE auto-detection.
+      const codeAtStart = new URLSearchParams(location.search).get("code");
+      const code = codeAtStart;
       const authError = params.get("error");
       const authErrorDescription = params.get("error_description");
 
@@ -86,11 +88,21 @@ const AuthCallback = () => {
         }
 
         setStatusMessage("Completing authentication...");
-        if (code) {
-          pushAuthDebug("AuthCallback: exchanging code", null);
+
+        // getSession() awaits Supabase init, which runs detectSessionInUrl and exchanges
+        // PKCE ?code= before we read the URL again — so "missing code" was a false negative.
+        const { data: sessionAfterInit } = await supabase.auth.getSession();
+        let hasAccessToken = Boolean(sessionAfterInit?.session?.access_token);
+
+        if (hasAccessToken) {
+          pushAuthDebug("AuthCallback: session after init (PKCE / storage)", {
+            source: "detectSessionInUrl_or_existing",
+          });
+        } else if (codeAtStart) {
+          pushAuthDebug("AuthCallback: exchanging code (fallback)", null);
           console.debug("[AuthCallback] exchanging code for session");
           const exchangeResult = await Promise.race([
-            supabase.auth.exchangeCodeForSession(code),
+            supabase.auth.exchangeCodeForSession(codeAtStart),
             new Promise((_, reject) =>
               setTimeout(() => reject(new Error("Auth exchange timeout")), 10000)
             ),
@@ -104,7 +116,18 @@ const AuthCallback = () => {
           if (exchangeResult?.error) {
             throw exchangeResult.error;
           }
+          hasAccessToken = Boolean(exchangeResult?.data?.session?.access_token);
         } else if (location.hash) {
+          const hashErr = hashParams.get("error");
+          const hashErrDesc = hashParams.get("error_description");
+          if (hashErr) {
+            throw new Error(
+              hashErrDesc
+                ? decodeURIComponent(hashErrDesc.replace(/\+/g, " "))
+                : hashErr
+            );
+          }
+
           const accessToken = hashParams.get("access_token");
           const refreshToken = hashParams.get("refresh_token");
           const expiresAt = hashParams.get("expires_at");
@@ -165,11 +188,26 @@ const AuthCallback = () => {
               if (setResult?.error) {
                 throw setResult.error;
               }
+              if (setResult?.data?.session?.access_token) {
+                hasAccessToken = true;
+              }
             }
           }
-        } else {
+          if (!hasAccessToken) {
+            const { data: afterHash } = await supabase.auth.getSession();
+            hasAccessToken = Boolean(afterHash?.session?.access_token);
+          }
+        }
+
+        if (!hasAccessToken) {
+          const { data: finalCheck } = await supabase.auth.getSession();
+          hasAccessToken = Boolean(finalCheck?.session?.access_token);
+        }
+
+        if (!hasAccessToken) {
+          const example = `${window.location.origin}/auth/callback`;
           throw new Error(
-            "Missing auth code from Supabase. Check Auth URL configuration and retry login."
+            `Missing auth code from Supabase. In the Supabase dashboard, add ${example} under Authentication → URL Configuration → Redirect URLs (and matching Site URL), then retry.`
           );
         }
 

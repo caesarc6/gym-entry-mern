@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
 import { connectAuth } from "../config/auth.js";
-import { connectDB } from "../config/db.js";
+import { connectDB, ensureMongoConnected } from "../config/db.js";
 import { admin } from "../firebase.js";
 import { verifyIdToken } from "../middleware/auth.js";
 import entryRoutes from "../routes/entry.route.js";
@@ -100,36 +100,11 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
 
     const { uid, name, email, picture } = req.user;
 
-    // Check database connection and wait if connecting
-    const dbState = mongoose.connection.readyState;
-    if (dbState === 0) {
-      // Disconnected - try to reconnect
-      try {
-        await connectDB();
-      } catch (reconnectError) {
-        return res.status(500).json({
-          success: false,
-          message: "Database connection error",
-        });
-      }
-    } else if (dbState === 2) {
-      // Connecting - wait a bit for connection to establish
-      let waitTime = 0;
-      const maxWait = 5000; // 5 seconds max wait
-      while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        waitTime += 100;
-      }
-      if (mongoose.connection.readyState !== 1) {
-        return res.status(500).json({
-          success: false,
-          message: "Database connection timeout",
-        });
-      }
-    } else if (dbState !== 1) {
+    const dbReady = await ensureMongoConnected();
+    if (!dbReady.ok) {
       return res.status(500).json({
         success: false,
-        message: "Database connection error",
+        message: dbReady.message || "Database connection error",
       });
     }
 

@@ -5,6 +5,7 @@ import { admin } from "../firebase.js";
 import multer from "multer";
 import path from "path";
 import mongoose from "mongoose";
+import { ensureMongoConnected } from "../config/db.js";
 import {
   filterEntriesForPublicView,
   filterUserDataForPublicView,
@@ -254,37 +255,11 @@ export const getBatchProfileImages = async (req, res) => {
       });
     }
 
-    // Check database connection and wait if connecting
-    const dbState = mongoose.connection.readyState;
-    if (dbState === 0) {
-      // Disconnected - try to reconnect
-      const { connectDB } = await import("../config/db.js");
-      try {
-        await connectDB();
-      } catch (reconnectError) {
-        return res.status(500).json({
-          success: false,
-          message: "Database connection error",
-        });
-      }
-    } else if (dbState === 2) {
-      // Connecting - wait a bit for connection to establish
-      let waitTime = 0;
-      const maxWait = 5000; // 5 seconds max wait
-      while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        waitTime += 100;
-      }
-      if (mongoose.connection.readyState !== 1) {
-        return res.status(500).json({
-          success: false,
-          message: "Database connection timeout",
-        });
-      }
-    } else if (dbState !== 1) {
+    const dbReady = await ensureMongoConnected();
+    if (!dbReady.ok) {
       return res.status(500).json({
         success: false,
-        message: "Database connection error",
+        message: dbReady.message || "Database connection error",
       });
     }
 
@@ -461,37 +436,11 @@ export const getCurrentMongoDBUser = async (req, res) => {
 
     const { uid } = req.user;
 
-    // Check database connection and wait if connecting
-    const dbState = mongoose.connection.readyState;
-    if (dbState === 0) {
-      // Disconnected - try to reconnect
-      const { connectDB } = await import("../config/db.js");
-      try {
-        await connectDB();
-      } catch (reconnectError) {
-        return res.status(500).json({
-          success: false,
-          message: "Database connection error",
-        });
-      }
-    } else if (dbState === 2) {
-      // Connecting - wait a bit for connection to establish
-      let waitTime = 0;
-      const maxWait = 5000; // 5 seconds max wait
-      while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        waitTime += 100;
-      }
-      if (mongoose.connection.readyState !== 1) {
-        return res.status(500).json({
-          success: false,
-          message: "Database connection timeout",
-        });
-      }
-    } else if (dbState !== 1) {
+    const dbReady = await ensureMongoConnected();
+    if (!dbReady.ok) {
       return res.status(500).json({
         success: false,
-        message: "Database connection error",
+        message: dbReady.message || "Database connection error",
       });
     }
 
@@ -1822,6 +1771,14 @@ export const requestTrainerDashboardAccess = async (req, res) => {
 // Check trainer dashboard access status
 export const checkTrainerDashboardAccess = async (req, res) => {
   try {
+    const dbReady = await ensureMongoConnected();
+    if (!dbReady.ok) {
+      return res.status(500).json({
+        success: false,
+        message: dbReady.message || "Database connection error",
+      });
+    }
+
     const { uid } = req.user;
     const user = await findUserByAnyUid(uid, "trainerDashboardAccess");
 
@@ -1852,6 +1809,14 @@ export const checkTrainerDashboardAccess = async (req, res) => {
 // Admin: Check if user is admin
 export const checkIsAdmin = async (req, res) => {
   try {
+    const dbReady = await ensureMongoConnected();
+    if (!dbReady.ok) {
+      return res.status(500).json({
+        success: false,
+        message: dbReady.message || "Database connection error",
+      });
+    }
+
     const { uid } = req.user;
     const user = await findUserByAnyUid(uid, "isAdmin");
 

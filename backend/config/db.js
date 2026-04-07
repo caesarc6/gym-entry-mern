@@ -54,3 +54,42 @@ export const connectDB = async () => {
 
   return connectionPromise;
 };
+
+/**
+ * Serverless-friendly: reconnect when disconnected (0), disconnecting (3), or unknown,
+ * wait when connecting (2). Avoids false 500s when readyState is 3 between invocations.
+ */
+export const ensureMongoConnected = async () => {
+  if (mongoose.connection.readyState === 1) {
+    return { ok: true };
+  }
+
+  if (mongoose.connection.readyState === 2) {
+    let waitTime = 0;
+    const maxWait = 5000;
+    while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      waitTime += 100;
+    }
+    if (mongoose.connection.readyState === 1) {
+      return { ok: true };
+    }
+  }
+
+  try {
+    await connectDB();
+    if (mongoose.connection.readyState === 1) {
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      message: "Database connection timeout",
+    };
+  } catch (e) {
+    console.error("[db] ensureMongoConnected failed:", e?.message || e);
+    return {
+      ok: false,
+      message: "Database connection error",
+    };
+  }
+};
