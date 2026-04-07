@@ -26,16 +26,13 @@ import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
 import ClaimedWorkoutsModal from "../components/ClaimedWorkoutsModal";
 import { useCustomToast } from "../hooks/useCustomToast";
-import {
-  getCurrentAuthUser,
-  pushAuthDebug,
-  setAuthRedirect,
-  signOutAll,
-} from "../utils/auth";
+import { getCurrentAuthUser, signOutAll } from "../utils/auth";
+import { useIosAwareGoogleOAuth } from "../hooks/useIosAwareGoogleOAuth";
 
 // Optimized feed loading with lazy loading and caching
 const HomePage = () => {
   const { clearEntrys, updateEntry } = useProductStore();
+  const { requestGoogleOAuth, IosGoogleAuthModal } = useIosAwareGoogleOAuth();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -417,36 +414,33 @@ const HomePage = () => {
     );
   }, []);
 
-  const handleGoogleSignIn = async () => {
-    try {
-      const redirectPath = window.location.pathname + window.location.search;
-      setAuthRedirect("login", redirectPath);
-      const redirectTo = `${window.location.origin}/auth/callback`;
+  const handleDeleteEntry = useCallback((pid) => {
+    const idStr = String(pid);
+    setEntries((prev) => prev.filter((e) => String(e._id) !== idStr));
+    setPagination((prev) => {
+      const totalPosts = Math.max(0, prev.totalPosts - 1);
+      const totalPages = Math.max(1, Math.ceil(totalPosts / prev.limit));
+      return { ...prev, totalPosts, totalPages };
+    });
+  }, []);
 
-      pushAuthDebug("HomePage: starting OAuth", { redirectTo });
-      console.debug("[HomePage] starting OAuth", { redirectTo });
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-      pushAuthDebug("HomePage: OAuth redirect", { url: data?.url });
-      console.debug("[HomePage] OAuth redirect", { url: data?.url });
-      if (data?.url) {
-        window.location.assign(data.url);
-      } else {
-        throw new Error("Missing OAuth redirect URL");
-      }
-    } catch (error) {
-      handleSignOutUser();
-      toast.error("Error", error.message || "Failed to sign in");
+  useEffect(() => {
+    if (currentPage > pagination.totalPages && pagination.totalPages >= 1) {
+      setCurrentPage(pagination.totalPages);
     }
+  }, [currentPage, pagination.totalPages]);
+
+  const handleGoogleSignIn = (authMode = "login") => {
+    const redirectPath = window.location.pathname + window.location.search;
+    requestGoogleOAuth({
+      authMode,
+      redirectPath,
+      debugContext: "HomePage",
+      onError: (error) => {
+        handleSignOutUser();
+        toast.error("Error", error.message || "Failed to sign in");
+      },
+    });
   };
 
   const handleSignOutUser = async () => {
@@ -455,7 +449,6 @@ const HomePage = () => {
       setUid(null);
       setIsSignedIn(false);
       setEntries([]);
-      setFollowingUids([]);
     } catch (error) {
       toast.error("Error", error.message || "Failed to sign out");
     }
@@ -531,6 +524,7 @@ const HomePage = () => {
                         uid === (entry.ownerId || entry.uid)
                       }
                       onUpdate={handleUpdateEntry}
+                      onDelete={handleDeleteEntry}
                       profileCache={profileCache}
                     />
                   ))}
@@ -586,6 +580,7 @@ const HomePage = () => {
         onClose={() => setShowClaimedWorkoutsModal(false)}
         claimedWorkouts={claimedWorkouts}
       />
+      {IosGoogleAuthModal}
     </Container>
   );
 };

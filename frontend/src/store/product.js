@@ -90,7 +90,9 @@ export const useProductStore = create((set) => ({
       if (!data.success) return { success: false, message: data.message };
 
       set((state) => ({
-        entrys: state.entrys.filter((entry) => entry._id !== pid),
+        entrys: state.entrys.filter(
+          (entry) => String(entry._id) !== String(pid)
+        ),
       }));
       return { success: true, message: data.message };
     } catch (error) {

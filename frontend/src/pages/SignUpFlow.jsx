@@ -1,11 +1,12 @@
-import { Container, Text, VStack } from "@chakra-ui/react";
-import React, { useState, useEffect } from "react";
+import { Container, VStack } from "@chakra-ui/react";
+import { useState, useEffect } from "react";
 import { supabase } from "../supabase/supabase";
 import { useNavigate, useLocation } from "react-router-dom";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { maybeMigrateAccount } from "../utils/migration";
 import { useCustomToast } from "../hooks/useCustomToast";
-import { pushAuthDebug, setAuthRedirect } from "../utils/auth";
+import { setAuthRedirect } from "../utils/auth";
+import { useIosAwareGoogleOAuth } from "../hooks/useIosAwareGoogleOAuth";
 
 const SignUpFlow = () => {
   const [fullName, setFullName] = useState("");
@@ -15,6 +16,7 @@ const SignUpFlow = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useCustomToast();
+  const { requestGoogleOAuth, IosGoogleAuthModal } = useIosAwareGoogleOAuth();
 
   // Get the redirect path from location state, default to home
   const redirectPath = location.state?.from || "/";
@@ -43,37 +45,18 @@ const SignUpFlow = () => {
     return () => subscription.unsubscribe();
   }, [navigate, redirectPath]);
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setAuthRedirect("signup", redirectPath);
-      const redirectTo = `${window.location.origin}/auth/callback`;
-
-      pushAuthDebug("SignUpFlow: starting OAuth", { redirectTo });
-      console.debug("[SignUpFlow] starting OAuth", { redirectTo });
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-      pushAuthDebug("SignUpFlow: OAuth redirect", { url: data?.url });
-      console.debug("[SignUpFlow] OAuth redirect", { url: data?.url });
-      if (data?.url) {
-        window.location.assign(data.url);
-      } else {
-        throw new Error("Missing OAuth redirect URL");
-      }
-    } catch (error) {
-      toast.error(
-        "Error",
-        error.message || "Failed to sign in. Please try again.",
-      );
-    }
+  const handleGoogleSignIn = () => {
+    requestGoogleOAuth({
+      authMode: "signup",
+      redirectPath,
+      debugContext: "SignUpFlow",
+      onError: (error) => {
+        toast.error(
+          "Error",
+          error.message || "Failed to sign in. Please try again.",
+        );
+      },
+    });
   };
 
   const handleEmailSignUp = async (e) => {
@@ -124,7 +107,8 @@ const SignUpFlow = () => {
   };
 
   return (
-    // <div className="relative w-screen h-screen mx-auto bg-white flex items-center justify-center overflow-hidden">
+    <>
+    {/* <div className="relative w-screen h-screen mx-auto bg-white flex items-center justify-center overflow-hidden"> */}
     <Container
       maxW="container.xl"
       className="text-center"
@@ -208,6 +192,8 @@ const SignUpFlow = () => {
         </div>
       </VStack>
     </Container>
+    {IosGoogleAuthModal}
+    </>
   );
 };
 

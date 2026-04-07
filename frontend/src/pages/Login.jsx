@@ -1,11 +1,11 @@
 import { Container, Text, VStack } from "@chakra-ui/react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { maybeMigrateAccount } from "../utils/migration";
 import { useCustomToast } from "../hooks/useCustomToast";
-import { pushAuthDebug, setAuthRedirect } from "../utils/auth";
+import { useIosAwareGoogleOAuth } from "../hooks/useIosAwareGoogleOAuth";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -14,6 +14,7 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useCustomToast();
+  const { requestGoogleOAuth, IosGoogleAuthModal } = useIosAwareGoogleOAuth();
 
   const redirectPath = location.state?.from || "/";
 
@@ -40,34 +41,15 @@ const Login = () => {
     return () => subscription.unsubscribe();
   }, [navigate, redirectPath]);
 
-  const handleGoogleLogin = async () => {
-    try {
-      setAuthRedirect("login", redirectPath);
-      const redirectTo = `${window.location.origin}/auth/callback`;
-
-      pushAuthDebug("Login: starting OAuth", { redirectTo });
-      console.debug("[Login] starting OAuth", { redirectTo });
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-      pushAuthDebug("Login: OAuth redirect", { url: data?.url });
-      console.debug("[Login] OAuth redirect", { url: data?.url });
-      if (data?.url) {
-        window.location.assign(data.url);
-      } else {
-        throw new Error("Missing OAuth redirect URL");
-      }
-    } catch (error) {
-      toast.error("Error", error.message || "Failed to sign in.");
-    }
+  const handleGoogleLogin = () => {
+    requestGoogleOAuth({
+      authMode: "login",
+      redirectPath,
+      debugContext: "Login",
+      onError: (error) => {
+        toast.error("Error", error.message || "Failed to sign in.");
+      },
+    });
   };
 
   const handleEmailLogin = async (e) => {
@@ -101,7 +83,9 @@ const Login = () => {
   };
 
   return (
-    <Container maxW="container.xl" className="text-center" py={12}>
+    <>
+      {IosGoogleAuthModal}
+      <Container maxW="container.xl" className="text-center" py={12}>
       <VStack spacing={8} mt={10}>
         <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg max-w-md mx-auto">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center">
@@ -178,6 +162,7 @@ const Login = () => {
         </div>
       </VStack>
     </Container>
+    </>
   );
 };
 

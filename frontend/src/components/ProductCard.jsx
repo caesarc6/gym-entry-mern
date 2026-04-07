@@ -67,6 +67,7 @@ const ProductCard = ({
   entry,
   isOwner: propIsOwner,
   onUpdate,
+  onDelete,
   profileCache,
 }) => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -948,6 +949,7 @@ const ProductCard = ({
       toast.error("Error", message);
     } else {
       toast.success("Success", message);
+      onDelete?.(pid);
       onDeleteClose();
       try {
         const user = await getCurrentAuthUser();
@@ -2733,6 +2735,7 @@ ProductCard.propTypes = {
   }).isRequired,
   isOwner: PropTypes.bool,
   onUpdate: PropTypes.func.isRequired,
+  onDelete: PropTypes.func,
   profileCache: PropTypes.instanceOf(Map),
 };
 

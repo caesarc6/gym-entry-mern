@@ -349,6 +349,26 @@ const ProfilePage = () => {
     }
   };
 
+  const handlePostDelete = useCallback((pid) => {
+    const idStr = String(pid);
+    setEntries((prev) => prev.filter((e) => String(e._id) !== idStr));
+    setUserProfile((prev) => ({
+      ...prev,
+      postsCount: Math.max(0, prev.postsCount - 1),
+    }));
+    setPagination((prev) => {
+      const totalPosts = Math.max(0, prev.totalPosts - 1);
+      const totalPages = Math.max(1, Math.ceil(totalPosts / prev.limit));
+      return { ...prev, totalPosts, totalPages };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (currentPage > pagination.totalPages && pagination.totalPages >= 1) {
+      setCurrentPage(pagination.totalPages);
+    }
+  }, [currentPage, pagination.totalPages]);
+
   const handleProfileImageUpload = (file) => {
     if (file) {
       setProfileImage(file);
@@ -792,6 +812,7 @@ const ProfilePage = () => {
                   entry={entry}
                   isOwner={uid === entry.uid}
                   onUpdate={handlePostUpdate}
+                  onDelete={handlePostDelete}
                 />
               ))}
             </SimpleGrid>
