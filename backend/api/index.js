@@ -99,6 +99,12 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
     }
 
     const { uid, name, email, picture } = req.user;
+    if (!uid) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: Token did not include a user id",
+      });
+    }
 
     const dbReady = await ensureMongoConnected();
     if (!dbReady.ok) {
@@ -150,12 +156,17 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
         ? name.replace(/\s+/g, "").toLowerCase()
         : `user${Date.now()}`;
 
+      const safeEmail =
+        email && String(email).trim()
+          ? String(email).trim().toLowerCase()
+          : `${uid}@oauth.noreply.local`;
+
       try {
         // Create new user with appropriate UID fields based on auth provider
         const userData = {
           uid, // Primary UID
-          name,
-          email,
+          name: name || "User",
+          email: safeEmail,
           picture,
           username: generatedUsername,
           authProvider,
@@ -287,13 +298,17 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
         }
       }
     }
-    
+
+    const userJson =
+      user && typeof user.toJSON === "function" ? user.toJSON() : user;
+
     res.status(200).json({
       success: true,
       created,
-      data: user,
+      data: userJson,
     });
   } catch (error) {
+    console.error("[api/protected] error:", error?.message || error);
     res.status(500).json({
       success: false,
       message: "Internal server error",

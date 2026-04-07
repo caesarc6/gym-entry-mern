@@ -1771,6 +1771,13 @@ export const requestTrainerDashboardAccess = async (req, res) => {
 // Check trainer dashboard access status
 export const checkTrainerDashboardAccess = async (req, res) => {
   try {
+    if (!req.user?.uid) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
+
     const dbReady = await ensureMongoConnected();
     if (!dbReady.ok) {
       return res.status(500).json({
@@ -1809,6 +1816,13 @@ export const checkTrainerDashboardAccess = async (req, res) => {
 // Admin: Check if user is admin
 export const checkIsAdmin = async (req, res) => {
   try {
+    if (!req.user?.uid) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
+
     const dbReady = await ensureMongoConnected();
     if (!dbReady.ok) {
       return res.status(500).json({
