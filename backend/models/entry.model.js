@@ -124,6 +124,19 @@ const entrySchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // In-progress text while editing (owner-only); excluded from default queries (select: false).
+    editDraft: {
+      type: new mongoose.Schema(
+        {
+          name: { type: String },
+          description: { type: String },
+          updatedAt: { type: Date, default: Date.now },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+      select: false,
+    },
   },
   {
     timestamps: true, // createdAt, updatedAt

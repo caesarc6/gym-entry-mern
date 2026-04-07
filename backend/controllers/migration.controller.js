@@ -14,7 +14,7 @@ import WorkoutTemplate from "../models/workoutTemplate.model.js";
 import { supabaseAdmin } from "../supabase/supabase.js";
 import { verifyIdToken } from "../middleware/auth.js";
 
-const migrateUserData = async (oldUid, newUid) => {
+export const migrateUserData = async (oldUid, newUid) => {
   const results = {};
 
   results.entries = await Entry.updateMany(

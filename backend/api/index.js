@@ -17,6 +17,7 @@ import sharedWorkoutRoutes from "../routes/sharedWorkout.route.js";
 
 import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
+import { migrateUserData } from "../controllers/migration.controller.js";
 import Entry from "../models/entry.model.js";
 import bodyParser from "body-parser";
 // const bodyParser = require("body-parser");
@@ -230,26 +231,68 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
         }
       }
     } else {
-      const previousUid = user.uid;
-      // User exists - update UID fields if needed (for migration)
+      // Returning user on Supabase: if Mongo still uses the legacy Firebase UID as
+      // primary `uid`, promote the Supabase UID and rewrite related documents.
+      if (
+        authProvider === "supabase" &&
+        email &&
+        user.email?.toLowerCase() === email.toLowerCase()
+      ) {
+        if (user.supabaseUid && user.supabaseUid !== uid) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "This email is associated with a different Supabase account in our records.",
+          });
+        }
+        if (user.uid !== uid) {
+          const oldUid = user.uid;
+          const firebaseUidToPreserve = user.firebaseUid || oldUid;
+          try {
+            user = await User.findOneAndUpdate(
+              { _id: user._id },
+              {
+                $set: {
+                  uid,
+                  supabaseUid: uid,
+                  firebaseUid: firebaseUidToPreserve,
+                  authProvider: "supabase",
+                },
+              },
+              { new: true }
+            );
+            if (oldUid !== uid) {
+              await migrateUserData(oldUid, uid);
+            }
+          } catch (migrationError) {
+            console.error("Supabase UID migration error:", migrationError);
+            return res.status(500).json({
+              success: false,
+              message: "Failed to migrate account to new authentication uid",
+              error:
+                process.env.NODE_ENV === "development"
+                  ? migrationError.message
+                  : undefined,
+            });
+          }
+        }
+      }
+
+      // User exists - update UID fields if needed (backfill provider-specific ids)
       const updateFields = {};
-      
+
       const isSameProvider = !user.authProvider || user.authProvider === authProvider;
 
-      // If user doesn't have the current provider's UID field set, update it
       if (authProvider === "firebase" && !user.firebaseUid) {
         updateFields.firebaseUid = uid;
       } else if (authProvider === "supabase" && !user.supabaseUid) {
         updateFields.supabaseUid = uid;
       }
 
-      // Link Supabase login to existing Firebase user by email without flipping primary UID.
       if (authProvider === "supabase" && !user.supabaseUid && email) {
         updateFields.supabaseUid = uid;
       }
 
-      // Only set authProvider/uid when it matches the user's current primary provider.
-      // Migration to a new primary UID must happen explicitly via migration endpoint.
       if (isSameProvider) {
         updateFields.authProvider = authProvider;
         if (user.uid !== uid) {
@@ -265,13 +308,9 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
             { new: true }
           );
         } catch (updateError) {
-          // Log error but don't fail the request
           console.error("Error updating user UID fields:", updateError);
         }
       }
-
-      // Do not migrate data here. Data migration should be done explicitly via
-      // the migration endpoint to avoid accidental UID flips.
     }
     
     res.status(200).json({

@@ -10,6 +10,7 @@ import { supabase } from "../supabase/supabase.js";
 // import User from "../models/user.model.js";
 import { verifyIdToken } from "../middleware/auth.js"; //
 import { generateSafeFilePath } from "../utils/fileUtils.js";
+import { attachPopulatedLikesToEntries } from "../utils/entryLikes.js";
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
@@ -191,10 +192,12 @@ export const updateEntry = async (req, res) => {
         : {}), // Use new image if uploaded, otherwise preserve existing image
     };
 
-    // Update the entry in the database
-    const entryData = await Entry.findByIdAndUpdate(pid, updateData, {
-      new: true,
-    });
+    // Update the entry in the database; clear any in-progress edit draft
+    const entryData = await Entry.findByIdAndUpdate(
+      pid,
+      { $set: updateData, $unset: { editDraft: 1 } },
+      { new: true },
+    );
 
     // If this entry is linked to a SharedWorkout, sync the update back to the SharedWorkout
     if (existingEntry.sharedWorkoutId) {
@@ -250,6 +253,159 @@ export const updateEntry = async (req, res) => {
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+/** Owner-only: persist name/description backup while editing (no base64 images). */
+export const saveEntryDraft = async (req, res) => {
+  const { id } = req.params;
+  const { name, description } = req.body ?? {};
+
+  if (!req.user?.uid) {
+    return res.status(401).json({
+      success: false,
+      message: "User not authenticated",
+    });
+  }
+
+  const { uid } = req.user;
+  const authUser = await findUserByAuth(req.user);
+  const uidSet = getUserUidSet(authUser, uid);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Invalid Entry Id" });
+  }
+
+  try {
+    const entry = await Entry.findById(id);
+    if (!entry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+    if (!uidSet.has(entry.uid)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only edit your own posts",
+      });
+    }
+
+    const nameStr =
+      typeof name === "string" ? name : entry.name != null ? String(entry.name) : "";
+    const descStr =
+      typeof description === "string"
+        ? description
+        : entry.description != null
+          ? String(entry.description)
+          : "";
+
+    await Entry.findByIdAndUpdate(id, {
+      $set: {
+        editDraft: {
+          name: nameStr,
+          description: descStr,
+          updatedAt: new Date(),
+        },
+      },
+    });
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+/** Owner-only: read saved edit draft (text only). */
+export const getEntryDraft = async (req, res) => {
+  const { id } = req.params;
+
+  if (!req.user?.uid) {
+    return res.status(401).json({
+      success: false,
+      message: "User not authenticated",
+    });
+  }
+
+  const { uid } = req.user;
+  const authUser = await findUserByAuth(req.user);
+  const uidSet = getUserUidSet(authUser, uid);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Invalid Entry Id" });
+  }
+
+  try {
+    const entry = await Entry.findById(id).select("+editDraft uid");
+    if (!entry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+    if (!uidSet.has(entry.uid)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only edit your own posts",
+      });
+    }
+
+    const d = entry.editDraft;
+    const data = d
+      ? {
+          name: d.name ?? "",
+          description: d.description ?? "",
+          updatedAt: d.updatedAt,
+        }
+      : null;
+
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+/** Owner-only: remove stored edit draft (e.g. matches published version). */
+export const clearEntryDraft = async (req, res) => {
+  const { id } = req.params;
+
+  if (!req.user?.uid) {
+    return res.status(401).json({
+      success: false,
+      message: "User not authenticated",
+    });
+  }
+
+  const { uid } = req.user;
+  const authUser = await findUserByAuth(req.user);
+  const uidSet = getUserUidSet(authUser, uid);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Invalid Entry Id" });
+  }
+
+  try {
+    const entry = await Entry.findById(id).select("uid");
+    if (!entry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+    if (!uidSet.has(entry.uid)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only edit your own posts",
+      });
+    }
+
+    await Entry.findByIdAndUpdate(id, { $unset: { editDraft: 1 } });
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
@@ -341,10 +497,12 @@ export const updateEntryPut = async (req, res) => {
         : {}), // Use new image if uploaded, otherwise preserve existing image
     };
 
-    // Update the entry in the database
-    const entryData = await Entry.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
+    // Update the entry in the database; clear any in-progress edit draft
+    const entryData = await Entry.findByIdAndUpdate(
+      id,
+      { $set: updateData, $unset: { editDraft: 1 } },
+      { new: true },
+    );
 
     // If this entry is linked to a SharedWorkout, sync the update back to the SharedWorkout
     if (existingEntry.sharedWorkoutId) {
@@ -480,37 +638,34 @@ export const likeEntry = async (req, res) => {
       );
     }
 
-    // Check if user has already liked the post (by ObjectId)
-    const userLikedIndex = entry.likes.findIndex((likeId) =>
-      likeId.equals(user._id)
+    // Check if user has already liked the post (by ObjectId); skip corrupted like values
+    const userLikedIndex = entry.likes.findIndex(
+      (likeId) =>
+        likeId != null &&
+        typeof likeId.equals === "function" &&
+        likeId.equals(user._id)
     );
 
+    const sendLikeResponse = async (message, liked) => {
+      const payload = entry.toObject();
+      await attachPopulatedLikesToEntries([payload]);
+      res.status(200).json({
+        success: true,
+        message,
+        liked,
+        likes: payload.likes,
+        data: payload,
+      });
+    };
+
     if (userLikedIndex > -1) {
-      // User has already liked the post, so unlike it
       entry.likes.splice(userLikedIndex, 1);
       await entry.save();
-      // Populate likes with user info
-      await entry.populate("likes", "uid name username picture");
-      res.status(200).json({
-        success: true,
-        message: "Post unliked successfully",
-        liked: false,
-        likes: entry.likes,
-        data: entry,
-      });
+      await sendLikeResponse("Post unliked successfully", false);
     } else {
-      // User hasn't liked the post, so like it
       entry.likes.push(user._id);
       await entry.save();
-      // Populate likes with user info
-      await entry.populate("likes", "uid name username picture");
-      res.status(200).json({
-        success: true,
-        message: "Post liked successfully",
-        liked: true,
-        likes: entry.likes,
-        data: entry,
-      });
+      await sendLikeResponse("Post liked successfully", true);
     }
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });

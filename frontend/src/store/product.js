@@ -144,6 +144,59 @@ export const useProductStore = create((set) => ({
     }
   },
 
+  /** Text-only backup while editing (owner); complements device localStorage. */
+  saveEntryDraft: async (pid, { name, description }) => {
+    try {
+      const response = await apiClient.put(API_ENDPOINTS.ENTRY_EDIT_DRAFT(pid), {
+        name,
+        description,
+      });
+      return {
+        success: response.data?.success === true,
+        message: response.data?.message,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message:
+          error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message,
+      };
+    }
+  },
+
+  getEntryDraft: async (pid) => {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.ENTRY_EDIT_DRAFT(pid));
+      const data = response.data;
+      if (!data?.success) {
+        return { success: false, message: data?.message, data: null };
+      }
+      return { success: true, data: data.data };
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        message:
+          error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message,
+      };
+    }
+  },
+
+  deleteEntryDraft: async (pid) => {
+    try {
+      const response = await apiClient.delete(
+        API_ENDPOINTS.ENTRY_EDIT_DRAFT(pid)
+      );
+      return { success: response.data?.success === true };
+    } catch (error) {
+      return { success: false };
+    }
+  },
+
   likeEntry: async (pid) => {
     try {
       const response = await apiClient.post(API_ENDPOINTS.LIKE_ENTRY(pid));

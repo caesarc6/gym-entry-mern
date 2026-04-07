@@ -5,7 +5,6 @@ import {
   Heading,
   Input,
   Image,
-  Text,
   Textarea,
   VStack,
 } from "@chakra-ui/react";
@@ -22,14 +21,8 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 
 const CreatePage = () => {
-  const [newEntry, setNewEntry] = useState({
-    title: "",
-    description: "",
-    image: "",
-  });
-
   const [newPost, setNewPost] = useState({
-    title: "",
+    name: "",
     description: "",
     image: "",
     uid: "",
@@ -66,8 +59,6 @@ const CreatePage = () => {
   const toast = useCustomToast();
 
   const { createPost } = useProductStore();
-
-  const defaultImage = colors.currentTheme === "light" ? day : night;
 
   const handleAddEntry = async () => {
     // get current user from auth

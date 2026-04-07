@@ -9,6 +9,7 @@ import {
   filterEntriesForPublicView,
   filterUserDataForPublicView,
 } from "../utils/userUtils.js";
+import { attachPopulatedLikesToEntries } from "../utils/entryLikes.js";
 import { generateSafeFilePath } from "../utils/fileUtils.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
 
@@ -767,10 +768,11 @@ export const getPostsByUID = async (req, res) => {
     }
 
     const posts = await Entry.find({ uid: { $in: targetUids } })
-      .populate("likes", "uid name username picture")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+    await attachPopulatedLikesToEntries(posts);
 
     const totalPosts = await Entry.countDocuments({ uid: { $in: targetUids } });
     const totalPages = Math.ceil(totalPosts / limit);
@@ -1220,10 +1222,8 @@ export const getUserProfile = async (req, res) => {
       Boolean
     );
     if (canViewPosts && user.privacy.showEntries) {
-      posts = await Entry.find({ uid: { $in: targetUids } }).populate(
-        "likes",
-        "uid name username picture"
-      );
+      posts = await Entry.find({ uid: { $in: targetUids } }).lean();
+      await attachPopulatedLikesToEntries(posts);
     }
 
     // Get total posts count (unfiltered) for display purposes
@@ -1606,10 +1606,11 @@ export const getFeedPosts = async (req, res) => {
     }
 
     const posts = await Entry.find({ uid: { $in: uids } })
-      .populate("likes", "uid name username picture")
       .sort({ createdAt: -1 }) // Newest first
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+    await attachPopulatedLikesToEntries(posts);
 
     const totalPosts = await Entry.countDocuments({ uid: { $in: uids } });
     const totalPages = Math.ceil(totalPosts / limit);
@@ -1707,13 +1708,13 @@ export const getHomeFeed = async (req, res) => {
 
     const [posts, totalPosts] = await Promise.all([
       Entry.find(query)
-        .populate("likes", "uid name username picture")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
       Entry.countDocuments(query),
     ]);
+    await attachPopulatedLikesToEntries(posts);
 
     const normalizedPosts = posts.map((post) => ({
       _id: post._id.toString(),

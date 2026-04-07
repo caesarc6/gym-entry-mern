@@ -32,7 +32,7 @@ import {
 import { Link } from "react-router-dom";
 import { FileUploader } from "./FileUploader";
 import { useProductStore } from "../store/product";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api"; // Import API configuration
@@ -48,10 +48,20 @@ import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import { getProfileImageRequestDeduped } from "../utils/profileImageApi";
+import {
+  clearEditEntryDraft,
+  readEditEntryDraft,
+  writeEditEntryDraft,
+} from "../utils/workoutDraftStorage";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
 const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
+
+/** Wait this long after typing stops before hitting the server (batch keystrokes). */
+const EDIT_SERVER_AUTOSAVE_DEBOUNCE_MS = 1400;
+/** If the user keeps typing across a save, at most this many PUTs per “wave” (safety cap). */
+const EDIT_SERVER_AUTOSAVE_MAX_CHAIN = 5;
 
 const ProductCard = ({
   entry,
@@ -123,9 +133,26 @@ const ProductCard = ({
   const [editingComment, setEditingComment] = useState(null);
   const [replyToComment, setReplyToComment] = useState(null);
   const [replyText, setReplyText] = useState("");
-  const { deleteEntry, updateEntry, likeEntry, commentEntry } =
-    useProductStore();
+  const {
+    deleteEntry,
+    updateEntry,
+    likeEntry,
+    commentEntry,
+    saveEntryDraft,
+    getEntryDraft,
+    deleteEntryDraft,
+  } = useProductStore();
   const currentUserInfo = useProductStore((state) => state.currentUserInfo);
+
+  // Parent pages often pass an inline onUpdate; if it were in the autosave effect deps,
+  // every parent re-render would clear the debounce timer and the status would stay "Saving…".
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
+
+  const prevEditModalOpenRef = useRef(false);
+  const editLocalDraftTimerRef = useRef(null);
+  const updatedEntryRef = useRef(updatedEntry);
+  updatedEntryRef.current = updatedEntry;
 
   useEffect(() => {
     const syncAuth = async () => {
@@ -429,6 +456,57 @@ const ProductCard = ({
     return false;
   };
 
+  const [editAutosaveMeta, setEditAutosaveMeta] = useState({
+    status: "idle", // idle | saving | saved | error
+    lastSavedAt: null,
+  });
+  /** Stringified baseline for Revert; state (not ref) so the Revert button re-renders when it updates. */
+  const [editBaselineSnapshot, setEditBaselineSnapshot] = useState("");
+  const editAutosaveTimerRef = useRef(null);
+  const lastEditAutosavedSnapshotRef = useRef("");
+  const lastEditAutosavedEntryRef = useRef(null);
+  /** JSON.stringify(payload) of the last successful server save — skip redundant identical PUTs. */
+  const lastEditServerPayloadHashRef = useRef("");
+
+  const buildUpdatePayload = useCallback(
+    (candidate) => {
+      const payload = {
+        name: candidate.name,
+        description: candidate.description,
+      };
+
+      // Only include image fields if:
+      // 1. imageName exists (new image was uploaded)
+      // 2. AND image is not the placeholder SVG
+      if (
+        candidate.imageName &&
+        candidate.imageName !== "undefined" &&
+        candidate.image &&
+        !isPlaceholderImage(candidate.image)
+      ) {
+        payload.image = candidate.image;
+        payload.imageName = candidate.imageName;
+      }
+
+      return payload;
+    },
+    [isPlaceholderImage]
+  );
+
+  const currentEditSnapshot = useMemo(() => {
+    return JSON.stringify({
+      name: updatedEntry?.name || "",
+      description: updatedEntry?.description || "",
+      image: updatedEntry?.image || "",
+      imageName: updatedEntry?.imageName || "",
+    });
+  }, [
+    updatedEntry?.name,
+    updatedEntry?.description,
+    updatedEntry?.image,
+    updatedEntry?.imageName,
+  ]);
+
   // Debug log when updatedEntry changes
   useEffect(() => {
     // updatedEntry changes tracked
@@ -459,6 +537,370 @@ const ProductCard = ({
       });
     }
   }, [entry.image, entry._id]);
+
+  // Edit modal: server baseline for Revert + recover device draft if the app died mid-edit.
+  useEffect(() => {
+    if (!isOpen) {
+      if (editAutosaveTimerRef.current) {
+        clearTimeout(editAutosaveTimerRef.current);
+        editAutosaveTimerRef.current = null;
+      }
+      if (editLocalDraftTimerRef.current) {
+        clearTimeout(editLocalDraftTimerRef.current);
+        editLocalDraftTimerRef.current = null;
+      }
+      prevEditModalOpenRef.current = false;
+      setEditAutosaveMeta({ status: "idle", lastSavedAt: null });
+      setEditBaselineSnapshot("");
+      lastEditAutosavedSnapshotRef.current = "";
+      lastEditAutosavedEntryRef.current = null;
+      lastEditServerPayloadHashRef.current = "";
+      return;
+    }
+
+    if (prevEditModalOpenRef.current) {
+      return;
+    }
+    prevEditModalOpenRef.current = true;
+
+    const serverImage =
+      entry?.image && !isPlaceholderImage(entry.image) ? entry.image : "";
+    const serverBaseline = {
+      name: entry?.name || "",
+      description: entry?.description || "",
+      image: serverImage,
+      imageName: "",
+    };
+    const serverSnap = JSON.stringify(serverBaseline);
+    lastEditAutosavedSnapshotRef.current = serverSnap;
+    setEditBaselineSnapshot(serverSnap);
+    lastEditAutosavedEntryRef.current = { ...serverBaseline };
+    lastEditServerPayloadHashRef.current = JSON.stringify(
+      buildUpdatePayload(serverBaseline),
+    );
+    setEditAutosaveMeta({ status: "idle", lastSavedAt: null });
+
+    (async () => {
+      try {
+        const user = await getCurrentAuthUser();
+        const uid = user?.uid || "anon";
+        const draftRes = await getEntryDraft(entry._id);
+        const serverDraft =
+          draftRes?.success && draftRes.data ? draftRes.data : null;
+        const localDraft = readEditEntryDraft(uid, entry._id);
+
+        if (!serverDraft && !localDraft) return;
+
+        const serverTs = serverDraft?.updatedAt
+          ? new Date(serverDraft.updatedAt).getTime()
+          : -1;
+        const localTs = localDraft?.lastLocalSaveAt
+          ? new Date(localDraft.lastLocalSaveAt).getTime()
+          : -1;
+
+        let mergedName;
+        let mergedDesc;
+        if (serverDraft && localDraft) {
+          if (serverTs >= localTs) {
+            mergedName = serverDraft.name;
+            mergedDesc = serverDraft.description;
+          } else {
+            mergedName = localDraft.name;
+            mergedDesc = localDraft.description;
+          }
+        } else if (serverDraft) {
+          mergedName = serverDraft.name;
+          mergedDesc = serverDraft.description;
+        } else {
+          mergedName = localDraft.name;
+          mergedDesc = localDraft.description;
+        }
+
+        const mergedImage =
+          localDraft?.image &&
+          typeof localDraft.image === "string" &&
+          localDraft.image
+            ? localDraft.image
+            : serverBaseline.image;
+        const mergedImageName =
+          localDraft && typeof localDraft.imageName === "string"
+            ? localDraft.imageName
+            : "";
+
+        const draftSnap = JSON.stringify({
+          name: typeof mergedName === "string" ? mergedName : "",
+          description: typeof mergedDesc === "string" ? mergedDesc : "",
+          image: mergedImage || "",
+          imageName: mergedImageName || "",
+        });
+
+        if (draftSnap === serverSnap) {
+          clearEditEntryDraft(uid, entry._id);
+          deleteEntryDraft(entry._id).catch(() => {});
+          return;
+        }
+
+        setUpdatedEntry((prev) => ({
+          ...prev,
+          name: typeof mergedName === "string" ? mergedName : prev.name,
+          description:
+            typeof mergedDesc === "string" ? mergedDesc : prev.description,
+          image: mergedImage || prev.image,
+          imageName:
+            typeof mergedImageName === "string" && mergedImageName
+              ? mergedImageName
+              : prev.imageName,
+        }));
+
+        const fromServer =
+          serverDraft && (!localDraft || serverTs >= localTs);
+        toast.success(
+          "Edits recovered",
+          fromServer
+            ? "Unsaved text was restored from your account; images, when present, came from this device."
+            : "Unsaved changes from your last edit session on this device were restored."
+        );
+      } catch (e) {
+        // ignore
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per open; entry is read at open time
+  }, [isOpen]);
+
+  // Device-local backup while editing (survives crash / battery dying before server autosave).
+  useEffect(() => {
+    if (!isOpen || !isOwner) return;
+
+    const nameTrim = (updatedEntry?.name || "").trim();
+    const descTrim = (updatedEntry?.description || "").trim();
+    const hasNewImage = !!(
+      updatedEntry?.imageName &&
+      updatedEntry.imageName !== "undefined"
+    );
+    const hasDisplayImage =
+      updatedEntry?.image && !isPlaceholderImage(updatedEntry.image);
+
+    if (!nameTrim && !descTrim && !hasNewImage && !hasDisplayImage) return;
+
+    if (editLocalDraftTimerRef.current) {
+      clearTimeout(editLocalDraftTimerRef.current);
+    }
+
+    editLocalDraftTimerRef.current = setTimeout(() => {
+      (async () => {
+        try {
+          const user = await getCurrentAuthUser();
+          const uid = user?.uid || "anon";
+          writeEditEntryDraft(uid, entry._id, {
+            name: updatedEntry?.name || "",
+            description: updatedEntry?.description || "",
+            image: updatedEntry?.image || "",
+            imageName: updatedEntry?.imageName || "",
+          });
+          saveEntryDraft(entry._id, {
+            name: updatedEntry?.name ?? "",
+            description: updatedEntry?.description ?? "",
+          }).catch(() => {});
+        } catch (e) {
+          // ignore quota / private mode
+        }
+      })();
+    }, 400);
+
+    return () => {
+      if (editLocalDraftTimerRef.current) {
+        clearTimeout(editLocalDraftTimerRef.current);
+      }
+    };
+  }, [
+    isOpen,
+    isOwner,
+    entry._id,
+    updatedEntry?.name,
+    updatedEntry?.description,
+    updatedEntry?.image,
+    updatedEntry?.imageName,
+    saveEntryDraft,
+  ]);
+
+  // Flush local draft when the tab goes away or the phone backgrounds the browser.
+  useEffect(() => {
+    if (!isOpen || !isOwner) return;
+
+    const flushLocalDraft = () => {
+      const e = updatedEntryRef.current;
+      const nameTrim = (e?.name || "").trim();
+      const descTrim = (e?.description || "").trim();
+      const hasNewImage = !!(e?.imageName && e.imageName !== "undefined");
+      const hasDisplayImage = e?.image && !isPlaceholderImage(e.image);
+      if (!nameTrim && !descTrim && !hasNewImage && !hasDisplayImage) return;
+      (async () => {
+        try {
+          const user = await getCurrentAuthUser();
+          const uid = user?.uid || "anon";
+          writeEditEntryDraft(uid, entry._id, {
+            name: e?.name || "",
+            description: e?.description || "",
+            image: e?.image || "",
+            imageName: e?.imageName || "",
+          });
+          saveEntryDraft(entry._id, {
+            name: e?.name ?? "",
+            description: e?.description ?? "",
+          }).catch(() => {});
+        } catch (err) {
+          // ignore
+        }
+      })();
+    };
+
+    const onVis = () => {
+      if (document.visibilityState === "hidden") flushLocalDraft();
+    };
+    window.addEventListener("pagehide", flushLocalDraft);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("pagehide", flushLocalDraft);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [isOpen, isOwner, entry._id, saveEntryDraft]);
+
+  // Autosave edits to the real server: one debounced wave, then at most one extra PUT if you typed during the request (no overlapping calls).
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!isOwner) return;
+
+    const nameTrimmed = (updatedEntry?.name || "").trim();
+    if (!nameTrimmed) return; // backend requires name
+
+    if (currentEditSnapshot === lastEditAutosavedSnapshotRef.current) return;
+
+    if (editAutosaveTimerRef.current) {
+      clearTimeout(editAutosaveTimerRef.current);
+    }
+
+    setEditAutosaveMeta((m) =>
+      m.status === "saved" ? m : { ...m, status: "saving" },
+    );
+
+    editAutosaveTimerRef.current = setTimeout(() => {
+      (async () => {
+        try {
+          for (let wave = 0; wave < EDIT_SERVER_AUTOSAVE_MAX_CHAIN; wave += 1) {
+            const candidate = updatedEntryRef.current;
+            const nameOk = (candidate?.name || "").trim();
+            if (!nameOk) break;
+
+            const snap = JSON.stringify({
+              name: candidate?.name || "",
+              description: candidate?.description || "",
+              image: candidate?.image || "",
+              imageName: candidate?.imageName || "",
+            });
+
+            if (snap === lastEditAutosavedSnapshotRef.current) break;
+
+            const payload = buildUpdatePayload(candidate);
+            const payloadHash = JSON.stringify(payload);
+            if (payloadHash === lastEditServerPayloadHashRef.current) {
+              lastEditAutosavedSnapshotRef.current = snap;
+              break;
+            }
+
+            setEditAutosaveMeta((m) => ({ ...m, status: "saving" }));
+            const { success, data } = await updateEntry(entry._id, payload);
+
+            if (!success) {
+              setEditAutosaveMeta((m) => ({ ...m, status: "error" }));
+              return;
+            }
+
+            lastEditServerPayloadHashRef.current = payloadHash;
+
+            if (data) {
+              const { name, description, likes, comments, image } = data;
+              setUpdatedEntry((prevEntry) => {
+                const next = {
+                  ...prevEntry,
+                  name,
+                  description,
+                  likes,
+                  comments,
+                  image,
+                };
+                lastEditAutosavedEntryRef.current = {
+                  name: name ?? "",
+                  description: description ?? "",
+                  image: image ?? "",
+                  imageName: prevEntry?.imageName || "",
+                };
+                const savedSnap = JSON.stringify({
+                  name: name ?? "",
+                  description: description ?? "",
+                  image: image ?? "",
+                  imageName: prevEntry?.imageName || "",
+                });
+                lastEditAutosavedSnapshotRef.current = savedSnap;
+                setEditBaselineSnapshot(savedSnap);
+                return next;
+              });
+              onUpdateRef.current(entry._id, data);
+            } else {
+              lastEditAutosavedSnapshotRef.current = snap;
+              setEditBaselineSnapshot(snap);
+            }
+
+            try {
+              const user = await getCurrentAuthUser();
+              clearEditEntryDraft(user?.uid || "anon", entry._id);
+            } catch (clearErr) {
+              // ignore
+            }
+          }
+
+          setEditAutosaveMeta({
+            status: "saved",
+            lastSavedAt: new Date().toISOString(),
+          });
+        } catch (e) {
+          setEditAutosaveMeta((m) => ({ ...m, status: "error" }));
+        }
+      })();
+    }, EDIT_SERVER_AUTOSAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (editAutosaveTimerRef.current) {
+        clearTimeout(editAutosaveTimerRef.current);
+      }
+    };
+  }, [
+    isOpen,
+    isOwner,
+    entry._id,
+    updatedEntry?.name,
+    updatedEntry?.description,
+    updatedEntry?.image,
+    updatedEntry?.imageName,
+    buildUpdatePayload,
+    updateEntry,
+    currentEditSnapshot,
+  ]);
+
+  const handleRevertEdits = useCallback(() => {
+    const baseline = lastEditAutosavedEntryRef.current;
+    if (!baseline) return;
+    setUpdatedEntry((prev) => ({
+      ...prev,
+      name: baseline.name ?? "",
+      description: baseline.description ?? "",
+      image: baseline.image ?? prev.image,
+      imageName: baseline.imageName ?? prev.imageName,
+    }));
+    lastEditServerPayloadHashRef.current = JSON.stringify(
+      buildUpdatePayload(baseline),
+    );
+    setEditAutosaveMeta((m) => ({ ...m, status: "idle" }));
+  }, [buildUpdatePayload]);
 
   const handleFileUpload = async (file) => {
     try {
@@ -507,6 +949,12 @@ const ProductCard = ({
     } else {
       toast.success("Success", message);
       onDeleteClose();
+      try {
+        const user = await getCurrentAuthUser();
+        clearEditEntryDraft(user?.uid || "anon", pid);
+      } catch (e) {
+        // ignore
+      }
     }
   };
 
@@ -536,6 +984,7 @@ const ProductCard = ({
       setUpdatedEntry(previousEntry);
       toast.error("Error", message);
     } else {
+      lastEditServerPayloadHashRef.current = JSON.stringify(payload);
       if (data) {
         const { name, description, likes, comments, image } = data;
         setUpdatedEntry((prevEntry) => {
@@ -547,11 +996,33 @@ const ProductCard = ({
             comments,
             image, // Add the image field to update the UI
           };
+          const savedSnap = JSON.stringify({
+            name: name ?? "",
+            description: description ?? "",
+            image: image ?? "",
+            imageName: prevEntry?.imageName || "",
+          });
+          lastEditAutosavedSnapshotRef.current = savedSnap;
+          setEditBaselineSnapshot(savedSnap);
+          lastEditAutosavedEntryRef.current = {
+            name: name ?? "",
+            description: description ?? "",
+            image: image ?? "",
+            imageName: prevEntry?.imageName || "",
+          };
           return newUpdatedEntry;
         });
         onUpdate(pid, data);
       }
       toast.success("Success", "Entry updated successfully");
+      (async () => {
+        try {
+          const user = await getCurrentAuthUser();
+          clearEditEntryDraft(user?.uid || "anon", pid);
+        } catch (e) {
+          // ignore
+        }
+      })();
     }
   };
 
@@ -990,10 +1461,11 @@ const ProductCard = ({
             display="flex"
             flexDirection="column"
             justifyContent="center"
+            alignItems="center"
             minH="180px"
           >
             <Box
-              w="full"
+              w="100%"
               maxH="180px"
               overflowY="auto"
               overflowX="hidden"
@@ -1013,7 +1485,14 @@ const ProductCard = ({
                 },
               }}
             >
-              <VStack spacing={0.5} align="stretch" w="full">
+              <VStack
+                spacing={0.5}
+                align="start"
+                w="fit-content"
+                maxW="100%"
+                minW={0}
+                mx="auto"
+              >
                 <Heading
                   as="h2"
                   size="sm"
@@ -1021,7 +1500,8 @@ const ProductCard = ({
                   fontFamily="Inter, system-ui, sans-serif"
                   noOfLines={1}
                   fontWeight="400"
-                  textAlign="center"
+                  textAlign="left"
+                  maxW="100%"
                 >
                   {updatedEntry.name}
                 </Heading>
@@ -1030,7 +1510,8 @@ const ProductCard = ({
                   fontFamily="Inter, system-ui, sans-serif"
                   fontSize="10px"
                   fontWeight="700"
-                  textAlign="center"
+                  textAlign="left"
+                  maxW="100%"
                 >
                   {formatDateHour(updatedEntry.createdAt)}
                   {" • "}
@@ -1045,7 +1526,8 @@ const ProductCard = ({
                   fontWeight="400"
                   whiteSpace="pre-wrap"
                   wordBreak="break-word"
-                  textAlign="center"
+                  textAlign="left"
+                  maxW="100%"
                 >
                   {updatedEntry.description}
                 </Text>
@@ -1512,63 +1994,77 @@ const ProductCard = ({
                 />
               </Box>
 
-              {/* Content Section - Fixed height for consistency */}
-              <VStack align="start" spacing={{ base: 2, md: 3 }} flexShrink={0}>
-                <VStack spacing={0} w="full" align="center">
-                  <Heading
-                    size={{ base: "sm", md: "md" }}
-                    color={colors.textTitle}
-                    fontFamily="Arial, sans-serif"
-                    textAlign="center"
-                    noOfLines={1}
-                    fontWeight="400"
-                  >
-                    {updatedEntry.name}
-                  </Heading>
-                  <Text
-                    fontSize={{ base: "xs", md: "sm" }}
-                    color={colors.textMuted}
-                    textAlign="center"
-                    fontWeight="700"
-                  >
-                    {formatDateHour(updatedEntry.createdAt)} -{" "}
-                    {formatDateTitleTime(updatedEntry.createdAt)}
-                  </Text>
-                </VStack>
-
-                <Box
-                  w="full"
-                  maxH="120px"
-                  overflowY="auto"
-                  overflowX="hidden"
-                  css={{
-                    "&::-webkit-scrollbar": {
-                      width: "4px",
-                    },
-                    "&::-webkit-scrollbar-track": {
-                      background: "transparent",
-                    },
-                    "&::-webkit-scrollbar-thumb": {
-                      background: "#CBD5E0",
-                      borderRadius: "2px",
-                    },
-                    "&::-webkit-scrollbar-thumb:hover": {
-                      background: "#A0AEC0",
-                    },
-                  }}
+              {/* Content Section - column centered on post; text left within column */}
+              <VStack align="stretch" spacing={{ base: 2, md: 3 }} flexShrink={0} w="full">
+                <VStack
+                  align="start"
+                  spacing={{ base: 2, md: 3 }}
+                  w="fit-content"
+                  maxW="100%"
+                  minW={0}
+                  alignSelf="center"
                 >
-                  <Text
-                    color={colors.textDesc}
-                    fontFamily="Arial, sans-serif"
-                    whiteSpace="pre-wrap"
-                    fontSize={{ base: "xs", md: "sm" }}
-                    lineHeight="1.4"
-                    textAlign="center"
-                    wordBreak="break-word"
+                  <VStack spacing={0} align="start">
+                    <Heading
+                      size={{ base: "sm", md: "md" }}
+                      color={colors.textTitle}
+                      fontFamily="Arial, sans-serif"
+                      textAlign="left"
+                      noOfLines={1}
+                      fontWeight="400"
+                      maxW="100%"
+                    >
+                      {updatedEntry.name}
+                    </Heading>
+                    <Text
+                      fontSize={{ base: "xs", md: "sm" }}
+                      color={colors.textMuted}
+                      textAlign="left"
+                      fontWeight="700"
+                      maxW="100%"
+                    >
+                      {formatDateHour(updatedEntry.createdAt)} -{" "}
+                      {formatDateTitleTime(updatedEntry.createdAt)}
+                    </Text>
+                  </VStack>
+
+                  <Box
+                    alignSelf="stretch"
+                    maxW="100%"
+                    minW={0}
+                    maxH="120px"
+                    overflowY="auto"
+                    overflowX="hidden"
+                    css={{
+                      "&::-webkit-scrollbar": {
+                        width: "4px",
+                      },
+                      "&::-webkit-scrollbar-track": {
+                        background: "transparent",
+                      },
+                      "&::-webkit-scrollbar-thumb": {
+                        background: "#CBD5E0",
+                        borderRadius: "2px",
+                      },
+                      "&::-webkit-scrollbar-thumb:hover": {
+                        background: "#A0AEC0",
+                      },
+                    }}
                   >
-                    {updatedEntry.description}
-                  </Text>
-                </Box>
+                    <Text
+                      color={colors.textDesc}
+                      fontFamily="Arial, sans-serif"
+                      whiteSpace="pre-wrap"
+                      fontSize={{ base: "xs", md: "sm" }}
+                      lineHeight="1.4"
+                      textAlign="left"
+                      wordBreak="break-word"
+                      w="100%"
+                    >
+                      {updatedEntry.description}
+                    </Text>
+                  </Box>
+                </VStack>
 
                 <Divider />
 
@@ -2057,7 +2553,7 @@ const ProductCard = ({
             fontFamily="Arial, sans-serif"
             color={colors.textPrimary}
           >
-            Update Entry
+            Edit workout post
           </ModalHeader>
           <ModalCloseButton color={colors.textSecondary} />
           <ModalBody>
@@ -2094,6 +2590,15 @@ const ProductCard = ({
                 _placeholder={{ color: colors.textMuted }}
                 _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
               />
+              <Text fontSize="sm" color={colors.textMuted} w="full">
+                {editAutosaveMeta.status === "saving"
+                  ? "Saving to your post…"
+                  : editAutosaveMeta.status === "saved"
+                  ? `Saved to your post${editAutosaveMeta.lastSavedAt ? ` (${new Date(editAutosaveMeta.lastSavedAt).toLocaleTimeString()})` : ""}`
+                  : editAutosaveMeta.status === "error"
+                  ? "Could not save to your post. Check your connection."
+                  : "Changes save to your post as you type. Update is optional."}
+              </Text>
               <Image
                 src={
                   updatedEntry.image ||
@@ -2109,6 +2614,21 @@ const ProductCard = ({
             </VStack>
           </ModalBody>
           <ModalFooter>
+            <Button
+              variant="outline"
+              mr={3}
+              onClick={handleRevertEdits}
+              isDisabled={
+                !editBaselineSnapshot ||
+                currentEditSnapshot === editBaselineSnapshot
+              }
+              fontFamily="Arial, sans-serif"
+              color={colors.textPrimary}
+              borderColor={colors.borderColor}
+              _hover={{ bg: colors.bgHover }}
+            >
+              Revert
+            </Button>
             <Button
               colorScheme="blue"
               mr={3}

@@ -6,6 +6,9 @@ import {
   getEntrys,
   updateEntry,
   updateEntryPut,
+  saveEntryDraft,
+  getEntryDraft,
+  clearEntryDraft,
   likeEntry,
   commentEntry,
   likeComment,
@@ -106,6 +109,10 @@ router.get("/db-test", async (req, res) => {
     });
   }
 });
+
+router.get("/:id/draft", verifyIdToken, getEntryDraft);
+router.put("/:id/draft", verifyIdToken, saveEntryDraft);
+router.delete("/:id/draft", verifyIdToken, clearEntryDraft);
 
 router.delete("/:id", verifyIdToken, deleteEntry);
 router.post("/:id/like", verifyIdToken, likeEntry);
