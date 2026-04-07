@@ -1487,36 +1487,38 @@ const ProductCard = ({
             >
               <VStack
                 spacing={0.5}
-                align="start"
+                align="stretch"
                 w="fit-content"
                 maxW="100%"
                 minW={0}
                 mx="auto"
               >
-                <Heading
-                  as="h2"
-                  size="sm"
-                  color={colors.textTitle}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  noOfLines={1}
-                  fontWeight="400"
-                  textAlign="left"
-                  maxW="100%"
-                >
-                  {updatedEntry.name}
-                </Heading>
-                <Text
-                  color={colors.textOne}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="10px"
-                  fontWeight="700"
-                  textAlign="left"
-                  maxW="100%"
-                >
-                  {formatDateHour(updatedEntry.createdAt)}
-                  {" • "}
-                  {formatDateTitleTime(updatedEntry.createdAt)}
-                </Text>
+                <VStack spacing={0.5} align="center" w="full">
+                  <Heading
+                    as="h2"
+                    size="sm"
+                    color={colors.textTitle}
+                    fontFamily="Inter, system-ui, sans-serif"
+                    noOfLines={1}
+                    fontWeight="400"
+                    textAlign="center"
+                    w="full"
+                  >
+                    {updatedEntry.name}
+                  </Heading>
+                  <Text
+                    color={colors.textOne}
+                    fontFamily="Inter, system-ui, sans-serif"
+                    fontSize="10px"
+                    fontWeight="700"
+                    textAlign="center"
+                    w="full"
+                  >
+                    {formatDateHour(updatedEntry.createdAt)}
+                    {" • "}
+                    {formatDateTitleTime(updatedEntry.createdAt)}
+                  </Text>
+                </VStack>
 
                 <Text
                   color={colors.textDesc}
@@ -1527,7 +1529,7 @@ const ProductCard = ({
                   whiteSpace="pre-wrap"
                   wordBreak="break-word"
                   textAlign="left"
-                  maxW="100%"
+                  alignSelf="stretch"
                 >
                   {updatedEntry.description}
                 </Text>
@@ -1997,31 +1999,31 @@ const ProductCard = ({
               {/* Content Section - column centered on post; text left within column */}
               <VStack align="stretch" spacing={{ base: 2, md: 3 }} flexShrink={0} w="full">
                 <VStack
-                  align="start"
+                  align="stretch"
                   spacing={{ base: 2, md: 3 }}
                   w="fit-content"
                   maxW="100%"
                   minW={0}
-                  alignSelf="center"
+                  mx="auto"
                 >
-                  <VStack spacing={0} align="start">
+                  <VStack spacing={0} align="center" w="full">
                     <Heading
                       size={{ base: "sm", md: "md" }}
                       color={colors.textTitle}
                       fontFamily="Arial, sans-serif"
-                      textAlign="left"
+                      textAlign="center"
                       noOfLines={1}
                       fontWeight="400"
-                      maxW="100%"
+                      w="full"
                     >
                       {updatedEntry.name}
                     </Heading>
                     <Text
                       fontSize={{ base: "xs", md: "sm" }}
                       color={colors.textMuted}
-                      textAlign="left"
+                      textAlign="center"
                       fontWeight="700"
-                      maxW="100%"
+                      w="full"
                     >
                       {formatDateHour(updatedEntry.createdAt)} -{" "}
                       {formatDateTitleTime(updatedEntry.createdAt)}
@@ -2032,6 +2034,7 @@ const ProductCard = ({
                     alignSelf="stretch"
                     maxW="100%"
                     minW={0}
+                    w="100%"
                     maxH="120px"
                     overflowY="auto"
                     overflowX="hidden"
