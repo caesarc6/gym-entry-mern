@@ -5,6 +5,7 @@ import {
   Button,
   Center,
   Container,
+  Spinner,
   Text,
   VStack,
 } from "@chakra-ui/react";
@@ -26,6 +27,7 @@ const AuthCallback = () => {
   const navigate = useNavigate();
   const toast = useCustomToast();
   const [errorMessage, setErrorMessage] = useState(null);
+  const [statusMessage, setStatusMessage] = useState("Finishing sign-in…");
   const hasHandledRef = useRef(false);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ const AuthCallback = () => {
         return;
       }
       hasHandledRef.current = true;
+      let aborted = false;
 
       const locationPayload = {
         href: window.location.href,
@@ -46,6 +49,7 @@ const AuthCallback = () => {
       console.debug("[AuthCallback] location", locationPayload);
 
       const failSafeTimer = setTimeout(() => {
+        aborted = true;
         toast.error(
           "Authentication Timeout",
           "Login took too long. Please try again."
@@ -88,6 +92,7 @@ const AuthCallback = () => {
       console.debug("[AuthCallback] params", parsedParams);
 
       try {
+        setStatusMessage("Validating session…");
         if (authError) {
           throw new Error(
             authErrorDescription
@@ -99,6 +104,7 @@ const AuthCallback = () => {
         // getSession() awaits Supabase init, which runs detectSessionInUrl and exchanges
         // PKCE ?code= before we read the URL again — so "missing code" was a false negative.
         const { data: sessionAfterInit } = await supabase.auth.getSession();
+        if (aborted) return;
         let hasAccessToken = Boolean(sessionAfterInit?.session?.access_token);
 
         if (hasAccessToken) {
@@ -106,6 +112,7 @@ const AuthCallback = () => {
             source: "detectSessionInUrl_or_existing",
           });
         } else if (codeAtStart) {
+          setStatusMessage("Exchanging login code…");
           pushAuthDebug("AuthCallback: exchanging code (fallback)", null);
           console.debug("[AuthCallback] exchanging code for session");
           const exchangeResult = await Promise.race([
@@ -114,6 +121,7 @@ const AuthCallback = () => {
               setTimeout(() => reject(new Error("Auth exchange timeout")), 10000)
             ),
           ]);
+          if (aborted) return;
           const exchangePayload = {
             hasSession: Boolean(exchangeResult?.data?.session),
             error: exchangeResult?.error?.message,
@@ -147,6 +155,7 @@ const AuthCallback = () => {
           console.debug("[AuthCallback] hash session", hashPayload);
 
           if (accessToken && refreshToken) {
+            setStatusMessage("Restoring session…");
             setTempSupabaseSession(accessToken, refreshToken, expiresAt);
             const userProbe = await Promise.race([
               supabase.auth.getUser(accessToken),
@@ -154,6 +163,7 @@ const AuthCallback = () => {
                 setTimeout(() => reject(new Error("Auth user probe timeout")), 10000)
               ),
             ]);
+            if (aborted) return;
             pushAuthDebug("AuthCallback: user probe", {
               hasUser: Boolean(userProbe?.data?.user),
               error: userProbe?.error?.message,
@@ -178,6 +188,7 @@ const AuthCallback = () => {
                 message: setError?.message,
               });
             }
+            if (aborted) return;
 
             if (setResult) {
               const setSessionPayload = {
@@ -202,12 +213,14 @@ const AuthCallback = () => {
           }
           if (!hasAccessToken) {
             const { data: afterHash } = await supabase.auth.getSession();
+            if (aborted) return;
             hasAccessToken = Boolean(afterHash?.session?.access_token);
           }
         }
 
         if (!hasAccessToken) {
           const { data: finalCheck } = await supabase.auth.getSession();
+          if (aborted) return;
           hasAccessToken = Boolean(finalCheck?.session?.access_token);
         }
 
@@ -220,6 +233,7 @@ const AuthCallback = () => {
 
         const waitForSession = async () => {
           const { data: { session } } = await supabase.auth.getSession();
+          if (aborted) return null;
           if (session?.access_token) {
             return session;
           }
@@ -241,7 +255,9 @@ const AuthCallback = () => {
           });
         };
 
+        setStatusMessage("Finalizing session…");
         const session = await waitForSession();
+        if (aborted) return;
         const sessionPayload = {
           hasAccessToken: Boolean(session?.access_token),
           provider: session?.user?.app_metadata?.provider,
@@ -262,12 +278,14 @@ const AuthCallback = () => {
           apiClient.defaults.headers.common.Authorization = `Bearer ${session.access_token}`;
         }
 
+        setStatusMessage("Syncing account…");
         const response = await Promise.race([
           apiClient.post(API_ENDPOINTS.PROTECTED),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error("Backend timeout")), 10000)
           ),
         ]);
+        if (aborted) return;
         const backendPayload = {
           status: response?.status,
           created: response?.data?.created,
@@ -296,6 +314,7 @@ const AuthCallback = () => {
 
         await maybeMigrateAccount(userData);
 
+        setStatusMessage("Redirecting…");
         navigate(redirectTo, { replace: true });
       } catch (error) {
         pushAuthDebug("AuthCallback: error", {
@@ -346,9 +365,23 @@ const AuthCallback = () => {
             >
               Back to home
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.reload()}
+            >
+              Retry login
+            </Button>
           </VStack>
         ) : (
-          <Box minH="40vh" w="full" aria-busy="true" />
+          <VStack spacing={4} align="center" textAlign="center" w="full">
+            <Spinner size="lg" color="blue.400" thickness="4px" speed="0.9s" />
+            <Text fontWeight="semibold">Signing you in…</Text>
+            <Text fontSize="sm" color="gray.500">
+              {statusMessage}
+            </Text>
+            <Box minH="12vh" w="full" aria-busy="true" />
+          </VStack>
         )}
       </Center>
     </Container>

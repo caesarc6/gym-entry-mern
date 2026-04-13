@@ -208,8 +208,8 @@ export const Hero = () => {
                   Train with clarity. Progress with purpose.
                 </h1>
                 <p className="mt-4 text-balance text-zinc-200/95 leading-relaxed">
-                  Log workouts, follow your crew, and see analytics in one
-                  place—built for lifters who want momentum without the noise.
+                  Log workouts, dig into analytics, and stay connected with your
+                  crew. Built for momentum without the noise.
                 </p>
 
                 <Button

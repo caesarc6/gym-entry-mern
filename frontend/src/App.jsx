@@ -55,7 +55,7 @@ function App() {
   };
 
   return (
-    <Box minH={"100vh"} {...getBackgroundStyle()} pb={"55px"}>
+    <Box minH={"100vh"} {...getBackgroundStyle()}>
       <HeroHeader />
       <Suspense fallback={<RouteFallback />}>
         <Routes>

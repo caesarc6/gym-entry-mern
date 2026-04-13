@@ -4,7 +4,10 @@ import { Button } from "./ui/button";
 import React, { useEffect, useRef, useState } from "react";
 import { useScroll, motion } from "framer-motion";
 import { cn } from "../lib/utils";
-import { HERO_OUTLINE_CTA_BUTTON_CLASSNAME } from "../lib/heroCtaButtonClasses";
+import {
+  HERO_OUTLINE_CTA_BUTTON_CLASSNAME,
+  NAV_OUTLINE_AUTH_BUTTON_LIGHT_CLASSNAME,
+} from "../lib/heroCtaButtonClasses";
 import { supabase } from "../supabase/supabase";
 import { PlusSquareIcon } from "@chakra-ui/icons";
 import { useColorMode } from "@chakra-ui/react";
@@ -53,6 +56,19 @@ export const HeroHeader = () => {
   const location = useLocation();
   const isHome = location.pathname === "/";
 
+  const authNavOutlineClassName =
+    !isHome && currentTheme === "light"
+      ? NAV_OUTLINE_AUTH_BUTTON_LIGHT_CLASSNAME
+      : HERO_OUTLINE_CTA_BUTTON_CLASSNAME;
+
+  /** Mobile drawer uses `bg-background` (light when color mode is light) — not the dark home nav bar */
+  const mobileMenuAuthOutlineClassName =
+    colorMode === "light"
+      ? NAV_OUTLINE_AUTH_BUTTON_LIGHT_CLASSNAME
+      : HERO_OUTLINE_CTA_BUTTON_CLASSNAME;
+
+  const lightNavSurface = !isHome && currentTheme === "light";
+
   // Search-related states
   const [searchQuery, setSearchQuery] = React.useState("");
   const [searchResults, setSearchResults] = React.useState([]);
@@ -64,6 +80,7 @@ export const HeroHeader = () => {
   const [isAdmin, setIsAdmin] = React.useState(false);
   const searchRef = useRef(null);
   const dropdownRef = useRef(null);
+  const navRef = useRef(null);
 
   // Function to close the mobile menu
   const closeMenu = () => setMenuState(false);
@@ -140,6 +157,24 @@ export const HeroHeader = () => {
       document.removeEventListener("touchstart", handleClickOutside);
     };
   }, []);
+
+  // Close mobile menu when tapping / clicking outside the nav (drawer + top bar)
+  useEffect(() => {
+    if (!menuState) return;
+
+    const handlePointerDown = (event) => {
+      if (navRef.current && !navRef.current.contains(event.target)) {
+        setMenuState(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [menuState]);
 
   React.useEffect(() => {
     const syncAuthState = async () => {
@@ -257,19 +292,19 @@ export const HeroHeader = () => {
 
   return (
     <header>
-      <nav className="fixed z-20 w-full">
+      <nav ref={navRef} className="fixed z-20 w-full">
         <div
           className={cn(
             "mx-auto max-w-7xl border-b px-6 py-[1px] transition-all duration-300 backdrop-blur-xl lg:px-12",
             isHome
-              ? "border-zinc-800/50 bg-zinc-950/88"
+              ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88"
               : currentTheme === "light"
                 ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
                 : currentTheme === "dark-black"
                   ? "border-neutral-800/55 bg-neutral-950/88"
                   : currentTheme === "dark-blue"
-                    ? "border-zinc-800/50 bg-zinc-950/85"
-                    : "border-zinc-800/50 bg-zinc-950/88",
+                    ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
+                    : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
           )}
         >
           <motion.div
@@ -465,7 +500,10 @@ export const HeroHeader = () => {
               <button
                 onClick={() => setMenuState(!menuState)}
                 aria-label={menuState ? "Close Menu" : "Open Menu"}
-                className="relative z-20 -m-2.5 block cursor-pointer p-2.5 md:hidden"
+                className={cn(
+                  "relative z-20 -m-2.5 block cursor-pointer p-2.5 md:hidden",
+                  lightNavSurface ? "text-zinc-900" : "text-zinc-100",
+                )}
               >
                 <span className="relative block size-6">
                   <Menu
@@ -780,7 +818,7 @@ export const HeroHeader = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => handleAuthNavigate("/login")}
-                    className={HERO_OUTLINE_CTA_BUTTON_CLASSNAME}
+                    className={authNavOutlineClassName}
                   >
                     Login
                   </Button>
@@ -788,7 +826,7 @@ export const HeroHeader = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => handleAuthNavigate("/signup")}
-                    className={HERO_OUTLINE_CTA_BUTTON_CLASSNAME}
+                    className={authNavOutlineClassName}
                   >
                     Sign Up
                   </Button>
@@ -909,14 +947,14 @@ export const HeroHeader = () => {
                     </Button>
                   </>
                 ) : (
-                  <>
+                  <div className="flex flex-col items-center gap-3">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleAuthNavigate("/login")}
                       className={cn(
-                        HERO_OUTLINE_CTA_BUTTON_CLASSNAME,
-                        "w-full justify-center",
+                        mobileMenuAuthOutlineClassName,
+                        "w-auto min-w-[8.75rem] max-w-[16rem] justify-center",
                       )}
                     >
                       Login
@@ -926,13 +964,13 @@ export const HeroHeader = () => {
                       size="sm"
                       onClick={() => handleAuthNavigate("/signup")}
                       className={cn(
-                        HERO_OUTLINE_CTA_BUTTON_CLASSNAME,
-                        "w-full justify-center",
+                        mobileMenuAuthOutlineClassName,
+                        "w-auto min-w-[8.75rem] max-w-[16rem] justify-center",
                       )}
                     >
                       Sign Up
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
             </motion.div>

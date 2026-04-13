@@ -37,7 +37,8 @@ export function HomeLandingSections() {
               Start free
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              Create an account or log in.
+              Create an account to log training, explore analytics, and connect
+              with people you lift with.
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
               <Button asChild size="lg">

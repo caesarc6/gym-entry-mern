@@ -119,6 +119,8 @@ const HomePage = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (session?.user) {
+          // Supabase can emit events like TOKEN_REFRESHED when the tab regains focus.
+          // We should not force the feed into a full loading state for those.
           const user = {
             uid: session.user.id,
             email: session.user.email,
@@ -133,8 +135,7 @@ const HomePage = () => {
             authProvider: "supabase",
           };
           setIsSignedIn(true);
-          setUid(user.uid);
-          setIsLoading(true);
+          setUid((prevUid) => (prevUid === user.uid ? prevUid : user.uid));
           useProductStore.getState().setCurrentUser(user);
         } else {
           syncAuth();
@@ -410,7 +411,7 @@ const HomePage = () => {
           <Hero />
           <div
             className={cn(
-              "w-full min-w-0 bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200/80",
+              "w-full min-w-0 bg-gradient-to-br from-zinc-200/75 via-zinc-50 to-white",
             )}
           >
             <Container maxW="container.xl" className="text-center z-0 relative">

@@ -4,7 +4,6 @@ import {
   Dumbbell,
   Rss,
   Share2,
-  Shield,
   Users,
 } from "lucide-react";
 
@@ -43,22 +42,21 @@ export function HomeLandingFeatures() {
             Built for how you actually train
           </h2>
           <p className="mt-4 text-balance text-muted-foreground">
-            Log sessions, follow your crew, and see progress—without app
-            overload.
+            Workout logging, trends, and a social feed—without app overload.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-3 sm:grid-cols-2 [&>div]:p-6">
+        <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 [&>div]:p-6 md:[&>div]:p-8">
           <Card
             variant="mixed"
-            className="flex min-h-[280px] flex-col justify-between gap-6 sm:row-span-2"
+            className="flex min-h-[280px] flex-col justify-between gap-6 md:min-h-[340px]"
           >
             <div className="space-y-2">
               <h3 className="font-medium text-foreground">
                 One flow for training
               </h3>
               <p className="text-sm text-muted-foreground">
-                Workouts, feed, and shared plans stay connected.
+                Workouts, feed, and plans stay connected in one flow.
               </p>
             </div>
             <div
@@ -97,7 +95,7 @@ export function HomeLandingFeatures() {
 
           <Card
             variant="mixed"
-            className="flex min-h-[280px] flex-col justify-between overflow-hidden sm:row-span-2"
+            className="flex min-h-[280px] flex-col justify-between overflow-hidden md:min-h-[340px]"
           >
             <div className="space-y-2">
               <h3 className="font-medium text-foreground">
@@ -116,52 +114,49 @@ export function HomeLandingFeatures() {
             </div>
           </Card>
 
-          <Card
-            variant="mixed"
-            className="flex min-h-[280px] flex-col justify-between overflow-hidden sm:row-span-2"
+          {/* On 2-col layouts (sm–lg), the third card sits alone on row 2 — center it */}
+          <div
+            className={cn(
+              // Grid applies `[&>div]:p-6` to all direct children; this wrapper only
+              // centers the card — padding lives on the Card like the other two tiles.
+              "!p-0",
+              "sm:col-span-2 lg:col-span-1 flex justify-center px-2 sm:px-4 lg:px-0",
+            )}
           >
-            <div className="space-y-2">
-              <h3 className="font-medium text-foreground">Simple by design</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Fewer menus, faster logging—built for the gym floor.
-              </p>
-            </div>
-            <div
-              aria-hidden
-              className="flex h-44 justify-between pb-6 pt-12"
+            <Card
+              variant="mixed"
+              className={cn(
+                // Same as direct grid children: `[&>div]:p-6 md:[&>div]:p-8`
+                "p-6 md:p-8",
+                "flex min-h-[280px] w-full flex-col justify-between overflow-hidden md:min-h-[340px]",
+                // Slightly wider than a single column so the centered third card matches visual weight
+                "sm:max-w-[min(100%,calc((100%-0.75rem)*0.58))] lg:max-w-none",
+              )}
             >
-              {Array.from({ length: 28 }, (_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "h-full w-px shrink-0",
-                    [4, 9, 14, 19, 24].includes(i)
-                      ? "!bg-primary"
-                      : "bg-foreground/15"
-                  )}
-                />
-              ))}
-            </div>
-          </Card>
-
-          <Card
-            variant="mixed"
-            className="flex min-h-[280px] flex-col items-stretch justify-between gap-4 sm:row-span-2"
-          >
-            <div className="space-y-2">
-              <h3 className="font-medium text-foreground">Your crew, your data</h3>
-              <p className="text-sm text-muted-foreground">
-                Train together with controls that respect privacy.
-              </p>
-            </div>
-            <div className="pointer-events-none relative -ml-7 flex size-44 items-center justify-center self-center pt-2 text-foreground">
-              <Shield
-                className="absolute inset-0 top-2.5 size-full opacity-15"
-                strokeWidth={0.75}
-              />
-              <Shield className="size-32" strokeWidth={1} />
-            </div>
-          </Card>
+              <div className="space-y-2">
+                <h3 className="font-medium text-foreground">Simple by design</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Fewer menus, faster logging—built for the gym floor.
+                </p>
+              </div>
+              <div
+                aria-hidden
+                className="flex h-44 justify-between pb-6 pt-12"
+              >
+                {Array.from({ length: 28 }, (_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-full w-px shrink-0",
+                      [4, 9, 14, 19, 24].includes(i)
+                        ? "!bg-primary"
+                        : "bg-foreground/15"
+                    )}
+                  />
+                ))}
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
     </section>
