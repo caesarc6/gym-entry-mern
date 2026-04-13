@@ -3,36 +3,27 @@ import {
   SimpleGrid,
   Text,
   VStack,
-  Button,
   Box,
   Spinner,
   useColorModeValue,
 } from "@chakra-ui/react";
-import {
-  useEffect,
-  useLayoutEffect,
-  useState,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
 import { supabase } from "../supabase/supabase";
 import { Hero } from "../components/Hero";
-import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
+import { HomeLandingSections } from "../components/HomeLandingSections";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
 import ClaimedWorkoutsModal from "../components/ClaimedWorkoutsModal";
 import { useCustomToast } from "../hooks/useCustomToast";
-import { getCurrentAuthUser, signOutAll } from "../utils/auth";
-import { useIosAwareGoogleOAuth } from "../hooks/useIosAwareGoogleOAuth";
+import { getCurrentAuthUser } from "../utils/auth";
+import { cn } from "../lib/utils";
+import { useTheme } from "../contexts/ThemeContext";
 
-// Optimized feed loading with lazy loading and caching
 const HomePage = () => {
-  const { clearEntrys, updateEntry } = useProductStore();
-  const { requestGoogleOAuth, IosGoogleAuthModal } = useIosAwareGoogleOAuth();
+  const { clearEntrys } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,87 +37,56 @@ const HomePage = () => {
     totalPosts: 0,
     limit: 6,
   });
-  const [profileCache, setProfileCache] = useState(new Map()); // Cache for profile images
+  const [profileCache, setProfileCache] = useState(new Map());
   const toast = useCustomToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
+  const { currentTheme, setTheme } = useTheme();
+  const prevThemeRef = useRef(null);
+  const forcedLightRef = useRef(false);
 
-  // Performance optimization refs
-  const resizeTimeoutRef = useRef(null);
-  const isMountedRef = useRef(true);
-  const profileCacheRef = useRef(profileCache);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
+  // Home page (signed-out): force light page content while keeping dark navbar.
+  // Once the user is signed in, stop forcing and restore their previous theme.
   useEffect(() => {
-    profileCacheRef.current = profileCache;
-  }, [profileCache]);
+    if (!isAuthReady) return;
 
-  // Batch-load avatars for everyone on the current feed page (not only following list)
-  useEffect(() => {
-    if (!uid || entries.length === 0) return;
-
-    const ids = [
-      ...new Set(
-        entries.flatMap((e) =>
-          [e.uid, e.ownerId, e.trainerUid].filter(Boolean)
-        )
-      ),
-    ];
-
-    let cancelled = false;
-
-    (async () => {
-      const authUser = await getCurrentAuthUser();
-      if (!authUser || cancelled) return;
-
-      const uncached = ids.filter((id) => !profileCacheRef.current.has(id));
-      if (uncached.length === 0) return;
-
-      try {
-        const response = await apiClient.post(
-          API_ENDPOINTS.BATCH_PROFILE_IMAGES,
-          { uids: uncached }
-        );
-        if (cancelled || !response.data?.success || !response.data?.data) {
-          return;
-        }
-
-        setProfileCache((prev) => {
-          const next = new Map(prev);
-          for (const row of response.data.data) {
-            next.set(row.uid, {
-              uid: row.uid,
-              profileImage: row.profileImage,
-              displayName: row.displayName,
-              isUsername: row.isUsername,
-            });
-          }
-          return next;
-        });
-      } catch {
-        // ProductCard deduped fallback can still load single images
+    if (!isSignedIn) {
+      if (!forcedLightRef.current) {
+        prevThemeRef.current = currentTheme;
+        forcedLightRef.current = true;
       }
-    })();
 
+      if (currentTheme !== "light") setTheme("light");
+      return;
+    }
+
+    if (forcedLightRef.current) {
+      forcedLightRef.current = false;
+      const prev = prevThemeRef.current;
+      if (prev && prev !== "light") setTheme(prev);
+    }
+  }, [isAuthReady, isSignedIn, currentTheme, setTheme]);
+
+  useEffect(() => {
     return () => {
-      cancelled = true;
-    };
-  }, [entries, uid]);
-
-  // Memoized function to handle page change
-  const handlePageChange = useCallback(
-    (newPage) => {
-      if (newPage >= 1 && newPage <= pagination.totalPages) {
-        setCurrentPage(newPage);
+      if (forcedLightRef.current) {
+        forcedLightRef.current = false;
+        const prev = prevThemeRef.current;
+        if (prev && prev !== "light") setTheme(prev);
       }
-    },
-    [pagination.totalPages, currentPage]
-  );
+    };
+  }, [setTheme]);
 
   // Reset to page 1 when signed-in user changes (before feed fetch effect runs)
   useLayoutEffect(() => {
     setCurrentPage(1);
   }, [uid]);
 
-  // Optimized auth state handler
   useEffect(() => {
     const syncAuth = async () => {
       const user = await getCurrentAuthUser();
@@ -147,9 +107,11 @@ const HomePage = () => {
         });
         clearEntrys();
         useProductStore.getState().setCurrentUser(null);
+        setIsLoading(false);
       }
       setIsAuthReady(true);
-      setIsLoading(false);
+      // When signed in, keep isLoading true until fetchHomeFeed finishes so we do not
+      // flash a second loading state after auth (feed effect sets loading + completes).
     };
 
     syncAuth();
@@ -172,6 +134,7 @@ const HomePage = () => {
           };
           setIsSignedIn(true);
           setUid(user.uid);
+          setIsLoading(true);
           useProductStore.getState().setCurrentUser(user);
         } else {
           syncAuth();
@@ -213,87 +176,6 @@ const HomePage = () => {
     }
   }, [currentUserInfo]);
 
-  // Preload profile images to reduce individual API calls
-  const preloadProfileImages = useCallback(
-    async (uids) => {
-      // Check if user is authenticated before making API call
-      const authUser = await getCurrentAuthUser();
-      if (!authUser) {
-        return; // Skip if not authenticated
-      }
-
-      const newCache = new Map(profileCache);
-      const uncachedUids = uids.filter((uid) => !newCache.has(uid));
-
-      if (uncachedUids.length === 0) return;
-
-      try {
-        // Use the new batch endpoint for better performance
-        const response = await apiClient.post(
-          API_ENDPOINTS.BATCH_PROFILE_IMAGES,
-          {
-            uids: uncachedUids,
-          }
-        );
-
-        if (response.data?.success && response.data?.data) {
-          response.data.data.forEach((profile) => {
-            newCache.set(profile.uid, {
-              uid: profile.uid,
-              profileImage: profile.profileImage,
-              displayName: profile.displayName,
-              isUsername: profile.isUsername,
-            });
-          });
-          setProfileCache(newCache);
-        }
-      } catch (error) {
-        // Fallback to individual requests if batch fails
-        const batchSize = 5;
-        const batches = [];
-
-        for (let i = 0; i < uncachedUids.length; i += batchSize) {
-          batches.push(uncachedUids.slice(i, i + batchSize));
-        }
-
-        for (const batch of batches) {
-          const promises = batch.map(async (uid) => {
-            try {
-              const response = await apiClient.get(
-                API_ENDPOINTS.PROFILE_IMAGE(uid)
-              );
-              if (response.data?.success && response.data?.data) {
-                return {
-                  uid,
-                  profileImage: response.data.data.picture,
-                  displayName:
-                    response.data.data.username ||
-                    response.data.data.name ||
-                    "Unknown User",
-                  isUsername: !!response.data.data.username,
-                };
-              }
-              return null;
-            } catch (error) {
-              return null;
-            }
-          });
-
-          const results = await Promise.allSettled(promises);
-          results.forEach((result) => {
-            if (result.status === "fulfilled" && result.value) {
-              newCache.set(result.value.uid, result.value);
-            }
-          });
-        }
-
-        setProfileCache(newCache);
-      }
-    },
-    [profileCache]
-  );
-
-  // Optimized following UIDs fetch with caching
   useEffect(() => {
     const fetchFollowing = async () => {
       if (!uid) return;
@@ -306,9 +188,6 @@ const HomePage = () => {
         const data = response.data;
         if (data.success) {
           const uids = data.data.map((user) => user.uid);
-          const uidsToCache = [...new Set([uid, ...uids])];
-          preloadProfileImages(uidsToCache).catch(() => {});
-
           if (uids.length === 0) {
             toast.info(
               "No followed users",
@@ -326,8 +205,7 @@ const HomePage = () => {
     if (uid) {
       fetchFollowing();
     }
-    // preloadProfileImages is memoized and stable, safe to omit from deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- toast from useCustomToast is not referentially stable
   }, [uid]);
 
   // Single home-feed request (server merges self + following, paginated)
@@ -398,23 +276,18 @@ const HomePage = () => {
     };
 
     fetchHomeFeed();
-    // toast is stable from useCustomToast; omit to avoid effect churn
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- toast from useCustomToast is not referentially stable
   }, [uid, currentPage, limit]);
 
-  // Memoized entries to prevent unnecessary re-renders
-  const memoizedEntries = useMemo(() => entries, [entries]);
-
-  // Optimized update handler
-  const handleUpdateEntry = useCallback((pid, updatedEntry) => {
+  const handleUpdateEntry = (pid, updatedEntry) => {
     setEntries((prevEntries) =>
       prevEntries.map((entry) =>
         entry._id === pid ? { ...entry, ...updatedEntry } : entry
       )
     );
-  }, []);
+  };
 
-  const handleDeleteEntry = useCallback((pid) => {
+  const handleDeleteEntry = (pid) => {
     const idStr = String(pid);
     setEntries((prev) => prev.filter((e) => String(e._id) !== idStr));
     setPagination((prev) => {
@@ -422,7 +295,7 @@ const HomePage = () => {
       const totalPages = Math.max(1, Math.ceil(totalPosts / prev.limit));
       return { ...prev, totalPosts, totalPages };
     });
-  }, []);
+  };
 
   useEffect(() => {
     if (currentPage > pagination.totalPages && pagination.totalPages >= 1) {
@@ -430,66 +303,30 @@ const HomePage = () => {
     }
   }, [currentPage, pagination.totalPages]);
 
-  const handleGoogleSignIn = (authMode = "login") => {
-    const redirectPath = window.location.pathname + window.location.search;
-    requestGoogleOAuth({
-      authMode,
-      redirectPath,
-      debugContext: "HomePage",
-      onError: (error) => {
-        handleSignOutUser();
-        toast.error("Error", error.message || "Failed to sign in");
-      },
-    });
-  };
-
-  const handleSignOutUser = async () => {
-    try {
-      await signOutAll();
-      setUid(null);
-      setIsSignedIn(false);
-      setEntries([]);
-    } catch (error) {
-      toast.error("Error", error.message || "Failed to sign out");
-    }
-  };
-
+  // No spinner while auth resolves — only the feed uses a spinner below.
   if (!isAuthReady) {
     return (
       <Container maxW="container.xl" className="text-center z-0 relative">
-        <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          minH="50vh"
-          pt="112px"
-        >
-          <Spinner
-            size="lg"
-            thickness="4px"
-            speed="1.2s"
-            color={spinnerColor}
-          />
-        </Box>
+        <Box minH="50vh" pt="112px" aria-hidden />
       </Container>
     );
   }
 
   return (
-    <Container maxW="container.xl" className="text-center z-0 relative">
+    <>
       {isSignedIn ? (
-        <>
+        <Container maxW="container.xl" className="text-center z-0 relative">
           <VStack spacing={8} className="pt-[112px]">
             <Text
               fontSize={"22"}
               fontWeight={"bold"}
-              bgGradient={"linear(to-r, blue.200, gray.400)"}
+              bgGradient={"linear(to-r, blue.200, gray.500)"}
               bgClip={"text"}
               textAlign={"center"}
             >
               Workout Posts
             </Text>
-            {isLoading ? (
+            {uid && isLoading ? (
               <Box
                 display="flex"
                 justifyContent="center"
@@ -516,7 +353,7 @@ const HomePage = () => {
                   alignItems="center"
                   justifyItems="center"
                 >
-                  {memoizedEntries.map((entry) => (
+                  {entries.map((entry) => (
                     <ProductCard
                       key={entry._id}
                       entry={entry}
@@ -546,7 +383,7 @@ const HomePage = () => {
                     <Link to={"/profile"}>
                       <Text
                         as="span"
-                        color="blue.500"
+                        color="blue.400"
                         _hover={{ textDecoration: "underline" }}
                       >
                         Follow some users
@@ -556,7 +393,7 @@ const HomePage = () => {
                     <Link to={"/create"}>
                       <Text
                         as="span"
-                        color="blue.500"
+                        color="blue.400"
                         _hover={{ textDecoration: "underline" }}
                       >
                         create a post
@@ -567,21 +404,28 @@ const HomePage = () => {
               </>
             )}
           </VStack>
-        </>
+        </Container>
       ) : (
-        <div>
-          <Hero handleGoogleSignIn={handleGoogleSignIn} />
-        </div>
+        <>
+          <Hero />
+          <div
+            className={cn(
+              "w-full min-w-0 bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200/80",
+            )}
+          >
+            <Container maxW="container.xl" className="text-center z-0 relative">
+              <HomeLandingSections />
+            </Container>
+          </div>
+        </>
       )}
 
-      {/* Claimed Workouts Modal */}
       <ClaimedWorkoutsModal
         isOpen={showClaimedWorkoutsModal}
         onClose={() => setShowClaimedWorkoutsModal(false)}
         claimedWorkouts={claimedWorkouts}
       />
-      {IosGoogleAuthModal}
-    </Container>
+    </>
   );
 };
 

@@ -48,24 +48,29 @@ export const useThemeColors = () => {
     destructive: getCSSVariable("destructive"),
     destructiveForeground: getCSSVariable("destructive-foreground"),
 
-    // Theme-aware utility colors
-    textPrimary: getThemeColor("gray.900", "gray.100"),
-    textSecondary: getThemeColor("gray.600", "gray.400"),
-    textMuted: getThemeColor("gray.500", "gray.500"),
-    textTitle: getThemeColor("gray.800", "gray.200"),
-    textDesc: getThemeColor("gray.700", "gray.400"),
-    textOne: getThemeColor("gray.300", "gray.600"),
+    // Workout feed / ProductCard — driven by CSS variables (theme playground + index.css)
+    textPrimary: getCSSVariable("workout-text-primary"),
+    textSecondary: getCSSVariable("workout-text-muted"),
+    textMuted: getCSSVariable("workout-text-muted"),
+    textTitle: getCSSVariable("workout-text-primary"),
+    textDesc: getCSSVariable("workout-text-muted"),
+    textOne: getCSSVariable("workout-text-subtle"),
 
-    // Background utilities
-    bgCard: getThemeColor("white", "gray.800"),
-    bgHover: getThemeColor("gray.100", "gray.700"),
-    bgMuted: getThemeColor("gray.50", "gray.700"),
+    bgCard: getCSSVariable("workout-card"),
+    bgHover: getCSSVariable("workout-hover"),
+    bgMuted: getCSSVariable("workout-muted"),
     bgButton: getThemeColor("gray.100", "gray.600"),
 
-    // Border utilities
-    borderColor: getThemeColor("gray.200", "gray.600"),
-    borderColorLight: getThemeColor("gray.100", "gray.700"),
-    borderColorInput: getThemeColor("gray.300", "gray.500"),
+    borderColor: getCSSVariable("workout-border"),
+    borderColorLight: getCSSVariable("workout-border-light"),
+    borderColorInput: getCSSVariable("workout-border-input"),
+    modalOverlay: getCSSVariable("workout-modal-overlay"),
+    modalHeaderBg: getCSSVariable("workout-modal-header"),
+    modalFooterBg: getCSSVariable("workout-modal-footer"),
+    modalDivider: getCSSVariable("workout-modal-divider"),
+    modalButtonBg: getCSSVariable("workout-modal-button-bg"),
+    modalButtonText: getCSSVariable("workout-modal-button-text"),
+    modalButtonBorder: getCSSVariable("workout-modal-button-border"),
 
     // Interactive states
     likeActive: "red.500",
@@ -79,11 +84,11 @@ export const useThemeColors = () => {
     shareBg: getThemeColor("green.50", "green.900"),
     deleteColor: "red.500",
     deleteBg: getThemeColor("red.50", "red.900"),
-    processColor: "blue.500",
+    processColor: "blue.400",
     processBg: getThemeColor("blue.50", "blue.900"),
 
-    // Scrollbar colors
-    scrollbarThumb: getThemeColor("#CBD5E0", "#4A5568"),
-    scrollbarThumbHover: getThemeColor("#A0AEC0", "#718096"),
+    // Scrollbar colors (workout modals + scroll containers)
+    scrollbarThumb: getCSSVariable("workout-scrollbar-thumb"),
+    scrollbarThumbHover: getCSSVariable("workout-scrollbar-thumb-hover"),
   };
 };

@@ -93,7 +93,12 @@ const accountsMatch = (a, b) => {
 
 // Multer configuration
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+  ];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -148,6 +153,27 @@ export const handleOptionalFileUpload = (req, res, next) => {
       });
     }
     // Allow the request to proceed even if no file is uploaded
+    next();
+  });
+};
+
+// Background uploads use a different multipart field name than profile photos.
+export const handleBackgroundFileUpload = (req, res, next) => {
+  upload.single("backgroundPicture")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          message: "File too large. Please upload a smaller image (max 20MB).",
+        });
+      }
+    } else if (err) {
+      return res.status(400).json({
+        error: err.message,
+      });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
     next();
   });
 };
@@ -482,7 +508,17 @@ export const updateUserProfile = async (req, res) => {
       profileImage,
     } = req.body;
 
-    if (!name && !username && !goal && !gymName && !bio && !profileImage) {
+    const hasMultipartProfileImage = Boolean(req.file?.buffer);
+
+    if (
+      !name &&
+      !username &&
+      !goal &&
+      !gymName &&
+      !bio &&
+      !profileImage &&
+      !hasMultipartProfileImage
+    ) {
       return res.status(400).json({
         success: false,
         message: "No data provided for update",
@@ -490,7 +526,58 @@ export const updateUserProfile = async (req, res) => {
     }
 
     let profileImageUrl = null;
-    if (profileImageName && profileImageName !== "undefined") {
+
+    if (hasMultipartProfileImage) {
+      try {
+        const isConnected = await checkSupabaseConnection();
+        if (!isConnected) {
+          return res.status(500).json({ error: "Supabase connection failed" });
+        }
+
+        const filePath = generateSafeFilePath(
+          uid,
+          req.file.originalname,
+          "profiles"
+        );
+
+        const { error } = await supabase.storage
+          .from("user_profiles")
+          .upload(filePath, req.file.buffer, {
+            contentType: req.file.mimetype || "image/jpeg",
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (error) {
+          return res.status(500).json({
+            error: "Failed to upload image",
+            details: error.message,
+          });
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("user_profiles").getPublicUrl(filePath);
+
+        profileImageUrl = publicUrl;
+        await User.findOneAndUpdate(
+          { uid: uid.trim() },
+          { $set: { picture: profileImageUrl } },
+          { new: true }
+        );
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload image",
+          details: error.message,
+        });
+      }
+    } else if (
+      profileImageName &&
+      profileImageName !== "undefined" &&
+      typeof profileImage === "string" &&
+      profileImage.includes("base64")
+    ) {
       try {
         const base64Data = profileImage.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
@@ -657,10 +744,8 @@ export const createUser = async (req, res) => {
 };
 
 export const createPost = async (req, res) => {
-
   const { name, description, image, imageName } = req.body;
   const { uid } = req.user;
-
 
   if (!name || !description) {
     return res
@@ -669,11 +754,47 @@ export const createPost = async (req, res) => {
   }
 
   try {
-    const post = new Entry({ uid, name, description, image, imageName });
+    let finalImage = image;
+
+    if (
+      image &&
+      typeof image === "string" &&
+      image.includes("base64")
+    ) {
+      const safeName = imageName || "post-image.jpg";
+      const base64Data = image.split(";base64,").pop();
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      const filePath = generateSafeFilePath(uid, safeName, "images");
+
+      const { error } = await supabase.storage
+        .from("post_images")
+        .upload(filePath, imageBuffer, {
+          contentType: "image/jpeg",
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (error) {
+        return res.status(500).json({
+          error: "Failed to upload image",
+          details: error.message,
+        });
+      }
+
+      finalImage = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+    }
+
+    const post = new Entry({
+      uid,
+      name,
+      description,
+      image: finalImage,
+      imageName,
+    });
 
     await post.save();
 
-    res.status(201).json(post);
+    res.status(201).json({ success: true, data: post });
   } catch (error) {
     res.status(500).json({ error: "Failed to create post" });
   }
@@ -924,7 +1045,7 @@ export const searchUsers = async (req, res) => {
 };
 
 export const uploadBackgroundPicture = [
-  handleFileUpload,
+  handleBackgroundFileUpload,
   async (req, res) => {
 
     try {

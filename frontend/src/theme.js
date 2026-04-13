@@ -191,9 +191,8 @@ const theme = extendTheme({
           bg: "#141414", // Very dark black
           color: "#f5f5f5",
         },
-        // Dark blue theme
         ".dark-blue &": {
-          bg: "#0a0e1a", // Very dark blue
+          bg: "#050508",
           color: "#e6f0ff",
         },
       },

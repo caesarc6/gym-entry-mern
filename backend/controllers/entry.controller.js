@@ -675,7 +675,12 @@ export const likeEntry = async (req, res) => {
 export const commentEntry = async (req, res) => {
   const { id } = req.params;
   const { comment } = req.body;
-  const { uid } = req.user;
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+    });
+  }
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -718,7 +723,12 @@ export const commentEntry = async (req, res) => {
     entry.comments.push(newComment);
     await entry.save();
 
-    res.status(200).json({ success: true, data: entry });
+    res.status(200).json({
+      success: true,
+      message: "Comment added successfully",
+      comments: entry.comments,
+      data: entry,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
   }

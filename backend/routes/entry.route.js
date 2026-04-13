@@ -116,7 +116,7 @@ router.delete("/:id/draft", verifyIdToken, clearEntryDraft);
 
 router.delete("/:id", verifyIdToken, deleteEntry);
 router.post("/:id/like", verifyIdToken, likeEntry);
-router.post("/:id/comment", commentEntry);
+router.post("/:id/comment", verifyIdToken, commentEntry);
 
 // Cleanup route for malformed comments (admin utility)
 router.post("/cleanup-comments", verifyIdToken, cleanupMalformedComments);

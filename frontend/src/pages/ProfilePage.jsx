@@ -430,12 +430,7 @@ const ProfilePage = () => {
 
       const profileResponse = await apiClient.post(
         API_ENDPOINTS.UPDATE_USER_PROFILE,
-        profileFormData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        profileFormData
       );
 
       const profileData = profileResponse.data;
@@ -494,12 +489,7 @@ const ProfilePage = () => {
 
       const backgroundResponse = await apiClient.post(
         API_ENDPOINTS.UPDATE_USER_BACKGROUND,
-        backgroundFormData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        backgroundFormData
       );
 
       if (!backgroundResponse.data?.success && backgroundResponse.data?.message) {

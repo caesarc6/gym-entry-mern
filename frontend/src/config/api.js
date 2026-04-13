@@ -35,7 +35,7 @@ export const API_ENDPOINTS = {
   // Profile image endpoints
   PROFILE_IMAGE: (uid) => buildApiUrl(`profile-image/${uid}`),
   BATCH_PROFILE_IMAGES: buildApiUrl("batch-profile-images"),
-  UPLOAD_PROFILE_PIC: buildApiUrl("upload/uploadProfilePic"),
+  UPLOAD_PROFILE_PIC: buildApiUrl("updateUserProfilePic"),
 
   // Posts/Entries endpoints
   HOME_FEED: (page = 1, pageLimit = 6) =>
@@ -185,6 +185,15 @@ export const apiClient = axios.create({
 // Request interceptor to add auth token (supports both Firebase and Supabase)
 apiClient.interceptors.request.use(
   async (config) => {
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+      const h = config.headers;
+      if (h && typeof h.delete === "function") {
+        h.delete("Content-Type");
+      } else if (h) {
+        delete h["Content-Type"];
+        delete h["content-type"];
+      }
+    }
     try {
       // Use dual-auth utility to get token from either provider
       const {

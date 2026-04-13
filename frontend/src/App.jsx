@@ -4,13 +4,13 @@ import { Route, Routes } from "react-router-dom";
 import { HeroHeader } from "./components/hero9-header";
 import "./index.css";
 import { useTheme } from "./contexts/ThemeContext";
+import AuthCallback from "./pages/AuthCallback";
+import HomePage from "./pages/HomePage";
 
 const CreatePage = lazy(() => import("./pages/CreatePage"));
-const HomePage = lazy(() => import("./pages/HomePage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const SignUpFlow = lazy(() => import("./pages/SignUpFlow"));
 const Login = lazy(() => import("./pages/Login"));
-const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const ModifyProfile = lazy(() => import("./pages/ModifyProfile"));
 const UserProfilePage = lazy(() => import("./pages/UserProfilePage"));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
@@ -38,15 +38,15 @@ function App() {
           backgroundAttachment: "fixed",
         };
       case "dark":
-        return { bg: "gray.900" };
+        return { bg: "#070708" };
       case "dark-black":
         return {
-          bgGradient: "linear(305deg, #000000, #0d101a, #000000)",
+          bgGradient: "linear(305deg, #000000, #0f0f10, #000000)",
           backgroundAttachment: "fixed",
         };
       case "dark-blue":
         return {
-          bgGradient: "linear(to-b, #050810, #0d1220)",
+          bg: "#050508",
           backgroundAttachment: "fixed",
         };
       default:

@@ -1,9 +1,10 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Search } from "lucide-react";
 import { Button } from "./ui/button";
 import React, { useEffect, useRef, useState } from "react";
 import { useScroll, motion } from "framer-motion";
 import { cn } from "../lib/utils";
+import { HERO_OUTLINE_CTA_BUTTON_CLASSNAME } from "../lib/heroCtaButtonClasses";
 import { supabase } from "../supabase/supabase";
 import { PlusSquareIcon } from "@chakra-ui/icons";
 import { useColorMode } from "@chakra-ui/react";
@@ -45,10 +46,12 @@ export const HeroHeader = () => {
   const [entries, setEntries] = React.useState([]);
   const { scrollYProgress } = useScroll();
   const { colorMode } = useColorMode();
-  const { currentTheme } = useTheme();
+  const { currentTheme, setTheme } = useTheme();
   const colors = useThemeColors();
   const toast = useCustomToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isHome = location.pathname === "/";
 
   // Search-related states
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -257,14 +260,16 @@ export const HeroHeader = () => {
       <nav className="fixed z-20 w-full">
         <div
           className={cn(
-            "mx-auto max-w-7xl px-6 py-[1px] transition-all duration-300 lg:px-12 backdrop-blur-2xl border-b",
-            currentTheme === "light"
-              ? "bg-background/80"
-              : currentTheme === "dark"
-                ? "bg-gray-900/80"
+            "mx-auto max-w-7xl border-b px-6 py-[1px] transition-all duration-300 backdrop-blur-xl lg:px-12",
+            isHome
+              ? "border-zinc-800/50 bg-zinc-950/88"
+              : currentTheme === "light"
+                ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
                 : currentTheme === "dark-black"
-                  ? "bg-gray-950/90"
-                  : "bg-blue-950/90",
+                  ? "border-neutral-800/55 bg-neutral-950/88"
+                  : currentTheme === "dark-blue"
+                    ? "border-zinc-800/50 bg-zinc-950/85"
+                    : "border-zinc-800/50 bg-zinc-950/88",
           )}
         >
           <motion.div
@@ -281,11 +286,7 @@ export const HeroHeader = () => {
                 className="flex items-center space-x-2"
                 onClick={closeMenu}
               >
-                <span
-                  className={cn(
-                    "text-xl md:text-2xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent",
-                  )}
-                >
+                <span className="text-xl md:text-2xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
                   Ethereal Gains
                 </span>
               </a>
@@ -672,7 +673,6 @@ export const HeroHeader = () => {
                     size="sm"
                     className="flex items-center justify-center"
                     px={2}
-                    border="1px solid red" // Debug: Visualize button boundaries
                     color={
                       colors.currentTheme === "light"
                         ? "black"
@@ -777,26 +777,18 @@ export const HeroHeader = () => {
               ) : (
                 <>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => handleAuthNavigate("/login")}
-                    className={cn(
-                      colorMode === "light"
-                        ? "text-gray-700 hover:bg-gray-100 bg-stone-100"
-                        : "text-gray-200 hover:bg-gray-700",
-                    )}
+                    className={HERO_OUTLINE_CTA_BUTTON_CLASSNAME}
                   >
                     Login
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => handleAuthNavigate("/signup")}
-                    className={cn(
-                      colorMode === "light"
-                        ? "text-gray-500 bg-inherit hover:bg-gray-200 bg-stone-100"
-                        : "text-gray-200 hover:text-blue-400 hover:bg-gray-200",
-                    )}
+                    className={HERO_OUTLINE_CTA_BUTTON_CLASSNAME}
                   >
                     Sign Up
                   </Button>
@@ -919,25 +911,23 @@ export const HeroHeader = () => {
                 ) : (
                   <>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleAuthNavigate("/login")}
                       className={cn(
-                        colorMode === "light"
-                          ? "text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
+                        HERO_OUTLINE_CTA_BUTTON_CLASSNAME,
+                        "w-full justify-center",
                       )}
                     >
                       Login
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleAuthNavigate("/signup")}
                       className={cn(
-                        colorMode === "light"
-                          ? "text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
+                        HERO_OUTLINE_CTA_BUTTON_CLASSNAME,
+                        "w-full justify-center",
                       )}
                     >
                       Sign Up

@@ -102,17 +102,12 @@ export const useProductStore = create((set) => ({
 
   updateBackgroundProfile: async (newBackgroundProfile) => {
     const formData = new FormData();
-    formData.append("backgroundProfile", newBackgroundProfile);
+    formData.append("backgroundPicture", newBackgroundProfile);
 
     try {
       const response = await apiClient.post(
         API_ENDPOINTS.UPDATE_USER_BACKGROUND,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        formData
       );
 
       const data = response.data;
@@ -236,7 +231,7 @@ export const useProductStore = create((set) => ({
           entry._id === pid ? { ...entry, comments: data.comments } : entry
         ),
       }));
-      return { success: true, message: data.message };
+      return { success: true, message: data.message, comments: data.comments };
     } catch (error) {
       const message =
         error.response?.data?.error ||
@@ -250,25 +245,26 @@ export const useProductStore = create((set) => ({
 
   uploadProfilePic: async (profilePic) => {
     const formData = new FormData();
-    formData.append("profilePic", profilePic);
+    formData.append("profileImage", profilePic);
 
     try {
       const response = await apiClient.post(
         API_ENDPOINTS.UPLOAD_PROFILE_PIC,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        formData
       );
 
       const data = response.data;
 
-      return { success: true, message: data.message };
+      return {
+        success: true,
+        message: data.message,
+        url: data.url,
+      };
     } catch (error) {
       throw new Error(
-        error.response?.data?.message || "Failed to upload profile picture"
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          "Failed to upload profile picture"
       );
     }
   },
@@ -280,13 +276,9 @@ export const useProductStore = create((set) => ({
     try {
       // Create FormData for file upload
       const formData = new FormData();
-      formData.append("profilePicture", file);
+      formData.append("profileImage", file);
       // Send to backend
-      const res = await apiClient.post(API_ENDPOINTS.UPLOAD_PROFILE_PIC, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const res = await apiClient.post(API_ENDPOINTS.UPLOAD_PROFILE_PIC, formData);
       if (!res.data?.success && res.data?.error) {
         throw new Error(res.data.error || "Failed to upload profile picture");
       }
@@ -299,8 +291,6 @@ export const useProductStore = create((set) => ({
   },
 }));
 
-// Debounce: Supabase can emit several events at startup; avoids duplicate API bursts.
-let authBootstrapTimer = null;
 const runAuthBootstrap = async (session) => {
   if (session?.user) {
     try {
@@ -346,21 +336,10 @@ const runAuthBootstrap = async (session) => {
 
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT" || !session?.user) {
-    if (authBootstrapTimer) {
-      clearTimeout(authBootstrapTimer);
-      authBootstrapTimer = null;
-    }
     runAuthBootstrap(null);
     return;
   }
-  if (authBootstrapTimer) {
-    clearTimeout(authBootstrapTimer);
-  }
-  const snap = session;
-  authBootstrapTimer = setTimeout(() => {
-    authBootstrapTimer = null;
-    runAuthBootstrap(snap);
-  }, 120);
+  runAuthBootstrap(session);
 });
 
 // Add sharing functionality to the store

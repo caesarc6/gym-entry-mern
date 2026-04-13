@@ -41,12 +41,7 @@ function ProfilePictureUpload() {
             // Send to backend
             const res = await apiClient.post(
               API_ENDPOINTS.UPLOAD_PROFILE_PIC,
-              formData,
-              {
-                headers: {
-                  "Content-Type": "multipart/form-data",
-                },
-              }
+              formData
             );
 
             const data = res.data;

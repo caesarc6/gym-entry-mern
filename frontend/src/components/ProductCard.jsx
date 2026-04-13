@@ -215,7 +215,7 @@ const ProductCard = ({
     );
   };
 
-  const toast = useCustomToast();
+  const { showToast, success: toastSuccess, error: toastError } = useCustomToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isDeleteOpen,
@@ -655,7 +655,7 @@ const ProductCard = ({
 
         const fromServer =
           serverDraft && (!localDraft || serverTs >= localTs);
-        toast.success(
+        toastSuccess(
           "Edits recovered",
           fromServer
             ? "Unsaved text was restored from your account; images, when present, came from this device."
@@ -926,7 +926,7 @@ const ProductCard = ({
 
           // Show compression info if image was compressed
           if (result.wasCompressed) {
-            toast.success(
+            toastSuccess(
               "Image Compressed",
               `Image compressed from ${result.originalSize} to ${result.compressedSize}`
             );
@@ -934,21 +934,21 @@ const ProductCard = ({
         },
         (error) => {
           // Error callback
-          toast.error("Upload Error", error);
+          toastError("Upload Error", error);
         },
         { maxSizeMB: 5 }
       );
     } catch (error) {
-      toast.error("Error", "Failed to process image. Please try again.");
+      toastError("Error", "Failed to process image. Please try again.");
     }
   };
 
   const handleDeleteEntry = async (pid) => {
     const { success, message } = await deleteEntry(pid);
     if (!success) {
-      toast.error("Error", message);
+      toastError("Error", message);
     } else {
-      toast.success("Success", message);
+      toastSuccess("Success", message);
       onDelete?.(pid);
       onDeleteClose();
       try {
@@ -984,7 +984,7 @@ const ProductCard = ({
     onClose();
     if (!success) {
       setUpdatedEntry(previousEntry);
-      toast.error("Error", message);
+      toastError("Error", message);
     } else {
       lastEditServerPayloadHashRef.current = JSON.stringify(payload);
       if (data) {
@@ -1016,7 +1016,7 @@ const ProductCard = ({
         });
         onUpdate(pid, data);
       }
-      toast.success("Success", "Entry updated successfully");
+      toastSuccess("Success", "Entry updated successfully");
       (async () => {
         try {
           const user = await getCurrentAuthUser();
@@ -1071,7 +1071,7 @@ const ProductCard = ({
           ...prevEntry,
           likes: prevLikes,
         }));
-        toast({ title: "Error", description: message, status: "error" });
+        showToast({ title: "Error", description: message, status: "error" });
       } else if (Array.isArray(likes)) {
         // Update with server response for consistency
         setUpdatedEntry((prevEntry) => ({
@@ -1086,15 +1086,18 @@ const ProductCard = ({
         ...prevEntry,
         likes: prevLikes,
       }));
-      toast.error("Error", error.message);
+      toastError("Error", error.message);
     }
   };
 
   const handleCommentEntry = async (pid, comment) => {
     try {
-      const { success, message } = await commentEntry(pid, comment);
+      const { success, message, comments: nextComments } = await commentEntry(
+        pid,
+        comment
+      );
       if (!success) {
-        toast({
+        showToast({
           title: "Error",
           description: message,
           status: "error",
@@ -1103,25 +1106,14 @@ const ProductCard = ({
         });
         return;
       }
-
-      // Create comment object with current user info
-      const newComment = {
-        text: comment,
-        createdAt: new Date().toISOString(),
-        username: currentUserInfo?.username || null,
-        name: currentUserInfo?.name || "User",
-        picture: currentUserInfo?.picture || null,
-        uid: currentUserInfo?.uid || null,
-        likes: [],
-        replies: [],
-      };
-
-      setUpdatedEntry((prevEntry) => ({
-        ...prevEntry,
-        comments: [...prevEntry.comments, newComment],
-      }));
+      if (Array.isArray(nextComments)) {
+        setUpdatedEntry((prevEntry) => ({
+          ...prevEntry,
+          comments: nextComments,
+        }));
+      }
       setComment("");
-      toast({
+      showToast({
         title: "Success",
         description: "Comment added successfully",
         status: "success",
@@ -1129,7 +1121,7 @@ const ProductCard = ({
         isClosable: true,
       });
     } catch (error) {
-      toast({
+      showToast({
         title: "Error",
         description:
           error?.message || "Failed to comment on entry",
@@ -1175,7 +1167,7 @@ const ProductCard = ({
         }));
       }
     } catch (error) {
-      toast.error("Error", "Failed to like comment");
+      toastError("Error", "Failed to like comment");
     }
   };
 
@@ -1212,7 +1204,7 @@ const ProductCard = ({
 
         setReplyText("");
         setReplyToComment(null);
-        toast({
+        showToast({
           title: "Success",
           description: "Reply added successfully",
           status: "success",
@@ -1221,7 +1213,7 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      toast.error("Error", "Failed to add reply");
+      toastError("Error", "Failed to add reply");
     }
   };
 
@@ -1245,7 +1237,7 @@ const ProductCard = ({
         }));
 
         setEditingComment(null);
-        toast({
+        showToast({
           title: "Success",
           description: "Comment updated successfully",
           status: "success",
@@ -1254,7 +1246,7 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      toast.error("Error", "Failed to edit comment");
+      toastError("Error", "Failed to edit comment");
     }
   };
 
@@ -1273,7 +1265,7 @@ const ProductCard = ({
           ),
         }));
 
-        toast({
+        showToast({
           title: "Success",
           description: "Comment deleted successfully",
           status: "success",
@@ -1282,7 +1274,7 @@ const ProductCard = ({
         });
       }
     } catch (error) {
-      toast.error("Error", "Failed to delete comment");
+      toastError("Error", "Failed to delete comment");
     }
   };
 
@@ -1305,10 +1297,12 @@ const ProductCard = ({
       const { split } = parseWorkoutTitle(updatedEntry.name);
 
       if (exercises.length === 0) {
-        toast.warning(
-          "Not a workout post",
-          "This post doesn't contain workout data in the expected format."
-        );
+        showToast({
+          title: "Not a workout post",
+          description:
+            "This post doesn't contain workout data in the expected format.",
+          status: "warning",
+        });
         return;
       }
 
@@ -1317,13 +1311,13 @@ const ProductCard = ({
       );
 
       if (response.data.success) {
-        toast.success(
+        toastSuccess(
           "Success",
           `Workout data processed! Found ${exercises.length} exercises.`
         );
       }
     } catch (error) {
-      toast({
+      showToast({
         title: "Error",
         description:
           error.response?.data?.message || "Failed to process workout data",
@@ -1739,11 +1733,9 @@ const ProductCard = ({
         {/* Bottom section with buttons and comment box - falls to bottom */}
         <VStack
           spacing={2}
-          mt={3}
-          pt={2}
+          mt={1}
+          pt={1}
           flexShrink="0"
-          borderTop="1px solid"
-          borderColor={colors.borderColorLight}
         >
           {/* Comment Section - Show for all users */}
           <Box w="full" px={3} onClick={(e) => e.stopPropagation()}>
@@ -1909,14 +1901,14 @@ const ProductCard = ({
 
       {/* Detail Modal */}
       <Modal isOpen={isDetailOpen} onClose={onDetailClose} size="xl">
-        <ModalOverlay />
+        <ModalOverlay bg="transparent" backdropFilter="blur(1px)" style={{ background: "hsl(var(--workout-modal-overlay) / 0.72)" }} />
         <ModalContent
           maxW={{ base: "90vw", md: "600px" }}
           mx={{ base: 2, md: 4 }}
           maxH={{ base: "95vh", md: "90vh" }}
           overflow="hidden"
-          aspectRatio={{ base: "2/3", md: "3/4" }}
-          minH={{ base: "80vh", md: "600px" }}
+          aspectRatio={{ base: "9/16", md: "2/3" }}
+          minH={{ base: "86vh", md: "640px" }}
           borderRadius="4px"
           bg={colors.bgCard}
         >
@@ -1950,14 +1942,6 @@ const ProductCard = ({
                   >
                     {isUsername ? `@${userDisplayName}` : userDisplayName}
                   </Text>
-                  <Text
-                    fontSize={{ base: "xs", md: "sm" }}
-                    color={colors.textMuted}
-                    flexShrink={0}
-                  >
-                    {formatDateHour(updatedEntry.createdAt)} -{" "}
-                    {formatDateTitleTime(updatedEntry.createdAt)}
-                  </Text>
                 </HStack>
               </VStack>
             </HStack>
@@ -1974,11 +1958,12 @@ const ProductCard = ({
             flexDirection="column"
             bg={colors.bgCard}
           >
-            <VStack spacing={{ base: 3, md: 4 }} align="stretch">
+            <VStack spacing={{ base: 2, md: 3 }} align="stretch">
               {/* Image Section */}
               <Box
                 w="full"
-                aspectRatio="4/5"
+                aspectRatio={{ base: "16/10", md: "4/3" }}
+                maxH={{ base: "280px", md: "320px" }}
                 overflow="hidden"
                 borderRadius="4px"
               >
@@ -1986,14 +1971,10 @@ const ProductCard = ({
                   src={updatedEntry.image || entry.image}
                   alt={entry.name}
                   w="full"
-                  h="auto"
+                  h="100%"
                   objectFit="cover"
                   objectPosition="center"
-                  style={{
-                    aspectRatio: "4/5",
-                    width: "100%",
-                    height: "auto",
-                  }}
+                  style={{ width: "100%", height: "100%" }}
                   fallback={<Skeleton h="auto" aspectRatio="4/5" />}
                 />
               </Box>
@@ -2037,7 +2018,7 @@ const ProductCard = ({
                     maxW="100%"
                     minW={0}
                     w="100%"
-                    maxH="120px"
+                    maxH={{ base: "220px", md: "280px" }}
                     overflowY="auto"
                     overflowX="hidden"
                     css={{
@@ -2048,11 +2029,11 @@ const ProductCard = ({
                         background: "transparent",
                       },
                       "&::-webkit-scrollbar-thumb": {
-                        background: "#CBD5E0",
+                      background: colors.scrollbarThumb,
                         borderRadius: "2px",
                       },
                       "&::-webkit-scrollbar-thumb:hover": {
-                        background: "#A0AEC0",
+                      background: colors.scrollbarThumbHover,
                       },
                     }}
                   >
@@ -2060,8 +2041,8 @@ const ProductCard = ({
                       color={colors.textDesc}
                       fontFamily="Arial, sans-serif"
                       whiteSpace="pre-wrap"
-                      fontSize={{ base: "xs", md: "sm" }}
-                      lineHeight="1.4"
+                      fontSize={{ base: "sm", md: "md" }}
+                      lineHeight="1.55"
                       textAlign="left"
                       wordBreak="break-word"
                       w="100%"
@@ -2070,8 +2051,6 @@ const ProductCard = ({
                     </Text>
                   </Box>
                 </VStack>
-
-                <Divider />
 
                 {/* Likes Section */}
                 {Array.isArray(updatedEntry.likes) &&
@@ -2113,47 +2092,39 @@ const ProductCard = ({
 
                 {/* Comments Section */}
                 <Box w="full">
-                  <Text
-                    fontWeight="semibold"
-                    mb={2}
-                    color={colors.textDesc}
-                    fontSize={{ base: "sm", md: "md" }}
-                  >
-                    Comments (
-                    {Array.isArray(updatedEntry.comments)
-                      ? updatedEntry.comments.length
-                      : 0}
-                    )
-                  </Text>
-
                   {/* Comment Input Section */}
                   <Box
                     p={{ base: 2, md: 3 }}
                     bg={colors.bgMuted}
                     borderRadius="lg"
                     mb={3}
-                    border="1px solid"
-                    borderColor={colors.borderColor}
                   >
                     <VStack spacing={2} w="full">
-                      <Textarea
-                        placeholder="Write a comment..."
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        size="sm"
-                        resize="none"
-                        rows={1}
-                        borderRadius="md"
-                        borderColor={colors.borderColorInput}
-                        _focus={{
-                          borderColor: "blue.400",
-                          boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                        }}
-                        bg={colors.bgCard}
-                        fontSize={{ base: "xs", md: "sm" }}
-                      />
-                      <HStack justify="end" w="full">
+                      <Box position="relative" w="full">
+                        <Textarea
+                          placeholder="Write a comment..."
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          size="sm"
+                          resize="none"
+                          rows={1}
+                          borderRadius="md"
+                          borderColor={colors.borderColorInput}
+                          _focus={{
+                            borderColor: "blue.400",
+                            boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                          }}
+                          bg={colors.bgCard}
+                          fontSize={{ base: "xs", md: "sm" }}
+                          pe={{ base: "70px", md: "80px" }}
+                          py={{ base: 2, md: 2.5 }}
+                        />
                         <Button
+                          position="absolute"
+                          right="8px"
+                          top="50%"
+                          transform="translateY(-50%)"
+                          zIndex={1}
                           colorScheme="blue"
                           onClick={() => handleCommentEntry(entry._id, comment)}
                           size="xs"
@@ -2167,7 +2138,7 @@ const ProductCard = ({
                         >
                           Post
                         </Button>
-                      </HStack>
+                      </Box>
                     </VStack>
                   </Box>
 
@@ -2189,8 +2160,6 @@ const ProductCard = ({
                             bg={colors.bgMuted}
                             rounded="lg"
                             w="full"
-                            border="1px solid"
-                            borderColor={colors.borderColor}
                           >
                             <HStack
                               spacing={{ base: 2, md: 3 }}
@@ -2699,7 +2668,7 @@ const ProductCard = ({
         entry={entry}
         onUpdate={handleUpdateEntry}
         onSuccess={() => {
-          toast.success("Success", "Workout updated successfully");
+          toastSuccess("Success", "Workout updated successfully");
         }}
       />
     </>

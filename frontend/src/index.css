@@ -5,7 +5,7 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 210 17.9% 54.1%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
@@ -15,7 +15,7 @@
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
     --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 235 7.1% 67.1%;
     --accent: 210 40% 96%;
     --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
@@ -24,10 +24,31 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+
+    /* Workout feed — ProductCard, pagination (Chakra via useThemeColors) */
+    --workout-text-primary: 210 17.9% 54.1%;
+    --workout-text-muted: 235 7.1% 67.1%;
+    --workout-text-subtle: 220 9% 78%;
+    --workout-card: 0 0% 100%;
+    --workout-muted: 210 40% 96%;
+    --workout-hover: 220 14% 96%;
+    --workout-border-light: 214 32% 96%;
+    --workout-border: 214.3 31.8% 91.4%;
+    --workout-border-input: 214 24% 84%;
+    --workout-modal-overlay: 0 0% 0%;
+    --workout-scrollbar-thumb: 215 16% 75%;
+    --workout-scrollbar-thumb-hover: 215 14% 65%;
+    --workout-modal-header: 0 0% 100%;
+    --workout-modal-footer: 0 0% 100%;
+    --workout-modal-divider: 214 32% 96%;
+    --workout-modal-button-bg: 220 14% 96%;
+    --workout-modal-button-text: 210 17.9% 54.1%;
+    --workout-modal-button-border: 214.3 31.8% 91.4%;
   }
 
+  /* Page canvas is neutral black; cards/accents keep blue-slate colorway */
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 0 0% 5%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
@@ -46,11 +67,30 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+
+    --workout-text-primary: 0 0% 100%;
+    --workout-text-muted: 0 0% 56.9%;
+    --workout-text-subtle: 212 6% 48.8%;
+    --workout-card: 220 4.9% 12%;
+    --workout-muted: 220 4.9% 12%;
+    --workout-hover: 217 28% 22%;
+    --workout-border-light: 220 3.1% 19%;
+    --workout-border: 220 3.1% 19%;
+    --workout-border-input: 220 3.1% 19%;
+    --workout-modal-overlay: 0 0% 0%;
+    --workout-scrollbar-thumb: 212 6% 48.8%;
+    --workout-scrollbar-thumb-hover: 212 6% 60%;
+    --workout-modal-header: 220 4.9% 12%;
+    --workout-modal-footer: 220 4.9% 12%;
+    --workout-modal-divider: 220 4.9% 12%;
+    --workout-modal-button-bg: 220 4.9% 12%;
+    --workout-modal-button-text: 0 0% 100%;
+    --workout-modal-button-border: 220 3.1% 19%;
   }
 
   /* Dark Black Theme */
   .dark.dark-black {
-    --background: 0 0% 8%;
+    --background: 0 0% 6%;
     --foreground: 0 0% 98%;
     --card: 0 0% 12%;
     --card-foreground: 0 0% 98%;
@@ -71,9 +111,9 @@
     --ring: 0 0% 83.9%;
   }
 
-  /* Dark Blue Theme */
+  /* Dark Blue theme: neutral page bg; blue-tinted surfaces */
   .dark.dark-blue {
-    --background: 220 100% 4%;
+    --background: 0 0% 4%;
     --foreground: 220 50% 98%;
     --card: 220 100% 6%;
     --card-foreground: 220 50% 98%;

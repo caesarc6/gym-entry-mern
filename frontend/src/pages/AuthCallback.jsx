@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Container, Spinner, Text, VStack } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Center,
+  Container,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { maybeMigrateAccount } from "../utils/migration";
@@ -18,7 +25,7 @@ const AuthCallback = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useCustomToast();
-  const [statusMessage, setStatusMessage] = useState("Finishing sign-in...");
+  const [errorMessage, setErrorMessage] = useState(null);
   const hasHandledRef = useRef(false);
 
   useEffect(() => {
@@ -43,7 +50,9 @@ const AuthCallback = () => {
           "Authentication Timeout",
           "Login took too long. Please try again."
         );
-        setStatusMessage("Authentication timeout. See debug details below.");
+        setErrorMessage(
+          "Authentication timed out. See debug details in the console."
+        );
       }, 20000);
 
       const params = new URLSearchParams(location.search);
@@ -86,8 +95,6 @@ const AuthCallback = () => {
               : authError
           );
         }
-
-        setStatusMessage("Completing authentication...");
 
         // getSession() awaits Supabase init, which runs detectSessionInUrl and exchanges
         // PKCE ?code= before we read the URL again — so "missing code" was a false negative.
@@ -234,7 +241,6 @@ const AuthCallback = () => {
           });
         };
 
-        setStatusMessage("Waiting for session...");
         const session = await waitForSession();
         const sessionPayload = {
           hasAccessToken: Boolean(session?.access_token),
@@ -256,7 +262,6 @@ const AuthCallback = () => {
           apiClient.defaults.headers.common.Authorization = `Bearer ${session.access_token}`;
         }
 
-        setStatusMessage("Syncing account...");
         const response = await Promise.race([
           apiClient.post(API_ENDPOINTS.PROTECTED),
           new Promise((_, reject) =>
@@ -291,7 +296,6 @@ const AuthCallback = () => {
 
         await maybeMigrateAccount(userData);
 
-        setStatusMessage("Redirecting...");
         navigate(redirectTo, { replace: true });
       } catch (error) {
         pushAuthDebug("AuthCallback: error", {
@@ -320,7 +324,7 @@ const AuthCallback = () => {
           await signOutAll();
         }
         toast.error("Authentication Failed", userMessage);
-        setStatusMessage(`Authentication failed: ${userMessage}`);
+        setErrorMessage(userMessage);
       } finally {
         clearTimeout(failSafeTimer);
       }
@@ -332,17 +336,21 @@ const AuthCallback = () => {
 
   return (
     <Container maxW="container.md" py={16}>
-      <VStack spacing={4} align="stretch">
-        <Spinner />
-        <Text>{statusMessage}</Text>
-        <Button
-          onClick={() => navigate("/", { replace: true })}
-          alignSelf="flex-start"
-          size="sm"
-        >
-          Back to home
-        </Button>
-      </VStack>
+      <Center minH="60vh">
+        {errorMessage ? (
+          <VStack spacing={4} align="center" maxW="md" textAlign="center">
+            <Text>{errorMessage}</Text>
+            <Button
+              onClick={() => navigate("/", { replace: true })}
+              size="sm"
+            >
+              Back to home
+            </Button>
+          </VStack>
+        ) : (
+          <Box minH="40vh" w="full" aria-busy="true" />
+        )}
+      </Center>
     </Container>
   );
 };

@@ -1,21 +1,48 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { Container, SimpleGrid, Text, VStack, Button } from "@chakra-ui/react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
-import { useProductStore } from "../store/product";
-import ProductCard from "../components/ProductCard";
-import ProfilePage from "../pages/ProfilePage";
-import { useColorModeValue } from "@chakra-ui/react";
-import { motion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
+import { Button } from "./ui/button";
+import { ChevronRight } from "lucide-react";
+import { HERO_OUTLINE_CTA_BUTTON_CLASSNAME } from "../lib/heroCtaButtonClasses";
+import { cn } from "../lib/utils";
 
-export const Hero = ({ handleGoogleSignIn }) => {
-  const [blobSize, setBlobSize] = useState({ width: "25rem", height: "44rem" });
+const HERO_IMAGE =
+  "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=2340&auto=format&fit=crop";
+
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+/** Gentler drift: small y/scale range — blur unchanged, fewer visual updates per second via long durations */
+const blobKeyframe = {
+  y: [0, 7, -4, 0],
+  scale: [1, 1.03, 0.985, 1],
+};
+
+const blobIdle = { y: 0, scale: 1 };
+
+export const Hero = () => {
+  const heroRef = useRef(null);
+  const heroInView = useInView(heroRef, { once: false });
+
+  const [blobSize, setBlobSize] = useState({
+    width: "25rem",
+    height: "44rem",
+  });
   const [largeBlobSize, setLargeBlobSize] = useState({
     width: "90rem",
     height: "50rem",
   });
   const [isMobile, setIsMobile] = useState(false);
 
-  // Memoize blob sizes to prevent unnecessary re-renders
   const memoizedBlobSize = useMemo(() => blobSize, [blobSize]);
   const memoizedLargeBlobSize = useMemo(() => largeBlobSize, [largeBlobSize]);
 
@@ -43,194 +70,163 @@ export const Hero = ({ handleGoogleSignIn }) => {
     return () => window.removeEventListener("resize", debouncedResize);
   }, []);
 
-  // Simple debounce function
-  function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
-  }
-
-  // Simple animation variants
-  const animationVariants = {
-    animate: {
-      y: [0, 20, -10, 0],
-      scale: [1, 1.1, 0.9, 1],
-      transition: {
-        duration: 6,
-        repeat: Infinity,
-        ease: "easeInOut",
-      },
-    },
-  };
-
-  const textMode = useColorModeValue("#8aa2b7", "#f9fafb");
-
   return (
-    <>
-      {/* Gradients */}
-      <div aria-hidden="true" className="fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[#051a2b] overflow-hidden">
+    <section
+      ref={heroRef}
+      className="relative isolate w-full min-w-0 overflow-hidden bg-[var(--hero-surface-light,#2c3d4c)] dark:bg-[var(--hero-surface-dark,#141c27)]"
+    >
+      <style>{`
+        @keyframes heroMobileFloat {
+          0%, 100% { transform: translateY(0px) scale(1); }
+          25% { transform: translateY(4px) scale(1.015); }
+          50% { transform: translateY(-2px) scale(0.992); }
+          75% { transform: translateY(2px) scale(1.008); }
+        }
+      `}</style>
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+      >
+        <div className="absolute inset-0 overflow-hidden bg-[var(--hero-surface-light,#2c3d4c)] dark:bg-[var(--hero-surface-dark,#141c27)]">
           {isMobile ? (
-            // Mobile: Simple CSS animations
             <>
               <div
-                className="absolute bg-gradient-to-r from-slate-600 to-slate-500 blur-2xl rounded-full opacity-60"
+                className="absolute rounded-full bg-gradient-to-r from-blue-950 to-slate-600 opacity-60 blur-2xl"
                 style={{
                   top: "0px",
                   left: "30%",
                   width: memoizedBlobSize.width,
                   height: memoizedBlobSize.height,
-                  animation: "mobileFloat 8s ease-in-out infinite",
+                  animation: "heroMobileFloat 22s ease-in-out infinite",
+                  animationPlayState: heroInView ? "running" : "paused",
                 }}
               />
               <div
-                className="absolute bg-gradient-to-tl from-blue-300 to-blue-200 blur-2xl rounded-full opacity-50"
+                className="absolute rounded-full bg-gradient-to-tl from-blue-300 to-blue-200 opacity-50 blur-2xl"
                 style={{
                   bottom: "0px",
                   left: "70%",
                   width: memoizedLargeBlobSize.width,
                   height: memoizedLargeBlobSize.height,
-                  animation: "mobileFloat 10s ease-in-out infinite",
-                  animationDelay: "2s",
+                  animation: "heroMobileFloat 28s ease-in-out infinite",
+                  animationDelay: "4s",
+                  animationPlayState: heroInView ? "running" : "paused",
                 }}
               />
             </>
           ) : (
-            // Desktop: Framer motion animations
             <>
               <motion.div
-                className="absolute bg-gradient-to-r from-slate-600 to-slate-500 blur-3xl rounded-full"
+                className="absolute rounded-full bg-gradient-to-r from-blue-950 to-slate-600 blur-3xl"
                 style={{
                   top: "-10%",
                   left: "50%",
                   width: memoizedBlobSize.width,
                   height: memoizedBlobSize.height,
                 }}
-                variants={animationVariants}
-                animate="animate"
+                animate={heroInView ? blobKeyframe : blobIdle}
+                transition={
+                  heroInView
+                    ? {
+                        duration: 18,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }
+                    : { duration: 0.25, ease: "easeOut" }
+                }
               />
               <motion.div
-                className="absolute bg-gradient-to-tl from-blue-300 to-blue-200 blur-3xl rounded-full"
+                className="absolute rounded-full bg-gradient-to-tl from-blue-300 to-blue-200 blur-3xl"
                 style={{
                   top: "-20%",
                   left: "50%",
                   width: memoizedLargeBlobSize.width,
                   height: memoizedLargeBlobSize.height,
                 }}
-                variants={animationVariants}
-                animate="animate"
-                transition={{
-                  duration: 8,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
+                animate={heroInView ? blobKeyframe : blobIdle}
+                transition={
+                  heroInView
+                    ? {
+                        duration: 24,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }
+                    : { duration: 0.25, ease: "easeOut" }
+                }
               />
               <motion.div
-                className="absolute bg-gradient-to-r from-slate-600 to-slate-500 blur-3xl rounded-full"
+                className="absolute rounded-full bg-gradient-to-r from-blue-950 to-slate-600 blur-3xl"
                 style={{
                   bottom: "-30%",
                   left: "20%",
                   width: memoizedBlobSize.width,
                   height: memoizedBlobSize.height,
                 }}
-                variants={animationVariants}
-                animate="animate"
-                transition={{
-                  duration: 7,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
+                animate={heroInView ? blobKeyframe : blobIdle}
+                transition={
+                  heroInView
+                    ? {
+                        duration: 20,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }
+                    : { duration: 0.25, ease: "easeOut" }
+                }
               />
               <motion.div
-                className="absolute bg-gradient-to-tl from-blue-300 to-blue-200 blur-3xl rounded-full"
+                className="absolute rounded-full bg-gradient-to-tl from-blue-300 to-blue-200 blur-3xl"
                 style={{
                   bottom: "-36%",
                   right: "54%",
                   width: memoizedLargeBlobSize.width,
                   height: memoizedLargeBlobSize.height,
                 }}
-                variants={animationVariants}
-                animate="animate"
-                transition={{
-                  duration: 9,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
+                animate={heroInView ? blobKeyframe : blobIdle}
+                transition={
+                  heroInView
+                    ? {
+                        duration: 26,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }
+                    : { duration: 0.25, ease: "easeOut" }
+                }
               />
             </>
           )}
         </div>
       </div>
 
-      {/* CSS Animation Keyframes */}
-      {/*
-      <style jsx>{`
-        @keyframes mobileFloat {
-          0%,
-          100% {
-            transform: translateY(0px) scale(1);
-          }
-          25% {
-            transform: translateY(10px) scale(1.05);
-          }
-          50% {
-            transform: translateY(-5px) scale(0.95);
-          }
-          75% {
-            transform: translateY(5px) scale(1.02);
-          }
-        }
-      `}</style>
-      */}
-
-      {/* Hero */}
-      <div className="relative top-36 h-[70vh] sm:h-[60vh] sm:top-48 lg:h-[50vh] content-center">
-        <div className="relative justify-items-center">
-          <div className="container py-10 lg:py-16">
-            <div className="max-w-2xl text-center mx-auto">
-              <p className="text-gray-300 text-lg">
-                All your workouts. In one place.
-              </p>
-              <div className="mt-5 max-w-2xl">
-                <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl text-white">
-                  Track Your Progress Simply.
+      <main className="relative z-10 overflow-hidden">
+        <section>
+          <div className="relative min-h-[76vh] pb-36 pt-32 sm:min-h-[82vh] sm:pb-44 sm:pt-36">
+            <div className="relative z-10 mx-auto w-full max-w-5xl px-6">
+              {/* Image intentionally removed until replacement is ready. */}
+              <div className="mx-auto mt-6 max-w-md text-center">
+                <h1 className="text-balance font-serif text-4xl font-medium text-white sm:text-5xl">
+                  Train with clarity. Progress with purpose.
                 </h1>
-              </div>
-              <div className="mt-5 max-w-3xl">
-                <p className="text-xl text-gray-400">
-                  Keep track of your workouts and progress with ease. Sign up
-                  now to get started.
+                <p className="mt-4 text-balance text-zinc-200/95 leading-relaxed">
+                  Log workouts, follow your crew, and see analytics in one
+                  place—built for lifters who want momentum without the noise.
                 </p>
-              </div>
-              <div className="mt-8 gap-3 flex justify-center">
+
                 <Button
-                  size={"lg"}
-                  onClick={() => handleGoogleSignIn("signup")}
-                  className="p-3 rounded-md"
+                  asChild
+                  variant="outline"
+                  className={cn(HERO_OUTLINE_CTA_BUTTON_CLASSNAME, "mt-6 pr-1.5")}
                 >
-                  <Text as="span" color="neutral.400">
-                    Sign Up
-                  </Text>
-                </Button>
-                <Button
-                  size={"lg"}
-                  variant={"outline"}
-                  onClick={() => handleGoogleSignIn("login")}
-                  className="p-3 rounded-md"
-                >
-                  Login
+                  <Link to="/signup">
+                    <span className="text-nowrap">Start training</span>
+                    <ChevronRight className="size-4 shrink-0" />
+                  </Link>
                 </Button>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </>
+        </section>
+      </main>
+    </section>
   );
 };
