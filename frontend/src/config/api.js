@@ -11,7 +11,7 @@ const getApiBaseUrl = () => {
   if (isCapacitorNative) {
     return (
       import.meta.env.VITE_API_BASE_URL ||
-      "https://gym-tracker-brown.vercel.app"
+      "https://gym-entry-mern.vercel.app"
     );
   }
 

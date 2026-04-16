@@ -2123,7 +2123,7 @@ export const getFollowers = async (req, res) => {
     const { userId } = req.params;
     const user = await findUserByAnyUid(userId).populate({
       path: "followers",
-      select: "uid name picture bio",
+      select: "uid username name picture bio",
     });
 
     if (!user) {
@@ -2150,7 +2150,7 @@ export const getFollowing = async (req, res) => {
     const { userId } = req.params;
     const user = await findUserByAnyUid(userId).populate({
       path: "following",
-      select: "uid name picture bio",
+      select: "uid username name picture bio",
     });
     if (!user) {
       return res.status(404).json({

@@ -38,6 +38,7 @@ import MultiMetricProgressChart from "../components/MultiMetricProgressChart";
 import ProgressInsights from "../components/ProgressInsights";
 import WorkoutDetailsModal from "../components/WorkoutDetailsModal";
 import { getCurrentAuthUser } from "../utils/auth";
+import { useProductStore } from "../store/product";
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -62,17 +63,52 @@ const AnalyticsPage = () => {
   const { showToast } = useCustomToast();
   const bgColor = useColorModeValue("white", "gray.800");
   const cardBg = useColorModeValue("gray.50", "gray.700");
+  const { analyticsTabCache, setAnalyticsTabCache, clearAnalyticsTabCache } =
+    useProductStore();
+
+  const setMergedAnalyticsCache = (patch) => {
+    const prev = useProductStore.getState().analyticsTabCache;
+    const base = prev && prev.uid === patch.uid ? prev : {};
+    setAnalyticsTabCache({ ...base, ...patch, cachedAt: Date.now() });
+  };
 
   useEffect(() => {
     const syncAuth = async () => {
       const user = await getCurrentAuthUser();
       if (user) {
+        if (
+          analyticsTabCache &&
+          analyticsTabCache.uid === user.uid &&
+          Date.now() - analyticsTabCache.cachedAt < 60_000
+        ) {
+          setIsAuthenticated(true);
+          setTimeframe(analyticsTabCache.timeframe || "30d");
+          setSelectedExercise(analyticsTabCache.selectedExercise || "");
+          setAnalytics(analyticsTabCache.analytics || null);
+          setPersonalRecords(analyticsTabCache.personalRecords || null);
+          setUserEntries(analyticsTabCache.userEntries || []);
+          setProcessedEntryIds(
+            analyticsTabCache.processedEntryIds
+              ? new Set(analyticsTabCache.processedEntryIds)
+              : new Set()
+          );
+          setExerciseProgress(analyticsTabCache.exerciseProgress || null);
+          setChartType(analyticsTabCache.chartType || "simple");
+          setLoading(false);
+          return;
+        }
+
         setIsAuthenticated(true);
-        fetchAnalytics();
-        fetchPersonalRecords();
-        fetchUserEntries();
+        setLoading(true);
+        await Promise.allSettled([
+          fetchAnalytics(user),
+          fetchPersonalRecords(user),
+          fetchUserEntries(user),
+        ]);
+        setLoading(false);
       } else {
         setIsAuthenticated(false);
+        clearAnalyticsTabCache();
         setLoading(false);
       }
     };
@@ -83,9 +119,38 @@ const AnalyticsPage = () => {
       (_event, session) => {
         if (session?.user) {
           setIsAuthenticated(true);
-          fetchAnalytics();
-          fetchPersonalRecords();
-          fetchUserEntries();
+          if (
+            analyticsTabCache &&
+            Date.now() - analyticsTabCache.cachedAt < 60_000
+          ) {
+            setTimeframe(analyticsTabCache.timeframe || "30d");
+            setSelectedExercise(analyticsTabCache.selectedExercise || "");
+            setAnalytics(analyticsTabCache.analytics || null);
+            setPersonalRecords(analyticsTabCache.personalRecords || null);
+            setUserEntries(analyticsTabCache.userEntries || []);
+            setProcessedEntryIds(
+              analyticsTabCache.processedEntryIds
+                ? new Set(analyticsTabCache.processedEntryIds)
+                : new Set()
+            );
+            setExerciseProgress(analyticsTabCache.exerciseProgress || null);
+            setChartType(analyticsTabCache.chartType || "simple");
+            setLoading(false);
+          } else {
+            // Ensure we fetch on cold start (especially after reload on native).
+            setLoading(true);
+            getCurrentAuthUser().then((user) => {
+              if (!user) {
+                setLoading(false);
+                return;
+              }
+              Promise.allSettled([
+                fetchAnalytics(user),
+                fetchPersonalRecords(user),
+                fetchUserEntries(user),
+              ]).finally(() => setLoading(false));
+            });
+          }
         } else {
           setIsAuthenticated(false);
           setLoading(false);
@@ -94,22 +159,28 @@ const AnalyticsPage = () => {
     );
 
     return () => subscription.unsubscribe();
-  }, [timeframe]);
+  }, []);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = async (authedUser = null) => {
     try {
       // Check if user is authenticated
-      const user = await getCurrentAuthUser();
+      const user = authedUser || (await getCurrentAuthUser());
       if (!user) {
-        setLoading(false);
         return;
       }
 
-      setLoading(true);
       const response = await apiClient.get(
         API_ENDPOINTS.WORKOUT_ANALYTICS(timeframe, selectedExercise)
       );
       setAnalytics(response.data.data);
+      if (user) {
+        setMergedAnalyticsCache({
+          uid: user.uid,
+          timeframe,
+          selectedExercise,
+          analytics: response.data.data,
+        });
+      }
     } catch (error) {
       if (error.response?.status === 403) {
         showToast({
@@ -124,21 +195,25 @@ const AnalyticsPage = () => {
           status: "error",
         });
       }
-    } finally {
-      setLoading(false);
     }
   };
 
-  const fetchPersonalRecords = async () => {
+  const fetchPersonalRecords = async (authedUser = null) => {
     try {
       // Check if user is authenticated
-      const user = await getCurrentAuthUser();
+      const user = authedUser || (await getCurrentAuthUser());
       if (!user) {
         return;
       }
 
       const response = await apiClient.get(API_ENDPOINTS.PERSONAL_RECORDS);
       setPersonalRecords(response.data.data);
+      if (user) {
+        setMergedAnalyticsCache({
+          uid: user.uid,
+          personalRecords: response.data.data,
+        });
+      }
     } catch (error) {
     }
   };
@@ -152,6 +227,15 @@ const AnalyticsPage = () => {
         API_ENDPOINTS.EXERCISE_PROGRESS(exercise, timeframe)
       );
       setExerciseProgress(response.data.data);
+      const user = await getCurrentAuthUser();
+      if (user) {
+        setMergedAnalyticsCache({
+          uid: user.uid,
+          timeframe,
+          selectedExercise: exercise,
+          exerciseProgress: response.data.data,
+        });
+      }
     } catch (error) {
       showToast({
         title: "Error",
@@ -168,9 +252,9 @@ const AnalyticsPage = () => {
     fetchExerciseProgress(exercise);
   };
 
-  const fetchUserEntries = async () => {
+  const fetchUserEntries = async (authedUser = null) => {
     try {
-      const user = await getCurrentAuthUser();
+      const user = authedUser || (await getCurrentAuthUser());
       if (!user) {
         return;
       }
@@ -214,6 +298,11 @@ const AnalyticsPage = () => {
 
       setUserEntries(entries); // Store all entries, not just filtered ones
 
+      setMergedAnalyticsCache({
+        uid: user.uid,
+        userEntries: entries,
+      });
+
       // Check which entries are already processed
       const processedIds = await checkProcessedEntries(entries);
 
@@ -253,6 +342,17 @@ const AnalyticsPage = () => {
       });
 
       setProcessedEntryIds(processedIds);
+      try {
+        const user = await getCurrentAuthUser();
+        if (user) {
+          setMergedAnalyticsCache({
+            uid: user.uid,
+            processedEntryIds: Array.from(processedIds),
+          });
+        }
+      } catch {
+        // ignore
+      }
 
       return processedIds;
     } catch (error) {

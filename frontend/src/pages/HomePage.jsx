@@ -6,9 +6,11 @@ import {
   Box,
   Spinner,
   useColorModeValue,
+  Flex,
+  IconButton,
 } from "@chakra-ui/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import ProductCard from "../components/ProductCard";
 import { supabase } from "../supabase/supabase";
@@ -22,9 +24,12 @@ import { getCurrentAuthUser } from "../utils/auth";
 import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
+import { FiBell, FiPlus } from "react-icons/fi";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const HomePage = () => {
-  const { clearEntrys } = useProductStore();
+  const { clearEntrys, homeFeedCache, setHomeFeedCache, clearHomeFeedCache } =
+    useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,9 +46,11 @@ const HomePage = () => {
   const [profileCache, setProfileCache] = useState(new Map());
   const toast = useCustomToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
+  const themeColors = useThemeColors();
   const { currentTheme, setTheme } = useTheme();
   const prevThemeRef = useRef(null);
   const forcedLightRef = useRef(false);
+  const navigate = useNavigate();
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
@@ -100,6 +107,7 @@ const HomePage = () => {
         setUid(null);
         setEntries([]);
         setProfileCache(new Map());
+        clearHomeFeedCache();
         setPagination({
           currentPage: 1,
           totalPages: 1,
@@ -226,6 +234,27 @@ const HomePage = () => {
       }
 
       try {
+        // If we already have this page cached (e.g. user switched tabs), restore instantly.
+        if (
+          homeFeedCache &&
+          homeFeedCache.uid === uid &&
+          homeFeedCache.page === currentPage &&
+          homeFeedCache.limit === limit &&
+          Date.now() - homeFeedCache.cachedAt < 60_000
+        ) {
+          setEntries(homeFeedCache.entries || []);
+          setPagination(
+            homeFeedCache.pagination || {
+              currentPage,
+              totalPages: 1,
+              totalPosts: homeFeedCache.entries?.length || 0,
+              limit,
+            }
+          );
+          setIsLoading(false);
+          return;
+        }
+
         setIsLoading(true);
         const response = await apiClient.get(
           API_ENDPOINTS.HOME_FEED(currentPage, limit)
@@ -263,6 +292,27 @@ const HomePage = () => {
           });
         }
 
+        setHomeFeedCache({
+          uid,
+          page: currentPage,
+          limit,
+          entries: normalized,
+          pagination: p
+            ? {
+                currentPage: p.currentPage ?? currentPage,
+                totalPages: p.totalPages ?? 1,
+                totalPosts: p.totalPosts ?? normalized.length,
+                limit: p.limit ?? limit,
+              }
+            : {
+                currentPage,
+                totalPages: 1,
+                totalPosts: normalized.length,
+                limit,
+              },
+          cachedAt: Date.now(),
+        });
+
         if (currentPage === 1 && normalized.length === 0) {
           toast.info(
             "Empty feed",
@@ -279,7 +329,7 @@ const HomePage = () => {
 
     fetchHomeFeed();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- toast from useCustomToast is not referentially stable
-  }, [uid, currentPage, limit]);
+  }, [uid, currentPage, limit, homeFeedCache, setHomeFeedCache]);
 
   const handleUpdateEntry = (pid, updatedEntry) => {
     setEntries((prevEntries) =>
@@ -317,17 +367,62 @@ const HomePage = () => {
   return (
     <>
       {isSignedIn ? (
-        <Container maxW="container.xl" className="text-center z-0 relative">
-          <VStack spacing={8} className="pt-4 md:pt-[112px]">
-            <Text
-              fontSize={"22"}
-              fontWeight={"bold"}
-              bgGradient={"linear(to-r, blue.200, gray.500)"}
-              bgClip={"text"}
-              textAlign={"center"}
+        <>
+          <nav className="sticky top-0 z-20 w-full">
+            <div
+              className={cn(
+                "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
+                currentTheme === "light"
+                  ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
+                  : currentTheme === "dark-black"
+                    ? "border-neutral-800/55 bg-neutral-950/88"
+                    : currentTheme === "dark-blue"
+                      ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
+                      : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
+              )}
             >
-              Workout Posts
-            </Text>
+              <div className="mx-auto w-full max-w-7xl">
+                <div className="relative flex items-center justify-between py-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/create")}
+                    aria-label="Create post"
+                    className={cn(
+                      "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                      currentTheme === "light"
+                        ? "text-gray-700 hover:bg-gray-100"
+                        : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
+                    )}
+                  >
+                    <FiPlus className="h-5 w-5" />
+                  </button>
+
+                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
+                    <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
+                      Ethereal Gains
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/notifications")}
+                    aria-label="Notifications"
+                    className={cn(
+                      "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                      currentTheme === "light"
+                        ? "text-gray-700 hover:bg-gray-100"
+                        : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
+                    )}
+                  >
+                    <FiBell className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </nav>
+
+          <Container maxW="container.xl" className="text-center z-0 relative">
+            <VStack spacing={8} className="pt-4">
             {uid && isLoading ? (
               <Box
                 display="flex"
@@ -406,7 +501,8 @@ const HomePage = () => {
               </>
             )}
           </VStack>
-        </Container>
+          </Container>
+        </>
       ) : (
         <>
           <Hero />

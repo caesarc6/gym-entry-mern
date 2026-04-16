@@ -7,6 +7,15 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
 import { supabase } from "../supabase/supabase";
 
+const isCapacitorNative =
+  typeof window !== "undefined" &&
+  window.Capacitor &&
+  typeof window.Capacitor.isNativePlatform === "function" &&
+  window.Capacitor.isNativePlatform();
+
+// WKWebView can be slower to hydrate persisted auth state; give it more time.
+const AUTH_TIMEOUT_MS = isCapacitorNative ? 15_000 : 5_000;
+
 const withTimeout = (promise, timeoutMs, label) =>
   Promise.race([
     promise,
@@ -202,7 +211,11 @@ const resolveAuthToken = async () => {
   try {
     const {
       data: { session },
-    } = await withTimeout(supabase.auth.getSession(), 5000, "Supabase session");
+    } = await withTimeout(
+      supabase.auth.getSession(),
+      AUTH_TIMEOUT_MS,
+      "Supabase session"
+    );
     if (session?.access_token) {
       return session.access_token;
     }
@@ -218,7 +231,7 @@ const resolveAuthToken = async () => {
       error: refreshError,
     } = await withTimeout(
       supabase.auth.refreshSession(),
-      5000,
+      AUTH_TIMEOUT_MS,
       "Supabase refresh"
     );
     if (refreshError) {
@@ -294,7 +307,11 @@ const resolveCurrentAuthUser = async () => {
   try {
     const {
       data: { session },
-    } = await withTimeout(supabase.auth.getSession(), 5000, "Supabase session");
+    } = await withTimeout(
+      supabase.auth.getSession(),
+      AUTH_TIMEOUT_MS,
+      "Supabase session"
+    );
     const fromSession = mapSupabaseUserRecord(session?.user);
     if (fromSession) {
       return fromSession;
@@ -308,7 +325,7 @@ const resolveCurrentAuthUser = async () => {
   try {
     const {
       data: { user },
-    } = await withTimeout(supabase.auth.getUser(), 5000, "Supabase user");
+    } = await withTimeout(supabase.auth.getUser(), AUTH_TIMEOUT_MS, "Supabase user");
     const mapped = mapSupabaseUserRecord(user);
     if (mapped) {
       return mapped;
@@ -320,7 +337,7 @@ const resolveCurrentAuthUser = async () => {
   }
 
   try {
-    await withTimeout(waitForFirebaseAuthInit(), 5000, "Firebase auth init");
+    await withTimeout(waitForFirebaseAuthInit(), AUTH_TIMEOUT_MS, "Firebase auth init");
     if (auth.currentUser) {
       return {
         uid: auth.currentUser.uid,

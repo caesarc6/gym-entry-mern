@@ -29,6 +29,23 @@ export const useProductStore = create((set) => ({
   setShowClaimedWorkoutsModal: (show) =>
     set({ showClaimedWorkoutsModal: show }),
 
+  // Lightweight in-memory cache for tab state (prevents refetch/reload on tab switch)
+  homeFeedCache: null, // { uid, page, limit, entries, pagination, cachedAt }
+  setHomeFeedCache: (cache) => set({ homeFeedCache: cache }),
+  clearHomeFeedCache: () => set({ homeFeedCache: null }),
+
+  profileTabCache: null, // { uid, currentPage, limit, entries, pagination, userProfile, followRequests, isAdmin, cachedAt }
+  setProfileTabCache: (cache) => set({ profileTabCache: cache }),
+  clearProfileTabCache: () => set({ profileTabCache: null }),
+
+  analyticsTabCache: null, // { uid, timeframe, selectedExercise, analytics, personalRecords, userEntries, processedEntryIds, exerciseProgress, chartType, cachedAt }
+  setAnalyticsTabCache: (cache) => set({ analyticsTabCache: cache }),
+  clearAnalyticsTabCache: () => set({ analyticsTabCache: null }),
+
+  notificationsCache: null, // { uid, items, cachedAt }
+  setNotificationsCache: (cache) => set({ notificationsCache: cache }),
+  clearNotificationsCache: () => set({ notificationsCache: null }),
+
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
     if (!newPost.name || !newPost.description) {

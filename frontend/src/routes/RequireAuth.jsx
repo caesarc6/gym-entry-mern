@@ -2,12 +2,21 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Center, Spinner } from "@chakra-ui/react";
 import { getCurrentAuthUser } from "../utils/auth";
+import { useProductStore } from "../store/product";
 
 export default function RequireAuth({ children }) {
   const location = useLocation();
-  const [status, setStatus] = useState({ ready: false, authed: false });
+  const currentUser = useProductStore((s) => s.currentUser);
+  const [status, setStatus] = useState(() => ({
+    ready: Boolean(currentUser),
+    authed: Boolean(currentUser),
+  }));
 
   useEffect(() => {
+    if (currentUser) {
+      setStatus({ ready: true, authed: true });
+      return;
+    }
     let mounted = true;
     (async () => {
       try {
@@ -22,7 +31,7 @@ export default function RequireAuth({ children }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [currentUser]);
 
   if (!status.ready) {
     return (

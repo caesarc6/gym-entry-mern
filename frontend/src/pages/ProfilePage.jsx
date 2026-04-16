@@ -32,13 +32,15 @@ import ProductCard from "../components/ProductCard";
 import { FileUploader } from "../components/FileUploader";
 import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
-import { HiShieldCheck } from "react-icons/hi";
+import { FiSettings } from "react-icons/fi";
 import light from "../assets/light.jpg";
 import PaginationComponent from "../components/Pagination";
 import night from "../assets/night.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
 import defaultBgNight from "../assets/defaultBgNight.jpg";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { useTheme } from "../contexts/ThemeContext";
+import { cn } from "../lib/utils";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -52,6 +54,7 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PrivacySettings from "../components/PrivacySettings";
+import { useProductStore as useUiStore } from "../store/product";
 
 const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -90,6 +93,12 @@ const ProfilePage = () => {
 
   const toast = useCustomToast();
   const colors = useThemeColors();
+  const { currentTheme } = useTheme();
+  const {
+    profileTabCache,
+    setProfileTabCache,
+    clearProfileTabCache,
+  } = useUiStore();
   const profileColorMode =
     colors.currentTheme === "light" ? lightUrl : nightUrl;
   const bgColorMode =
@@ -114,20 +123,91 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  const setMergedProfileCache = (patch) => {
+    const prev = useProductStore.getState().profileTabCache;
+    const base = prev && prev.uid === patch.uid ? prev : {};
+    setProfileTabCache({ ...base, ...patch, cachedAt: Date.now() });
+  };
+
+  const hasUsablePostsCache = (cache, page) => {
+    if (!cache || cache.postsLoaded !== true) return false;
+    if (cache.currentPage !== page) return false;
+    const totalPosts = cache.pagination?.totalPosts;
+    const hasEntries = Array.isArray(cache.entries) && cache.entries.length > 0;
+    // If we know totalPosts is 0, an empty list is valid.
+    const knownEmpty = typeof totalPosts === "number" && totalPosts === 0;
+    return hasEntries || knownEmpty;
+  };
+
+  const hasUsableProfileCache = (cache) => {
+    if (!cache || cache.profileLoaded !== true) return false;
+    const p = cache.userProfile;
+    if (!p || typeof p !== "object") return false;
+    // Treat missing core identity fields as unusable (prevents "blank header" lock-in).
+    const hasName = typeof p.name === "string" && p.name.trim().length > 0;
+    const hasUsername =
+      typeof p.username === "string" && p.username.trim().length > 0;
+    return hasName || hasUsername;
+  };
+
   // Handle auth state
   useEffect(() => {
     const syncAuth = async () => {
+      setIsLoading(true);
       const user = await getCurrentAuthUser();
       if (user) {
+        // Restore cached profile instantly when returning to the tab.
+        if (
+          profileTabCache &&
+          profileTabCache.uid === user.uid &&
+          (profileTabCache.profileLoaded || profileTabCache.postsLoaded) &&
+          Date.now() - profileTabCache.cachedAt < 60_000
+        ) {
+          setIsSignedIn(true);
+          setUid(user.uid);
+          useProductStore.getState().setCurrentUser(user);
+          setCurrentPage(profileTabCache.currentPage ?? 1);
+          setEntries(profileTabCache.entries || []);
+          setPagination(
+            profileTabCache.pagination || {
+              currentPage: profileTabCache.currentPage ?? 1,
+              totalPages: 1,
+              totalPosts: (profileTabCache.entries || []).length,
+              limit,
+            }
+          );
+          if (profileTabCache.userProfile) {
+            setUserProfile(profileTabCache.userProfile);
+          }
+          setFollowRequests(profileTabCache.followRequests || []);
+          setIsAdmin(Boolean(profileTabCache.isAdmin));
+          setIsLoading(false);
+
+          // If posts cache is partial/empty, force-load posts for the current page.
+          const restoredPage = profileTabCache.currentPage ?? 1;
+          if (!hasUsablePostsCache(profileTabCache, restoredPage)) {
+            fetchUserPosts(user.uid, restoredPage);
+          }
+          // If we only cached posts but never cached profile, fetch profile now.
+          if (!hasUsableProfileCache(profileTabCache)) {
+            fetchUserProfile(user);
+          }
+          return;
+        }
+
         setIsSignedIn(true);
         setUid(user.uid);
         useProductStore.getState().setCurrentUser(user);
-        fetchUserProfile(user);
-        fetchUserPosts(user.uid);
+        // Keep the loading spinner until the first profile + posts load settles.
+        await Promise.allSettled([
+          fetchUserProfile(user),
+          fetchUserPosts(user.uid, 1),
+        ]);
       } else {
         setIsSignedIn(false);
         setUid(null);
         setEntries([]);
+        clearProfileTabCache();
         setUserProfile({
           name: "",
           username: "",
@@ -165,8 +245,36 @@ const ProfilePage = () => {
           setIsSignedIn(true);
           setUid(user.uid);
           useProductStore.getState().setCurrentUser(user);
-          fetchUserProfile(user);
-          fetchUserPosts(user.uid);
+          // Avoid refetch if cache is warm.
+          if (
+            profileTabCache &&
+            profileTabCache.uid === user.uid &&
+            (profileTabCache.profileLoaded || profileTabCache.postsLoaded) &&
+            Date.now() - profileTabCache.cachedAt < 60_000
+          ) {
+            setCurrentPage(profileTabCache.currentPage ?? 1);
+            setEntries(profileTabCache.entries || []);
+            setPagination(
+              profileTabCache.pagination || {
+                currentPage: profileTabCache.currentPage ?? 1,
+                totalPages: 1,
+                totalPosts: (profileTabCache.entries || []).length,
+                limit,
+              }
+            );
+            if (profileTabCache.userProfile) {
+              setUserProfile(profileTabCache.userProfile);
+            }
+            setFollowRequests(profileTabCache.followRequests || []);
+            if (!hasUsableProfileCache(profileTabCache)) {
+              fetchUserProfile(user);
+            }
+          } else {
+            setIsLoading(true);
+            Promise.allSettled([fetchUserProfile(user), fetchUserPosts(user.uid, 1)]).finally(
+              () => setIsLoading(false)
+            );
+          }
         } else {
           syncAuth();
         }
@@ -174,14 +282,22 @@ const ProfilePage = () => {
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [profileTabCache, clearProfileTabCache]);
 
   // Fetch posts when page changes
   useEffect(() => {
     if (uid) {
+      if (
+        profileTabCache &&
+        profileTabCache.uid === uid &&
+        hasUsablePostsCache(profileTabCache, currentPage) &&
+        Date.now() - profileTabCache.cachedAt < 60_000
+      ) {
+        return;
+      }
       fetchUserPosts(uid, currentPage);
     }
-  }, [currentPage, uid]);
+  }, [currentPage, uid, profileTabCache]);
 
   // Check admin status when user is signed in
   useEffect(() => {
@@ -190,7 +306,19 @@ const ProfilePage = () => {
         try {
           const response = await apiClient.get(API_ENDPOINTS.CHECK_IS_ADMIN);
           if (response.data.success) {
-            setIsAdmin(response.data.isAdmin || false);
+            const nextIsAdmin = response.data.isAdmin || false;
+            setIsAdmin(nextIsAdmin);
+            setMergedProfileCache({
+              uid,
+              currentPage,
+              limit,
+              entries,
+              pagination,
+              userProfile,
+              followRequests,
+              isAdmin: nextIsAdmin,
+              adminLoaded: true,
+            });
           }
         } catch (error) {
           // Default to false on error
@@ -215,7 +343,19 @@ const ProfilePage = () => {
       );
 
       const data = response.data;
-      setFollowRequests(data.data || []);
+      const next = data.data || [];
+      setFollowRequests(next);
+      setMergedProfileCache({
+        uid: user.uid,
+        currentPage,
+        limit,
+        entries,
+        pagination,
+        userProfile,
+        followRequests: next,
+        isAdmin,
+        followRequestsLoaded: true,
+      });
     } catch (error) {
       toast.error(
         "Failed to load requests",
@@ -271,23 +411,54 @@ const ProfilePage = () => {
       );
 
       const data = response.data;
+      const userData = data?.data?.user || {};
+      const followersCount =
+        data?.data?.followersCount ?? userData.followersCount ?? 0;
+      const followingCount =
+        data?.data?.followingCount ?? userData.followingCount ?? 0;
+      const postsCount = data?.data?.postsCount ?? 0;
 
-      setUserProfile({
-        name: data.data.user.name || "Name",
-        username: data.data.user.username || data.data.user.name || "Username",
-        goal: data.data.user.goal || "Not set",
-        gymName: data.data.user.gymName || "Not specified",
-        postsCount: data.data.postsCount || 0,
-        bio: data.data.user.bio || "No bio available",
-        profileImage: data.data.user.picture || profileColorMode,
-        backgroundPicture: data.data.user.backgroundPicture || bgColorMode,
-        followersCount: data.data.followersCount || 0,
-        followingCount: data.data.followingCount || 0,
+      const nextProfile = {
+        name: userData.name || "Name",
+        username: userData.username || userData.name || "Username",
+        goal: userData.goal || "Not set",
+        gymName: userData.gymName || "Not specified",
+        postsCount,
+        bio: userData.bio || "No bio available",
+        profileImage: userData.picture || profileColorMode,
+        backgroundPicture: userData.backgroundPicture || bgColorMode,
+        followersCount,
+        followingCount,
+      };
+      setUserProfile(nextProfile);
+
+      setMergedProfileCache({
+        uid: user.uid,
+        userProfile: nextProfile,
+        profileLoaded: true,
       });
     } catch (error) {
+      // Surface real backend error details (common on iOS when token isn't attached yet).
+      console.error("[ProfilePage] fetchUserProfile failed", {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+      const status = error?.response?.status;
+      const serverMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.response?.data?.details ||
+        null;
+      const msg =
+        serverMsg ||
+        (error?.code === "ERR_NETWORK"
+          ? "Network error reaching API (check VITE_API_BASE_URL / live-reload network)."
+          : error?.message) ||
+        "Unable to load profile data.";
       toast.error(
         "Profile load failed",
-        error.message || "Unable to load profile data."
+        status ? `${msg} (HTTP ${status})` : msg
       );
     }
   };
@@ -309,11 +480,37 @@ const ProfilePage = () => {
         }));
         setEntries(normalizedPosts);
         setPagination(data.pagination);
+
+        setMergedProfileCache({
+          uid: userId,
+          currentPage: page,
+          limit,
+          entries: normalizedPosts,
+          pagination: data.pagination,
+          postsLoaded: true,
+        });
       } else {
         toast.error("Error", data.message || "Failed to fetch posts");
       }
     } catch (error) {
-      toast.error("Error", error.message || "Failed to fetch posts");
+      console.error("[ProfilePage] fetchUserPosts failed", {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+      const status = error?.response?.status;
+      const serverMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.response?.data?.details ||
+        null;
+      const msg =
+        serverMsg ||
+        (error?.code === "ERR_NETWORK"
+          ? "Network error reaching API (check VITE_API_BASE_URL / live-reload network)."
+          : error?.message) ||
+        "Failed to fetch posts";
+      toast.error("Posts load failed", status ? `${msg} (HTTP ${status})` : msg);
     }
   };
 
@@ -614,9 +811,51 @@ const ProfilePage = () => {
   };
 
   return (
-    <Container maxW="container.xl" py={12}>
+    <>
+      <nav className="sticky top-0 z-20 w-full">
+        <div
+          className={cn(
+            "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
+            currentTheme === "light"
+              ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
+              : currentTheme === "dark-black"
+                ? "border-neutral-800/55 bg-neutral-950/88"
+                : currentTheme === "dark-blue"
+                  ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
+                  : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
+          )}
+        >
+          <div className="mx-auto w-full max-w-7xl">
+            <div className="relative flex items-center justify-between py-2">
+              <div className="h-10 w-10" aria-hidden />
+
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
+                <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
+                  Profile
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => navigate("/settings")}
+                aria-label="Settings"
+                className={cn(
+                  "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                  currentTheme === "light"
+                    ? "text-gray-700 hover:bg-gray-100"
+                    : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
+                )}
+              >
+                <FiSettings className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <Container maxW="container.xl" pt={4} pb={12}>
       {/* Profile Section */}
-      <Center py={6} mt={10}>
+      <Center py={6} mt={0}>
         <Box
           maxW={"580px"}
           w={"full"}
@@ -634,22 +873,6 @@ const ProfilePage = () => {
               objectFit="cover"
               alt="Background"
             />
-            <Button
-              onClick={onBackgroundOpen}
-              size="sm"
-              colorScheme="blue"
-              bg={colors.textMuted}
-              color={"white"}
-              position="absolute"
-              top={2}
-              right={2}
-              _hover={{
-                transform: "translateY(-2px)",
-                boxShadow: "lg",
-              }}
-            >
-              Edit Background
-            </Button>
           </Box>
 
           <Flex justify={"center"} mt={-12}>
@@ -716,64 +939,6 @@ const ProfilePage = () => {
                 </Text>
               </Stack>
             </Stack>
-            <Stack direction={{ base: "column", md: "row" }} spacing={4} mt={6}>
-              <Button
-                onClick={onProfileOpen}
-                colorScheme="blue"
-                variant="outline"
-                w={"full"}
-                color={colors.textPrimary}
-                borderColor={colors.borderColor}
-                _hover={{ bg: colors.bgHover }}
-              >
-                Edit Profile
-              </Button>
-              <Button
-                onClick={onPrivacyOpen}
-                colorScheme="gray"
-                variant="outline"
-                w={"full"}
-                color={colors.textPrimary}
-                borderColor={colors.borderColor}
-                _hover={{ bg: colors.bgHover }}
-              >
-                Privacy Settings
-              </Button>
-              {isAdmin && (
-                <Button
-                  as={Link}
-                  to="/admin/dashboard"
-                  colorScheme="purple"
-                  variant="outline"
-                  w={"full"}
-                  color={colors.textPrimary}
-                  borderColor={colors.borderColor}
-                  _hover={{ bg: colors.bgHover }}
-                  leftIcon={<HiShieldCheck />}
-                >
-                  Admin Dashboard
-                </Button>
-              )}
-            </Stack>
-
-            <Box mt={6} pt={6} borderTopWidth="1px" borderColor={colors.borderColor}>
-              <Text fontWeight={600} color={colors.textPrimary} mb={2}>
-                Account
-              </Text>
-              <Text fontSize="sm" color={colors.textMuted} mb={4}>
-                Sign out of Ethereal Gains on this device.
-              </Text>
-              <Button
-                w="full"
-                colorScheme="red"
-                variant="outline"
-                onClick={handleSignOut}
-                isLoading={isSigningOut}
-                loadingText="Signing out…"
-              >
-                Sign out
-              </Button>
-            </Box>
 
             {/* Follow Requests Badge */}
             {followRequests.length > 0 && (
@@ -1225,7 +1390,8 @@ const ProfilePage = () => {
         onClose={onPrivacyClose}
         isModal={true}
       />
-    </Container>
+      </Container>
+    </>
   );
 };
 
