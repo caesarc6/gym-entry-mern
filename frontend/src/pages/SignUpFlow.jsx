@@ -113,12 +113,16 @@ const SignUpFlow = () => {
     <>
       <div
         className={cn(
-          "w-full min-w-0 bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200/80",
+          "w-full min-w-0 min-h-[100dvh] pb-[env(safe-area-inset-bottom)] bg-white bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200/80",
           landingDarkMainCanvas,
         )}
       >
         <Container maxW="container.xl" className="text-center" py={12}>
-          <VStack spacing={8} mt={10} className="pt-[88px]">
+          <VStack
+            spacing={8}
+            mt={10}
+            className="pt-[calc(88px+env(safe-area-inset-top))]"
+          >
             <Card
               variant="mixed"
               className="w-full max-w-md mx-auto p-8 text-left shadow-sm"

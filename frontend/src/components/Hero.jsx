@@ -212,16 +212,23 @@ export const Hero = () => {
                   crew. Built for momentum without the noise.
                 </p>
 
-                <Button
-                  asChild
-                  variant="outline"
-                  className={cn(HERO_OUTLINE_CTA_BUTTON_CLASSNAME, "mt-6 pr-1.5")}
-                >
-                  <Link to="/signup">
-                    <span className="text-nowrap">Start training</span>
-                    <ChevronRight className="size-4 shrink-0" />
-                  </Link>
-                </Button>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                  <Button asChild className="pr-1.5">
+                    <Link to="/signup">
+                      <span className="text-nowrap">Start Training Free</span>
+                      <ChevronRight className="size-4 shrink-0" />
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className={cn(HERO_OUTLINE_CTA_BUTTON_CLASSNAME)}
+                  >
+                    <Link to="/login">
+                      <span className="text-nowrap">Log In</span>
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

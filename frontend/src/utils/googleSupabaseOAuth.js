@@ -1,5 +1,6 @@
 import { supabase } from "../supabase/supabase";
 import { pushAuthDebug, setAuthRedirect } from "./auth";
+import { Browser } from "@capacitor/browser";
 
 /**
  * Full-window Google OAuth via Supabase (required for PKCE).
@@ -14,7 +15,17 @@ export async function startGoogleSupabaseOAuth({
   debugContext = "OAuth",
 }) {
   setAuthRedirect(authMode, redirectPath);
-  const redirectTo = `${window.location.origin}/auth/callback`;
+  const isCapacitorNative =
+    typeof window !== "undefined" &&
+    window.Capacitor &&
+    typeof window.Capacitor.isNativePlatform === "function" &&
+    window.Capacitor.isNativePlatform();
+
+  // In native builds we must deep-link back into the app; otherwise iOS will
+  // complete OAuth in Safari and keep the user in the website.
+  const redirectTo = isCapacitorNative
+    ? "com.etherealgains.gymentry://auth/callback"
+    : `${window.location.origin}/auth/callback`;
 
   pushAuthDebug(`${debugContext}: starting OAuth`, { redirectTo });
   console.debug(`[${debugContext}] starting OAuth`, { redirectTo });
@@ -36,6 +47,11 @@ export async function startGoogleSupabaseOAuth({
 
   if (!data?.url) {
     throw new Error("Missing OAuth redirect URL");
+  }
+
+  if (isCapacitorNative) {
+    await Browser.open({ url: data.url });
+    return;
   }
 
   window.location.replace(data.url);

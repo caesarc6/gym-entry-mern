@@ -3,11 +3,46 @@ import {
   isFirebaseConfigured,
 } from "../firebase.js";
 import { supabaseAdmin } from "../supabase/supabase.js";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 /**
  * Dual authentication middleware that supports both Firebase and Supabase tokens
  * Tries Supabase first, then falls back to Firebase for backward compatibility
  */
+const getSupabaseJwks = (() => {
+  let jwks = null;
+  return () => {
+    if (jwks) return jwks;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    if (!supabaseUrl) return null;
+    const issuer = `${supabaseUrl.replace(/\/$/, "")}/auth/v1`;
+    const jwksUrl = new URL(`${issuer}/.well-known/jwks.json`);
+    jwks = createRemoteJWKSet(jwksUrl);
+    return jwks;
+  };
+})();
+
+async function tryVerifySupabaseJwt(token) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const jwks = getSupabaseJwks();
+  if (!supabaseUrl || !jwks) return null;
+
+  const issuer = `${supabaseUrl.replace(/\/$/, "")}/auth/v1`;
+  try {
+    const { payload } = await jwtVerify(token, jwks, {
+      issuer,
+    });
+    if (!payload?.sub) return null;
+    return payload;
+  } catch (error) {
+    console.warn("[auth] supabase jwt verify failed", {
+      message: error?.message,
+      code: error?.code,
+    });
+    return null;
+  }
+}
+
 async function verifyIdTokenInner(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader?.split("Bearer ")[1];
@@ -59,6 +94,28 @@ async function verifyIdTokenInner(req, res, next) {
         message: supabaseError?.message,
       });
     }
+  }
+
+  // If service-role client isn't available, fall back to verifying the Supabase JWT
+  // with the project's JWKS. This supports native apps where we only have access
+  // to the user's access token.
+  const supabasePayload = await tryVerifySupabaseJwt(token);
+  if (supabasePayload) {
+    req.user = {
+      uid: supabasePayload.sub,
+      supabaseUid: supabasePayload.sub,
+      email: supabasePayload.email,
+      name:
+        supabasePayload.user_metadata?.full_name ||
+        supabasePayload.user_metadata?.name ||
+        supabasePayload.email?.split("@")[0],
+      picture:
+        supabasePayload.user_metadata?.avatar_url ||
+        supabasePayload.user_metadata?.picture ||
+        "",
+      authProvider: "supabase",
+    };
+    return next();
   }
 
   // Fall back to Firebase authentication (for existing users)

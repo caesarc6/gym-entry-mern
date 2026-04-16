@@ -49,7 +49,7 @@ const defaultBgNightUrl = new URL(
   import.meta.url
 ).href;
 import { useCustomToast } from "../hooks/useCustomToast";
-import { getCurrentAuthUser } from "../utils/auth";
+import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PrivacySettings from "../components/PrivacySettings";
 
@@ -112,6 +112,7 @@ const ProfilePage = () => {
   } = useDisclosure();
 
   const navigate = useNavigate();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Handle auth state
   useEffect(() => {
@@ -599,6 +600,19 @@ const ProfilePage = () => {
     );
   }
 
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOutAll();
+      toast.success("Signed out", "You’ve been signed out.");
+      navigate("/login", { replace: true });
+    } catch (error) {
+      toast.error("Error", error?.message || "Failed to sign out.");
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
   return (
     <Container maxW="container.xl" py={12}>
       {/* Profile Section */}
@@ -741,6 +755,25 @@ const ProfilePage = () => {
                 </Button>
               )}
             </Stack>
+
+            <Box mt={6} pt={6} borderTopWidth="1px" borderColor={colors.borderColor}>
+              <Text fontWeight={600} color={colors.textPrimary} mb={2}>
+                Account
+              </Text>
+              <Text fontSize="sm" color={colors.textMuted} mb={4}>
+                Sign out of Ethereal Gains on this device.
+              </Text>
+              <Button
+                w="full"
+                colorScheme="red"
+                variant="outline"
+                onClick={handleSignOut}
+                isLoading={isSigningOut}
+                loadingText="Signing out…"
+              >
+                Sign out
+              </Button>
+            </Box>
 
             {/* Follow Requests Badge */}
             {followRequests.length > 0 && (

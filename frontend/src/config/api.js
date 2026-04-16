@@ -1,5 +1,20 @@
 // API Configuration
 const getApiBaseUrl = () => {
+  const isCapacitorNative =
+    typeof window !== "undefined" &&
+    window.Capacitor &&
+    typeof window.Capacitor.isNativePlatform === "function" &&
+    window.Capacitor.isNativePlatform();
+
+  // In Capacitor native builds, ALWAYS prefer an explicit API base URL (or a known
+  // deployed URL). In DEV (live reload), defaulting to localhost will break on iOS.
+  if (isCapacitorNative) {
+    return (
+      import.meta.env.VITE_API_BASE_URL ||
+      "https://gym-tracker-brown.vercel.app"
+    );
+  }
+
   // Check if we're in development mode
   if (import.meta.env.DEV) {
     return import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";

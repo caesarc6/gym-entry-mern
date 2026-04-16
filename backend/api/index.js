@@ -52,8 +52,15 @@ const productionDomains = [
   "https://etherealgains.vercel.app",
 ];
 
+// Capacitor (and some webviews) may use custom schemes / localhost origins.
+// We allow capacitor://localhost explicitly, and allow common LAN dev-server patterns
+// via ALLOWED_ORIGINS.
+const capacitorOrigins = ["capacitor://localhost", "ionic://localhost"];
+
 // Combine allowed origins with production domains
-const allAllowedOrigins = [...new Set([...allowedOrigins, ...productionDomains])];
+const allAllowedOrigins = [
+  ...new Set([...allowedOrigins, ...productionDomains, ...capacitorOrigins]),
+];
 
 
 app.use(

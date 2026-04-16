@@ -84,7 +84,8 @@ const Navbar = () => {
       position={"fixed"}
       p={0}
       m={0}
-      height={"90px"}
+      pt={"env(safe-area-inset-top)"}
+      height={"calc(90px + env(safe-area-inset-top))"}
       zIndex={1}
       justifySelf={"anchor-center"}
       display={"flex"}

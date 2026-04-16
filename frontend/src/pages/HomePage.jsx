@@ -21,6 +21,7 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
+import ProductPreviewSection from "../components/ProductPreviewSection";
 
 const HomePage = () => {
   const { clearEntrys } = useProductStore();
@@ -308,7 +309,7 @@ const HomePage = () => {
   if (!isAuthReady) {
     return (
       <Container maxW="container.xl" className="text-center z-0 relative">
-        <Box minH="50vh" pt="112px" aria-hidden />
+        <Box minH="50vh" pt={{ base: "16px", md: "112px" }} aria-hidden />
       </Container>
     );
   }
@@ -317,7 +318,7 @@ const HomePage = () => {
     <>
       {isSignedIn ? (
         <Container maxW="container.xl" className="text-center z-0 relative">
-          <VStack spacing={8} className="pt-[112px]">
+          <VStack spacing={8} className="pt-4 md:pt-[112px]">
             <Text
               fontSize={"22"}
               fontWeight={"bold"}
@@ -409,6 +410,7 @@ const HomePage = () => {
       ) : (
         <>
           <Hero />
+          <ProductPreviewSection />
           <div
             className={cn(
               "w-full min-w-0 bg-gradient-to-br from-zinc-200/75 via-zinc-50 to-white",

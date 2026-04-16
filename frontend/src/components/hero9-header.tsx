@@ -295,7 +295,7 @@ export const HeroHeader = () => {
       <nav ref={navRef} className="fixed z-20 w-full">
         <div
           className={cn(
-            "mx-auto max-w-7xl border-b px-6 py-[1px] transition-all duration-300 backdrop-blur-xl lg:px-12",
+            "mx-auto max-w-7xl border-b px-6 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl lg:px-12",
             isHome
               ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88"
               : currentTheme === "light"
@@ -309,8 +309,8 @@ export const HeroHeader = () => {
         >
           <motion.div
             className={cn(
-              "relative flex items-center justify-between gap-4 py-3 duration-200 lg:gap-4 lg:py-6  flex-wrap sm:flex-wrap",
-              scrolled && "lg:py-4",
+              "relative flex items-center justify-between gap-4 py-2 duration-200 lg:gap-4 lg:py-4 flex-wrap sm:flex-wrap",
+              scrolled && "lg:py-3",
             )}
           >
             {/* Logo and Hamburger */}
