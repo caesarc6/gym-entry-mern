@@ -16,13 +16,15 @@ import {
   ModalOverlay,
   Radio,
   RadioGroup,
+  Skeleton,
+  SkeletonText,
   Stack,
   Text,
   Textarea,
   useDisclosure,
   VStack,
 } from "@chakra-ui/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiArrowLeft } from "react-icons/fi";
 import { useThemeColors } from "../hooks/useThemeColors";
@@ -41,8 +43,11 @@ const SettingsPage = () => {
   const navigate = useNavigate();
   const { themeMode, setThemeMode, currentTheme } = useTheme();
   const setCurrentUser = useProductStore((s) => s.setCurrentUser);
+  const storeUser = useProductStore((s) => s.currentUser);
 
-  const [isLoading, setIsLoading] = useState(true);
+  /** Profile / background values from API — theme & sign-out render without waiting. */
+  const [isUserDataLoading, setIsUserDataLoading] = useState(true);
+  const [profileLoadError, setProfileLoadError] = useState(null);
   const [backgroundPreview, setBackgroundPreview] = useState("");
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [isSavingBackground, setIsSavingBackground] = useState(false);
@@ -81,14 +86,64 @@ const SettingsPage = () => {
     return "dark";
   }, [themeMode]);
 
+  const applyUserProfileToForm = useCallback((p) => {
+    setBackgroundPreview(p.backgroundPicture || "");
+    setUserProfile({
+      name: p.name || "",
+      username: p.username || "",
+      goal: p.goal || "",
+      gymName: p.gymName || "",
+      bio: p.bio || "",
+      profileImage: p.profileImage || p.picture || "",
+    });
+  }, []);
+
+  // Instant hydrate from profile tab cache (no network) when available.
+  useLayoutEffect(() => {
+    const uid = storeUser?.uid;
+    if (!uid) return;
+    const cached = useProductStore.getState().profileTabCache;
+    if (
+      cached?.uid === uid &&
+      cached?.profileLoaded === true &&
+      cached?.userProfile
+    ) {
+      applyUserProfileToForm(cached.userProfile);
+      setProfileLoadError(null);
+      setIsUserDataLoading(false);
+    }
+  }, [storeUser?.uid, applyUserProfileToForm]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
-      setIsLoading(true);
+      setProfileLoadError(null);
       try {
-        const user = await getCurrentAuthUser();
-        if (!user) return;
-        const res = await apiClient.get(API_ENDPOINTS.GET_USER_PROFILE(user.uid));
+        let uid = storeUser?.uid;
+        if (!uid) {
+          const user = await getCurrentAuthUser();
+          uid = user?.uid;
+        }
+        if (!uid) {
+          if (mounted) setIsUserDataLoading(false);
+          return;
+        }
+
+        const cached = useProductStore.getState().profileTabCache;
+        if (
+          cached?.uid === uid &&
+          cached?.profileLoaded === true &&
+          cached?.userProfile
+        ) {
+          if (mounted) {
+            applyUserProfileToForm(cached.userProfile);
+            setIsUserDataLoading(false);
+          }
+          return;
+        }
+
+        if (mounted) setIsUserDataLoading(true);
+        const res = await apiClient.get(API_ENDPOINTS.GET_USER_PROFILE(uid));
         const userData = res.data?.data?.user || {};
         if (!mounted) return;
         setBackgroundPreview(userData.backgroundPicture || "");
@@ -101,18 +156,23 @@ const SettingsPage = () => {
           profileImage: userData.picture || userData.profileImage || "",
         });
       } catch (error) {
+        if (mounted) {
+          setProfileLoadError(
+            error?.message || "Unable to load profile settings right now.",
+          );
+        }
         toast.error(
           "Settings load failed",
-          error?.message || "Unable to load settings right now."
+          error?.message || "Unable to load settings right now.",
         );
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) setIsUserDataLoading(false);
       }
     })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [storeUser?.uid]); // eslint-disable-line react-hooks/exhaustive-deps -- toast from useCustomToast
 
   const handleBackgroundImageUpload = (file) => {
     if (!file) return;
@@ -286,14 +346,22 @@ const SettingsPage = () => {
           p={6}
           mx="auto"
         >
-          {isLoading ? (
-            <Text color={colors.textMuted}>Loading…</Text>
-          ) : (
-            <VStack align="stretch" spacing={6}>
-              <Box>
-                <Heading size="sm" color={colors.textPrimary} mb={2}>
-                  Profile
-                </Heading>
+          <VStack align="stretch" spacing={6}>
+            <Box>
+              <Heading size="sm" color={colors.textPrimary} mb={2}>
+                Profile
+              </Heading>
+              {isUserDataLoading ? (
+                <VStack align="stretch" spacing={3}>
+                  <Skeleton height="40px" borderRadius="md" />
+                  <Skeleton height="40px" borderRadius="md" />
+                  <SkeletonText noOfLines={1} skeletonHeight={3} />
+                </VStack>
+              ) : profileLoadError ? (
+                <Text fontSize="sm" color="red.400">
+                  {profileLoadError}
+                </Text>
+              ) : (
                 <VStack align="stretch" spacing={3}>
                   <Button
                     colorScheme="blue"
@@ -316,74 +384,74 @@ const SettingsPage = () => {
                     Edit Background
                   </Button>
                 </VStack>
-              </Box>
+              )}
+            </Box>
 
-              <Box>
-                <Heading size="sm" color={colors.textPrimary} mb={2}>
-                  Privacy
+            <Box>
+              <Heading size="sm" color={colors.textPrimary} mb={2}>
+                Privacy
+              </Heading>
+              <Button
+                onClick={onPrivacyOpen}
+                colorScheme="gray"
+                variant="outline"
+                color={colors.textPrimary}
+                borderColor={colors.borderColor}
+                _hover={{ bg: colors.bgHover }}
+                w="full"
+              >
+                Privacy Settings
+              </Button>
+            </Box>
+
+            <Box>
+              <Flex align="center" justify="space-between" mb={2}>
+                <Heading size="sm" color={colors.textPrimary}>
+                  Theme
                 </Heading>
-                <Button
-                  onClick={onPrivacyOpen}
-                  colorScheme="gray"
-                  variant="outline"
-                  color={colors.textPrimary}
-                  borderColor={colors.borderColor}
-                  _hover={{ bg: colors.bgHover }}
-                  w="full"
-                >
-                  Privacy Settings
-                </Button>
-              </Box>
+                {themeValue === "system" && (
+                  <Badge colorScheme="purple" variant="subtle">
+                    System
+                  </Badge>
+                )}
+              </Flex>
+              <RadioGroup value={themeValue} onChange={setThemeMode}>
+                <Stack direction={{ base: "column", md: "row" }} spacing={4}>
+                  <Radio value="light" colorScheme="blue">
+                    <Text color={colors.textPrimary}>Light</Text>
+                  </Radio>
+                  <Radio value="dark" colorScheme="blue">
+                    <Text color={colors.textPrimary}>Dark</Text>
+                  </Radio>
+                  <Radio value="system" colorScheme="blue">
+                    <Text color={colors.textPrimary}>System</Text>
+                  </Radio>
+                </Stack>
+              </RadioGroup>
+              <Text fontSize="sm" color={colors.textMuted} mt={2}>
+                Dark includes your dark variants (dark / dark-black / dark-blue).
+              </Text>
+            </Box>
 
-              <Box>
-                <Flex align="center" justify="space-between" mb={2}>
-                  <Heading size="sm" color={colors.textPrimary}>
-                    Theme
-                  </Heading>
-                  {themeValue === "system" && (
-                    <Badge colorScheme="purple" variant="subtle">
-                      System
-                    </Badge>
-                  )}
-                </Flex>
-                <RadioGroup value={themeValue} onChange={setThemeMode}>
-                  <Stack direction={{ base: "column", md: "row" }} spacing={4}>
-                    <Radio value="light" colorScheme="blue">
-                      <Text color={colors.textPrimary}>Light</Text>
-                    </Radio>
-                    <Radio value="dark" colorScheme="blue">
-                      <Text color={colors.textPrimary}>Dark</Text>
-                    </Radio>
-                    <Radio value="system" colorScheme="blue">
-                      <Text color={colors.textPrimary}>System</Text>
-                    </Radio>
-                  </Stack>
-                </RadioGroup>
-                <Text fontSize="sm" color={colors.textMuted} mt={2}>
-                  Dark includes your dark variants (dark / dark-black / dark-blue).
-                </Text>
-              </Box>
-
-              <Box>
-                <Heading size="sm" color={colors.textPrimary} mb={2}>
-                  Account
-                </Heading>
-                <Text fontSize="sm" color={colors.textMuted} mb={4}>
-                  Sign out of Ethereal Gains on this device.
-                </Text>
-                <Button
-                  w="full"
-                  colorScheme="red"
-                  variant="outline"
-                  onClick={handleSignOut}
-                  isLoading={isSigningOut}
-                  loadingText="Signing out…"
-                >
-                  Sign out
-                </Button>
-              </Box>
-            </VStack>
-          )}
+            <Box>
+              <Heading size="sm" color={colors.textPrimary} mb={2}>
+                Account
+              </Heading>
+              <Text fontSize="sm" color={colors.textMuted} mb={4}>
+                Sign out of Ethereal Gains on this device.
+              </Text>
+              <Button
+                w="full"
+                colorScheme="red"
+                variant="outline"
+                onClick={handleSignOut}
+                isLoading={isSigningOut}
+                loadingText="Signing out…"
+              >
+                Sign out
+              </Button>
+            </Box>
+          </VStack>
         </Box>
       </Container>
 

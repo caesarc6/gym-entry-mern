@@ -27,6 +27,12 @@ import ProductPreviewSection from "../components/ProductPreviewSection";
 import { FiBell, FiPlus } from "react-icons/fi";
 import { useThemeColors } from "../hooks/useThemeColors";
 
+const isCapacitorNative =
+  typeof window !== "undefined" &&
+  window.Capacitor &&
+  typeof window.Capacitor.isNativePlatform === "function" &&
+  window.Capacitor.isNativePlatform();
+
 const HomePage = () => {
   const { clearEntrys, homeFeedCache, setHomeFeedCache, clearHomeFeedCache } =
     useProductStore();
@@ -61,7 +67,8 @@ const HomePage = () => {
   // Home page (signed-out): force light page content while keeping dark navbar.
   // Once the user is signed in, stop forcing and restore their previous theme.
   useEffect(() => {
-    if (!isAuthReady) return;
+    // Web waits for auth before touching theme; native guest shell can render first.
+    if (!isAuthReady && !isCapacitorNative) return;
 
     if (!isSignedIn) {
       if (!forcedLightRef.current) {
@@ -97,28 +104,32 @@ const HomePage = () => {
 
   useEffect(() => {
     const syncAuth = async () => {
-      const user = await getCurrentAuthUser();
-      if (user) {
-        setIsSignedIn(true);
-        setUid(user.uid);
-        useProductStore.getState().setCurrentUser(user);
-      } else {
-        setIsSignedIn(false);
-        setUid(null);
-        setEntries([]);
-        setProfileCache(new Map());
-        clearHomeFeedCache();
-        setPagination({
-          currentPage: 1,
-          totalPages: 1,
-          totalPosts: 0,
-          limit,
-        });
-        clearEntrys();
-        useProductStore.getState().setCurrentUser(null);
-        setIsLoading(false);
+      try {
+        const user = await getCurrentAuthUser();
+        if (user) {
+          setIsSignedIn(true);
+          setUid(user.uid);
+          useProductStore.getState().setCurrentUser(user);
+        } else {
+          setIsSignedIn(false);
+          setUid(null);
+          setEntries([]);
+          setProfileCache(new Map());
+          clearHomeFeedCache();
+          setPagination({
+            currentPage: 1,
+            totalPages: 1,
+            totalPosts: 0,
+            limit,
+          });
+          clearEntrys();
+          useProductStore.getState().setCurrentUser(null);
+          setIsLoading(false);
+        }
+      } finally {
+        useProductStore.getState().setAuthBootstrapCompleteAt(Date.now());
+        setIsAuthReady(true);
       }
-      setIsAuthReady(true);
       // When signed in, keep isLoading true until fetchHomeFeed finishes so we do not
       // flash a second loading state after auth (feed effect sets loading + completes).
     };
@@ -355,18 +366,35 @@ const HomePage = () => {
     }
   }, [currentPage, pagination.totalPages]);
 
-  // No spinner while auth resolves — only the feed uses a spinner below.
-  if (!isAuthReady) {
+  // Web: wait for auth before showing guest vs feed. Native: show marketing immediately
+  // so the feed tab is never an empty shell or a login screen while session hydrates.
+  if (!isAuthReady && !isCapacitorNative) {
     return (
       <Container maxW="container.xl" className="text-center z-0 relative">
-        <Box minH="50vh" pt={{ base: "16px", md: "112px" }} aria-hidden />
+        <Flex
+          minH="50vh"
+          pt={{ base: "16px", md: "112px" }}
+          align="center"
+          justify="center"
+          aria-busy
+          aria-label="Checking session"
+        >
+          <Spinner
+            size="lg"
+            thickness="4px"
+            speed="1.2s"
+            color={spinnerColor}
+          />
+        </Flex>
       </Container>
     );
   }
 
+  const showSignedInFeed = isAuthReady && isSignedIn;
+
   return (
     <>
-      {isSignedIn ? (
+      {showSignedInFeed ? (
         <>
           <nav className="sticky top-0 z-20 w-full">
             <div
@@ -505,7 +533,7 @@ const HomePage = () => {
         </>
       ) : (
         <>
-          <Hero />
+          <Hero appGuestMarketing={isCapacitorNative} />
           <ProductPreviewSection />
           <div
             className={cn(

@@ -10,6 +10,10 @@ import { getCurrentAuthUser } from "../utils/auth";
 export const useProductStore = create((set) => ({
   currentUser: null,
   setCurrentUser: (user) => set({ currentUser: user }),
+
+  /** Set once HomePage finishes its first auth probe (native: lets RequireAuth skip a duplicate wait). */
+  authBootstrapCompleteAt: null,
+  setAuthBootstrapCompleteAt: (ts) => set({ authBootstrapCompleteAt: ts }),
   entrys: [],
   setEntrys: (entrys) => set({ entrys }),
 

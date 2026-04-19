@@ -13,6 +13,7 @@
     "dev:live": "VITE_API_BASE_URL=https://gym-entry-mern.vercel.app vite --host",
     "vercel-build": "vite build",
     "cap:sync": "npm run build && npx cap sync",
+    "cap:sync:ios:store": "npm run build && env -u CAP_LIVE_RELOAD_URL npx cap sync ios",
     "cap:open:ios": "npx cap open ios",
     "cap:sync:live": "CAP_LIVE_RELOAD_URL=http://192.168.1.162:5173 npx cap sync ios"
   },

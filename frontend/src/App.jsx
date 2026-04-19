@@ -8,10 +8,11 @@ import AuthCallback from "./pages/AuthCallback";
 import HomePage from "./pages/HomePage";
 import MobileAppShell from "./components/MobileAppShell";
 import RequireAuth from "./routes/RequireAuth";
+import SignUpFlow from "./pages/SignUpFlow";
+import { useProductStore } from "./store/product";
 
 const CreatePage = lazy(() => import("./pages/CreatePage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
-const SignUpFlow = lazy(() => import("./pages/SignUpFlow"));
 const Login = lazy(() => import("./pages/Login"));
 const ModifyProfile = lazy(() => import("./pages/ModifyProfile"));
 const UserProfilePage = lazy(() => import("./pages/UserProfilePage"));
@@ -34,31 +35,46 @@ const RouteFallback = () => (
 function NativeTabsLayout() {
   const location = useLocation();
   const pathname = location.pathname;
+  const currentUser = useProductStore((s) => s.currentUser);
 
   const isFeedTab = pathname === "/";
   const isAnalyticsTab = pathname === "/analytics";
   const isProfileTab = pathname === "/profile";
   const isTabRoute = isFeedTab || isAnalyticsTab || isProfileTab;
 
+  // Signed-out on feed: do not mount other tabs yet. Hidden tabs used to mount RequireAuth
+  // and redirect the whole app away from the guest feed. Signed-in users keep all tabs mounted.
+  const mountAnalyticsTab = Boolean(currentUser) || isAnalyticsTab;
+  const mountProfileTab = Boolean(currentUser) || isProfileTab;
+
   return (
     <>
-      {/* Keep main tabs mounted for a native-like feel */}
+      {/* Keep main tabs mounted for signed-in users (native-like tab state). */}
       <div style={{ display: isFeedTab ? "block" : "none" }}>
         <HomePage />
       </div>
-      <div style={{ display: isAnalyticsTab ? "block" : "none" }}>
-        <RequireAuth>
-          <AnalyticsPage />
-        </RequireAuth>
-      </div>
-      <div style={{ display: isProfileTab ? "block" : "none" }}>
-        <RequireAuth>
-          <ProfilePage />
-        </RequireAuth>
-      </div>
+      {mountAnalyticsTab ? (
+        <div style={{ display: isAnalyticsTab ? "block" : "none" }}>
+          <Suspense fallback={<RouteFallback />}>
+            <RequireAuth>
+              <AnalyticsPage />
+            </RequireAuth>
+          </Suspense>
+        </div>
+      ) : null}
+      {mountProfileTab ? (
+        <div style={{ display: isProfileTab ? "block" : "none" }}>
+          <Suspense fallback={<RouteFallback />}>
+            <RequireAuth>
+              <ProfilePage />
+            </RequireAuth>
+          </Suspense>
+        </div>
+      ) : null}
 
       {/* Non-tab routes render normally (they can mount/unmount) */}
       {!isTabRoute && (
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route
             path="/notifications"
@@ -149,6 +165,7 @@ function NativeTabsLayout() {
             }
           />
         </Routes>
+        </Suspense>
       )}
     </>
   );
@@ -189,17 +206,19 @@ function App() {
   return (
     <Box minH={"100vh"} {...getBackgroundStyle()}>
       {!isCapacitorNative && <HeroHeader />}
-      <Suspense fallback={<RouteFallback />}>
-        {isCapacitorNative ? (
-          <MobileAppShell>
+      {isCapacitorNative ? (
+        <MobileAppShell>
+          <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/signup" element={<SignUpFlow />} />
               <Route path="/login" element={<Login />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/*" element={<NativeTabsLayout />} />
             </Routes>
-          </MobileAppShell>
-        ) : (
+          </Suspense>
+        </MobileAppShell>
+      ) : (
+        <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/create" element={<CreatePage />} />
@@ -231,8 +250,8 @@ function App() {
             />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
           </Routes>
-        )}
-      </Suspense>
+        </Suspense>
+      )}
     </Box>
   );
 }

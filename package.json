@@ -18,6 +18,7 @@
     "chrome": "open -a \"Google Chrome\" --args --new-window http://localhost:5173",
     "dev:chrome": "concurrently \"npm run dev\" \"sleep 3 && npm run chrome\"",
     "cap:sync": "cd frontend && npm run cap:sync",
+    "cap:sync:ios:store": "cd frontend && npm run cap:sync:ios:store",
     "cap:sync:live": "cd frontend && npm run cap:sync:live",
     "cap:open:ios": "cd frontend && npm run cap:open:ios",
     "test": "echo \"Error: no test specified\" && exit 1"

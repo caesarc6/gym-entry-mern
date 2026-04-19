@@ -284,20 +284,20 @@ const ProfilePage = () => {
     return () => subscription.unsubscribe();
   }, [profileTabCache, clearProfileTabCache]);
 
-  // Fetch posts when page changes
+  // Fetch posts when page changes. Do not depend on profileTabCache — every cache merge
+  // bumps cachedAt and would retrigger this effect (many duplicate requests on errors).
   useEffect(() => {
-    if (uid) {
-      if (
-        profileTabCache &&
-        profileTabCache.uid === uid &&
-        hasUsablePostsCache(profileTabCache, currentPage) &&
-        Date.now() - profileTabCache.cachedAt < 60_000
-      ) {
-        return;
-      }
-      fetchUserPosts(uid, currentPage);
+    if (!uid) return;
+    const cache = useProductStore.getState().profileTabCache;
+    if (
+      cache?.uid === uid &&
+      hasUsablePostsCache(cache, currentPage) &&
+      Date.now() - cache.cachedAt < 60_000
+    ) {
+      return;
     }
-  }, [currentPage, uid, profileTabCache]);
+    fetchUserPosts(uid, currentPage);
+  }, [currentPage, uid]);
 
   // Check admin status when user is signed in
   useEffect(() => {
@@ -308,14 +308,11 @@ const ProfilePage = () => {
           if (response.data.success) {
             const nextIsAdmin = response.data.isAdmin || false;
             setIsAdmin(nextIsAdmin);
+            // Only patch admin flags — do not pass entries/pagination/profile from
+            // this effect's closure (deps are [isSignedIn, uid]); stale [] would wipe
+            // the feed in profileTabCache after posts/profile have loaded.
             setMergedProfileCache({
               uid,
-              currentPage,
-              limit,
-              entries,
-              pagination,
-              userProfile,
-              followRequests,
               isAdmin: nextIsAdmin,
               adminLoaded: true,
             });
@@ -345,15 +342,10 @@ const ProfilePage = () => {
       const data = response.data;
       const next = data.data || [];
       setFollowRequests(next);
+      // Patch follow-requests only; avoid stale entries/pagination from closure.
       setMergedProfileCache({
         uid: user.uid,
-        currentPage,
-        limit,
-        entries,
-        pagination,
-        userProfile,
         followRequests: next,
-        isAdmin,
         followRequestsLoaded: true,
       });
     } catch (error) {

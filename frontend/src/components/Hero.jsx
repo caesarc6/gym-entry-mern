@@ -29,7 +29,7 @@ const blobKeyframe = {
 
 const blobIdle = { y: 0, scale: 1 };
 
-export const Hero = () => {
+export const Hero = ({ appGuestMarketing = false }) => {
   const heroRef = useRef(null);
   const heroInView = useInView(heroRef, { once: false });
 
@@ -205,29 +205,48 @@ export const Hero = () => {
               {/* Image intentionally removed until replacement is ready. */}
               <div className="mx-auto mt-6 max-w-md text-center">
                 <h1 className="text-balance font-serif text-4xl font-medium text-white sm:text-5xl">
-                  Train with clarity. Progress with purpose.
+                  {appGuestMarketing
+                    ? "Welcome to Ethereal Gains"
+                    : "Train with clarity. Progress with purpose."}
                 </h1>
                 <p className="mt-4 text-balance text-zinc-200/95 leading-relaxed">
-                  Log workouts, dig into analytics, and stay connected with your
-                  crew. Built for momentum without the noise.
+                  {appGuestMarketing
+                    ? "Log workouts, explore analytics, follow friends, and keep every PR in one place. Here is what you can do once you are in."
+                    : "Log workouts, dig into analytics, and stay connected with your crew. Built for momentum without the noise."}
                 </p>
 
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <div
+                  className={cn(
+                    "mt-6 flex flex-wrap items-center justify-center gap-3",
+                    appGuestMarketing && "flex-col gap-4",
+                  )}
+                >
                   <Button asChild className="pr-1.5">
                     <Link to="/signup">
-                      <span className="text-nowrap">Start Training Free</span>
+                      <span className="text-nowrap">
+                        {appGuestMarketing ? "Create free account" : "Start Training Free"}
+                      </span>
                       <ChevronRight className="size-4 shrink-0" />
                     </Link>
                   </Button>
-                  <Button
-                    asChild
-                    variant="outline"
-                    className={cn(HERO_OUTLINE_CTA_BUTTON_CLASSNAME)}
-                  >
-                    <Link to="/login">
-                      <span className="text-nowrap">Log In</span>
+                  {appGuestMarketing ? (
+                    <Link
+                      to="/login"
+                      className="text-sm text-zinc-300/90 underline-offset-4 transition-colors hover:text-white hover:underline"
+                    >
+                      Already have an account? Log in
                     </Link>
-                  </Button>
+                  ) : (
+                    <Button
+                      asChild
+                      variant="outline"
+                      className={cn(HERO_OUTLINE_CTA_BUTTON_CLASSNAME)}
+                    >
+                      <Link to="/login">
+                        <span className="text-nowrap">Log In</span>
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

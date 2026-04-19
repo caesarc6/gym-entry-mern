@@ -18,6 +18,25 @@ const buildUidQuery = (uid) => ({
   $or: [{ uid }, { firebaseUid: uid }, { supabaseUid: uid }],
 });
 
+/**
+ * Followers/following arrays may contain raw ObjectIds or populated subdocs.
+ * Comparing with follower._id.equals(...) throws when the array holds plain ObjectIds.
+ */
+const refIdEquals = (ref, otherId) => {
+  if (ref == null || otherId == null) return false;
+  try {
+    const rid = ref._id != null ? ref._id : ref;
+    if (rid && typeof rid.equals === "function") {
+      return rid.equals(otherId);
+    }
+    const a = rid?.toString?.() ?? String(rid);
+    const b = otherId?.toString?.() ?? String(otherId);
+    return a === b;
+  } catch {
+    return false;
+  }
+};
+
 const findUserByAnyUid = (uid, select) => {
   const query = User.findOne(buildUidQuery(uid));
   return select ? query.select(select) : query;
@@ -195,7 +214,7 @@ export const updateUserPrivacy = async (req, res) => {
       updateFields["privacy.showEntries"] = showEntries;
 
     const updatedUser = await User.findOneAndUpdate(
-      { uid: req.user.uid },
+      buildUidQuery(String(req.user.uid || "").trim()),
       { $set: updateFields },
       { new: true }
     );
@@ -497,7 +516,7 @@ export const getCurrentMongoDBUser = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
   try {
     const { uid } = req.user;
-
+    const body = req.body || {};
     const {
       name,
       username,
@@ -506,7 +525,9 @@ export const updateUserProfile = async (req, res) => {
       bio,
       profileImageName,
       profileImage,
-    } = req.body;
+    } = body;
+
+    const authUserQuery = buildUidQuery(String(uid || "").trim());
 
     const hasMultipartProfileImage = Boolean(req.file?.buffer);
 
@@ -561,7 +582,7 @@ export const updateUserProfile = async (req, res) => {
 
         profileImageUrl = publicUrl;
         await User.findOneAndUpdate(
-          { uid: uid.trim() },
+          authUserQuery,
           { $set: { picture: profileImageUrl } },
           { new: true }
         );
@@ -604,7 +625,7 @@ export const updateUserProfile = async (req, res) => {
 
         profileImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/user_profiles/${filePath}`;
         await User.findOneAndUpdate(
-          { uid: uid.trim() },
+          authUserQuery,
           { $set: { picture: profileImageUrl } },
           { new: true }
         );
@@ -625,9 +646,9 @@ export const updateUserProfile = async (req, res) => {
     if (bio) updateData.bio = bio;
 
     const user = await User.findOneAndUpdate(
-      { uid },
+      authUserQuery,
       { $set: updateData },
-      { new: true }
+      { new: true, lean: true }
     );
 
     if (!user) {
@@ -643,6 +664,14 @@ export const updateUserProfile = async (req, res) => {
       data: user,
     });
   } catch (error) {
+    if (error?.code === 11000) {
+      const dupField = Object.keys(error.keyPattern || error.keyValue || {})[0];
+      const message =
+        dupField === "username"
+          ? "That username is already taken."
+          : "A unique field would duplicate an existing account.";
+      return res.status(409).json({ success: false, message });
+    }
     res.status(500).json({
       success: false,
       message: error.message,
@@ -824,7 +853,9 @@ export const getPostsByUID = async (req, res) => {
     const requesterUser = await resolveMongoUserByAuthUid(requesterUid);
     const isFollower =
       requesterUser &&
-      user.followers.some((followerId) => followerId.equals(requesterUser._id));
+      (user.followers || []).some((followerId) =>
+        refIdEquals(followerId, requesterUser._id)
+      );
     const requesterIsOwner =
       requesterUser && user._id.equals(requesterUser._id);
     const isPrivate = user.privacy?.isPrivate === true;
@@ -880,9 +911,15 @@ export const getPostsByUID = async (req, res) => {
       },
     });
   } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[getPostsByUID]", error);
+    }
     res.status(500).json({
       success: false,
       message: "Internal server error",
+      ...(process.env.NODE_ENV !== "production" && error?.message
+        ? { details: error.message }
+        : {}),
     });
   }
 };
@@ -930,7 +967,7 @@ export const getCurrentUser = async (req, res) => {
     const user = await findUserByAnyUid(
       uid,
       "uid firebaseUid supabaseUid name email picture username"
-    );
+    ).lean();
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve user" });
@@ -1079,9 +1116,9 @@ export const uploadBackgroundPicture = [
       } = supabase.storage.from("user_backgrounds").getPublicUrl(filePath);
 
       const updatedUser = await User.findOneAndUpdate(
-        { uid: user.uid },
+        buildUidQuery(String(user.uid || "").trim()),
         { backgroundPicture: publicUrl },
-        { new: true }
+        { new: true, lean: true }
       );
 
 
@@ -1131,9 +1168,9 @@ export const uploadProfilePic = [
       } = supabase.storage.from("user_profiles").getPublicUrl(filePath);
 
       const updatedUser = await User.findOneAndUpdate(
-        { uid: user.uid },
+        buildUidQuery(String(user.uid || "").trim()),
         { picture: publicUrl },
-        { new: true }
+        { new: true, lean: true }
       );
 
 
@@ -1281,7 +1318,9 @@ export const getUserProfile = async (req, res) => {
     // Check if the viewer is allowed to see posts
     const isFollower =
       viewerUser &&
-      user.followers.some((follower) => follower._id.equals(viewerUser._id));
+      (user.followers || []).some((follower) =>
+        refIdEquals(follower, viewerUser._id)
+      );
     const isOwner = viewerUser && accountsMatch(viewerUser, user);
     const canViewPosts =
       isOwner ||
@@ -1341,7 +1380,16 @@ export const getUserProfile = async (req, res) => {
 
     res.status(200).json(responseData);
   } catch (error) {
-    res.status(500).json({ success: false, message: "Internal server error" });
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[getUserProfile]", error);
+    }
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      ...(process.env.NODE_ENV !== "production" && error?.message
+        ? { details: error.message }
+        : {}),
+    });
   }
 };
 
