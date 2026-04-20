@@ -8,6 +8,12 @@ import {
   useColorModeValue,
   Flex,
   IconButton,
+  Menu as ChakraMenu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Button as ChakraButton,
+  HStack,
 } from "@chakra-ui/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -24,7 +30,7 @@ import { getCurrentAuthUser } from "../utils/auth";
 import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
-import { FiBell, FiPlus } from "react-icons/fi";
+import { FiBell, FiMenu } from "react-icons/fi";
 import { useThemeColors } from "../hooks/useThemeColors";
 
 const isCapacitorNative =
@@ -170,6 +176,11 @@ const HomePage = () => {
 
   // Get current user info from store
   const currentUserInfo = useProductStore((state) => state.currentUserInfo);
+  const userLabel =
+    currentUserInfo?.username ||
+    currentUserInfo?.name ||
+    (currentUserInfo?.email ? currentUserInfo.email.split("@")[0] : "") ||
+    "Account";
 
   // Get claimed workouts state from store
   const claimedWorkouts = useProductStore((state) => state.claimedWorkouts);
@@ -411,19 +422,27 @@ const HomePage = () => {
             >
               <div className="mx-auto w-full max-w-7xl">
                 <div className="relative flex items-center justify-between py-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/create")}
-                    aria-label="Create post"
-                    className={cn(
-                      "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                      currentTheme === "light"
-                        ? "text-gray-700 hover:bg-gray-100"
-                        : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                    )}
-                  >
-                    <FiPlus className="h-5 w-5" />
-                  </button>
+                  <ChakraMenu placement="bottom-start">
+                    <MenuButton
+                      as={IconButton}
+                      aria-label="Open menu"
+                      icon={<FiMenu className="h-5 w-5" />}
+                      variant="ghost"
+                      size="md"
+                      className={cn(
+                        "h-10 w-10 rounded-lg",
+                        currentTheme === "light"
+                          ? "text-gray-700 hover:bg-gray-100"
+                          : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
+                      )}
+                    />
+                    <MenuList className={cn(currentTheme === "light" ? "" : "bg-zinc-950/95")}>
+                      <MenuItem onClick={() => navigate("/create")}>Create</MenuItem>
+                      <MenuItem onClick={() => navigate("/analytics")}>Analytics</MenuItem>
+                      <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
+                      <MenuItem onClick={() => navigate("/settings")}>Settings</MenuItem>
+                    </MenuList>
+                  </ChakraMenu>
 
                   <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
                     <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
@@ -431,19 +450,42 @@ const HomePage = () => {
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => navigate("/notifications")}
-                    aria-label="Notifications"
-                    className={cn(
-                      "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                      currentTheme === "light"
-                        ? "text-gray-700 hover:bg-gray-100"
-                        : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                    )}
-                  >
-                    <FiBell className="h-5 w-5" />
-                  </button>
+                  <HStack spacing={1}>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/notifications")}
+                      aria-label="Notifications"
+                      className={cn(
+                        "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                        currentTheme === "light"
+                          ? "text-gray-700 hover:bg-gray-100"
+                          : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
+                      )}
+                    >
+                      <FiBell className="h-5 w-5" />
+                    </button>
+
+                    <ChakraMenu placement="bottom-end">
+                      <MenuButton
+                        as={ChakraButton}
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "h-10 rounded-lg px-3",
+                          currentTheme === "light"
+                            ? "text-gray-700 hover:bg-gray-100"
+                            : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
+                        )}
+                      >
+                        @{userLabel}
+                      </MenuButton>
+                      <MenuList className={cn(currentTheme === "light" ? "" : "bg-zinc-950/95")}>
+                        <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
+                        <MenuItem onClick={() => navigate("/analytics")}>Analytics</MenuItem>
+                        <MenuItem onClick={() => navigate("/settings")}>Settings</MenuItem>
+                      </MenuList>
+                    </ChakraMenu>
+                  </HStack>
                 </div>
               </div>
             </div>
