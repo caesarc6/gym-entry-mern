@@ -176,6 +176,40 @@ const theme = extendTheme({
         variant: "solid",
       },
     },
+    Modal: {
+      baseStyle: {
+        dialog: {
+          borderRadius: "xl",
+          // Keep modals compact on mobile (iOS) and avoid tall empty space.
+          maxH: { base: "80vh", md: "85vh" },
+          my: { base: 4, md: 10 },
+          mx: { base: 4, md: 0 },
+        },
+        body: {
+          // Let content scroll instead of stretching the dialog.
+          overflowY: "auto",
+          py: { base: 3, md: 4 },
+        },
+        header: {
+          py: { base: 3, md: 4 },
+        },
+        footer: {
+          py: { base: 3, md: 4 },
+        },
+      },
+      sizes: {
+        // Narrower defaults so "md/lg/xl" don't feel huge on iPhone widths.
+        md: { dialog: { maxW: { base: "92vw", md: "28rem" } } },
+        lg: { dialog: { maxW: { base: "92vw", md: "34rem" } } },
+        xl: { dialog: { maxW: { base: "92vw", md: "40rem" } } },
+        "2xl": { dialog: { maxW: { base: "92vw", md: "48rem" } } },
+        "4xl": { dialog: { maxW: { base: "92vw", md: "56rem" } } },
+      },
+      defaultProps: {
+        isCentered: true,
+        scrollBehavior: "inside",
+      },
+    },
   },
   styles: {
     global: (props) => ({
@@ -201,3 +235,4 @@ const theme = extendTheme({
 });
 
 export default theme;
+

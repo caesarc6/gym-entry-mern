@@ -36,7 +36,7 @@ import GymNameHelper from "../components/GymNameHelper";
 import ExerciseProgressChart from "../components/ExerciseProgressChart";
 import MultiMetricProgressChart from "../components/MultiMetricProgressChart";
 import ProgressInsights from "../components/ProgressInsights";
-import WorkoutDetailsModal from "../components/WorkoutDetailsModal";
+import WorkoutDetailsModal from "../components/modals/WorkoutDetailsModal";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
 
@@ -591,7 +591,11 @@ const AnalyticsPage = () => {
 
   if (loading) {
     return (
-      <Container maxW="container.xl" py={8}>
+      <Container
+        maxW="container.xl"
+        pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
+        pb={8}
+      >
         <Center>
           <VStack spacing={4}>
             <Spinner size="xl" />
@@ -605,7 +609,11 @@ const AnalyticsPage = () => {
   // Check if user is not authenticated
   if (isAuthenticated === false) {
     return (
-      <Container maxW="container.xl" py={8}>
+      <Container
+        maxW="container.xl"
+        pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
+        pb={8}
+      >
         <Center>
           <VStack spacing={4}>
             <Text fontSize="lg" fontWeight="medium">
@@ -622,7 +630,11 @@ const AnalyticsPage = () => {
 
   if (!analytics) {
     return (
-      <Container maxW="container.xl" py={8}>
+      <Container
+        maxW="container.xl"
+        pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
+        pb={8}
+      >
         <VStack spacing={8} align="stretch">
           <Box>
             <Heading size="lg" mb={4}>
@@ -817,7 +829,11 @@ const AnalyticsPage = () => {
   }
 
   return (
-    <Container maxW="container.xl" py={8}>
+    <Container
+      maxW="container.xl"
+      pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
+      pb={8}
+    >
       <VStack spacing={8} align="stretch">
         <Box>
           <Heading size="lg" mb={4}>

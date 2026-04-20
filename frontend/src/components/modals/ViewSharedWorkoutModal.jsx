@@ -15,9 +15,9 @@ import {
   Image,
   Divider,
 } from "@chakra-ui/react";
-import { useThemeColors } from "../hooks/useThemeColors";
-import { formatDateSafe } from "../utils/dateUtils";
-import { capitalizeName } from "../utils/nameUtils";
+import { useThemeColors } from "../../hooks/useThemeColors";
+import { formatDateSafe } from "../../utils/dateUtils";
+import { capitalizeName } from "../../utils/nameUtils";
 
 const ViewSharedWorkoutModal = ({ isOpen, onClose, workout }) => {
   const colors = useThemeColors();
@@ -29,7 +29,7 @@ const ViewSharedWorkoutModal = ({ isOpen, onClose, workout }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
       <ModalOverlay backdropFilter="blur(4px)" />
-      <ModalContent bg={colors.bgCard} maxH="90vh">
+      <ModalContent bg={colors.bgCard}>
         <ModalHeader>
           <VStack align="start" spacing={2}>
             <Text fontSize="xl" fontWeight="bold" color={colors.textPrimary}>
@@ -157,3 +157,4 @@ const ViewSharedWorkoutModal = ({ isOpen, onClose, workout }) => {
 };
 
 export default ViewSharedWorkoutModal;
+

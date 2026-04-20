@@ -3,9 +3,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import { ChakraProvider } from "@chakra-ui/react";
 import { BrowserRouter } from "react-router-dom";
-import theme from "./theme.js";
+import theme from "./theme/chakraTheme.js";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import { Toaster } from "./components/ui/sonner";
+import ErrorBoundary from "./components/system/ErrorBoundary.jsx";
 // Expose auth helpers to window for console debugging
 import "./utils/getMyUID.js";
 
@@ -54,7 +55,9 @@ createRoot(document.getElementById("root")).render(
     >
       <ThemeProvider>
         <ChakraProvider theme={theme}>
-          <App />
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
           <Toaster />
         </ChakraProvider>
       </ThemeProvider>

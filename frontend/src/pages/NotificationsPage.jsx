@@ -93,7 +93,11 @@ export default function NotificationsPage() {
   };
 
   return (
-    <Container maxW="container.xl" py={4}>
+    <Container
+      maxW="container.xl"
+      pt="calc(env(safe-area-inset-top, 0px) + 1rem)"
+      pb={4}
+    >
       <Flex align="center" justify="space-between" mb={4}>
         <Button variant="ghost" onClick={() => navigate(-1)}>
           Back

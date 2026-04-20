@@ -47,7 +47,7 @@ import EditSharedWorkoutModal from "../components/EditSharedWorkoutModal";
 import CreateSharedWorkoutModal from "../components/CreateSharedWorkoutModal";
 import { useThemeColors } from "../hooks/useThemeColors";
 import ShareableLinkModal from "../components/ShareableLinkModal";
-import ViewSharedWorkoutModal from "../components/ViewSharedWorkoutModal";
+import ViewSharedWorkoutModal from "../components/modals/ViewSharedWorkoutModal";
 
 const TrainerDashboard = () => {
   const [sharedWorkouts, setSharedWorkouts] = useState([]);

@@ -13,14 +13,13 @@ import {
   Text,
   Badge,
   Box,
-  Divider,
   Stat,
   StatLabel,
   StatNumber,
   StatHelpText,
   SimpleGrid,
 } from "@chakra-ui/react";
-import { useThemeColors } from "../hooks/useThemeColors";
+import { useThemeColors } from "../../hooks/useThemeColors";
 
 const WorkoutDetailsModal = ({
   isOpen,
@@ -67,9 +66,15 @@ const WorkoutDetailsModal = ({
   const dateInfo = formatDate(workoutData.date);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
+    <Modal isOpen={isOpen} onClose={onClose} size="2xl" isCentered>
       <ModalOverlay />
-      <ModalContent bg={colors.bgCard}>
+      <ModalContent
+        bg={colors.bgCard}
+        maxW="800px"
+        // Match the "own workout" viewing modals: keep the dialog compact on iOS
+        // and scroll inside instead of taking the full screen height.
+        maxH={{ base: "80vh", md: "85vh" }}
+      >
         <ModalHeader color={colors.textPrimary} bg={colors.bgCard}>
           <VStack align="start" spacing={1}>
             <HStack spacing={2} w="full" align="start">
@@ -92,8 +97,8 @@ const WorkoutDetailsModal = ({
         </ModalHeader>
         <ModalCloseButton color={colors.textMuted} />
 
-        <ModalBody bg={colors.bgCard}>
-          <VStack spacing={6} align="stretch">
+        <ModalBody bg={colors.bgCard} overflowY="auto">
+          <VStack spacing={5} align="stretch">
             {/* Workout Summary */}
             <Box
               p={4}
@@ -291,3 +296,4 @@ const WorkoutDetailsModal = ({
 };
 
 export default WorkoutDetailsModal;
+

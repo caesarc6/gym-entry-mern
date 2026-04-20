@@ -1905,10 +1905,11 @@ const ProductCard = ({
         <ModalContent
           maxW={{ base: "90vw", md: "600px" }}
           mx={{ base: 2, md: 4 }}
-          maxH={{ base: "95vh", md: "90vh" }}
+          // Keep the feed post modal compact on iOS (match other workout modals).
+          maxH={{ base: "80vh", md: "90vh" }}
           overflow="hidden"
           aspectRatio={{ base: "9/16", md: "2/3" }}
-          minH={{ base: "86vh", md: "640px" }}
+          minH={{ base: "70vh", md: "640px" }}
           borderRadius="4px"
           bg={colors.bgCard}
         >
@@ -2564,7 +2565,16 @@ const ProductCard = ({
                 _placeholder={{ color: colors.textMuted }}
                 _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
               />
-              <Text fontSize="sm" color={colors.textMuted} w="full">
+              <Text
+                fontSize="sm"
+                color={colors.textMuted}
+                w="full"
+                noOfLines={2}
+                minH="2.6em"
+                lineHeight="1.3"
+                display="flex"
+                alignItems="center"
+              >
                 {editAutosaveMeta.status === "saving"
                   ? "Saving to your post…"
                   : editAutosaveMeta.status === "saved"

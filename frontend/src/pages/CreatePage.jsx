@@ -1,14 +1,18 @@
 import {
+  Alert,
+  AlertDescription,
   Box,
   Button,
   Container,
+  FormControl,
+  FormLabel,
   Heading,
   Input,
   Image,
   Textarea,
   VStack,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader"; // Import the FileUploader component
@@ -21,17 +25,102 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 
 const CreatePage = () => {
+  const draftStorageKey = useMemo(() => "gym-entry:create-post-draft:v1", []);
+  const draftMaxAgeMs = useMemo(() => 30 * 24 * 60 * 60 * 1000, []);
   const [newPost, setNewPost] = useState({
     name: "",
     description: "",
     image: "",
     uid: "",
   });
+  const didHydrateDraftRef = useRef(false);
+  const saveDraftTimeoutRef = useRef(null);
 
   const navigate = useNavigate(); // Initialize useNavigate
   const colors = useThemeColors();
   const bgColorMode =
     colors.currentTheme === "light" ? defaultBg : defaultBgNight;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (!raw) {
+        didHydrateDraftRef.current = true;
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") {
+        didHydrateDraftRef.current = true;
+        return;
+      }
+      if (parsed.lastLocalSaveAt) {
+        const age = Date.now() - new Date(parsed.lastLocalSaveAt).getTime();
+        if (!Number.isFinite(age) || age > draftMaxAgeMs) {
+          localStorage.removeItem(draftStorageKey);
+          didHydrateDraftRef.current = true;
+          return;
+        }
+      }
+      setNewPost((prev) => ({
+        ...prev,
+        name: typeof parsed.name === "string" ? parsed.name : prev.name,
+        description:
+          typeof parsed.description === "string"
+            ? parsed.description
+            : prev.description,
+        image: typeof parsed.image === "string" ? parsed.image : prev.image,
+        postImage:
+          typeof parsed.postImage === "string" ? parsed.postImage : prev.postImage,
+        postImageName:
+          typeof parsed.postImageName === "string"
+            ? parsed.postImageName
+            : prev.postImageName,
+      }));
+    } catch {
+      // ignore draft hydration errors
+    } finally {
+      didHydrateDraftRef.current = true;
+    }
+  }, [draftMaxAgeMs, draftStorageKey]);
+
+  useEffect(() => {
+    if (!didHydrateDraftRef.current) return;
+
+    if (saveDraftTimeoutRef.current) {
+      clearTimeout(saveDraftTimeoutRef.current);
+    }
+
+    // Debounce so we don't thrash localStorage while typing.
+    saveDraftTimeoutRef.current = setTimeout(() => {
+      const draft = {
+        version: 1,
+        lastLocalSaveAt: new Date().toISOString(),
+        name: newPost?.name ?? "",
+        description: newPost?.description ?? "",
+        image: newPost?.image ?? "",
+        postImage: newPost?.postImage ?? "",
+        postImageName: newPost?.postImageName ?? "",
+      };
+
+      try {
+        localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+      } catch {
+        // Best-effort: localStorage may be full (especially with images).
+        try {
+          const { postImage, ...withoutImage } = draft;
+          localStorage.setItem(draftStorageKey, JSON.stringify(withoutImage));
+        } catch {
+          // ignore save errors
+        }
+      }
+    }, 350);
+
+    return () => {
+      if (saveDraftTimeoutRef.current) {
+        clearTimeout(saveDraftTimeoutRef.current);
+      }
+    };
+  }, [draftStorageKey, newPost]);
 
   const handleFileUpload = (file) => {
     const reader = new FileReader();
@@ -39,13 +128,11 @@ const CreatePage = () => {
     reader.onloadstart = () => {};
 
     reader.onloadend = () => {
-      const updatedPost = {
-        ...newPost,
+      setNewPost((prev) => ({
+        ...prev,
         postImage: reader.result,
-        postImageName: file.name,
-      };
-
-      setNewPost(updatedPost);
+        postImageName: file?.name,
+      }));
     };
 
     reader.onerror = (error) => {};
@@ -60,7 +147,7 @@ const CreatePage = () => {
 
   const { createPost } = useProductStore();
 
-  const handleAddEntry = async () => {
+  const handleAddPost = async () => {
     // get current user from auth
     const currentUser = await getCurrentAuthUser();
     if (!currentUser) {
@@ -77,11 +164,20 @@ const CreatePage = () => {
       toast.error("Error", message);
     } else {
       toast.success("Success", message);
+      try {
+        localStorage.removeItem(draftStorageKey);
+      } catch {
+        // ignore
+      }
       // Redirect to the main page after successful entry creation
       navigate("/"); // Replace "/" with the path to your main page
+      setNewPost({ name: "", description: "", image: "", uid: "" });
     }
-    setNewPost({ name: "", description: "", image: "", uid: "" });
   };
+
+  const canSubmit =
+    String(newPost?.name || "").trim().length > 0 &&
+    String(newPost?.description || "").trim().length > 0;
 
   return (
     <Container maxW={"container.sm"}>
@@ -99,35 +195,55 @@ const CreatePage = () => {
         </Heading>
 
         <Box w={"full"} bg={colors.bgCard} p={6} rounded={"lg"} shadow={"md"}>
-          <VStack spacing={4} w="full">
-            <Input
-              placeholder="Name of Workout Session*"
-              name="title"
-              value={newPost.name}
-              onChange={(e) => {
-                setNewPost({ ...newPost, name: e.target.value });
-              }}
-              w="full"
+          <VStack spacing={5} w="full" align="stretch">
+            <Alert
+              status="info"
+              variant="subtle"
+              bg={colors.bgMuted}
               color={colors.textPrimary}
-              borderColor={colors.borderColorInput}
-              _placeholder={{ color: colors.textMuted }}
-            />
-            <Textarea
-              style={{ height: "185px" }}
-              placeholder="Workout description * 
-              
-E.g.
-DumbBell Curls 6lbs: 3 sets of 10 reps"
-              name="description"
-              value={newPost.description}
-              onChange={(e) => {
-                setNewPost({ ...newPost, description: e.target.value });
-              }}
-              w="full"
-              color={colors.textPrimary}
-              borderColor={colors.borderColorInput}
-              _placeholder={{ color: colors.textMuted }}
-            />
+              rounded="md"
+            >
+              <AlertDescription>
+                Draft saves automatically while you type.
+              </AlertDescription>
+            </Alert>
+
+            <FormControl isRequired>
+              <FormLabel color={colors.textPrimary} mb={2}>
+                Workout session name
+              </FormLabel>
+              <Input
+                placeholder="e.g. Arm Day"
+                name="title"
+                value={newPost.name}
+                onChange={(e) => {
+                  setNewPost({ ...newPost, name: e.target.value });
+                }}
+                w="full"
+                color={colors.textPrimary}
+                borderColor={colors.borderColorInput}
+                _placeholder={{ color: colors.textMuted }}
+              />
+            </FormControl>
+
+            <FormControl isRequired>
+              <FormLabel color={colors.textPrimary} mb={2}>
+                Workout description
+              </FormLabel>
+              <Textarea
+                minH="185px"
+                placeholder={`E.g.\nDumbbell curls 6lbs: 3 sets of 10 reps`}
+                name="description"
+                value={newPost.description}
+                onChange={(e) => {
+                  setNewPost({ ...newPost, description: e.target.value });
+                }}
+                w="full"
+                color={colors.textPrimary}
+                borderColor={colors.borderColorInput}
+                _placeholder={{ color: colors.textMuted }}
+              />
+            </FormControl>
 
             {/* <Input
               placeholder="Image URL (optional)"
@@ -139,19 +255,28 @@ DumbBell Curls 6lbs: 3 sets of 10 reps"
               w="full"
             /> */}
 
-            <Image
-              src={newPost.postImage || bgColorMode}
-              alt="Profile Picture"
-              backgroundColor={colors.bgMuted}
-              boxSize="150px"
-              objectFit="cover"
-              borderRadius="md"
-            />
-            <FileUploader
-              handleFile={handleFileUpload}
-              maxSizeMB={5}
-              showCompressionInfo={true}
-            />
+            <FormControl>
+              <FormLabel color={colors.textPrimary} mb={2} textAlign="center">
+                Image (optional)
+              </FormLabel>
+              <VStack spacing={3} align="center" w="full">
+                {newPost.postImage ? (
+                  <Image
+                    src={newPost.postImage}
+                    alt="Post image preview"
+                    backgroundColor={colors.bgMuted}
+                    boxSize="150px"
+                    objectFit="cover"
+                    borderRadius="md"
+                  />
+                ) : null}
+                <FileUploader
+                  handleFile={handleFileUpload}
+                  maxSizeMB={5}
+                  showCompressionInfo={true}
+                />
+              </VStack>
+            </FormControl>
             {/* <Input
               className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
               type="file"
@@ -176,11 +301,12 @@ DumbBell Curls 6lbs: 3 sets of 10 reps"
             <Button
               colorScheme="blue"
               onClick={(e) => {
-                handleAddEntry();
+                handleAddPost();
               }}
-              w="3xs"
+              isDisabled={!canSubmit}
+              w="full"
             >
-              Add Entry
+              Add Post
             </Button>
           </VStack>
         </Box>
