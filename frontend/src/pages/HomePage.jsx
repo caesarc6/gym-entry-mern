@@ -7,12 +7,6 @@ import {
   Spinner,
   useColorModeValue,
   Flex,
-  IconButton,
-  Menu as ChakraMenu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Button as ChakraButton,
   HStack,
 } from "@chakra-ui/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -30,8 +24,9 @@ import { getCurrentAuthUser } from "../utils/auth";
 import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
-import { FiBell, FiMenu, FiPlus } from "react-icons/fi";
+import { FiPlus } from "react-icons/fi";
 import { useThemeColors } from "../hooks/useThemeColors";
+import MobileNavMenu from "../components/MobileNavMenu";
 
 const isCapacitorNative =
   typeof window !== "undefined" &&
@@ -176,11 +171,6 @@ const HomePage = () => {
 
   // Get current user info from store
   const currentUserInfo = useProductStore((state) => state.currentUserInfo);
-  const userLabel =
-    currentUserInfo?.username ||
-    currentUserInfo?.name ||
-    (currentUserInfo?.email ? currentUserInfo.email.split("@")[0] : "") ||
-    "Account";
 
   // Get claimed workouts state from store
   const claimedWorkouts = useProductStore((state) => state.claimedWorkouts);
@@ -407,46 +397,28 @@ const HomePage = () => {
     <>
       {showSignedInFeed ? (
         <>
-          <nav className="sticky top-0 z-20 w-full">
-            <div
-              className={cn(
-                "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
-                currentTheme === "light"
-                  ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
-                  : currentTheme === "dark-black"
-                    ? "border-neutral-800/55 bg-neutral-950/88"
-                    : currentTheme === "dark-blue"
-                      ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
-                      : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
-              )}
-            >
-              <div className="mx-auto w-full max-w-7xl">
-                <div className="relative flex items-center justify-between py-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/create")}
-                    aria-label="Create post"
-                    className={cn(
-                      "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                      currentTheme === "light"
-                        ? "text-gray-700 hover:bg-gray-100"
-                        : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                    )}
-                  >
-                    <FiPlus className="h-5 w-5" />
-                  </button>
-
-                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-                    <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
-                      Ethereal Gains
-                    </span>
-                  </div>
-
-                  <HStack spacing={1}>
+          {/* Web already mounts `HeroHeader` globally (App.jsx). Only show this
+              feed header on native builds where `HeroHeader` is not mounted. */}
+          {isCapacitorNative ? (
+            <nav className="sticky top-0 z-20 w-full">
+              <div
+                className={cn(
+                  "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
+                  currentTheme === "light"
+                    ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
+                    : currentTheme === "dark-black"
+                      ? "border-neutral-800/55 bg-neutral-950/88"
+                      : currentTheme === "dark-blue"
+                        ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
+                        : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
+                )}
+              >
+                <div className="mx-auto w-full max-w-7xl">
+                  <div className="relative flex items-center justify-between py-2">
                     <button
                       type="button"
-                      onClick={() => navigate("/notifications")}
-                      aria-label="Notifications"
+                      onClick={() => navigate("/create")}
+                      aria-label="Create post"
                       className={cn(
                         "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
                         currentTheme === "light"
@@ -454,43 +426,29 @@ const HomePage = () => {
                           : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
                       )}
                     >
-                      <FiBell className="h-5 w-5" />
+                      <FiPlus className="h-5 w-5" />
                     </button>
 
-                    <ChakraMenu placement="bottom-end">
-                      <MenuButton
-                        as={IconButton}
-                        aria-label="Open menu"
-                        icon={<FiMenu className="h-5 w-5" />}
-                        variant="ghost"
-                        size="md"
-                        className={cn(
-                          "h-10 w-10 rounded-lg",
-                          currentTheme === "light"
-                            ? "text-gray-700 hover:bg-gray-100"
-                            : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                        )}
-                      />
-                      <MenuList
-                        className={cn(currentTheme === "light" ? "" : "bg-zinc-950/95")}
-                      >
-                        <MenuItem onClick={() => navigate("/create")}>Create</MenuItem>
-                        <MenuItem onClick={() => navigate("/notifications")}>
-                          Notifications
-                        </MenuItem>
-                        <MenuItem onClick={() => navigate("/analytics")}>Analytics</MenuItem>
-                        <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
-                        <MenuItem onClick={() => navigate("/settings")}>Settings</MenuItem>
-                      </MenuList>
-                    </ChakraMenu>
-                  </HStack>
+                    <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
+                      <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
+                        Ethereal Gains
+                      </span>
+                    </div>
+
+                    <HStack spacing={1}>
+                      <MobileNavMenu currentTheme={currentTheme} />
+                    </HStack>
+                  </div>
                 </div>
               </div>
-            </div>
-          </nav>
+            </nav>
+          ) : null}
 
           <Container maxW="container.xl" className="text-center z-0 relative">
-            <VStack spacing={8} className="pt-4">
+            <VStack
+              spacing={8}
+              className={cn("pt-4", !isCapacitorNative && "pt-[6.5rem] md:pt-28")}
+            >
             {uid && isLoading ? (
               <Box
                 display="flex"

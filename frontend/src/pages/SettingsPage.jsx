@@ -24,15 +24,10 @@ import {
   useDisclosure,
   VStack,
   HStack,
-  Menu as ChakraMenu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  IconButton,
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiArrowLeft, FiMenu } from "react-icons/fi";
+import { FiArrowLeft } from "react-icons/fi";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useTheme } from "../contexts/ThemeContext";
 import { FileUploader } from "../components/FileUploader";
@@ -42,6 +37,7 @@ import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { cn } from "../lib/utils";
 import { useProductStore } from "../store/product";
+import MobileNavMenu from "../components/MobileNavMenu";
 
 const SettingsPage = () => {
   const colors = useThemeColors();
@@ -335,32 +331,7 @@ const SettingsPage = () => {
               </div>
 
               <HStack spacing={1}>
-                <ChakraMenu placement="bottom-end">
-                  <MenuButton
-                    as={IconButton}
-                    aria-label="Open menu"
-                    icon={<FiMenu className="h-5 w-5" />}
-                    variant="ghost"
-                    size="md"
-                    className={cn(
-                      "h-10 w-10 rounded-lg",
-                      currentTheme === "light"
-                        ? "text-gray-700 hover:bg-gray-100"
-                        : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                    )}
-                  />
-                  <MenuList
-                    className={cn(currentTheme === "light" ? "" : "bg-zinc-950/95")}
-                  >
-                    <MenuItem onClick={() => navigate("/create")}>Create</MenuItem>
-                    <MenuItem onClick={() => navigate("/notifications")}>
-                      Notifications
-                    </MenuItem>
-                    <MenuItem onClick={() => navigate("/analytics")}>Analytics</MenuItem>
-                    <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
-                    <MenuItem onClick={() => navigate("/settings")}>Settings</MenuItem>
-                  </MenuList>
-                </ChakraMenu>
+                <MobileNavMenu currentTheme={currentTheme} />
               </HStack>
             </div>
           </div>

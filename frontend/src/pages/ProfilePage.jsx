@@ -24,11 +24,6 @@ import {
   Textarea,
   Badge,
   HStack,
-  Menu as ChakraMenu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  IconButton,
 } from "@chakra-ui/react";
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -37,7 +32,7 @@ import ProductCard from "../components/ProductCard";
 import { FileUploader } from "../components/FileUploader";
 import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
-import { FiMenu, FiSettings } from "react-icons/fi";
+import { FiSettings } from "react-icons/fi";
 import light from "../assets/light.jpg";
 import PaginationComponent from "../components/Pagination";
 import night from "../assets/night.jpg";
@@ -60,6 +55,13 @@ import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PrivacySettings from "../components/PrivacySettings";
 import { useProductStore as useUiStore } from "../store/product";
+import MobileNavMenu from "../components/MobileNavMenu";
+
+const isCapacitorNative =
+  typeof window !== "undefined" &&
+  window.Capacitor &&
+  typeof window.Capacitor.isNativePlatform === "function" &&
+  window.Capacitor.isNativePlatform();
 
 const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -809,77 +811,60 @@ const ProfilePage = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-20 w-full">
-        <div
-          className={cn(
-            "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
-            currentTheme === "light"
-              ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
-              : currentTheme === "dark-black"
-                ? "border-neutral-800/55 bg-neutral-950/88"
-                : currentTheme === "dark-blue"
-                  ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
-                  : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
-          )}
-        >
-          <div className="mx-auto w-full max-w-7xl">
-            <div className="relative flex items-center justify-between py-2">
-              <div className="h-10 w-10" aria-hidden />
+      {/* Web already mounts `HeroHeader` globally (App.jsx). Only show this
+          profile header on native builds where `HeroHeader` is not mounted. */}
+      {isCapacitorNative ? (
+        <nav className="sticky top-0 z-20 w-full">
+          <div
+            className={cn(
+              "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
+              currentTheme === "light"
+                ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
+                : currentTheme === "dark-black"
+                  ? "border-neutral-800/55 bg-neutral-950/88"
+                  : currentTheme === "dark-blue"
+                    ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
+                    : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
+            )}
+          >
+            <div className="mx-auto w-full max-w-7xl">
+              <div className="relative flex items-center justify-between py-2">
+                <div className="h-10 w-10" aria-hidden />
 
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-                <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
-                  Profile
-                </span>
-              </div>
+                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
+                  <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
+                    Profile
+                  </span>
+                </div>
 
-              <HStack spacing={1}>
-                <button
-                  type="button"
-                  onClick={() => navigate("/settings")}
-                  aria-label="Settings"
-                  className={cn(
-                    "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                    currentTheme === "light"
-                      ? "text-gray-700 hover:bg-gray-100"
-                      : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                  )}
-                >
-                  <FiSettings className="h-5 w-5" />
-                </button>
-
-                <ChakraMenu placement="bottom-end">
-                  <MenuButton
-                    as={IconButton}
-                    aria-label="Open menu"
-                    icon={<FiMenu className="h-5 w-5" />}
-                    variant="ghost"
-                    size="md"
+                <HStack spacing={1}>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/settings")}
+                    aria-label="Settings"
                     className={cn(
-                      "h-10 w-10 rounded-lg",
+                      "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
                       currentTheme === "light"
                         ? "text-gray-700 hover:bg-gray-100"
                         : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
                     )}
-                  />
-                  <MenuList
-                    className={cn(currentTheme === "light" ? "" : "bg-zinc-950/95")}
                   >
-                    <MenuItem onClick={() => navigate("/create")}>Create</MenuItem>
-                    <MenuItem onClick={() => navigate("/notifications")}>
-                      Notifications
-                    </MenuItem>
-                    <MenuItem onClick={() => navigate("/analytics")}>Analytics</MenuItem>
-                    <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
-                    <MenuItem onClick={() => navigate("/settings")}>Settings</MenuItem>
-                  </MenuList>
-                </ChakraMenu>
-              </HStack>
+                    <FiSettings className="h-5 w-5" />
+                  </button>
+
+                  <MobileNavMenu currentTheme={currentTheme} />
+                </HStack>
+              </div>
             </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      ) : null}
 
-      <Container maxW="container.xl" pt={4} pb={12}>
+      <Container
+        maxW="container.xl"
+        pt={isCapacitorNative ? 4 : { base: 24, md: 28 }}
+        pb={12}
+      >
       {/* Profile Section */}
       <Center py={6} mt={0}>
         <Box
