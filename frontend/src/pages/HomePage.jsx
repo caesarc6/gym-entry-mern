@@ -30,7 +30,7 @@ import { getCurrentAuthUser } from "../utils/auth";
 import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
-import { FiBell, FiMenu } from "react-icons/fi";
+import { FiBell, FiMenu, FiPlus } from "react-icons/fi";
 import { useThemeColors } from "../hooks/useThemeColors";
 
 const isCapacitorNative =
@@ -422,27 +422,19 @@ const HomePage = () => {
             >
               <div className="mx-auto w-full max-w-7xl">
                 <div className="relative flex items-center justify-between py-2">
-                  <ChakraMenu placement="bottom-start">
-                    <MenuButton
-                      as={IconButton}
-                      aria-label="Open menu"
-                      icon={<FiMenu className="h-5 w-5" />}
-                      variant="ghost"
-                      size="md"
-                      className={cn(
-                        "h-10 w-10 rounded-lg",
-                        currentTheme === "light"
-                          ? "text-gray-700 hover:bg-gray-100"
-                          : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                      )}
-                    />
-                    <MenuList className={cn(currentTheme === "light" ? "" : "bg-zinc-950/95")}>
-                      <MenuItem onClick={() => navigate("/create")}>Create</MenuItem>
-                      <MenuItem onClick={() => navigate("/analytics")}>Analytics</MenuItem>
-                      <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
-                      <MenuItem onClick={() => navigate("/settings")}>Settings</MenuItem>
-                    </MenuList>
-                  </ChakraMenu>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/create")}
+                    aria-label="Create post"
+                    className={cn(
+                      "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                      currentTheme === "light"
+                        ? "text-gray-700 hover:bg-gray-100"
+                        : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
+                    )}
+                  >
+                    <FiPlus className="h-5 w-5" />
+                  </button>
 
                   <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
                     <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
@@ -467,21 +459,27 @@ const HomePage = () => {
 
                     <ChakraMenu placement="bottom-end">
                       <MenuButton
-                        as={ChakraButton}
+                        as={IconButton}
+                        aria-label="Open menu"
+                        icon={<FiMenu className="h-5 w-5" />}
                         variant="ghost"
-                        size="sm"
+                        size="md"
                         className={cn(
-                          "h-10 rounded-lg px-3",
+                          "h-10 w-10 rounded-lg",
                           currentTheme === "light"
                             ? "text-gray-700 hover:bg-gray-100"
                             : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
                         )}
+                      />
+                      <MenuList
+                        className={cn(currentTheme === "light" ? "" : "bg-zinc-950/95")}
                       >
-                        @{userLabel}
-                      </MenuButton>
-                      <MenuList className={cn(currentTheme === "light" ? "" : "bg-zinc-950/95")}>
-                        <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
+                        <MenuItem onClick={() => navigate("/create")}>Create</MenuItem>
+                        <MenuItem onClick={() => navigate("/notifications")}>
+                          Notifications
+                        </MenuItem>
                         <MenuItem onClick={() => navigate("/analytics")}>Analytics</MenuItem>
+                        <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
                         <MenuItem onClick={() => navigate("/settings")}>Settings</MenuItem>
                       </MenuList>
                     </ChakraMenu>

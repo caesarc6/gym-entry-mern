@@ -24,6 +24,11 @@ import {
   Textarea,
   Badge,
   HStack,
+  Menu as ChakraMenu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  IconButton,
 } from "@chakra-ui/react";
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -32,7 +37,7 @@ import ProductCard from "../components/ProductCard";
 import { FileUploader } from "../components/FileUploader";
 import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
-import { FiSettings } from "react-icons/fi";
+import { FiMenu, FiSettings } from "react-icons/fi";
 import light from "../assets/light.jpg";
 import PaginationComponent from "../components/Pagination";
 import night from "../assets/night.jpg";
@@ -827,19 +832,48 @@ const ProfilePage = () => {
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => navigate("/settings")}
-                aria-label="Settings"
-                className={cn(
-                  "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                  currentTheme === "light"
-                    ? "text-gray-700 hover:bg-gray-100"
-                    : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                )}
-              >
-                <FiSettings className="h-5 w-5" />
-              </button>
+              <HStack spacing={1}>
+                <button
+                  type="button"
+                  onClick={() => navigate("/settings")}
+                  aria-label="Settings"
+                  className={cn(
+                    "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                    currentTheme === "light"
+                      ? "text-gray-700 hover:bg-gray-100"
+                      : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
+                  )}
+                >
+                  <FiSettings className="h-5 w-5" />
+                </button>
+
+                <ChakraMenu placement="bottom-end">
+                  <MenuButton
+                    as={IconButton}
+                    aria-label="Open menu"
+                    icon={<FiMenu className="h-5 w-5" />}
+                    variant="ghost"
+                    size="md"
+                    className={cn(
+                      "h-10 w-10 rounded-lg",
+                      currentTheme === "light"
+                        ? "text-gray-700 hover:bg-gray-100"
+                        : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
+                    )}
+                  />
+                  <MenuList
+                    className={cn(currentTheme === "light" ? "" : "bg-zinc-950/95")}
+                  >
+                    <MenuItem onClick={() => navigate("/create")}>Create</MenuItem>
+                    <MenuItem onClick={() => navigate("/notifications")}>
+                      Notifications
+                    </MenuItem>
+                    <MenuItem onClick={() => navigate("/analytics")}>Analytics</MenuItem>
+                    <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
+                    <MenuItem onClick={() => navigate("/settings")}>Settings</MenuItem>
+                  </MenuList>
+                </ChakraMenu>
+              </HStack>
             </div>
           </div>
         </div>
