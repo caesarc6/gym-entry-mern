@@ -9,12 +9,9 @@ import { Toaster } from "./components/ui/sonner";
 import ErrorBoundary from "./components/system/ErrorBoundary.jsx";
 // Expose auth helpers to window for console debugging
 import "./utils/getMyUID.js";
+import { isCapacitorNative as getIsCapacitorNative } from "./utils/isNativePlatform";
 
-const isCapacitorNative =
-  typeof window !== "undefined" &&
-  window.Capacitor &&
-  typeof window.Capacitor.isNativePlatform === "function" &&
-  window.Capacitor.isNativePlatform();
+const isCapacitorNative = getIsCapacitorNative();
 
 if (isCapacitorNative) {
   Promise.all([import("@capacitor/app"), import("@capacitor/browser")])

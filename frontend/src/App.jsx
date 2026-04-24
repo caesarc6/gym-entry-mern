@@ -10,6 +10,7 @@ import MobileAppShell from "./components/MobileAppShell";
 import RequireAuth from "./routes/RequireAuth";
 import SignUpFlow from "./pages/SignUpFlow";
 import { useProductStore } from "./store/product";
+import { isCapacitorNative as getIsCapacitorNative } from "./utils/isNativePlatform";
 
 const CreatePage = lazy(() => import("./pages/CreatePage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
@@ -173,11 +174,7 @@ function NativeTabsLayout() {
 
 function App() {
   const { currentTheme } = useTheme();
-  const isCapacitorNative =
-    typeof window !== "undefined" &&
-    window.Capacitor &&
-    typeof window.Capacitor.isNativePlatform === "function" &&
-    window.Capacitor.isNativePlatform();
+  const isCapacitorNative = getIsCapacitorNative();
 
   const getBackgroundStyle = () => {
     switch (currentTheme) {

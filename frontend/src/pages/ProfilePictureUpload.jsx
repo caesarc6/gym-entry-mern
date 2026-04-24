@@ -1,9 +1,6 @@
 import {
-  Container,
-  SimpleGrid,
   Text,
   VStack,
-  Button,
   Box,
   Progress,
 } from "@chakra-ui/react";
@@ -12,6 +9,7 @@ import { useState } from "react";
 import { handleImageUploadWithCompression } from "../utils/imageCompression";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { getCurrentAuthUser } from "../utils/auth";
+import { FileUploader } from "../components/FileUploader";
 
 function ProfilePictureUpload() {
   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
@@ -80,17 +78,9 @@ function ProfilePictureUpload() {
 
   return (
     <VStack spacing={4} align="stretch">
-      <input
-        type="file"
-        onChange={(e) => {
-          const file = e.target.files[0];
-          if (file) {
-            handleFileUpload(file);
-          }
-        }}
-        accept="image/*"
-        disabled={isProcessing}
-        className="mb-4 mt-4 p-2 border border-gray-600 rounded w-full max-w-sm text-center cursor-pointer hover:bg-slate-700 hover:text-white transition-colors duration-300 ease-in-out text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-slate-700 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed"
+      <FileUploader
+        handleFile={handleFileUpload}
+        maxSizeMB={5}
       />
 
       {isProcessing && (

@@ -3,12 +3,26 @@ import { useEffect, useState } from "react";
 import { Center, Spinner } from "@chakra-ui/react";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
+import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 
 const isCapacitorNative =
   typeof window !== "undefined" &&
   window.Capacitor &&
   typeof window.Capacitor.isNativePlatform === "function" &&
   window.Capacitor.isNativePlatform();
+
+function nativeTabAuthVariant(pathname) {
+  if (pathname === "/create" || pathname.startsWith("/create/")) {
+    return "create";
+  }
+  if (pathname === "/analytics" || pathname.startsWith("/analytics/")) {
+    return "analytics";
+  }
+  if (pathname === "/profile" || pathname.startsWith("/profile/")) {
+    return "profile";
+  }
+  return null;
+}
 
 export default function RequireAuth({ children }) {
   const location = useLocation();
@@ -62,6 +76,12 @@ export default function RequireAuth({ children }) {
   }
 
   if (!status.authed) {
+    if (isCapacitorNative) {
+      const tabVariant = nativeTabAuthVariant(location.pathname);
+      if (tabVariant) {
+        return <SignedOutTabPrompt variant={tabVariant} />;
+      }
+    }
     const guestPath = isCapacitorNative ? "/signup" : "/login";
     return (
       <Navigate

@@ -37,7 +37,9 @@ import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { cn } from "../lib/utils";
 import { useProductStore } from "../store/product";
-import MobileNavMenu from "../components/MobileNavMenu";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+
+const isCapacitorNative = getIsCapacitorNative();
 
 const SettingsPage = () => {
   const colors = useThemeColors();
@@ -330,9 +332,7 @@ const SettingsPage = () => {
                 </span>
               </div>
 
-              <HStack spacing={1}>
-                <MobileNavMenu currentTheme={currentTheme} />
-              </HStack>
+              <HStack spacing={1} />
             </div>
           </div>
         </div>

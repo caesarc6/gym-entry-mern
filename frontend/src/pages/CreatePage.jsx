@@ -3,15 +3,19 @@ import {
   AlertDescription,
   Box,
   Button,
+  Center,
   Container,
   FormControl,
   FormLabel,
   Heading,
+  IconButton,
   Input,
   Image,
+  Spinner,
   Textarea,
   VStack,
 } from "@chakra-ui/react";
+import { CloseIcon } from "@chakra-ui/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
@@ -23,6 +27,8 @@ import defaultBgNight from "../assets/defaultBgNight.jpg";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
+import { supabase } from "../supabase/supabase";
+import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 
 const CreatePage = () => {
   const draftStorageKey = useMemo(() => "gym-entry:create-post-draft:v1", []);
@@ -33,13 +39,40 @@ const CreatePage = () => {
     image: "",
     uid: "",
   });
+  const [isPostImageActive, setIsPostImageActive] = useState(false);
+  const postImagePreviewRef = useRef(null);
+  const [fileUploaderKey, setFileUploaderKey] = useState(0);
   const didHydrateDraftRef = useRef(false);
   const saveDraftTimeoutRef = useRef(null);
+  const [sessionResolved, setSessionResolved] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
   const navigate = useNavigate(); // Initialize useNavigate
   const colors = useThemeColors();
   const bgColorMode =
     colors.currentTheme === "light" ? defaultBg : defaultBgNight;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const user = await getCurrentAuthUser();
+      if (cancelled) return;
+      setIsSignedIn(Boolean(user));
+      setSessionResolved(true);
+    })();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsSignedIn(Boolean(session?.user));
+      setSessionResolved(true);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -140,8 +173,34 @@ const CreatePage = () => {
     if (file) {
       reader.readAsDataURL(file);
     } else {
+      setNewPost((prev) => ({
+        ...prev,
+        postImage: "",
+        postImageName: "",
+      }));
+      setIsPostImageActive(false);
+      setFileUploaderKey((k) => k + 1); // reset uploader UI (compression info, etc.)
     }
   };
+
+  // Un-highlight preview when clicking outside it
+  useEffect(() => {
+    if (!isPostImageActive || !newPost?.postImage) return;
+
+    const onPointerDown = (e) => {
+      const el = postImagePreviewRef.current;
+      if (!el) return;
+      if (el.contains(e.target)) return;
+      setIsPostImageActive(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown, true);
+    document.addEventListener("touchstart", onPointerDown, true);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown, true);
+      document.removeEventListener("touchstart", onPointerDown, true);
+    };
+  }, [isPostImageActive, newPost?.postImage]);
 
   const toast = useCustomToast();
 
@@ -178,6 +237,20 @@ const CreatePage = () => {
   const canSubmit =
     String(newPost?.name || "").trim().length > 0 &&
     String(newPost?.description || "").trim().length > 0;
+
+  if (!sessionResolved) {
+    return (
+      <Container maxW="container.sm">
+        <Center minH="50vh">
+          <Spinner size="lg" color="blue.400" />
+        </Center>
+      </Container>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <SignedOutTabPrompt variant="create" />;
+  }
 
   return (
     <Container maxW={"container.sm"}>
@@ -261,19 +334,65 @@ const CreatePage = () => {
               </FormLabel>
               <VStack spacing={3} align="center" w="full">
                 {newPost.postImage ? (
-                  <Image
-                    src={newPost.postImage}
-                    alt="Post image preview"
-                    backgroundColor={colors.bgMuted}
-                    boxSize="150px"
-                    objectFit="cover"
-                    borderRadius="md"
-                  />
+                  <Box
+                    ref={postImagePreviewRef}
+                    position="relative"
+                    borderRadius="2xl"
+                    overflow="hidden"
+                    border="1px solid"
+                    borderColor={isPostImageActive ? "blue.400" : colors.borderColorInput}
+                    boxShadow={isPostImageActive ? "0 10px 30px rgba(0,0,0,0.25)" : "0 6px 18px rgba(0,0,0,0.18)"}
+                    transform={isPostImageActive ? "scale(1.01)" : "scale(1)"}
+                    transition="transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease"
+                    onClick={() => setIsPostImageActive((v) => !v)}
+                    cursor="pointer"
+                    w="220px"
+                    h="160px"
+                    bg={colors.bgMuted}
+                  >
+                    {/* subtle top gradient like native media cards */}
+                    <Box
+                      position="absolute"
+                      inset={0}
+                      bgGradient="linear(to-b, blackAlpha.400, transparent 35%)"
+                      pointerEvents="none"
+                      opacity={0.65}
+                    />
+
+                    <Image
+                      src={newPost.postImage}
+                      alt="Post image preview"
+                      backgroundColor={colors.bgMuted}
+                      w="100%"
+                      h="100%"
+                      objectFit="cover"
+                    />
+
+                    {isPostImageActive ? (
+                      <IconButton
+                        aria-label="Remove photo"
+                        icon={<CloseIcon boxSize={3} />}
+                        size="sm"
+                        variant="solid"
+                        colorScheme="blackAlpha"
+                        position="absolute"
+                        top={3}
+                        right={3}
+                        borderRadius="full"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFileUpload(null);
+                        }}
+                      />
+                    ) : null}
+                  </Box>
                 ) : null}
                 <FileUploader
+                  key={fileUploaderKey}
                   handleFile={handleFileUpload}
                   maxSizeMB={5}
-                  showCompressionInfo={true}
+                  showSelectedPreview={false}
                 />
               </VStack>
             </FormControl>

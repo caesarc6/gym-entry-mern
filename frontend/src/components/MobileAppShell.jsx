@@ -1,11 +1,8 @@
 import { useEffect } from "react";
 import BottomTabBar from "./BottomTabBar";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 
-const isCapacitorNative =
-  typeof window !== "undefined" &&
-  window.Capacitor &&
-  typeof window.Capacitor.isNativePlatform === "function" &&
-  window.Capacitor.isNativePlatform();
+const isCapacitorNative = getIsCapacitorNative();
 
 /**
  * Native app shell layout:

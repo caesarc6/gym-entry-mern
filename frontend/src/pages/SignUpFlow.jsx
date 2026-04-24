@@ -195,6 +195,22 @@ const SignUpFlow = () => {
                   {isSubmitting ? "Creating account..." : "Sign up"}
                 </button>
               </form>
+
+              <p className="mt-5 text-center text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/login", {
+                      replace: true,
+                      state: { from: redirectPath },
+                    })
+                  }
+                  className="font-medium text-primary hover:underline"
+                >
+                  Sign in
+                </button>
+              </p>
             </Card>
           </VStack>
         </Container>

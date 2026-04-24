@@ -26,13 +26,9 @@ import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
 import { FiPlus } from "react-icons/fi";
 import { useThemeColors } from "../hooks/useThemeColors";
-import MobileNavMenu from "../components/MobileNavMenu";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 
-const isCapacitorNative =
-  typeof window !== "undefined" &&
-  window.Capacitor &&
-  typeof window.Capacitor.isNativePlatform === "function" &&
-  window.Capacitor.isNativePlatform();
+const isCapacitorNative = getIsCapacitorNative();
 
 const HomePage = () => {
   const { clearEntrys, homeFeedCache, setHomeFeedCache, clearHomeFeedCache } =
@@ -435,9 +431,7 @@ const HomePage = () => {
                       </span>
                     </div>
 
-                    <HStack spacing={1}>
-                      <MobileNavMenu currentTheme={currentTheme} />
-                    </HStack>
+                    <HStack spacing={1} />
                   </div>
                 </div>
               </div>

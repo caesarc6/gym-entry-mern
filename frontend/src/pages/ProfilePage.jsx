@@ -55,13 +55,10 @@ import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PrivacySettings from "../components/PrivacySettings";
 import { useProductStore as useUiStore } from "../store/product";
-import MobileNavMenu from "../components/MobileNavMenu";
+import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 
-const isCapacitorNative =
-  typeof window !== "undefined" &&
-  window.Capacitor &&
-  typeof window.Capacitor.isNativePlatform === "function" &&
-  window.Capacitor.isNativePlatform();
+const isCapacitorNative = getIsCapacitorNative();
 
 const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -781,19 +778,7 @@ const ProfilePage = () => {
   }
 
   if (!isSignedIn) {
-    return (
-      <Container maxW="container.xl" py={12}>
-        <Center>
-          <VStack spacing={6}>
-            <Heading>Please Sign In</Heading>
-            <Text>You need to be signed in to view your profile.</Text>
-            <Link to="/">
-              <Button colorScheme="blue">Go to Home</Button>
-            </Link>
-          </VStack>
-        </Center>
-      </Container>
-    );
+    return <SignedOutTabPrompt variant="profile" />;
   }
 
   const handleSignOut = async () => {
@@ -851,8 +836,6 @@ const ProfilePage = () => {
                   >
                     <FiSettings className="h-5 w-5" />
                   </button>
-
-                  <MobileNavMenu currentTheme={currentTheme} />
                 </HStack>
               </div>
             </div>

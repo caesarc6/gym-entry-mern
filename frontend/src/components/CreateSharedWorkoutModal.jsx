@@ -282,7 +282,6 @@ const CreateSharedWorkoutModal = ({
                 <FileUploader
                   handleFile={handleFileUpload}
                   maxSizeMB={5}
-                  showCompressionInfo={true}
                 />
                 {formData.image && (
                   <Box mt={2}>

@@ -39,6 +39,7 @@ import ProgressInsights from "../components/ProgressInsights";
 import WorkoutDetailsModal from "../components/modals/WorkoutDetailsModal";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
+import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -608,24 +609,7 @@ const AnalyticsPage = () => {
 
   // Check if user is not authenticated
   if (isAuthenticated === false) {
-    return (
-      <Container
-        maxW="container.xl"
-        pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
-        pb={8}
-      >
-        <Center>
-          <VStack spacing={4}>
-            <Text fontSize="lg" fontWeight="medium">
-              Please log in to view your workout analytics
-            </Text>
-            <Text fontSize="sm" color="gray.600">
-              You need to be authenticated to access this page
-            </Text>
-          </VStack>
-        </Center>
-      </Container>
-    );
+    return <SignedOutTabPrompt variant="analytics" />;
   }
 
   if (!analytics) {

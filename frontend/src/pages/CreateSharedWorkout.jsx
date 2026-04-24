@@ -328,7 +328,6 @@ const CreateSharedWorkout = () => {
                 <FileUploader
                   handleFile={handleFileUpload}
                   maxSizeMB={5}
-                  showCompressionInfo={true}
                 />
                 {sharedWorkout.image && (
                   <Box mt={2}>

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import multer from "multer";
 import Entry from "../models/entry.model.js";
 import { User } from "../models/user.model.js";
+import SharedWorkout from "../models/sharedWorkout.model.js";
 import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
@@ -11,6 +12,7 @@ import { supabase } from "../supabase/supabase.js";
 import { verifyIdToken } from "../middleware/auth.js"; //
 import { generateSafeFilePath } from "../utils/fileUtils.js";
 import { attachPopulatedLikesToEntries } from "../utils/entryLikes.js";
+import { ensureMongoConnected } from "../config/db.js";
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
@@ -138,6 +140,14 @@ export const updateEntry = async (req, res) => {
   }
 
   try {
+    const dbReady = await ensureMongoConnected();
+    if (!dbReady.ok) {
+      return res.status(503).json({
+        success: false,
+        message: dbReady.message || "Database not ready",
+      });
+    }
+
     // Get the entry first to check if it exists and to preserve existing image
     const existingEntry = await Entry.findById(pid);
     if (!existingEntry) {
@@ -202,8 +212,6 @@ export const updateEntry = async (req, res) => {
     // If this entry is linked to a SharedWorkout, sync the update back to the SharedWorkout
     if (existingEntry.sharedWorkoutId) {
       try {
-        const SharedWorkout = (await import("../models/sharedWorkout.model.js"))
-          .default;
         const sharedWorkoutUpdates = {};
 
         // Description is now stored without prefix - trainer info is separate
@@ -212,12 +220,6 @@ export const updateEntry = async (req, res) => {
         if (postImageUrl) sharedWorkoutUpdates.image = postImageUrl;
 
         if (Object.keys(sharedWorkoutUpdates).length > 0) {
-          // Also find other Entry posts linked to this SharedWorkout before updating
-          const otherEntries = await Entry.find({
-            sharedWorkoutId: existingEntry.sharedWorkoutId,
-            _id: { $ne: pid }, // Exclude the current entry
-          });
-
           // Update the SharedWorkout
           await SharedWorkout.findByIdAndUpdate(
             existingEntry.sharedWorkoutId,
@@ -235,14 +237,13 @@ export const updateEntry = async (req, res) => {
           if (postImageUrl) otherEntryUpdates.image = postImageUrl;
 
           if (Object.keys(otherEntryUpdates).length > 0) {
-            const updateResult = await Entry.updateMany(
+            await Entry.updateMany(
               {
                 sharedWorkoutId: existingEntry.sharedWorkoutId,
                 _id: { $ne: pid },
               },
               { $set: otherEntryUpdates }
             );
-          } else {
           }
         }
       } catch (syncError) {
@@ -440,6 +441,14 @@ export const updateEntryPut = async (req, res) => {
   }
 
   try {
+    const dbReady = await ensureMongoConnected();
+    if (!dbReady.ok) {
+      return res.status(503).json({
+        success: false,
+        message: dbReady.message || "Database not ready",
+      });
+    }
+
     // First, check if the entry exists and if the user is the owner
     const existingEntry = await Entry.findById(id);
 
@@ -507,8 +516,6 @@ export const updateEntryPut = async (req, res) => {
     // If this entry is linked to a SharedWorkout, sync the update back to the SharedWorkout
     if (existingEntry.sharedWorkoutId) {
       try {
-        const SharedWorkout = (await import("../models/sharedWorkout.model.js"))
-          .default;
         const sharedWorkoutUpdates = {};
 
         // Description is now stored without prefix - trainer info is separate
@@ -517,12 +524,6 @@ export const updateEntryPut = async (req, res) => {
         if (postImageUrl) sharedWorkoutUpdates.image = postImageUrl;
 
         if (Object.keys(sharedWorkoutUpdates).length > 0) {
-          // Also find other Entry posts linked to this SharedWorkout before updating
-          const otherEntries = await Entry.find({
-            sharedWorkoutId: existingEntry.sharedWorkoutId,
-            _id: { $ne: id }, // Exclude the current entry
-          });
-
           // Update the SharedWorkout
           await SharedWorkout.findByIdAndUpdate(
             existingEntry.sharedWorkoutId,
@@ -540,14 +541,13 @@ export const updateEntryPut = async (req, res) => {
           if (postImageUrl) otherEntryUpdates.image = postImageUrl;
 
           if (Object.keys(otherEntryUpdates).length > 0) {
-            const updateResult = await Entry.updateMany(
+            await Entry.updateMany(
               {
                 sharedWorkoutId: existingEntry.sharedWorkoutId,
                 _id: { $ne: id },
               },
               { $set: otherEntryUpdates }
             );
-          } else {
           }
         }
       } catch (syncError) {
