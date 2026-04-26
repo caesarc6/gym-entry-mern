@@ -11,7 +11,10 @@ import {
   filterUserDataForPublicView,
 } from "../utils/userUtils.js";
 import { attachPopulatedLikesToEntries } from "../utils/entryLikes.js";
-import { generateSafeFilePath } from "../utils/fileUtils.js";
+import {
+  generateSafeFilePath,
+  removeSupabaseObjectByPublicUrl,
+} from "../utils/fileUtils.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
 
 const buildUidQuery = (uid) => ({
@@ -513,6 +516,24 @@ export const getCurrentMongoDBUser = async (req, res) => {
   }
 };
 
+const cleanupReplacedImage = async ({ bucket, previousUrl, newUrl }) => {
+  if (!previousUrl || previousUrl === newUrl) return;
+
+  const result = await removeSupabaseObjectByPublicUrl(
+    supabase,
+    bucket,
+    previousUrl
+  );
+
+  if (result.error && process.env.NODE_ENV !== "production") {
+    console.warn("[storage cleanup] failed to remove replaced image", {
+      bucket,
+      path: result.path,
+      error: result.error.message,
+    });
+  }
+};
+
 export const updateUserProfile = async (req, res) => {
   try {
     const { uid } = req.user;
@@ -530,6 +551,11 @@ export const updateUserProfile = async (req, res) => {
     const authUserQuery = buildUidQuery(String(uid || "").trim());
 
     const hasMultipartProfileImage = Boolean(req.file?.buffer);
+    const hasBase64ProfileImage =
+      profileImageName &&
+      profileImageName !== "undefined" &&
+      typeof profileImage === "string" &&
+      profileImage.includes("base64");
 
     if (
       !name &&
@@ -547,6 +573,20 @@ export const updateUserProfile = async (req, res) => {
     }
 
     let profileImageUrl = null;
+    let existingUserForImageReplacement = null;
+
+    if (hasMultipartProfileImage || hasBase64ProfileImage) {
+      existingUserForImageReplacement = await User.findOne(authUserQuery)
+        .select("picture")
+        .lean();
+
+      if (!existingUserForImageReplacement) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+    }
 
     if (hasMultipartProfileImage) {
       try {
@@ -586,6 +626,11 @@ export const updateUserProfile = async (req, res) => {
           { $set: { picture: profileImageUrl } },
           { new: true }
         );
+        await cleanupReplacedImage({
+          bucket: "user_profiles",
+          previousUrl: existingUserForImageReplacement?.picture,
+          newUrl: profileImageUrl,
+        });
       } catch (error) {
         return res.status(500).json({
           success: false,
@@ -593,12 +638,7 @@ export const updateUserProfile = async (req, res) => {
           details: error.message,
         });
       }
-    } else if (
-      profileImageName &&
-      profileImageName !== "undefined" &&
-      typeof profileImage === "string" &&
-      profileImage.includes("base64")
-    ) {
+    } else if (hasBase64ProfileImage) {
       try {
         const base64Data = profileImage.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
@@ -629,6 +669,11 @@ export const updateUserProfile = async (req, res) => {
           { $set: { picture: profileImageUrl } },
           { new: true }
         );
+        await cleanupReplacedImage({
+          bucket: "user_profiles",
+          previousUrl: existingUserForImageReplacement?.picture,
+          newUrl: profileImageUrl,
+        });
       } catch (error) {
         return res.status(500).json({
           success: false,
@@ -1092,6 +1137,19 @@ export const uploadBackgroundPicture = [
       }
 
       const user = req.user;
+      const existingUser = await User.findOne(
+        buildUidQuery(String(user.uid || "").trim())
+      )
+        .select("backgroundPicture")
+        .lean();
+
+      if (!existingUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
       const fileName = generateSafeFilePath(
         user.uid,
         req.file.originalname,
@@ -1121,6 +1179,11 @@ export const uploadBackgroundPicture = [
         { new: true, lean: true }
       );
 
+      await cleanupReplacedImage({
+        bucket: "user_backgrounds",
+        previousUrl: existingUser.backgroundPicture,
+        newUrl: publicUrl,
+      });
 
       res.json({
         url: publicUrl,
@@ -1144,6 +1207,19 @@ export const uploadProfilePic = [
       }
 
       const user = req.user;
+      const existingUser = await User.findOne(
+        buildUidQuery(String(user.uid || "").trim())
+      )
+        .select("picture")
+        .lean();
+
+      if (!existingUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
       const fileName = generateSafeFilePath(
         user.uid,
         req.file.originalname,
@@ -1173,6 +1249,11 @@ export const uploadProfilePic = [
         { new: true, lean: true }
       );
 
+      await cleanupReplacedImage({
+        bucket: "user_profiles",
+        previousUrl: existingUser.picture,
+        newUrl: publicUrl,
+      });
 
       res.json({
         url: publicUrl,

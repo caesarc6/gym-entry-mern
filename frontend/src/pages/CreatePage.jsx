@@ -46,6 +46,8 @@ const CreatePage = () => {
   const saveDraftTimeoutRef = useRef(null);
   const [sessionResolved, setSessionResolved] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [authUser, setAuthUser] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate(); // Initialize useNavigate
   const colors = useThemeColors();
@@ -57,6 +59,7 @@ const CreatePage = () => {
     (async () => {
       const user = await getCurrentAuthUser();
       if (cancelled) return;
+      setAuthUser(user);
       setIsSignedIn(Boolean(user));
       setSessionResolved(true);
     })();
@@ -64,6 +67,23 @@ const CreatePage = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(
+        session?.user
+          ? {
+              uid: session.user.id,
+              email: session.user.email,
+              name:
+                session.user.user_metadata?.full_name ||
+                session.user.user_metadata?.name ||
+                session.user.email?.split("@")[0],
+              picture:
+                session.user.user_metadata?.avatar_url ||
+                session.user.user_metadata?.picture ||
+                "",
+              authProvider: "supabase",
+            }
+          : null
+      );
       setIsSignedIn(Boolean(session?.user));
       setSessionResolved(true);
     });
@@ -207,30 +227,39 @@ const CreatePage = () => {
   const { createPost } = useProductStore();
 
   const handleAddPost = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     // get current user from auth
-    const currentUser = await getCurrentAuthUser();
-    if (!currentUser) {
-      toast.error("Error", "You must be signed in to create a post.");
-      return;
-    }
-    const currUser = currentUser.uid;
-
-    const postWithUID = { ...newPost, uid: currUser };
-
-    const { success, message } = await createPost(postWithUID);
-
-    if (!success) {
-      toast.error("Error", message);
-    } else {
-      toast.success("Success", message);
-      try {
-        localStorage.removeItem(draftStorageKey);
-      } catch {
-        // ignore
+    try {
+      const currentUser = authUser || (await getCurrentAuthUser());
+      if (!currentUser) {
+        toast.error("Error", "You must be signed in to create a post.");
+        return;
       }
-      // Redirect to the main page after successful entry creation
-      navigate("/"); // Replace "/" with the path to your main page
-      setNewPost({ name: "", description: "", image: "", uid: "" });
+      const currUser = currentUser.uid;
+
+      const postWithUID = { ...newPost, uid: currUser };
+
+      const { success, message } = await createPost(postWithUID);
+
+      if (!success) {
+        toast.error("Error", message);
+      } else {
+        toast.success("Success", message);
+        try {
+          localStorage.removeItem(draftStorageKey);
+        } catch {
+          // ignore
+        }
+        // Redirect to the main page after successful entry creation
+        navigate("/"); // Replace "/" with the path to your main page
+        setNewPost({ name: "", description: "", image: "", uid: "" });
+      }
+    } catch (error) {
+      toast.error("Error", error?.message || "Failed to create post.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -419,10 +448,12 @@ const CreatePage = () => {
             /> */}
             <Button
               colorScheme="blue"
-              onClick={(e) => {
+              onClick={() => {
                 handleAddPost();
               }}
-              isDisabled={!canSubmit}
+              isDisabled={!canSubmit || isSubmitting}
+              isLoading={isSubmitting}
+              loadingText="Adding..."
               w="full"
             >
               Add Post

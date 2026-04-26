@@ -56,3 +56,53 @@ export const generateUniqueFileName = (originalName, uid) => {
 
   return `${sanitized}_${timestamp}_${randomSuffix}`;
 };
+
+export const getStoragePathFromPublicUrl = (publicUrl, bucket) => {
+  if (!publicUrl || typeof publicUrl !== "string" || !bucket) {
+    return null;
+  }
+
+  const marker = `/storage/v1/object/public/${bucket}/`;
+
+  try {
+    const parsedUrl = new URL(publicUrl);
+    const markerIndex = parsedUrl.pathname.indexOf(marker);
+    if (markerIndex === -1) return null;
+
+    return decodeURIComponent(
+      parsedUrl.pathname.slice(markerIndex + marker.length)
+    );
+  } catch {
+    const markerIndex = publicUrl.indexOf(marker);
+    if (markerIndex === -1) return null;
+
+    return decodeURIComponent(
+      publicUrl
+        .slice(markerIndex + marker.length)
+        .split(/[?#]/)[0]
+    );
+  }
+};
+
+export const removeSupabaseObjectByPublicUrl = async (
+  supabaseClient,
+  bucket,
+  publicUrl,
+  { expectedPrefix } = {}
+) => {
+  const path = getStoragePathFromPublicUrl(publicUrl, bucket);
+  if (!path || (expectedPrefix && !path.startsWith(expectedPrefix))) {
+    return { removed: false, path: null };
+  }
+
+  try {
+    const { error } = await supabaseClient.storage.from(bucket).remove([path]);
+    if (error) {
+      return { removed: false, path, error };
+    }
+  } catch (error) {
+    return { removed: false, path, error };
+  }
+
+  return { removed: true, path };
+};

@@ -10,7 +10,10 @@ import cors from "cors";
 import { supabase } from "../supabase/supabase.js";
 // import User from "../models/user.model.js";
 import { verifyIdToken } from "../middleware/auth.js"; //
-import { generateSafeFilePath } from "../utils/fileUtils.js";
+import {
+  generateSafeFilePath,
+  removeSupabaseObjectByPublicUrl,
+} from "../utils/fileUtils.js";
 import { attachPopulatedLikesToEntries } from "../utils/entryLikes.js";
 import { ensureMongoConnected } from "../config/db.js";
 
@@ -63,6 +66,24 @@ const getUserUidSet = (user, fallbackUid) => {
   if (user?.firebaseUid) uids.add(user.firebaseUid);
   if (user?.supabaseUid) uids.add(user.supabaseUid);
   return uids;
+};
+
+const cleanupReplacedPostImage = async ({ previousUrl, newUrl, ownerUid }) => {
+  if (!previousUrl || previousUrl === newUrl || !ownerUid) return;
+
+  const result = await removeSupabaseObjectByPublicUrl(
+    supabase,
+    "post_images",
+    previousUrl,
+    { expectedPrefix: `images/${ownerUid}/` }
+  );
+
+  if (result.error && process.env.NODE_ENV !== "production") {
+    console.warn("[storage cleanup] failed to remove replaced post image", {
+      path: result.path,
+      error: result.error.message,
+    });
+  }
 };
 
 // Middleware to handle file upload errors
@@ -251,6 +272,14 @@ export const updateEntry = async (req, res) => {
       }
     }
 
+    if (postImageUrl) {
+      await cleanupReplacedPostImage({
+        previousUrl: existingEntry.image,
+        newUrl: postImageUrl,
+        ownerUid: canonicalUid,
+      });
+    }
+
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
@@ -425,6 +454,7 @@ export const updateEntryPut = async (req, res) => {
 
   const { uid } = req.user;
   const authUser = await findUserByAuth(req.user);
+  const canonicalUid = authUser?.uid || uid;
   const uidSet = getUserUidSet(authUser, uid);
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -471,7 +501,6 @@ export const updateEntryPut = async (req, res) => {
     if (imageName && imageName !== "undefined" && image) {
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
-      const canonicalUid = authUser?.uid || uid;
       const filePath = generateSafeFilePath(canonicalUid, imageName, "images");
 
       // Upload the new image to Supabase storage
@@ -553,6 +582,14 @@ export const updateEntryPut = async (req, res) => {
       } catch (syncError) {
         // Don't fail the request if sync fails, just log it
       }
+    }
+
+    if (postImageUrl) {
+      await cleanupReplacedPostImage({
+        previousUrl: existingEntry.image,
+        newUrl: postImageUrl,
+        ownerUid: canonicalUid,
+      });
     }
 
     res.status(200).json({ success: true, data: entryData });

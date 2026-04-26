@@ -441,7 +441,9 @@ const HomePage = () => {
           <Container maxW="container.xl" className="text-center z-0 relative">
             <VStack
               spacing={8}
-              className={cn("pt-4", !isCapacitorNative && "pt-[6.5rem] md:pt-28")}
+              className={cn(
+                isCapacitorNative ? "pt-4" : "pt-[6.5rem] md:pt-28",
+              )}
             >
             {uid && isLoading ? (
               <Box

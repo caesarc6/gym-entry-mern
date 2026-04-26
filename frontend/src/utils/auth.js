@@ -80,6 +80,7 @@ const AUTH_TEMP_TOKEN_KEY = "auth:temp-access-token";
 const AUTH_TEMP_REFRESH_KEY = "auth:temp-refresh-token";
 const AUTH_TEMP_EXPIRES_KEY = "auth:temp-expires-at";
 const SUPABASE_AUTH_KEY_PATTERN = /^sb-.*-auth-token$/;
+const TOKEN_EXPIRY_SKEW_SECONDS = 60;
 
 export const setAuthRedirect = (mode, redirectTo) => {
   try {
@@ -89,7 +90,7 @@ export const setAuthRedirect = (mode, redirectTo) => {
     if (redirectTo) {
       localStorage.setItem(AUTH_REDIRECT_KEY, redirectTo);
     }
-  } catch (error) {
+  } catch {
     // Ignore storage errors
   }
 };
@@ -105,7 +106,7 @@ export const setTempSupabaseSession = (accessToken, refreshToken, expiresAt) => 
     if (expiresAt) {
       localStorage.setItem(AUTH_TEMP_EXPIRES_KEY, String(expiresAt));
     }
-  } catch (error) {
+  } catch {
     // Ignore storage errors
   }
 };
@@ -131,7 +132,18 @@ export const getTempAccessToken = () => {
   }
 };
 
-export const getStoredSupabaseAccessToken = () => {
+const isSessionUsable = (session) => {
+  if (!session?.access_token) return false;
+  if (!session.expires_at) return true;
+
+  const expiresAt = Number(session.expires_at);
+  if (!Number.isFinite(expiresAt)) return true;
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return expiresAt > nowSeconds + TOKEN_EXPIRY_SKEW_SECONDS;
+};
+
+const getStoredSupabaseSession = () => {
   try {
     const keys = Object.keys(localStorage);
     for (const key of keys) {
@@ -139,15 +151,19 @@ export const getStoredSupabaseAccessToken = () => {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
       const parsed = JSON.parse(raw);
-      if (parsed?.access_token) {
-        return parsed.access_token;
+      const session = parsed?.currentSession || parsed?.session || parsed;
+      if (isSessionUsable(session)) {
+        return session;
       }
     }
-  } catch (error) {
+  } catch {
     // Ignore storage errors
   }
   return null;
 };
+
+export const getStoredSupabaseAccessToken = () =>
+  getStoredSupabaseSession()?.access_token || null;
 
 export const clearTempSupabaseSession = () => {
   try {
@@ -207,7 +223,18 @@ let getAuthTokenInflight = null;
 
 const resolveAuthToken = async () => {
   const tempToken = getTempAccessToken();
-  const storedToken = getStoredSupabaseAccessToken();
+  const storedSession = getStoredSupabaseSession();
+  const storedToken = storedSession?.access_token || null;
+
+  // Standalone iOS PWAs can be slow to hydrate Supabase storage on demand.
+  // Use a still-valid local session immediately instead of delaying a submit.
+  if (tempToken) {
+    return tempToken;
+  }
+  if (storedToken) {
+    return storedToken;
+  }
+
   try {
     const {
       data: { session },
@@ -218,12 +245,6 @@ const resolveAuthToken = async () => {
     );
     if (session?.access_token) {
       return session.access_token;
-    }
-    if (tempToken) {
-      return tempToken;
-    }
-    if (storedToken) {
-      return storedToken;
     }
 
     const {
@@ -304,6 +325,11 @@ const waitForFirebaseAuthInit = () =>
 let getCurrentAuthUserInflight = null;
 
 const resolveCurrentAuthUser = async () => {
+  const storedUser = mapSupabaseUserRecord(getStoredSupabaseSession()?.user);
+  if (storedUser) {
+    return storedUser;
+  }
+
   try {
     const {
       data: { session },
