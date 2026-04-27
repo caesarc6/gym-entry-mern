@@ -15,6 +15,9 @@ const isCapacitorNative =
 
 // WKWebView can be slower to hydrate persisted auth state; give it more time.
 const AUTH_TIMEOUT_MS = isCapacitorNative ? 15_000 : 5_000;
+const FIREBASE_AUTH_INIT_TIMEOUT_MS = isCapacitorNative
+  ? 3_000
+  : AUTH_TIMEOUT_MS;
 
 const withTimeout = (promise, timeoutMs, label) =>
   Promise.race([
@@ -30,7 +33,7 @@ const getSupabaseStorageKey = () => {
     if (!url) return null;
     const ref = new URL(url).hostname.split(".")[0];
     return ref ? `sb-${ref}-auth-token` : null;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -65,7 +68,7 @@ const clearSupabaseAuthStorage = () => {
       localStorage.removeItem(storageKey);
       sessionStorage.removeItem(storageKey);
     });
-  } catch (error) {
+  } catch {
     // Ignore storage access errors (privacy mode, disabled storage)
   }
 };
@@ -81,6 +84,27 @@ const AUTH_TEMP_REFRESH_KEY = "auth:temp-refresh-token";
 const AUTH_TEMP_EXPIRES_KEY = "auth:temp-expires-at";
 const SUPABASE_AUTH_KEY_PATTERN = /^sb-.*-auth-token$/;
 const TOKEN_EXPIRY_SKEW_SECONDS = 60;
+
+const storageHasSupabaseAuthKey = (storage) => {
+  for (let i = 0; i < storage.length; i += 1) {
+    const storageKey = storage.key(i);
+    if (storageKey && SUPABASE_AUTH_KEY_PATTERN.test(storageKey)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const hasSupabaseAuthStorage = () => {
+  try {
+    return (
+      storageHasSupabaseAuthKey(localStorage) ||
+      storageHasSupabaseAuthKey(sessionStorage)
+    );
+  } catch {
+    return false;
+  }
+};
 
 export const setAuthRedirect = (mode, redirectTo) => {
   try {
@@ -127,7 +151,7 @@ export const getTempAccessToken = () => {
       return null;
     }
     return token;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -170,7 +194,7 @@ export const clearTempSupabaseSession = () => {
     localStorage.removeItem(AUTH_TEMP_TOKEN_KEY);
     localStorage.removeItem(AUTH_TEMP_REFRESH_KEY);
     localStorage.removeItem(AUTH_TEMP_EXPIRES_KEY);
-  } catch (error) {
+  } catch {
     // Ignore storage errors
   }
 };
@@ -182,7 +206,7 @@ export const consumeAuthRedirect = () => {
     localStorage.removeItem(AUTH_MODE_KEY);
     localStorage.removeItem(AUTH_REDIRECT_KEY);
     return { mode, redirectTo };
-  } catch (error) {
+  } catch {
     return { mode: null, redirectTo: null };
   }
 };
@@ -197,7 +221,7 @@ export const pushAuthDebug = (message, data = null) => {
     };
     const next = [...existing, entry].slice(-50);
     localStorage.setItem(AUTH_DEBUG_KEY, JSON.stringify(next));
-  } catch (error) {
+  } catch {
     // Ignore storage errors
   }
 };
@@ -205,7 +229,7 @@ export const pushAuthDebug = (message, data = null) => {
 export const readAuthDebug = () => {
   try {
     return JSON.parse(localStorage.getItem(AUTH_DEBUG_KEY) || "[]");
-  } catch (error) {
+  } catch {
     return [];
   }
 };
@@ -213,7 +237,7 @@ export const readAuthDebug = () => {
 export const clearAuthDebug = () => {
   try {
     localStorage.removeItem(AUTH_DEBUG_KEY);
-  } catch (error) {
+  } catch {
     // Ignore storage errors
   }
 };
@@ -225,6 +249,8 @@ const resolveAuthToken = async () => {
   const tempToken = getTempAccessToken();
   const storedSession = getStoredSupabaseSession();
   const storedToken = storedSession?.access_token || null;
+  const hasSupabaseSessionStorage =
+    Boolean(storedSession) || hasSupabaseAuthStorage();
 
   // Standalone iOS PWAs can be slow to hydrate Supabase storage on demand.
   // Use a still-valid local session immediately instead of delaying a submit.
@@ -235,42 +261,44 @@ const resolveAuthToken = async () => {
     return storedToken;
   }
 
-  try {
-    const {
-      data: { session },
-    } = await withTimeout(
-      supabase.auth.getSession(),
-      AUTH_TIMEOUT_MS,
-      "Supabase session"
-    );
-    if (session?.access_token) {
-      return session.access_token;
-    }
+  if (hasSupabaseSessionStorage) {
+    try {
+      const {
+        data: { session },
+      } = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_TIMEOUT_MS,
+        "Supabase session"
+      );
+      if (session?.access_token) {
+        return session.access_token;
+      }
 
-    const {
-      data: { session: refreshedSession },
-      error: refreshError,
-    } = await withTimeout(
-      supabase.auth.refreshSession(),
-      AUTH_TIMEOUT_MS,
-      "Supabase refresh"
-    );
-    if (refreshError) {
-      if (shouldClearSupabaseSession(refreshError)) {
+      const {
+        data: { session: refreshedSession },
+        error: refreshError,
+      } = await withTimeout(
+        supabase.auth.refreshSession(),
+        AUTH_TIMEOUT_MS,
+        "Supabase refresh"
+      );
+      if (refreshError) {
+        if (shouldClearSupabaseSession(refreshError)) {
+          clearSupabaseAuthStorage();
+        }
+      } else if (refreshedSession?.access_token) {
+        return refreshedSession.access_token;
+      }
+    } catch (error) {
+      if (shouldClearSupabaseSession(error)) {
         clearSupabaseAuthStorage();
       }
-    } else if (refreshedSession?.access_token) {
-      return refreshedSession.access_token;
-    }
-  } catch (error) {
-    if (shouldClearSupabaseSession(error)) {
-      clearSupabaseAuthStorage();
-    }
-    if (tempToken) {
-      return tempToken;
-    }
-    if (storedToken) {
-      return storedToken;
+      if (tempToken) {
+        return tempToken;
+      }
+      if (storedToken) {
+        return storedToken;
+      }
     }
   }
 
@@ -281,7 +309,7 @@ const resolveAuthToken = async () => {
         return token;
       }
     }
-  } catch (error) {
+  } catch {
     // Firebase not available or no user
   }
 
@@ -325,45 +353,59 @@ const waitForFirebaseAuthInit = () =>
 let getCurrentAuthUserInflight = null;
 
 const resolveCurrentAuthUser = async () => {
-  const storedUser = mapSupabaseUserRecord(getStoredSupabaseSession()?.user);
+  const storedSession = getStoredSupabaseSession();
+  const storedUser = mapSupabaseUserRecord(storedSession?.user);
+  const hasSupabaseSessionStorage =
+    Boolean(storedSession) || hasSupabaseAuthStorage();
+
   if (storedUser) {
     return storedUser;
   }
 
+  if (hasSupabaseSessionStorage) {
+    try {
+      const {
+        data: { session },
+      } = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_TIMEOUT_MS,
+        "Supabase session"
+      );
+      const fromSession = mapSupabaseUserRecord(session?.user);
+      if (fromSession) {
+        return fromSession;
+      }
+    } catch (error) {
+      if (shouldClearSupabaseSession(error)) {
+        clearSupabaseAuthStorage();
+      }
+    }
+
+    try {
+      const {
+        data: { user },
+      } = await withTimeout(
+        supabase.auth.getUser(),
+        AUTH_TIMEOUT_MS,
+        "Supabase user"
+      );
+      const mapped = mapSupabaseUserRecord(user);
+      if (mapped) {
+        return mapped;
+      }
+    } catch (error) {
+      if (shouldClearSupabaseSession(error)) {
+        clearSupabaseAuthStorage();
+      }
+    }
+  }
+
   try {
-    const {
-      data: { session },
-    } = await withTimeout(
-      supabase.auth.getSession(),
-      AUTH_TIMEOUT_MS,
-      "Supabase session"
+    await withTimeout(
+      waitForFirebaseAuthInit(),
+      FIREBASE_AUTH_INIT_TIMEOUT_MS,
+      "Firebase auth init"
     );
-    const fromSession = mapSupabaseUserRecord(session?.user);
-    if (fromSession) {
-      return fromSession;
-    }
-  } catch (error) {
-    if (shouldClearSupabaseSession(error)) {
-      clearSupabaseAuthStorage();
-    }
-  }
-
-  try {
-    const {
-      data: { user },
-    } = await withTimeout(supabase.auth.getUser(), AUTH_TIMEOUT_MS, "Supabase user");
-    const mapped = mapSupabaseUserRecord(user);
-    if (mapped) {
-      return mapped;
-    }
-  } catch (error) {
-    if (shouldClearSupabaseSession(error)) {
-      clearSupabaseAuthStorage();
-    }
-  }
-
-  try {
-    await withTimeout(waitForFirebaseAuthInit(), AUTH_TIMEOUT_MS, "Firebase auth init");
     if (auth.currentUser) {
       return {
         uid: auth.currentUser.uid,
@@ -373,7 +415,7 @@ const resolveCurrentAuthUser = async () => {
         authProvider: "firebase",
       };
     }
-  } catch (error) {
+  } catch {
     // Firebase not available
   }
 
@@ -405,13 +447,13 @@ export const signOutAll = async () => {
     await supabase.auth.signOut();
     clearSupabaseAuthStorage();
     clearTempSupabaseSession();
-  } catch (error) {
+  } catch {
     // Ignore Supabase sign out errors
   }
 
   try {
     await auth.signOut();
-  } catch (error) {
+  } catch {
     // Ignore Firebase sign out errors
   }
 };
