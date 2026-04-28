@@ -26,6 +26,8 @@ const ClientClaimPage = lazy(() => import("./pages/ClientClaimPage"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 
 const RouteFallback = () => (
   <Center minH="40vh" py={12}>
@@ -77,6 +79,8 @@ function NativeTabsLayout() {
       {!isTabRoute && (
         <Suspense fallback={<RouteFallback />}>
         <Routes>
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route
             path="/notifications"
             element={
@@ -210,6 +214,8 @@ function App() {
               <Route path="/signup" element={<SignUpFlow />} />
               <Route path="/login" element={<Login />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/*" element={<NativeTabsLayout />} />
             </Routes>
           </Suspense>
@@ -226,6 +232,8 @@ function App() {
             <Route path="/signup" element={<SignUpFlow />} />
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route

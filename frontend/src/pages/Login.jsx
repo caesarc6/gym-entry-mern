@@ -1,6 +1,6 @@
 import { Container, Text, VStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { maybeMigrateAccount } from "../utils/migration";
@@ -176,6 +176,24 @@ const Login = () => {
                   Sign up
                 </button>
               </Text>
+
+              <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">
+                By signing in, you agree to the{" "}
+                <Link
+                  to="/terms-of-service"
+                  className="font-medium text-primary hover:underline"
+                >
+                  Terms of Service
+                </Link>{" "}
+                and acknowledge the{" "}
+                <Link
+                  to="/privacy-policy"
+                  className="font-medium text-primary hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </p>
             </Card>
           </VStack>
         </Container>
