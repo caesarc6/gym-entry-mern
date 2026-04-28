@@ -6,8 +6,10 @@ import { cn } from "../lib/utils";
 
 const Section = ({ title, children }) => (
   <section className="space-y-3">
-    <h2 className="text-xl font-semibold text-foreground">{title}</h2>
-    <div className="space-y-3 text-sm leading-6 text-muted-foreground">
+    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
+      {title}
+    </h2>
+    <div className="space-y-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
       {children}
     </div>
   </section>
@@ -24,11 +26,16 @@ const TermsOfService = () => {
       <Container maxW="container.md" py={12} className="pt-[calc(88px+env(safe-area-inset-top))]">
         <Card variant="mixed" className="p-6 sm:p-8">
           <div className="mb-8 space-y-3">
-            <Link to="/" className="text-sm font-medium text-primary hover:underline">
+            <Link
+              to="/"
+              className="text-sm font-medium text-slate-950 hover:underline dark:text-white"
+            >
               Back to Ethereal Gains
             </Link>
-            <h1 className="text-3xl font-bold text-foreground">Terms of Service</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-3xl font-bold text-slate-950 dark:text-white">
+              Terms of Service
+            </h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Last updated: April 27, 2026
             </p>
           </div>
@@ -98,7 +105,7 @@ const TermsOfService = () => {
                 Our{" "}
                 <Link
                   to="/privacy-policy"
-                  className="font-medium text-primary hover:underline"
+                  className="font-medium text-slate-950 hover:underline dark:text-white"
                 >
                   Privacy Policy
                 </Link>{" "}
@@ -146,7 +153,7 @@ const TermsOfService = () => {
                 If you have questions about these Terms, contact us at{" "}
                 <a
                   href="mailto:support@etherealgains.com"
-                  className="font-medium text-primary hover:underline"
+                  className="font-medium text-slate-950 hover:underline dark:text-white"
                 >
                   support@etherealgains.com
                 </a>

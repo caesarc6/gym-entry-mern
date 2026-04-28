@@ -25,7 +25,6 @@ import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
 import { FiPlus } from "react-icons/fi";
-import { useThemeColors } from "../hooks/useThemeColors";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 
 const isCapacitorNative = getIsCapacitorNative();
@@ -49,7 +48,6 @@ const HomePage = () => {
   const [profileCache, setProfileCache] = useState(new Map());
   const toast = useCustomToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
-  const themeColors = useThemeColors();
   const { currentTheme, setTheme } = useTheme();
   const prevThemeRef = useRef(null);
   const forcedLightRef = useRef(false);
@@ -537,6 +535,27 @@ const HomePage = () => {
             <Container maxW="container.xl" className="text-center z-0 relative">
               <HomeLandingSections />
             </Container>
+            <footer className="border-t border-slate-200/80 bg-white/80 py-6">
+              <Container maxW="container.xl">
+                <div className="flex flex-col items-center justify-between gap-3 text-sm text-slate-700 sm:flex-row">
+                  <p>Copyright 2026 Ethereal Gains. All rights reserved.</p>
+                  <div className="flex items-center gap-4">
+                    <Link
+                      to="/privacy-policy"
+                      className="font-medium text-slate-900 hover:underline"
+                    >
+                      Privacy Policy
+                    </Link>
+                    <Link
+                      to="/terms-of-service"
+                      className="font-medium text-slate-900 hover:underline"
+                    >
+                      Terms of Service
+                    </Link>
+                  </div>
+                </div>
+              </Container>
+            </footer>
           </div>
         </>
       )}
