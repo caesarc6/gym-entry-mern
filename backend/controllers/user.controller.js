@@ -969,6 +969,102 @@ export const getPostsByUID = async (req, res) => {
   }
 };
 
+export const getWorkoutHabitSummary = async (req, res) => {
+  try {
+    const requesterUid = String(req.user?.uid || "").trim();
+    if (!requesterUid) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
+
+    const user = await resolveMongoUserByAuthUid(requesterUid);
+    const targetUids = user ? linkedUidStrings(user) : [requesterUid];
+    const uniqueTargetUids = [...new Set(targetUids.filter(Boolean))];
+
+    const now = new Date();
+    const todayKey = now.toISOString().slice(0, 10);
+    const start = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - 29,
+      0,
+      0,
+      0,
+      0,
+    ));
+
+    const entries = await Entry.find({
+      uid: { $in: uniqueTargetUids },
+      createdAt: { $gte: start },
+    })
+      .select("name createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const workoutDaysSet = new Set(
+      entries
+        .map((entry) => entry.createdAt?.toISOString?.().slice(0, 10))
+        .filter(Boolean),
+    );
+
+    const workoutDays = [];
+    for (let i = 0; i < 30; i += 1) {
+      const day = new Date(start);
+      day.setUTCDate(start.getUTCDate() + i);
+      const date = day.toISOString().slice(0, 10);
+      workoutDays.push({
+        date,
+        workedOut: workoutDaysSet.has(date),
+      });
+    }
+
+    const lastWorkout = entries[0] || null;
+    const lastWorkoutDate = lastWorkout?.createdAt || now;
+    let currentStreak = 0;
+    const cursor = new Date(Date.UTC(
+      lastWorkoutDate.getUTCFullYear(),
+      lastWorkoutDate.getUTCMonth(),
+      lastWorkoutDate.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ));
+
+    while (workoutDaysSet.has(cursor.toISOString().slice(0, 10))) {
+      currentStreak += 1;
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        generatedAt: now.toISOString(),
+        windowDays: 30,
+        today: todayKey,
+        lastWorkoutName: lastWorkout?.name || null,
+        lastWorkoutAt: lastWorkout?.createdAt?.toISOString?.() || null,
+        workoutDays,
+        workoutCount30d: workoutDaysSet.size,
+        currentStreak,
+      },
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[getWorkoutHabitSummary]", error);
+    }
+    res.status(500).json({
+      success: false,
+      message: "Failed to load workout habit summary",
+      ...(process.env.NODE_ENV !== "production" && error?.message
+        ? { details: error.message }
+        : {}),
+    });
+  }
+};
+
 export const isFollowing = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -1866,16 +1962,19 @@ const collectUserUidVariants = (user, intoSet) => {
  * Paginated globally by createdAt (newest first).
  */
 export const getHomeFeed = async (req, res) => {
+  const startedAt = Date.now();
   try {
     const requesterUid = req.user.uid;
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 6));
+    const shouldIncludeCount = req.query.includeCount !== "false";
     const skip = (page - 1) * limit;
 
     const requester = await findUserByAnyUid(requesterUid).populate({
       path: "following",
       select: "uid firebaseUid supabaseUid",
     });
+    const requesterLoadedAt = Date.now();
 
     if (!requester) {
       return res.status(404).json({
@@ -1907,15 +2006,22 @@ export const getHomeFeed = async (req, res) => {
 
     const query = { uid: { $in: uidArray } };
 
+    const postsQuery = Entry.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select(
+        "uid name description image likes comments createdAt trainerUid trainerName trainerUsername"
+      )
+      .lean();
+
     const [posts, totalPosts] = await Promise.all([
-      Entry.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      Entry.countDocuments(query),
+      postsQuery,
+      shouldIncludeCount ? Entry.countDocuments(query) : Promise.resolve(null),
     ]);
+    const postsLoadedAt = Date.now();
     await attachPopulatedLikesToEntries(posts);
+    const likesLoadedAt = Date.now();
 
     const normalizedPosts = posts.map((post) => ({
       _id: post._id.toString(),
@@ -1939,15 +2045,30 @@ export const getHomeFeed = async (req, res) => {
     }));
 
     const totalPages =
-      totalPosts === 0 ? 1 : Math.ceil(totalPosts / limit);
+      totalPosts == null
+        ? undefined
+        : totalPosts === 0
+          ? 1
+          : Math.ceil(totalPosts / limit);
+
+    res.setHeader(
+      "Server-Timing",
+      [
+        `auth;dur=${req.authDurationMs ?? 0}`,
+        `user;dur=${requesterLoadedAt - startedAt}`,
+        `posts;dur=${postsLoadedAt - requesterLoadedAt}`,
+        `likes;dur=${likesLoadedAt - postsLoadedAt}`,
+        `total;dur=${Date.now() - startedAt}`,
+      ].join(", ")
+    );
 
     res.status(200).json({
       success: true,
       data: normalizedPosts,
       pagination: {
         currentPage: page,
-        totalPages,
-        totalPosts,
+        ...(totalPages == null ? {} : { totalPages }),
+        ...(totalPosts == null ? {} : { totalPosts }),
         limit,
       },
     });

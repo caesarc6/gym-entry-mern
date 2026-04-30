@@ -26,6 +26,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
 import { FiPlus } from "react-icons/fi";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
 
 const isCapacitorNative = getIsCapacitorNative();
 
@@ -262,8 +263,9 @@ const HomePage = () => {
         }
 
         setIsLoading(true);
+        const includeCount = currentPage === 1 || pagination.totalPosts === 0;
         const response = await apiClient.get(
-          API_ENDPOINTS.HOME_FEED(currentPage, limit)
+          API_ENDPOINTS.HOME_FEED(currentPage, limit, includeCount)
         );
         const data = response.data;
 
@@ -292,8 +294,8 @@ const HomePage = () => {
         if (p) {
           setPagination({
             currentPage: p.currentPage ?? currentPage,
-            totalPages: p.totalPages ?? 1,
-            totalPosts: p.totalPosts ?? normalized.length,
+            totalPages: p.totalPages ?? pagination.totalPages,
+            totalPosts: p.totalPosts ?? pagination.totalPosts,
             limit: p.limit ?? limit,
           });
         }
@@ -306,14 +308,14 @@ const HomePage = () => {
           pagination: p
             ? {
                 currentPage: p.currentPage ?? currentPage,
-                totalPages: p.totalPages ?? 1,
-                totalPosts: p.totalPosts ?? normalized.length,
+                totalPages: p.totalPages ?? pagination.totalPages,
+                totalPosts: p.totalPosts ?? pagination.totalPosts,
                 limit: p.limit ?? limit,
               }
             : {
                 currentPage,
-                totalPages: 1,
-                totalPosts: normalized.length,
+                totalPages: pagination.totalPages,
+                totalPosts: pagination.totalPosts,
                 limit,
               },
           cachedAt: Date.now(),
@@ -443,84 +445,88 @@ const HomePage = () => {
                 isCapacitorNative ? "pt-4" : "pt-[6.5rem] md:pt-28",
               )}
             >
-            {uid && isLoading ? (
-              <Box
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-                height="200px"
-              >
-                <Spinner
-                  size="lg"
-                  thickness="4px"
-                  speed="1.2s"
-                  color={spinnerColor}
-                />
-              </Box>
-            ) : (
-              <>
-                <SimpleGrid
-                  columns={{
-                    base: 1,
-                    md: 2,
-                    lg: 3,
-                  }}
-                  spacing={10}
-                  w={"full"}
+              <WorkoutHabitWidgetPreview
+                refreshKey={`${uid}-${pagination.totalPosts}-${entries[0]?._id || "none"}`}
+              />
+
+              {uid && isLoading ? (
+                <Box
+                  display="flex"
+                  justifyContent="center"
                   alignItems="center"
-                  justifyItems="center"
+                  height="200px"
                 >
-                  {entries.map((entry) => (
-                    <ProductCard
-                      key={entry._id}
-                      entry={entry}
-                      isOwner={
-                        uid === (entry.ownerId || entry.uid)
-                      }
-                      onUpdate={handleUpdateEntry}
-                      onDelete={handleDeleteEntry}
-                      profileCache={profileCache}
-                    />
-                  ))}
-                </SimpleGrid>
-                <PaginationComponent
-                  currentPage={currentPage}
-                  totalPages={pagination.totalPages}
-                  onPageChange={handlePageChange}
-                  maxVisiblePages={5}
-                />
-                {entries.length === 0 && (
-                  <Text
-                    fontSize="xl"
-                    textAlign={"center"}
-                    fontWeight="bold"
-                    color="gray.500"
+                  <Spinner
+                    size="lg"
+                    thickness="4px"
+                    speed="1.2s"
+                    color={spinnerColor}
+                  />
+                </Box>
+              ) : (
+                <>
+                  <SimpleGrid
+                    columns={{
+                      base: 1,
+                      md: 2,
+                      lg: 3,
+                    }}
+                    spacing={10}
+                    w={"full"}
+                    alignItems="center"
+                    justifyItems="center"
                   >
-                    No posts to show 😢{" "}
-                    <Link to={"/profile"}>
-                      <Text
-                        as="span"
-                        color="blue.400"
-                        _hover={{ textDecoration: "underline" }}
-                      >
-                        Follow some users
-                      </Text>
-                    </Link>{" "}
-                    or{" "}
-                    <Link to={"/create"}>
-                      <Text
-                        as="span"
-                        color="blue.400"
-                        _hover={{ textDecoration: "underline" }}
-                      >
-                        create a post
-                      </Text>
-                    </Link>
-                  </Text>
-                )}
-              </>
-            )}
-          </VStack>
+                    {entries.map((entry) => (
+                      <ProductCard
+                        key={entry._id}
+                        entry={entry}
+                        isOwner={
+                          uid === (entry.ownerId || entry.uid)
+                        }
+                        onUpdate={handleUpdateEntry}
+                        onDelete={handleDeleteEntry}
+                        profileCache={profileCache}
+                      />
+                    ))}
+                  </SimpleGrid>
+                  <PaginationComponent
+                    currentPage={currentPage}
+                    totalPages={pagination.totalPages}
+                    onPageChange={handlePageChange}
+                    maxVisiblePages={5}
+                  />
+                  {entries.length === 0 && (
+                    <Text
+                      fontSize="xl"
+                      textAlign={"center"}
+                      fontWeight="bold"
+                      color="gray.500"
+                    >
+                      No posts to show 😢{" "}
+                      <Link to={"/profile"}>
+                        <Text
+                          as="span"
+                          color="blue.400"
+                          _hover={{ textDecoration: "underline" }}
+                        >
+                          Follow some users
+                        </Text>
+                      </Link>{" "}
+                      or{" "}
+                      <Link to={"/create"}>
+                        <Text
+                          as="span"
+                          color="blue.400"
+                          _hover={{ textDecoration: "underline" }}
+                        >
+                          create a post
+                        </Text>
+                      </Link>
+                    </Text>
+                  )}
+                </>
+              )}
+            </VStack>
           </Container>
         </>
       ) : (

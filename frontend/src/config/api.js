@@ -53,8 +53,10 @@ export const API_ENDPOINTS = {
   UPLOAD_PROFILE_PIC: buildApiUrl("updateUserProfilePic"),
 
   // Posts/Entries endpoints
-  HOME_FEED: (page = 1, pageLimit = 6) =>
-    buildApiUrl(`posts/home-feed?page=${page}&limit=${pageLimit}`),
+  HOME_FEED: (page = 1, pageLimit = 6, includeCount = true) =>
+    buildApiUrl(
+      `posts/home-feed?page=${page}&limit=${pageLimit}&includeCount=${includeCount}`,
+    ),
   POSTS: (uid, page = 1, limit = 10) =>
     buildApiUrl(`posts/${uid}?page=${page}&limit=${limit}`),
   CREATE_POST: buildApiUrl("posts"),
@@ -127,6 +129,7 @@ export const API_ENDPOINTS = {
   COMPLETELY_REPROCESS_ALL_WORKOUTS: buildApiUrl(
     "workouts/completely-reprocess-all",
   ),
+  WORKOUT_HABIT_SUMMARY: buildApiUrl("workout-habit-summary"),
 
   // Workout sharing endpoints
   SHARE_WORKOUT: (entryId) => buildApiUrl(`entrys/${entryId}/share`),

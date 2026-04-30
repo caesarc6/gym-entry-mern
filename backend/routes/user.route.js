@@ -43,6 +43,7 @@ import {
   getTrainerDashboardRequests,
   approveTrainerDashboardAccess,
   rejectTrainerDashboardAccess,
+  getWorkoutHabitSummary,
 } from "../controllers/user.controller.js";
 import {
   linkFirebaseToSupabase,
@@ -80,6 +81,7 @@ router.post(
 router.get("/createUsers", verifyIdToken, createUser);
 router.post("/posts", verifyIdToken, createPost);
 router.get("/posts/home-feed", verifyIdToken, getHomeFeed);
+router.get("/workout-habit-summary", verifyIdToken, getWorkoutHabitSummary);
 router.get("/posts/:uid", verifyIdToken, getPostsByUID);
 router.get("/posts/userId/:userId", verifyIdToken, getPostsByUID);
 router.get("/isFollowing/:userId", verifyIdToken, isFollowing);

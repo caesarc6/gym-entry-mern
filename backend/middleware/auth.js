@@ -3,11 +3,12 @@ import {
   isFirebaseConfigured,
 } from "../firebase.js";
 import { supabaseAdmin } from "../supabase/supabase.js";
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 
 /**
- * Dual authentication middleware that supports both Firebase and Supabase tokens
- * Tries Supabase first, then falls back to Firebase for backward compatibility
+ * Dual authentication middleware that supports both Firebase and Supabase tokens.
+ * Prefer local verification so every protected API call does not depend on a
+ * remote Supabase Auth request.
  */
 const getSupabaseJwks = (() => {
   let jwks = null;
@@ -22,12 +23,87 @@ const getSupabaseJwks = (() => {
   };
 })();
 
+const SUPABASE_TOKEN_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+const SUPABASE_TOKEN_CACHE_MAX_ENTRIES = 200;
+const SUPABASE_REMOTE_AUTH_TIMEOUT_MS = 4_000;
+const supabaseTokenCache = new Map();
+
+const withTimeout = (promise, timeoutMs, label) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timeout`)), timeoutMs)
+    ),
+  ]);
+
+const buildSupabaseReqUser = (user) => ({
+  uid: user.id,
+  supabaseUid: user.id,
+  email: user.email,
+  name:
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split("@")[0],
+  picture:
+    user.user_metadata?.avatar_url ||
+    user.user_metadata?.picture ||
+    "",
+  authProvider: "supabase",
+});
+
+const getCachedSupabaseUser = (token) => {
+  const cached = supabaseTokenCache.get(token);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    supabaseTokenCache.delete(token);
+    return null;
+  }
+  return cached.user;
+};
+
+const setCachedSupabaseUser = (token, user) => {
+  let tokenExpiresAt = Date.now() + SUPABASE_TOKEN_CACHE_MAX_AGE_MS;
+  try {
+    const payload = decodeJwt(token);
+    if (payload.exp) tokenExpiresAt = Math.min(tokenExpiresAt, payload.exp * 1000);
+  } catch {
+    // Keep the conservative max-age when the token cannot be decoded.
+  }
+
+  supabaseTokenCache.set(token, {
+    user,
+    expiresAt: tokenExpiresAt,
+  });
+
+  if (supabaseTokenCache.size > SUPABASE_TOKEN_CACHE_MAX_ENTRIES) {
+    const oldestKey = supabaseTokenCache.keys().next().value;
+    if (oldestKey) supabaseTokenCache.delete(oldestKey);
+  }
+};
+
 async function tryVerifySupabaseJwt(token) {
   const supabaseUrl = process.env.SUPABASE_URL;
-  const jwks = getSupabaseJwks();
-  if (!supabaseUrl || !jwks) return null;
+  if (!supabaseUrl) return null;
 
   const issuer = `${supabaseUrl.replace(/\/$/, "")}/auth/v1`;
+
+  if (process.env.SUPABASE_JWT_SECRET) {
+    try {
+      const secret = new TextEncoder().encode(process.env.SUPABASE_JWT_SECRET);
+      const { payload } = await jwtVerify(token, secret, { issuer });
+      if (!payload?.sub) return null;
+      return payload;
+    } catch (error) {
+      console.warn("[auth] supabase jwt secret verify failed", {
+        message: error?.message,
+        code: error?.code,
+      });
+    }
+  }
+
+  const jwks = getSupabaseJwks();
+  if (!jwks) return null;
+
   try {
     const { payload } = await jwtVerify(token, jwks, {
       issuer,
@@ -43,7 +119,23 @@ async function tryVerifySupabaseJwt(token) {
   }
 }
 
+const buildSupabaseReqUserFromPayload = (payload) => ({
+  uid: payload.sub,
+  supabaseUid: payload.sub,
+  email: payload.email,
+  name:
+    payload.user_metadata?.full_name ||
+    payload.user_metadata?.name ||
+    payload.email?.split("@")[0],
+  picture:
+    payload.user_metadata?.avatar_url ||
+    payload.user_metadata?.picture ||
+    "",
+  authProvider: "supabase",
+});
+
 async function verifyIdTokenInner(req, res, next) {
+  const authStartedAt = Date.now();
   const authHeader = req.headers.authorization;
   const token = authHeader?.split("Bearer ")[1];
 
@@ -58,27 +150,38 @@ async function verifyIdTokenInner(req, res, next) {
     });
   }
 
-  // Try Supabase authentication first (for new users)
+  const cachedUser = getCachedSupabaseUser(token);
+  if (cachedUser) {
+    req.user = cachedUser;
+    req.authDurationMs = Date.now() - authStartedAt;
+    res.setHeader("Server-Timing", `auth;dur=${req.authDurationMs}`);
+    return next();
+  }
+
+  const supabasePayload = await tryVerifySupabaseJwt(token);
+  if (supabasePayload) {
+    req.user = buildSupabaseReqUserFromPayload(supabasePayload);
+    setCachedSupabaseUser(token, req.user);
+    req.authDurationMs = Date.now() - authStartedAt;
+    res.setHeader("Server-Timing", `auth;dur=${req.authDurationMs}`);
+    return next();
+  }
+
+  // Fall back to Supabase Auth API only when local verification is unavailable.
   if (supabaseAdmin) {
     try {
-      const { data, error } = await supabaseAdmin.auth.getUser(token);
+      const { data, error } = await withTimeout(
+        supabaseAdmin.auth.getUser(token),
+        SUPABASE_REMOTE_AUTH_TIMEOUT_MS,
+        "Supabase remote auth"
+      );
       const user = data?.user;
 
       if (!error && user) {
-        req.user = {
-          uid: user.id,
-          supabaseUid: user.id,
-          email: user.email,
-          name:
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
-            user.email?.split("@")[0],
-          picture:
-            user.user_metadata?.avatar_url ||
-            user.user_metadata?.picture ||
-            "",
-          authProvider: "supabase",
-        };
+        req.user = buildSupabaseReqUser(user);
+        setCachedSupabaseUser(token, req.user);
+        req.authDurationMs = Date.now() - authStartedAt;
+        res.setHeader("Server-Timing", `auth;dur=${req.authDurationMs}`);
         return next();
       }
       if (error) {
@@ -94,28 +197,6 @@ async function verifyIdTokenInner(req, res, next) {
         message: supabaseError?.message,
       });
     }
-  }
-
-  // If service-role client isn't available, fall back to verifying the Supabase JWT
-  // with the project's JWKS. This supports native apps where we only have access
-  // to the user's access token.
-  const supabasePayload = await tryVerifySupabaseJwt(token);
-  if (supabasePayload) {
-    req.user = {
-      uid: supabasePayload.sub,
-      supabaseUid: supabasePayload.sub,
-      email: supabasePayload.email,
-      name:
-        supabasePayload.user_metadata?.full_name ||
-        supabasePayload.user_metadata?.name ||
-        supabasePayload.email?.split("@")[0],
-      picture:
-        supabasePayload.user_metadata?.avatar_url ||
-        supabasePayload.user_metadata?.picture ||
-        "",
-      authProvider: "supabase",
-    };
-    return next();
   }
 
   // Fall back to Firebase authentication (for existing users)
@@ -138,6 +219,8 @@ async function verifyIdTokenInner(req, res, next) {
       authProvider: "firebase",
       ...decodedToken,
     };
+    req.authDurationMs = Date.now() - authStartedAt;
+    res.setHeader("Server-Timing", `auth;dur=${req.authDurationMs}`);
     return next();
   } catch (error) {
     if (error.code === "auth/id-token-expired") {

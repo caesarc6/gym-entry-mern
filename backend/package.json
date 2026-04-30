@@ -8,6 +8,7 @@
     "start": "node --require ./polyfills/buffer.cjs api/index.js",
     "dev": "nodemon api/index.js",
     "fix-timezone-dates": "node scripts/fix-timezone-dates.js",
+    "ensure-feed-indexes": "node scripts/ensure-feed-indexes.js",
     "set-admin": "node scripts/set-admin.js",
     "postinstall": "patch-package"
   },

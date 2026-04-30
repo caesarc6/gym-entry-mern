@@ -143,6 +143,10 @@ const entrySchema = new mongoose.Schema(
   }
 );
 
+// Home feed queries filter by one or more owner UIDs and sort newest first.
+entrySchema.index({ uid: 1, createdAt: -1 }, { name: "uid_createdAt_desc" });
+entrySchema.index({ createdAt: -1, uid: 1 }, { name: "createdAt_desc_uid" });
+
 const Entry = mongoose.model("Entry", entrySchema);
 
 export default Entry;
