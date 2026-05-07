@@ -37,19 +37,10 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { capitalizeName } from "../utils/nameUtils";
 import { getCurrentAuthUser } from "../utils/auth";
-import light from "../assets/light.jpg";
-import night from "../assets/night.jpg";
-import defaultBg from "../assets/defaultBg.jpg";
-import defaultBgNight from "../assets/defaultBgNight.jpg";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
 const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
-const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
-const defaultBgNightUrl = new URL(
-  "../assets/defaultBgNight.jpg",
-  import.meta.url
-).href;
 
 const ClientClaimPage = () => {
   const { shareToken } = useParams();
@@ -66,6 +57,8 @@ const ClientClaimPage = () => {
   const toast = useCustomToast();
   const navigate = useNavigate();
   const colors = useThemeColors();
+  const profileColorMode =
+    colors.currentTheme === "light" ? lightUrl : nightUrl;
   const cancelRef = useRef();
 
   // Check authentication state
@@ -250,7 +243,7 @@ const ClientClaimPage = () => {
             <HStack spacing={4} w="full" justify="center">
               <Avatar
                 size="lg"
-                src={creator?.picture || lightUrl}
+                src={creator?.picture || profileColorMode}
                 name={creator?.name || "Creator"}
               />
               <VStack align="start" spacing={1}>

@@ -20,7 +20,6 @@ import {
   Textarea,
   useDisclosure,
   VStack,
-  useColorMode,
   Menu,
   MenuButton,
   MenuList,
@@ -36,8 +35,6 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api"; // Import API configuration
-import light from "../assets/light.jpg";
-import night from "../assets/night.jpg";
 import {
   parseWorkoutDescription,
   parseWorkoutTitle,
@@ -57,6 +54,13 @@ import {
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
 const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
+const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
+const defaultBgNightUrl = new URL(
+  "../assets/defaultBgNight.jpg",
+  import.meta.url
+).href;
+const LEGACY_DEFAULT_POST_IMAGE =
+  "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
 
 /** Wait this long after typing stops before hitting the server (batch keystrokes). */
 const EDIT_SERVER_AUTOSAVE_DEBOUNCE_MS = 1400;
@@ -72,16 +76,17 @@ const ProductCard = ({
 }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const isOwner = propIsOwner ?? currentUser?.uid === entry.uid;
-  const { colorMode } = useColorMode();
   const colors = useThemeColors();
+  const profileImageFallback =
+    colors.currentTheme === "light" ? lightUrl : nightUrl;
+  const postImageFallback =
+    colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
 
   const [updatedEntry, setUpdatedEntry] = useState({
     _id: entry._id || "",
     name: entry.name || "Untitled",
     description: entry.description || "No description",
-    image:
-      entry.image ||
-      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f0f0f0'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-family='Arial, sans-serif' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E", // Fallback for entry image
+    image: entry.image || "",
     likes: Array.isArray(entry.likes) ? entry.likes : [],
     comments: Array.isArray(entry.comments) ? entry.comments : [],
     createdAt: entry.createdAt || new Date().toISOString(),
@@ -100,10 +105,7 @@ const ProductCard = ({
 
   const [profileImage, setProfileImage] = useState(() => {
     // Initialize with cached profile image if available, otherwise use default
-    return (
-      cachedProfile?.profileImage ||
-      (colorMode === "dark" ? nightUrl : lightUrl)
-    );
+    return cachedProfile?.profileImage || profileImageFallback;
   });
   const [userDisplayName, setUserDisplayName] = useState(
     cachedProfile?.displayName || "Unknown User"
@@ -114,7 +116,7 @@ const ProductCard = ({
 
   // Trainer profile info for shared workouts
   const [trainerProfileImage, setTrainerProfileImage] = useState(
-    colorMode === "dark" ? nightUrl : lightUrl
+    profileImageFallback
   );
   const [trainerDisplayName, setTrainerDisplayName] = useState(() => {
     // Initialize from entry data if available
@@ -209,10 +211,8 @@ const ProductCard = ({
 
   // Get current user's profile picture for comments
   const getCurrentUserProfilePicture = () => {
-    if (!currentUserInfo) return colorMode === "dark" ? nightUrl : lightUrl;
-    return (
-      currentUserInfo.picture || (colorMode === "dark" ? nightUrl : lightUrl)
-    );
+    if (!currentUserInfo) return profileImageFallback;
+    return currentUserInfo.picture || profileImageFallback;
   };
 
   const { showToast, success: toastSuccess, error: toastError } = useCustomToast();
@@ -260,7 +260,7 @@ const ProductCard = ({
 
       try {
         if (!currentUser) {
-          setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+          setProfileImage(profileImageFallback);
           setUserDisplayName("Unknown User");
           return;
         }
@@ -284,18 +284,20 @@ const ProductCard = ({
           // Only set to default if we don't already have a profile image
           if (
             !profileImage ||
-            profileImage === (colorMode === "dark" ? nightUrl : lightUrl)
+            profileImage === lightUrl ||
+            profileImage === nightUrl
           ) {
-            setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+            setProfileImage(profileImageFallback);
           }
           setUserDisplayName("Unknown User");
         }
       } catch (error) {
         if (
           !profileImage ||
-          profileImage === (colorMode === "dark" ? nightUrl : lightUrl)
+          profileImage === lightUrl ||
+          profileImage === nightUrl
         ) {
-          setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+          setProfileImage(profileImageFallback);
         }
         setUserDisplayName("Unknown User");
       }
@@ -315,8 +317,9 @@ const ProductCard = ({
     entry.trainerName,
     entry.trainerUsername,
     cachedProfile,
-    colorMode,
     currentUser,
+    profileImage,
+    profileImageFallback,
   ]);
 
   // Fetch trainer profile info
@@ -354,7 +357,7 @@ const ProductCard = ({
   };
 
   const handleTrainerProfileImageError = () => {
-    setTrainerProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+    setTrainerProfileImage(profileImageFallback);
     setTrainerProfileImageLoaded(true);
   };
 
@@ -365,10 +368,13 @@ const ProductCard = ({
   // Update profile image when color mode changes
   useEffect(() => {
     // Only update to default if we truly have no profile image and no cached profile
-    if (!profileImage && !cachedProfile?.profileImage) {
-      setProfileImage(colorMode === "dark" ? nightUrl : lightUrl);
+    if (
+      (!profileImage || profileImage === lightUrl || profileImage === nightUrl) &&
+      !cachedProfile?.profileImage
+    ) {
+      setProfileImage(profileImageFallback);
     }
-  }, [colorMode, profileImage, cachedProfile]);
+  }, [profileImage, profileImageFallback, cachedProfile]);
 
   // Check if current user has liked this post
   useEffect(() => {
@@ -390,18 +396,16 @@ const ProductCard = ({
   }, []);
 
   const handleImageError = useCallback((e) => {
-    // Use a simple data URL for fallback instead of external image
-    e.target.src =
-      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f0f0f0'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-family='Arial, sans-serif' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E";
+    e.target.src = postImageFallback;
     setImageLoaded(true);
-  }, []);
+  }, [postImageFallback]);
 
   const handleProfileImageError = useCallback(
     (e) => {
-      e.target.src = colorMode === "dark" ? nightUrl : lightUrl;
+      e.target.src = profileImageFallback;
       setProfileImageLoaded(true);
     },
-    [colorMode]
+    [profileImageFallback]
   );
 
   // Reset image loading states when entry changes
@@ -443,9 +447,12 @@ const ProductCard = ({
     }
   }, [profileImage]);
 
-  // Helper function to check if image is the placeholder SVG
-  const isPlaceholderImage = (imageUrl) => {
+  // Helper function to check if image is a generated/default placeholder.
+  const isPlaceholderImage = useCallback((imageUrl) => {
     if (!imageUrl) return true;
+    if (imageUrl === LEGACY_DEFAULT_POST_IMAGE) {
+      return true;
+    }
     // Check if it's the "No Image" placeholder SVG
     if (imageUrl.includes("data:image/svg+xml") && imageUrl.includes("No Image")) {
       return true;
@@ -455,7 +462,7 @@ const ProductCard = ({
       return true;
     }
     return false;
-  };
+  }, []);
 
   const [editAutosaveMeta, setEditAutosaveMeta] = useState({
     status: "idle", // idle | saving | saved | error
@@ -1368,6 +1375,11 @@ const ProductCard = ({
     return date.toLocaleString("en-US", options);
   };
 
+  const rawEntryImage = updatedEntry.image || entry.image;
+  const displayEntryImage = isPlaceholderImage(rawEntryImage)
+    ? postImageFallback
+    : rawEntryImage;
+
   return (
     <>
       <Box
@@ -1419,13 +1431,14 @@ const ProductCard = ({
             />
           )}
           <Image
-            src={updatedEntry.image || entry.image}
+            src={displayEntryImage}
             alt={entry.name}
             w="full"
             h="auto"
             objectFit="cover"
             objectPosition="center"
             onError={handleImageError}
+            fallbackSrc={postImageFallback}
             onLoad={handleImageLoad}
             style={{
               position: "absolute",
@@ -1969,13 +1982,14 @@ const ProductCard = ({
                 borderRadius="4px"
               >
                 <Image
-                  src={updatedEntry.image || entry.image}
+                  src={displayEntryImage}
                   alt={entry.name}
                   w="full"
                   h="100%"
                   objectFit="cover"
                   objectPosition="center"
                   style={{ width: "100%", height: "100%" }}
+                  fallbackSrc={postImageFallback}
                   fallback={<Skeleton h="auto" aspectRatio="4/5" />}
                 />
               </Box>
@@ -2584,11 +2598,7 @@ const ProductCard = ({
                   : "Changes save to your post as you type. Update is optional."}
               </Text>
               <Image
-                src={
-                  updatedEntry.image ||
-                  entry.image ||
-                  "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg"
-                }
+                src={displayEntryImage}
                 alt="Entry Image"
                 boxSize="150px"
                 objectFit="cover"

@@ -33,11 +33,7 @@ import { FileUploader } from "../components/FileUploader";
 import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { FiSettings } from "react-icons/fi";
-import light from "../assets/light.jpg";
 import PaginationComponent from "../components/Pagination";
-import night from "../assets/night.jpg";
-import defaultBg from "../assets/defaultBg.jpg";
-import defaultBgNight from "../assets/defaultBgNight.jpg";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useTheme } from "../contexts/ThemeContext";
 import { cn } from "../lib/utils";
@@ -421,8 +417,8 @@ const ProfilePage = () => {
         gymName: userData.gymName || "Not specified",
         postsCount,
         bio: userData.bio || "No bio available",
-        profileImage: userData.picture || profileColorMode,
-        backgroundPicture: userData.backgroundPicture || bgColorMode,
+        profileImage: userData.picture || userData.profileImage || "",
+        backgroundPicture: userData.backgroundPicture || "",
         followersCount,
         followingCount,
       };
@@ -727,13 +723,7 @@ const ProfilePage = () => {
         throw new Error(data.message || "Failed to fetch followers");
       }
 
-      // Add fallback for profile pictures
-      const followersWithFallback = data.data.map((follower) => ({
-        ...follower,
-        picture: follower.picture || profileColorMode,
-      }));
-
-      return Array.isArray(followersWithFallback) ? followersWithFallback : [];
+      return Array.isArray(data.data) ? data.data : [];
     } catch (error) {
       toast.error("Error", error.message);
       return [];
@@ -754,13 +744,7 @@ const ProfilePage = () => {
         throw new Error(data.message || "Failed to fetch following");
       }
 
-      // Add fallback for profile pictures
-      const followingWithFallback = data.data.map((following) => ({
-        ...following,
-        picture: following.picture || profileColorMode,
-      }));
-
-      return Array.isArray(followingWithFallback) ? followingWithFallback : [];
+      return Array.isArray(data.data) ? data.data : [];
     } catch (error) {
       toast.error("Error", error.message);
       return [];
@@ -862,7 +846,7 @@ const ProfilePage = () => {
             <Image
               h={"120px"}
               w={"full"}
-              src={userProfile.backgroundPicture}
+              src={userProfile.backgroundPicture || bgColorMode}
               fallbackSrc={bgColorMode}
               objectFit="cover"
               alt="Background"
@@ -872,7 +856,7 @@ const ProfilePage = () => {
           <Flex justify={"center"} mt={-12}>
             <Avatar
               size={"xl"}
-              src={userProfile.profileImage}
+              src={userProfile.profileImage || profileColorMode}
               css={{ border: "2px solid white" }}
             />
           </Flex>
@@ -1126,7 +1110,7 @@ const ProfilePage = () => {
                   >
                     <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
-                        <Avatar src={user.picture} size="sm" mr={3} />
+                        <Avatar src={user.picture || profileColorMode} size="sm" mr={3} />
                       </Link>
                       <Link to={`/user/${user.uid}`}>
                         <Box>
@@ -1187,7 +1171,7 @@ const ProfilePage = () => {
                   >
                     <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
-                        <Avatar src={user.picture} size="sm" mr={3} />
+                        <Avatar src={user.picture || profileColorMode} size="sm" mr={3} />
                       </Link>
                       <Link to={`/user/${user.uid}`}>
                         <Box>
@@ -1235,7 +1219,7 @@ const ProfilePage = () => {
             <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
                 <Image
-                  src={userProfile.profileImage}
+                  src={userProfile.profileImage || profileColorMode}
                   alt="Profile Picture"
                   boxSize="150px"
                   objectFit="cover"
@@ -1349,7 +1333,7 @@ const ProfilePage = () => {
             <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
                 <Image
-                  src={userProfile.backgroundPicture}
+                  src={userProfile.backgroundPicture || bgColorMode}
                   alt="Background Picture"
                   w="full"
                   h="200px"

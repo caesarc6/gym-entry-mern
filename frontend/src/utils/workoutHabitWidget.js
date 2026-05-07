@@ -3,6 +3,20 @@ import { API_ENDPOINTS, apiClient } from "../config/api";
 
 const WorkoutWidget = registerPlugin("WorkoutWidget");
 
+export function canSyncWorkoutHabitWidget() {
+  if (typeof window === "undefined") return false;
+
+  const isNative =
+    typeof Capacitor.isNativePlatform === "function" &&
+    Capacitor.isNativePlatform();
+  const platform =
+    typeof Capacitor.getPlatform === "function"
+      ? Capacitor.getPlatform()
+      : window.Capacitor?.getPlatform?.();
+
+  return isNative && platform === "ios";
+}
+
 export async function fetchWorkoutHabitSummary() {
   const response = await apiClient.get(API_ENDPOINTS.WORKOUT_HABIT_SUMMARY);
   const data = response.data;
@@ -15,13 +29,9 @@ export async function fetchWorkoutHabitSummary() {
 }
 
 export async function syncWorkoutHabitWidget(summary) {
-  if (!summary || !Capacitor.isNativePlatform?.()) return;
-  if (Capacitor.getPlatform?.() !== "ios") return;
-
-  try {
-    await WorkoutWidget.updateSummary({ summary });
-  } catch (error) {
-    // Widget sync should never block the in-app habit card.
-    console.warn("Failed to sync workout widget:", error);
+  if (!summary || !canSyncWorkoutHabitWidget()) {
+    return { skipped: true, reason: "not-ios-native" };
   }
+
+  return WorkoutWidget.updateSummary({ summary });
 }

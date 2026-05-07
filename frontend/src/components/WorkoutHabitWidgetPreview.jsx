@@ -5,11 +5,12 @@ import {
   HStack,
   Skeleton,
   Text,
-  useColorModeValue,
   VStack,
 } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
+import { useTheme } from "../contexts/ThemeContext";
 import {
+  canSyncWorkoutHabitWidget,
   fetchWorkoutHabitSummary,
   syncWorkoutHabitWidget,
 } from "../utils/workoutHabitWidget";
@@ -44,16 +45,21 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
   const [summary, setSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [syncStatus, setSyncStatus] = useState(null);
+  const canSyncIosWidget = canSyncWorkoutHabitWidget();
+  const { currentTheme } = useTheme();
+  const isLightTheme = currentTheme === "light";
 
-  const cardBg = useColorModeValue("white", "rgba(24, 24, 27, 0.92)");
-  const borderColor = useColorModeValue("gray.200", "whiteAlpha.200");
-  const mutedColor = useColorModeValue("gray.600", "gray.400");
-  const emptyCellBg = useColorModeValue("gray.100", "whiteAlpha.200");
-  const activeCellBg = useColorModeValue("blue.400", "blue.300");
-  const activeCellShadow = useColorModeValue(
-    "0 0 14px rgba(59, 130, 246, 0.28)",
-    "0 0 16px rgba(147, 197, 253, 0.32)",
-  );
+  const cardBg = isLightTheme
+    ? "linear-gradient(235deg, #f8fafc, #e5e7eb, #f3f4f6)"
+    : "linear-gradient(135deg, #070708, #0d1117, #111827)";
+  const borderColor = isLightTheme ? "gray.200" : "whiteAlpha.200";
+  const textColor = isLightTheme ? "gray.800" : "white";
+  const mutedColor = isLightTheme ? "gray.600" : "gray.400";
+  const emptyCellBg = "rgba(255, 255, 255, 0.94)";
+  const activeCellBlur = isLightTheme
+    ? "rgba(20, 30, 44, 0.8)"
+    : "rgba(8, 14, 22, 0.9)";
 
   useEffect(() => {
     let ignore = false;
@@ -65,7 +71,19 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
         const nextSummary = await fetchWorkoutHabitSummary();
         if (ignore) return;
         setSummary(nextSummary);
-        syncWorkoutHabitWidget(nextSummary);
+        if (!canSyncIosWidget) {
+          setSyncStatus({ skipped: true, reason: "not-ios-native" });
+          return;
+        }
+        try {
+          const result = await syncWorkoutHabitWidget(nextSummary);
+          if (!ignore) setSyncStatus(result);
+        } catch (syncError) {
+          if (!ignore) {
+            setSyncStatus(null);
+            setError(syncError?.message || "Unable to sync iOS widget");
+          }
+        }
       } catch (err) {
         if (ignore) return;
         setError(err?.message || "Unable to load habit widget");
@@ -79,7 +97,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
     return () => {
       ignore = true;
     };
-  }, [refreshKey]);
+  }, [canSyncIosWidget, refreshKey]);
 
   const days = useMemo(
     () => summary?.workoutDays?.slice(-30) || buildEmptyDays(),
@@ -90,6 +108,21 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
   const currentStreak = summary?.currentStreak ?? 0;
   const lastWorkoutName = summary?.lastWorkoutName || "Log your first workout";
   const lastWorkoutAt = formatDate(summary?.lastWorkoutAt);
+  const widgetSyncLabel = (() => {
+    if (!canSyncIosWidget) {
+      return "Open the iOS app to sync the home widget";
+    }
+    if (syncStatus?.saved) {
+      return `Synced ${syncStatus.activeDaysCount ?? workoutCount} active days to iOS widget`;
+    }
+    if (syncStatus?.skipped) {
+      return `Widget sync skipped: ${syncStatus.reason}`;
+    }
+    if (syncStatus == null && !isLoading && summary) {
+      return "Widget sync did not return a native result";
+    }
+    return "Syncing iOS widget...";
+  })();
 
   return (
     <Box
@@ -100,6 +133,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
       border="1px solid"
       borderColor={borderColor}
       bg={cardBg}
+      color={textColor}
       p={{ base: 4, md: 5 }}
       textAlign="left"
       shadow="xl"
@@ -112,11 +146,11 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
                 Home widget
               </Badge>
               <Badge variant="subtle" rounded="full" px={3} py={1}>
-                30 days
+                Rest days welcome
               </Badge>
             </HStack>
             <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
-              Keep the streak visible
+              Consistency, not just streaks
             </Text>
             <Text color={mutedColor} fontSize="sm">
               Last workout: {lastWorkoutName} - {lastWorkoutAt}
@@ -132,34 +166,92 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
           </Box>
         </Flex>
 
-        <Skeleton isLoaded={!isLoading} rounded="2xl">
-          <Box
-            display="grid"
-            gridTemplateColumns="repeat(10, minmax(0, 1fr))"
-            gap={{ base: 1.5, md: 2 }}
-            aria-label="Last 30 days workout chart"
-          >
-            {days.map((day) => (
-              <Box
-                key={day.date}
-                title={`${day.date}: ${day.workedOut ? "Workout logged" : "No workout"}`}
-                aspectRatio="1"
-                rounded="lg"
-                bg={day.workedOut ? activeCellBg : emptyCellBg}
-                boxShadow={day.workedOut ? activeCellShadow : "none"}
-                border="1px solid"
-                borderColor={day.workedOut ? "transparent" : borderColor}
-              />
-            ))}
+        <Skeleton isLoaded={!isLoading} rounded="0">
+          <Box position="relative" aria-label="Last 30 days workout chart">
+            <Box
+              display="grid"
+              gridTemplateColumns="repeat(10, minmax(0, 1fr))"
+              gap={0}
+            >
+              {days.map((day) => (
+                <Box
+                  key={day.date}
+                  title={`${day.date}: ${day.workedOut ? "Workout logged" : "No workout"}`}
+                  aspectRatio="1"
+                  rounded="0"
+                  bg={day.workedOut ? "rgba(38, 53, 71, 0.14)" : emptyCellBg}
+                />
+              ))}
+            </Box>
+            <Box
+              position="absolute"
+              inset={0}
+              display="grid"
+              gridTemplateColumns="repeat(10, minmax(0, 1fr))"
+              gap={0}
+              filter="blur(9px)"
+              transform="translateX(4px)"
+              opacity={0.85}
+              pointerEvents="none"
+            >
+              {days.map((day) => (
+                <Box
+                  key={`${day.date}-near-blur`}
+                  aspectRatio="1"
+                  rounded="0"
+                  bg={day.workedOut ? activeCellBlur : "transparent"}
+                />
+              ))}
+            </Box>
+            <Box
+              position="absolute"
+              inset={0}
+              display="grid"
+              gridTemplateColumns="repeat(10, minmax(0, 1fr))"
+              gap={0}
+              filter="blur(18px)"
+              transform="translateX(8px)"
+              opacity={0.8}
+              pointerEvents="none"
+            >
+              {days.map((day) => (
+                <Box
+                  key={`${day.date}-tight-blur`}
+                  aspectRatio="1"
+                  rounded="0"
+                  bg={day.workedOut ? activeCellBlur : "transparent"}
+                />
+              ))}
+            </Box>
+            <Box
+              position="absolute"
+              inset={0}
+              display="grid"
+              gridTemplateColumns="repeat(10, minmax(0, 1fr))"
+              gap={0}
+              filter="blur(52px)"
+              transform="translateX(22px)"
+              opacity={0.65}
+              pointerEvents="none"
+            >
+              {days.map((day) => (
+                <Box
+                  key={`${day.date}-wide-blur`}
+                  aspectRatio="1"
+                  rounded="0"
+                  bg={day.workedOut ? activeCellBlur : "transparent"}
+                />
+              ))}
+            </Box>
           </Box>
         </Skeleton>
 
         <Flex justify="space-between" align="center" gap={3}>
           <Text color={mutedColor} fontSize="sm">
-            {workoutCount} workouts in the last 30 days
+            {workoutCount}/30 active days in the last 30 days
           </Text>
           <Text color={error ? "red.400" : mutedColor} fontSize="sm">
-            {error || "Synced to iOS when opened in the app"}
+            {error || widgetSyncLabel}
           </Text>
         </Flex>
       </VStack>

@@ -21,6 +21,7 @@ const THEME_MODE_STORAGE_KEY = "themeMode";
 const LEGACY_THEME_STORAGE_KEY = "theme";
 const THEME_CLASSES = ["light", "dark", "dark-black", "dark-blue"];
 const EXPLICIT_THEMES = ["light", "dark", "dark-black", "dark-blue"];
+const DEFAULT_THEME_MODE = "system";
 
 const getSystemPrefersDark = () => {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -42,7 +43,7 @@ const resolveAppliedTheme = (mode) => {
   if (EXPLICIT_THEMES.includes(mode)) {
     return mode;
   }
-  return "dark";
+  return resolveAppliedTheme(DEFAULT_THEME_MODE);
 };
 
 export const ThemeProvider = ({ children }) => {
@@ -51,14 +52,14 @@ export const ThemeProvider = ({ children }) => {
     const stored =
       localStorage.getItem(THEME_MODE_STORAGE_KEY) ||
       localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
-    return normalizeThemeMode(stored) || "dark";
+    return normalizeThemeMode(stored) || DEFAULT_THEME_MODE;
   });
   const [currentTheme, setCurrentTheme] = useState(() =>
     resolveAppliedTheme(
       normalizeThemeMode(
         localStorage.getItem(THEME_MODE_STORAGE_KEY) ||
           localStorage.getItem(LEGACY_THEME_STORAGE_KEY)
-      ) || "dark"
+      ) || DEFAULT_THEME_MODE
     )
   );
 

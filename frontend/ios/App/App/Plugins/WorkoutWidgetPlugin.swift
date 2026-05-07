@@ -12,6 +12,7 @@ public class WorkoutWidgetPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private let appGroupIdentifier = "group.com.etherealgains.gymentry"
     private let summaryKey = "workoutHabitSummary"
+    private let summaryDataKey = "workoutHabitSummaryData"
 
     @objc func updateSummary(_ call: CAPPluginCall) {
         guard let summary = call.getObject("summary") else {
@@ -32,11 +33,19 @@ public class WorkoutWidgetPlugin: CAPPlugin, CAPBridgedPlugin {
             }
 
             defaults.set(json, forKey: summaryKey)
+            defaults.set(data, forKey: summaryDataKey)
             defaults.set(Date().timeIntervalSince1970, forKey: "workoutHabitSummaryUpdatedAt")
             defaults.synchronize()
 
             WidgetCenter.shared.reloadTimelines(ofKind: "WorkoutHabitWidget")
-            call.resolve()
+            WidgetCenter.shared.reloadAllTimelines()
+            call.resolve([
+                "saved": true,
+                "appGroupIdentifier": appGroupIdentifier,
+                "workoutDaysCount": (summary["workoutDays"] as? [Any])?.count ?? 0,
+                "activeDaysCount": (summary["workoutDays"] as? [[String: Any]])?.filter { $0["workedOut"] as? Bool == true }.count ?? 0,
+                "jsonLength": json.count
+            ])
         } catch {
             call.reject("Unable to save widget summary", nil, error)
         }

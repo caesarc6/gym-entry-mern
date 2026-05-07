@@ -14,12 +14,9 @@ const entrySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    // image can be defaulted to a string if not provided
+    // Missing post images are resolved in the frontend with theme-aware assets.
     image: {
       type: String,
-      required: true,
-      default:
-        "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
     },
     // likes: {
     //   type: Number,

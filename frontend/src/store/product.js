@@ -52,24 +52,26 @@ export const useProductStore = create((set) => ({
 
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
-    if (!newPost.name || !newPost.description) {
+    const postPayload = { ...newPost };
+
+    if (!postPayload.name || !postPayload.description) {
       return { success: false, message: "Please fill in all fields." };
     }
 
-    // Handle image data - check if we have postImage (base64) or use default
-    if (!newPost.image && !newPost.postImage) {
-      newPost.image =
-        "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
-    } else if (newPost.postImage) {
-      newPost.image = newPost.postImage;
-      // Also set imageName if available
-      if (newPost.postImageName) {
-        newPost.imageName = newPost.postImageName;
+    if (postPayload.postImage) {
+      postPayload.image = postPayload.postImage;
+      if (postPayload.postImageName) {
+        postPayload.imageName = postPayload.postImageName;
       }
+    } else if (!postPayload.image) {
+      delete postPayload.image;
+      delete postPayload.imageName;
     }
+    delete postPayload.postImage;
+    delete postPayload.postImageName;
 
     try {
-      const response = await apiClient.post(API_ENDPOINTS.CREATE_POST, newPost);
+      const response = await apiClient.post(API_ENDPOINTS.CREATE_POST, postPayload);
 
       const data = response.data;
 
@@ -81,19 +83,21 @@ export const useProductStore = create((set) => ({
   },
 
   createEntry: async (newEntry) => {
-    if (!newEntry.name || !newEntry.description) {
+    const entryPayload = { ...newEntry };
+
+    if (!entryPayload.name || !entryPayload.description) {
       return { success: false, message: "Please fill in all fields." };
     }
 
-    if (!newEntry.image) {
-      newEntry.image =
-        "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg";
+    if (!entryPayload.image) {
+      delete entryPayload.image;
+      delete entryPayload.imageName;
     }
 
     try {
       const response = await apiClient.post(
         API_ENDPOINTS.CREATE_ENTRY,
-        newEntry
+        entryPayload
       );
       const data = response.data;
       set((state) => ({ entrys: [...state.entrys, data.data] }));

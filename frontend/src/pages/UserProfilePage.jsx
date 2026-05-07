@@ -17,10 +17,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import ProductCard from "../components/ProductCard";
-import light from "../assets/light.jpg";
-import night from "../assets/night.jpg";
-import defaultBg from "../assets/defaultBg.jpg";
-import defaultBgNight from "../assets/defaultBgNight.jpg";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
 
@@ -76,10 +72,6 @@ const UserProfilePage = () => {
   /** Avoid unstable deps (toast / currentUser identity) recreating fetch every render → effect loop. */
   const currentUserRef = useRef(currentUser);
   const toastRef = useRef(null);
-  const themeFallbacksRef = useRef({
-    profile: lightUrl,
-    bg: defaultBgUrl,
-  });
 
   const toast = useCustomToast();
   const colors = useThemeColors();
@@ -90,7 +82,6 @@ const UserProfilePage = () => {
 
   currentUserRef.current = currentUser;
   toastRef.current = toast;
-  themeFallbacksRef.current = { profile: profileColorMode, bg: bgColorMode };
 
   // Determine userId: use paramUserId if available, otherwise use current user's UID
   const userId = paramUserId || currentUser?.uid;
@@ -163,8 +154,6 @@ const UserProfilePage = () => {
     const seq = ++profileFetchSeq.current;
     const user = currentUserRef.current;
     const toastNotify = toastRef.current;
-    const { profile: profileFallback, bg: bgFallback } =
-      themeFallbacksRef.current;
     try {
       setIsLoading(true);
       if (!user) {
@@ -185,8 +174,7 @@ const UserProfilePage = () => {
 
       const userData = profilePayload.data.user;
 
-      const finalProfileImage =
-        userData.picture || userData.profileImage || profileFallback;
+      const finalProfileImage = userData.picture || userData.profileImage || "";
 
       // Use API response for follow state — React `isFollowing` is stale in this same tick
       let followingForPosts = false;
@@ -218,7 +206,7 @@ const UserProfilePage = () => {
         postsCount: profilePayload.data.postsCount || 0,
         bio: userData.bio || "No bio available",
         profileImage: finalProfileImage,
-        backgroundPicture: userData.backgroundPicture || bgFallback,
+        backgroundPicture: userData.backgroundPicture || "",
         followersCount: profilePayload.data.followersCount || 0,
         followingCount: profilePayload.data.followingCount || 0,
         isPrivate: userData.isPrivate || false,
@@ -400,13 +388,13 @@ const UserProfilePage = () => {
         <Image
           h={"120px"}
           w={"full"}
-          src={userProfile.backgroundPicture}
+          src={userProfile.backgroundPicture || bgColorMode}
           objectFit={"cover"}
         />
         <Flex justify={"center"} mt={-12}>
           <Avatar
             size={"xl"}
-            src={userProfile.profileImage}
+            src={userProfile.profileImage || profileColorMode}
             css={{ border: "2px solid white" }}
           />
         </Flex>

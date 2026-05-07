@@ -28,10 +28,6 @@ import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { getCurrentAuthUser } from "../utils/auth";
-import light from "../assets/light.jpg";
-import night from "../assets/night.jpg";
-import defaultBg from "../assets/defaultBg.jpg";
-import defaultBgNight from "../assets/defaultBgNight.jpg";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -281,15 +277,14 @@ const SharedWorkoutPage = () => {
           borderColor={colors.borderColor}
         >
           {/* Workout Image */}
-          {workout.image && (
-            <Image
-              src={workout.image}
-              alt={workout.workoutName}
-              w="full"
-              h="400px"
-              objectFit="cover"
-            />
-          )}
+          <Image
+            src={workout.image || bgColorMode}
+            alt={workout.workoutName}
+            w="full"
+            h="400px"
+            objectFit="cover"
+            fallbackSrc={bgColorMode}
+          />
 
           {/* Workout Description */}
           <Box p={8}>

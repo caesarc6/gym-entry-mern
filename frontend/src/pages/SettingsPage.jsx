@@ -40,12 +40,23 @@ import { useProductStore } from "../store/product";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 
 const isCapacitorNative = getIsCapacitorNative();
+const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
+const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
+const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
+const defaultBgNightUrl = new URL(
+  "../assets/defaultBgNight.jpg",
+  import.meta.url
+).href;
 
 const SettingsPage = () => {
   const colors = useThemeColors();
   const toast = useCustomToast();
   const navigate = useNavigate();
   const { themeMode, setThemeMode, currentTheme } = useTheme();
+  const profileColorMode =
+    colors.currentTheme === "light" ? lightUrl : nightUrl;
+  const bgColorMode =
+    colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
   const setCurrentUser = useProductStore((s) => s.setCurrentUser);
   const storeUser = useProductStore((s) => s.currentUser);
 
@@ -471,13 +482,13 @@ const SettingsPage = () => {
             <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
                 <Image
-                  src={backgroundPreview}
+                  src={backgroundPreview || bgColorMode}
                   alt="Background Picture"
                   w="full"
                   h="200px"
                   objectFit="cover"
                   borderRadius="md"
-                  fallbackSrc={backgroundPreview}
+                  fallbackSrc={bgColorMode}
                 />
                 <FileUploader
                   handleFile={handleBackgroundImageUpload}
@@ -519,7 +530,7 @@ const SettingsPage = () => {
             <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
                 <Image
-                  src={userProfile.profileImage}
+                  src={userProfile.profileImage || profileColorMode}
                   alt="Profile Picture"
                   boxSize="150px"
                   objectFit="cover"
