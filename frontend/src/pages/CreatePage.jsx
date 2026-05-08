@@ -1,6 +1,4 @@
 import {
-  Alert,
-  AlertDescription,
   Box,
   Button,
   Center,
@@ -12,6 +10,7 @@ import {
   Input,
   Image,
   Spinner,
+  Text,
   Textarea,
   VStack,
 } from "@chakra-ui/react";
@@ -336,18 +335,6 @@ const CreatePage = () => {
 
         <Box w={"full"} bg={colors.bgCard} p={6} rounded={"lg"} shadow={"md"}>
           <VStack spacing={5} w="full" align="stretch">
-            <Alert
-              status="info"
-              variant="subtle"
-              bg={colors.bgMuted}
-              color={colors.textPrimary}
-              rounded="md"
-            >
-              <AlertDescription>
-                Draft saves automatically while you type.
-              </AlertDescription>
-            </Alert>
-
             <FormControl isRequired>
               <FormLabel color={colors.textPrimary} mb={2}>
                 Workout session name
@@ -383,6 +370,9 @@ const CreatePage = () => {
                 borderColor={colors.borderColorInput}
                 _placeholder={{ color: colors.textMuted }}
               />
+              <Text mt={2} fontSize="sm" color={colors.textMuted}>
+                Draft saves automatically while you type.
+              </Text>
             </FormControl>
 
             {/* <Input

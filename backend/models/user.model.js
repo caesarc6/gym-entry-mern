@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sanitizeTextInput } from "../utils/sanitizeInput.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -10,14 +11,14 @@ const userSchema = new mongoose.Schema(
       enum: ["firebase", "supabase"], 
       default: "firebase" // Default to firebase for backward compatibility
     },
-    name: String,
+    name: { type: String, set: sanitizeTextInput },
     email: { type: String, required: true, unique: true },
-    username: { type: String, required: false, unique: true },
+    username: { type: String, required: false, unique: true, set: sanitizeTextInput },
     picture: { type: String, default: "" },
     backgroundPicture: { type: String, default: "" },
-    bio: { type: String, default: "" },
-    goal: { type: String, default: "" },
-    gymName: { type: String, default: "" },
+    bio: { type: String, default: "", set: sanitizeTextInput },
+    goal: { type: String, default: "", set: sanitizeTextInput },
+    gymName: { type: String, default: "", set: sanitizeTextInput },
     url: String,
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
@@ -71,7 +72,7 @@ followRequestSchema.index({ requester: 1, recipient: 1 }, { unique: true });
 
 const postSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  content: { type: String, required: true },
+  content: { type: String, required: true, set: sanitizeTextInput },
   image: String,
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   createdAt: { type: Date, default: Date.now },
@@ -80,7 +81,7 @@ const postSchema = new mongoose.Schema({
 const commentSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   post: { type: mongoose.Schema.Types.ObjectId, ref: "Post", required: true },
-  content: { type: String, required: true },
+  content: { type: String, required: true, set: sanitizeTextInput },
   createdAt: { type: Date, default: Date.now },
 });
 

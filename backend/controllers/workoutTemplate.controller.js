@@ -1,15 +1,19 @@
 import mongoose from "mongoose";
 import SharedWorkout from "../models/sharedWorkout.model.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
+import { sanitizeTextInput } from "../utils/sanitizeInput.js";
+
+const escapeRegex = (value) =>
+  String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // Create a new shared workout
 export const createSharedWorkout = async (req, res) => {
   try {
     const { uid, name } = req.user; // From auth middleware
     const {
-      workoutName,
-      clientName,
-      description,
+      workoutName: rawWorkoutName,
+      clientName: rawClientName,
+      description: rawDescription,
       image,
       category,
       difficulty,
@@ -17,6 +21,10 @@ export const createSharedWorkout = async (req, res) => {
       exercises,
       tags,
     } = req.body;
+    const workoutName = sanitizeTextInput(rawWorkoutName);
+    const clientName = sanitizeTextInput(rawClientName);
+    const description = sanitizeTextInput(rawDescription);
+    const creatorName = sanitizeTextInput(name) || "Trainer";
 
     if (!workoutName || !description) {
       return res.status(400).json({
@@ -30,7 +38,7 @@ export const createSharedWorkout = async (req, res) => {
       description,
       image,
       creatorUid: uid,
-      creatorName: name || "Trainer",
+      creatorName,
       category,
       difficulty,
       estimatedDuration,
@@ -49,7 +57,7 @@ export const createSharedWorkout = async (req, res) => {
         assignedToEmail: null,
         isRegisteredUser: false,
         sharedByUid: uid,
-        sharedByName: name || "Trainer",
+        sharedByName: creatorName,
         customLabel: workoutName, // Use workout name as the label
         instructions: null,
         targetDate: null,
@@ -81,17 +89,19 @@ export const createSharedWorkout = async (req, res) => {
 export const getTrainerSharedWorkouts = async (req, res) => {
   try {
     const { uid } = req.user;
-    const { page = 1, limit = 10, category, difficulty, search } = req.query;
+    const { page = 1, limit = 10, category, difficulty } = req.query;
+    const search = sanitizeTextInput(req.query?.search);
 
     const query = { creatorUid: uid, isActive: true };
 
     if (category) query.category = category;
     if (difficulty) query.difficulty = difficulty;
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { workoutName: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { tags: { $in: [new RegExp(search, "i")] } },
+        { workoutName: { $regex: safeSearch, $options: "i" } },
+        { description: { $regex: safeSearch, $options: "i" } },
+        { tags: { $in: [new RegExp(safeSearch, "i")] } },
       ];
     }
 
@@ -286,15 +296,17 @@ export const assignWorkoutToUser = async (req, res) => {
 export const getTrainerAssignments = async (req, res) => {
   try {
     const { uid } = req.user;
-    const { page = 1, limit = 10, status, search } = req.query;
+    const { page = 1, limit = 10, status } = req.query;
+    const search = sanitizeTextInput(req.query?.search);
 
     const query = { assignedByUid: uid, isVisible: true };
 
     if (status) query.status = status;
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { assignedToName: { $regex: search, $options: "i" } },
-        { customLabel: { $regex: search, $options: "i" } },
+        { assignedToName: { $regex: safeSearch, $options: "i" } },
+        { customLabel: { $regex: safeSearch, $options: "i" } },
       ];
     }
 

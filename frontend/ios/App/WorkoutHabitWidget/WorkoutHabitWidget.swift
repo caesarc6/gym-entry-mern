@@ -121,7 +121,7 @@ struct WorkoutHabitWidgetView: View {
     }
 
     private var activeDaysText: String {
-        "\(entry.summary.workoutCount30d)/30 active days"
+        "\(entry.summary.workoutCount30d) active days in the last 30 days"
     }
 
     private var widgetBackground: some View {

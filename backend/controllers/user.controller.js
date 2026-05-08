@@ -16,6 +16,7 @@ import {
   removeSupabaseObjectByPublicUrl,
 } from "../utils/fileUtils.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
+import { sanitizeTextFields, sanitizeTextInput } from "../utils/sanitizeInput.js";
 
 const buildUidQuery = (uid) => ({
   $or: [{ uid }, { firebaseUid: uid }, { supabaseUid: uid }],
@@ -588,14 +589,16 @@ export const updateUserProfile = async (req, res) => {
     const { uid } = req.user;
     const body = req.body || {};
     const {
-      name,
-      username,
-      goal,
-      gymName,
-      bio,
       profileImageName,
       profileImage,
     } = body;
+    const { name, username, goal, gymName, bio } = sanitizeTextFields(body, [
+      "name",
+      "username",
+      "goal",
+      "gymName",
+      "bio",
+    ]);
 
     const authUserQuery = buildUidQuery(String(uid || "").trim());
 
@@ -786,7 +789,8 @@ export const checkSupabaseConnection = async () => {
 };
 
 export const createUser = async (req, res) => {
-  const { uid, name, email, picture } = req.user;
+  const { uid, email, picture } = req.user;
+  const name = sanitizeTextInput(req.user?.name);
 
   try {
     let user = await findUserByAnyUid(uid);
@@ -867,7 +871,11 @@ export const createUser = async (req, res) => {
 };
 
 export const createPost = async (req, res) => {
-  const { name, description, image, imageName } = req.body;
+  const { image, imageName } = req.body;
+  const { name, description } = sanitizeTextFields(req.body, [
+    "name",
+    "description",
+  ]);
   const { uid } = req.user;
 
   if (!name || !description) {
@@ -1063,7 +1071,7 @@ export const getWorkoutHabitSummary = async (req, res) => {
 
     const now = new Date();
     const todayKey = now.toISOString().slice(0, 10);
-    const start = new Date(Date.UTC(
+    const windowStart = new Date(Date.UTC(
       now.getUTCFullYear(),
       now.getUTCMonth(),
       now.getUTCDate() - 29,
@@ -1073,15 +1081,25 @@ export const getWorkoutHabitSummary = async (req, res) => {
       0,
     ));
 
+    const streakLookbackStart = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - 730,
+      0,
+      0,
+      0,
+      0,
+    ));
+
     const entries = await Entry.find({
       uid: { $in: uniqueTargetUids },
-      createdAt: { $gte: start },
+      createdAt: { $gte: streakLookbackStart },
     })
       .select("name createdAt")
       .sort({ createdAt: -1 })
       .lean();
 
-    const workoutDaysSet = new Set(
+    const workoutDateSet = new Set(
       entries
         .map((entry) => entry.createdAt?.toISOString?.().slice(0, 10))
         .filter(Boolean),
@@ -1089,32 +1107,32 @@ export const getWorkoutHabitSummary = async (req, res) => {
 
     const workoutDays = [];
     for (let i = 0; i < 30; i += 1) {
-      const day = new Date(start);
-      day.setUTCDate(start.getUTCDate() + i);
+      const day = new Date(windowStart);
+      day.setUTCDate(windowStart.getUTCDate() + i);
       const date = day.toISOString().slice(0, 10);
       workoutDays.push({
         date,
-        workedOut: workoutDaysSet.has(date),
+        workedOut: workoutDateSet.has(date),
       });
     }
 
-    const lastWorkout = entries[0] || null;
-    const lastWorkoutDate = lastWorkout?.createdAt || now;
     let currentStreak = 0;
-    const cursor = new Date(Date.UTC(
-      lastWorkoutDate.getUTCFullYear(),
-      lastWorkoutDate.getUTCMonth(),
-      lastWorkoutDate.getUTCDate(),
+    const streakProbe = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
       0,
       0,
       0,
       0,
     ));
-
-    while (workoutDaysSet.has(cursor.toISOString().slice(0, 10))) {
+    while (workoutDateSet.has(streakProbe.toISOString().slice(0, 10))) {
       currentStreak += 1;
-      cursor.setUTCDate(cursor.getUTCDate() - 1);
+      streakProbe.setUTCDate(streakProbe.getUTCDate() - 1);
     }
+
+    const workoutCount30d = workoutDays.filter((d) => d.workedOut).length;
+    const lastWorkout = entries[0] || null;
 
     res.status(200).json({
       success: true,
@@ -1125,7 +1143,7 @@ export const getWorkoutHabitSummary = async (req, res) => {
         lastWorkoutName: lastWorkout?.name || null,
         lastWorkoutAt: lastWorkout?.createdAt?.toISOString?.() || null,
         workoutDays,
-        workoutCount30d: workoutDaysSet.size,
+        workoutCount30d,
         currentStreak,
       },
     });
@@ -1183,6 +1201,14 @@ export const getCurrentUser = async (req, res) => {
   const { uid } = req.user;
 
   try {
+    const dbReady = await ensureMongoConnected();
+    if (!dbReady.ok) {
+      return res.status(500).json({
+        success: false,
+        message: dbReady.message || "Database connection error",
+      });
+    }
+
     const user = await findUserByAnyUid(
       uid,
       "uid firebaseUid supabaseUid name email picture username"
@@ -1227,7 +1253,7 @@ export const getUser = async (req, res) => {
 };
 
 export const searchUsers = async (req, res) => {
-  const { query } = req.query;
+  const query = sanitizeTextInput(req.query?.query);
 
   if (!query || query.trim() === "") {
     return res
@@ -1245,8 +1271,8 @@ export const searchUsers = async (req, res) => {
     // Find users matching the search query (only match from the beginning)
     const users = await User.find({
       $or: [
-        { name: { $regex: `^${query}`, $options: "i" } },
-        { username: { $regex: `^${query}`, $options: "i" } },
+        { name: { $regex: `^${escapeRegex(query)}`, $options: "i" } },
+        { username: { $regex: `^${escapeRegex(query)}`, $options: "i" } },
       ],
     })
       .populate("followers", "uid")
@@ -1519,10 +1545,15 @@ export const likePost = async (req, res) => {
 
 export const commentOnPost = async (req, res) => {
   try {
+    const content = sanitizeTextInput(req.body?.content);
+    if (!content) {
+      return res.status(400).json({ message: "Comment content is required" });
+    }
+
     const comment = new Comment({
       user: req.body.userId,
       post: req.params.postId,
-      content: req.body.content,
+      content,
     });
     await comment.save();
     res.status(201).json(comment);

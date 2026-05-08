@@ -1,8 +1,6 @@
 import {
-  Badge,
   Box,
   Flex,
-  HStack,
   Skeleton,
   Text,
   VStack,
@@ -72,7 +70,6 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
         if (ignore) return;
         setSummary(nextSummary);
         if (!canSyncIosWidget) {
-          setSyncStatus({ skipped: true, reason: "not-ios-native" });
           return;
         }
         try {
@@ -110,7 +107,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
   const lastWorkoutAt = formatDate(summary?.lastWorkoutAt);
   const widgetSyncLabel = (() => {
     if (!canSyncIosWidget) {
-      return "Open the iOS app to sync the home widget";
+      return null;
     }
     if (syncStatus?.saved) {
       return `Synced ${syncStatus.activeDaysCount ?? workoutCount} active days to iOS widget`;
@@ -141,16 +138,12 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
       <VStack align="stretch" spacing={4}>
         <Flex justify="space-between" align="flex-start" gap={4}>
           <Box>
-            <HStack spacing={2} mb={2}>
-              <Badge colorScheme="blue" rounded="full" px={3} py={1}>
-                Home widget
-              </Badge>
-              <Badge variant="subtle" rounded="full" px={3} py={1}>
-                Rest days welcome
-              </Badge>
-            </HStack>
-            <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
-              Consistency, not just streaks
+            <Text
+              mb={2}
+              fontSize={{ base: "lg", md: "xl" }}
+              fontWeight="bold"
+            >
+              Workout widget
             </Text>
             <Text color={mutedColor} fontSize="sm">
               Last workout: {lastWorkoutName} - {lastWorkoutAt}
@@ -246,13 +239,15 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
           </Box>
         </Skeleton>
 
-        <Flex justify="space-between" align="center" gap={3}>
+        <Flex justify="space-between" align="center" gap={3} flexWrap="wrap">
           <Text color={mutedColor} fontSize="sm">
-            {workoutCount}/30 active days in the last 30 days
+            {workoutCount} active days in the last 30 days
           </Text>
-          <Text color={error ? "red.400" : mutedColor} fontSize="sm">
-            {error || widgetSyncLabel}
-          </Text>
+          {(error || widgetSyncLabel) && (
+            <Text color={error ? "red.400" : mutedColor} fontSize="sm">
+              {error || widgetSyncLabel}
+            </Text>
+          )}
         </Flex>
       </VStack>
     </Box>

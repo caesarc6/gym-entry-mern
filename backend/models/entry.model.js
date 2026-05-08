@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
+import { sanitizeTextInput } from "../utils/sanitizeInput.js";
 
 const entrySchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: true,
+      set: sanitizeTextInput,
     },
     uid: {
       type: String,
@@ -13,6 +15,7 @@ const entrySchema = new mongoose.Schema(
     description: {
       type: String,
       required: true,
+      set: sanitizeTextInput,
     },
     // Missing post images are resolved in the frontend with theme-aware assets.
     image: {
@@ -34,13 +37,14 @@ const entrySchema = new mongoose.Schema(
         text: {
           type: String,
           required: true,
+          set: sanitizeTextInput,
         },
         uid: {
           type: String,
           required: false, // Changed to false to prevent validation errors with existing malformed data
         },
-        username: String,
-        name: String,
+        username: { type: String, set: sanitizeTextInput },
+        name: { type: String, set: sanitizeTextInput },
         picture: String,
         createdAt: {
           type: Date,
@@ -53,8 +57,8 @@ const entrySchema = new mongoose.Schema(
         likes: [
           {
             uid: String,
-            username: String,
-            name: String,
+            username: { type: String, set: sanitizeTextInput },
+            name: { type: String, set: sanitizeTextInput },
             picture: String,
           },
         ],
@@ -67,13 +71,14 @@ const entrySchema = new mongoose.Schema(
             text: {
               type: String,
               required: true,
+              set: sanitizeTextInput,
             },
             uid: {
               type: String,
               required: false, // Changed to false to prevent validation errors with existing malformed data
             },
-            username: String,
-            name: String,
+            username: { type: String, set: sanitizeTextInput },
+            name: { type: String, set: sanitizeTextInput },
             picture: String,
             createdAt: {
               type: Date,
@@ -116,17 +121,19 @@ const entrySchema = new mongoose.Schema(
     trainerName: {
       type: String,
       default: null,
+      set: sanitizeTextInput,
     },
     trainerUsername: {
       type: String,
       default: null,
+      set: sanitizeTextInput,
     },
     // In-progress text while editing (owner-only); excluded from default queries (select: false).
     editDraft: {
       type: new mongoose.Schema(
         {
-          name: { type: String },
-          description: { type: String },
+          name: { type: String, set: sanitizeTextInput },
+          description: { type: String, set: sanitizeTextInput },
           updatedAt: { type: Date, default: Date.now },
         },
         { _id: false },

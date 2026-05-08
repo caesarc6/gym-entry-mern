@@ -16,6 +16,7 @@ import {
 } from "../utils/fileUtils.js";
 import { attachPopulatedLikesToEntries } from "../utils/entryLikes.js";
 import { ensureMongoConnected } from "../config/db.js";
+import { sanitizeTextFields, sanitizeTextInput } from "../utils/sanitizeInput.js";
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
@@ -151,7 +152,10 @@ export const getEntrys = async (req, res) => {
 
 // create product
 export const createEntry = async (req, res) => {
-  const entry = req.body; // user will send this data
+  const entry = {
+    ...req.body,
+    ...sanitizeTextFields(req.body, ["name", "description"]),
+  }; // user will send this data
   const { uid } = req.user; // Get the authenticated user's UID
 
   if (!entry.name && !entry.description) {
@@ -178,7 +182,11 @@ export const createEntry = async (req, res) => {
 
 // update workout entry
 export const updateEntry = async (req, res) => {
-  const { pid, name, description, image, imageName } = req.body; // Extract fields directly from req.body
+  const { pid, image, imageName } = req.body; // Extract fields directly from req.body
+  const { name, description } = sanitizeTextFields(req.body, [
+    "name",
+    "description",
+  ]);
   const { uid } = req.user;
 
   // Check if at least one of the fields (name or description) is provided
@@ -312,7 +320,10 @@ export const updateEntry = async (req, res) => {
 /** Owner-only: persist name/description backup while editing (no base64 images). */
 export const saveEntryDraft = async (req, res) => {
   const { id } = req.params;
-  const { name, description } = req.body ?? {};
+  const { name, description } = sanitizeTextFields(req.body ?? {}, [
+    "name",
+    "description",
+  ]);
 
   if (!req.user?.uid) {
     return res.status(401).json({
@@ -474,7 +485,11 @@ export const clearEntryDraft = async (req, res) => {
 // PUT route handler for updating entries
 export const updateEntryPut = async (req, res) => {
   const { id } = req.params; // Get ID from URL params
-  const { name, description, image, imageName } = req.body; // Extract fields from req.body
+  const { image, imageName } = req.body; // Extract fields from req.body
+  const { name, description } = sanitizeTextFields(req.body, [
+    "name",
+    "description",
+  ]);
 
   // Check if user is authenticated
   if (!req.user || !req.user.uid) {
@@ -738,7 +753,7 @@ export const likeEntry = async (req, res) => {
 
 export const commentEntry = async (req, res) => {
   const { id } = req.params;
-  const { comment } = req.body;
+  const comment = sanitizeTextInput(req.body?.comment);
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -750,6 +765,11 @@ export const commentEntry = async (req, res) => {
     return res
       .status(400)
       .json({ success: false, message: "Invalid Entry Id" });
+  }
+  if (!comment) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Comment is required" });
   }
 
   try {
@@ -863,7 +883,7 @@ export const likeComment = async (req, res) => {
 // Reply to a comment
 export const replyToComment = async (req, res) => {
   const { entryId, commentId } = req.params;
-  const { text } = req.body;
+  const text = sanitizeTextInput(req.body?.text);
   const { uid } = req.user;
 
   if (
@@ -873,6 +893,11 @@ export const replyToComment = async (req, res) => {
     return res
       .status(400)
       .json({ success: false, message: "Invalid Entry or Comment Id" });
+  }
+  if (!text) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Reply text is required" });
   }
 
   try {
@@ -923,7 +948,7 @@ export const replyToComment = async (req, res) => {
 // Edit a comment
 export const editComment = async (req, res) => {
   const { entryId, commentId } = req.params;
-  const { text } = req.body;
+  const text = sanitizeTextInput(req.body?.text);
   const { uid } = req.user;
   const authUser = await findUserByAuth(req.user);
   const uidSet = getUserUidSet(authUser, uid);
@@ -935,6 +960,11 @@ export const editComment = async (req, res) => {
     return res
       .status(400)
       .json({ success: false, message: "Invalid Entry or Comment Id" });
+  }
+  if (!text) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Comment text is required" });
   }
 
   try {

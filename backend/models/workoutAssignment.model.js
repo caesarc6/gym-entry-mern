@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sanitizeTextInput } from "../utils/sanitizeInput.js";
 
 const workoutAssignmentSchema = new mongoose.Schema(
   {
@@ -17,6 +18,7 @@ const workoutAssignmentSchema = new mongoose.Schema(
     assignedToName: {
       type: String,
       required: true,
+      set: sanitizeTextInput,
     },
     assignedToEmail: String,
     isRegisteredUser: {
@@ -32,14 +34,16 @@ const workoutAssignmentSchema = new mongoose.Schema(
     sharedByName: {
       type: String,
       required: true,
+      set: sanitizeTextInput,
     },
 
     // Sharing Configuration
     customLabel: {
       type: String, // Custom name the trainer gives to this specific share
       required: true,
+      set: sanitizeTextInput,
     },
-    instructions: String, // Special instructions for this user
+    instructions: { type: String, set: sanitizeTextInput }, // Special instructions for this user
     targetDate: Date, // When the workout should be completed
     dueDate: Date, // Deadline for completion
 
@@ -55,11 +59,11 @@ const workoutAssignmentSchema = new mongoose.Schema(
       completedAt: Date,
       actualExercises: [
         {
-          name: String,
+          name: { type: String, set: sanitizeTextInput },
           setsCompleted: Number,
-          repsCompleted: String,
-          weightUsed: String,
-          notes: String,
+          repsCompleted: { type: String, set: sanitizeTextInput },
+          weightUsed: { type: String, set: sanitizeTextInput },
+          notes: { type: String, set: sanitizeTextInput },
           addedBy: {
             type: String,
             enum: ["client", "trainer"],
@@ -71,13 +75,13 @@ const workoutAssignmentSchema = new mongoose.Schema(
           },
         },
       ],
-      userNotes: String,
+      userNotes: { type: String, set: sanitizeTextInput },
       rating: {
         type: Number,
         min: 1,
         max: 5,
       },
-      feedback: String,
+      feedback: { type: String, set: sanitizeTextInput },
     },
 
     // Trainer's feedback on completion
@@ -87,7 +91,7 @@ const workoutAssignmentSchema = new mongoose.Schema(
         min: 1,
         max: 5,
       },
-      notes: String,
+      notes: { type: String, set: sanitizeTextInput },
       feedbackDate: Date,
     },
 

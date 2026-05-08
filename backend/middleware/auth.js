@@ -3,7 +3,12 @@ import {
   isFirebaseConfigured,
 } from "../firebase.js";
 import { supabaseAdmin } from "../supabase/supabase.js";
-import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
+import {
+  createRemoteJWKSet,
+  decodeJwt,
+  decodeProtectedHeader,
+  jwtVerify,
+} from "jose";
 
 /**
  * Dual authentication middleware that supports both Firebase and Supabase tokens.
@@ -81,11 +86,20 @@ const setCachedSupabaseUser = (token, user) => {
   }
 };
 
+const getTokenAlg = (token) => {
+  try {
+    return decodeProtectedHeader(token)?.alg;
+  } catch {
+    return null;
+  }
+};
+
 async function tryVerifySupabaseJwt(token) {
   const supabaseUrl = process.env.SUPABASE_URL;
   if (!supabaseUrl) return null;
 
   const issuer = `${supabaseUrl.replace(/\/$/, "")}/auth/v1`;
+  const tokenAlg = getTokenAlg(token);
 
   if (process.env.SUPABASE_JWT_SECRET) {
     try {
@@ -99,6 +113,14 @@ async function tryVerifySupabaseJwt(token) {
         code: error?.code,
       });
     }
+  }
+
+  if (tokenAlg?.startsWith("HS")) {
+    console.warn("[auth] supabase jwt secret missing or invalid for HS token", {
+      alg: tokenAlg,
+      hasJwtSecret: Boolean(process.env.SUPABASE_JWT_SECRET),
+    });
+    return null;
   }
 
   const jwks = getSupabaseJwks();

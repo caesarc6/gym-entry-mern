@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sanitizeTextInput } from "../utils/sanitizeInput.js";
 
 const workoutTemplateSchema = new mongoose.Schema(
   {
@@ -6,10 +7,12 @@ const workoutTemplateSchema = new mongoose.Schema(
     workoutName: {
       type: String,
       required: true,
+      set: sanitizeTextInput,
     },
     description: {
       type: String,
       required: true,
+      set: sanitizeTextInput,
     },
     image: {
       type: String,
@@ -25,6 +28,7 @@ const workoutTemplateSchema = new mongoose.Schema(
     creatorName: {
       type: String,
       required: true,
+      set: sanitizeTextInput,
     },
 
     // Workout Organization
@@ -56,12 +60,13 @@ const workoutTemplateSchema = new mongoose.Schema(
         name: {
           type: String,
           required: true,
+          set: sanitizeTextInput,
         },
         sets: Number,
-        reps: String, // Can be "10-12" or "30 seconds" etc.
-        weight: String,
-        restTime: String,
-        notes: String,
+        reps: { type: String, set: sanitizeTextInput }, // Can be "10-12" or "30 seconds" etc.
+        weight: { type: String, set: sanitizeTextInput },
+        restTime: { type: String, set: sanitizeTextInput },
+        notes: { type: String, set: sanitizeTextInput },
       },
     ],
 
@@ -70,7 +75,7 @@ const workoutTemplateSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    tags: [String], // For better organization
+    tags: [{ type: String, set: sanitizeTextInput }], // For better organization
 
     // Sharing tracking
     totalShares: {

@@ -3,20 +3,59 @@ import SharedWorkout from "../models/sharedWorkout.model.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
 import { User } from "../models/user.model.js";
 import Entry from "../models/entry.model.js";
+import {
+  sanitizeObjectTextFields,
+  sanitizeTextArray,
+  sanitizeTextInput,
+} from "../utils/sanitizeInput.js";
+
+const escapeRegex = (value) =>
+  String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const sanitizeExercises = (exercises) =>
+  Array.isArray(exercises)
+    ? exercises.map((exercise) =>
+        sanitizeObjectTextFields(exercise, [
+          "name",
+          "reps",
+          "weight",
+          "restTime",
+          "notes",
+        ])
+      )
+    : exercises;
+
+const sanitizeCompletedExercises = (exercises) =>
+  Array.isArray(exercises)
+    ? exercises.map((exercise) =>
+        sanitizeObjectTextFields(exercise, [
+          "name",
+          "repsCompleted",
+          "weightUsed",
+          "notes",
+        ])
+      )
+    : exercises;
 
 // Create a new shared workout
 export const createSharedWorkout = async (req, res) => {
   try {
     const { uid, name } = req.user; // From auth middleware
     const {
-      workoutName,
-      clientName,
-      description,
+      workoutName: rawWorkoutName,
+      clientName: rawClientName,
+      description: rawDescription,
       image,
-      exercises,
-      tags,
+      exercises: rawExercises,
+      tags: rawTags,
       createdAt,
     } = req.body;
+    const workoutName = sanitizeTextInput(rawWorkoutName);
+    const clientName = sanitizeTextInput(rawClientName);
+    const description = sanitizeTextInput(rawDescription);
+    const exercises = sanitizeExercises(rawExercises);
+    const tags = sanitizeTextArray(rawTags);
+    const creatorName = sanitizeTextInput(name) || "Trainer";
 
     if (!workoutName || !description) {
       return res.status(400).json({
@@ -30,7 +69,7 @@ export const createSharedWorkout = async (req, res) => {
       description,
       image,
       creatorUid: uid,
-      creatorName: name || "Trainer",
+      creatorName,
       clientName: clientName || null,
       exercises: exercises || [],
       tags: tags || [],
@@ -56,7 +95,7 @@ export const createSharedWorkout = async (req, res) => {
         assignedToEmail: null,
         isRegisteredUser: false,
         sharedByUid: uid,
-        sharedByName: name || "Trainer",
+        sharedByName: creatorName,
         customLabel: workoutName, // Use workout name as the label
         instructions: null,
         targetDate: null,
@@ -141,7 +180,7 @@ export const createSharedWorkout = async (req, res) => {
             assignedToEmail: user.email || null,
             isRegisteredUser: true,
             sharedByUid: uid,
-            sharedByName: name || "Trainer",
+            sharedByName: creatorName,
             customLabel: workoutName,
             instructions:
               "Automatically assigned - new workout for your client profile",
@@ -171,7 +210,7 @@ export const createSharedWorkout = async (req, res) => {
             originalEntryId: null,
             sharedWorkoutId: sharedWorkout._id, // Link to SharedWorkout for sync
             trainerUid: uid,
-            trainerName: trainer?.name || name || "Trainer",
+            trainerName: trainer?.name || creatorName,
             trainerUsername: trainer?.username || null,
           });
 
@@ -218,15 +257,17 @@ export const createSharedWorkout = async (req, res) => {
 export const getTrainerSharedWorkouts = async (req, res) => {
   try {
     const { uid } = req.user;
-    const { page = 1, limit = 10, search } = req.query;
+    const { page = 1, limit = 10 } = req.query;
+    const search = sanitizeTextInput(req.query?.search);
 
     const query = { creatorUid: uid, isActive: true };
 
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { workoutName: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { tags: { $in: [new RegExp(search, "i")] } },
+        { workoutName: { $regex: safeSearch, $options: "i" } },
+        { description: { $regex: safeSearch, $options: "i" } },
+        { tags: { $in: [new RegExp(safeSearch, "i")] } },
       ];
     }
 
@@ -287,7 +328,16 @@ export const updateSharedWorkout = async (req, res) => {
   try {
     const { sharedWorkoutId } = req.params;
     const { uid } = req.user;
-    const updates = req.body;
+    const updates = sanitizeObjectTextFields({ ...(req.body || {}) }, [
+      "workoutName",
+      "description",
+      "clientName",
+      "creatorName",
+    ]);
+    if (updates.tags !== undefined) updates.tags = sanitizeTextArray(updates.tags);
+    if (updates.exercises !== undefined) {
+      updates.exercises = sanitizeExercises(updates.exercises);
+    }
 
     // Handle createdAt field if provided
     if (updates.createdAt) {
@@ -374,7 +424,7 @@ export const updateSharedWorkout = async (req, res) => {
         // Try to find entries by workout name as fallback (for entries created before sharedWorkoutId was added)
         const fallbackEntries = await Entry.find({
           name: template.workoutName,
-          description: { $regex: new RegExp(template.creatorName, "i") },
+          description: { $regex: new RegExp(escapeRegex(template.creatorName), "i") },
           sharedWorkoutId: null, // Only find entries that don't have sharedWorkoutId
         });
 
@@ -442,14 +492,17 @@ export const shareWorkoutToUser = async (req, res) => {
     const { uid, name } = req.user;
     const {
       assignedToUid,
-      assignedToName,
+      assignedToName: rawAssignedToName,
       assignedToEmail,
-      customLabel,
-      instructions,
+      customLabel: rawCustomLabel,
+      instructions: rawInstructions,
       targetDate,
       dueDate,
       isNameOnlyAssignment = false,
     } = req.body;
+    const assignedToName = sanitizeTextInput(rawAssignedToName);
+    const customLabel = sanitizeTextInput(rawCustomLabel);
+    const instructions = sanitizeTextInput(rawInstructions);
 
     if (!assignedToName || !customLabel) {
       return res.status(400).json({
@@ -516,15 +569,17 @@ export const shareWorkoutToUser = async (req, res) => {
 export const getTrainerAssignments = async (req, res) => {
   try {
     const { uid } = req.user;
-    const { page = 1, limit = 10, status, search } = req.query;
+    const { page = 1, limit = 10, status } = req.query;
+    const search = sanitizeTextInput(req.query?.search);
 
     const query = { sharedByUid: uid, isVisible: true };
 
     if (status) query.status = status;
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { assignedToName: { $regex: search, $options: "i" } },
-        { customLabel: { $regex: search, $options: "i" } },
+        { assignedToName: { $regex: safeSearch, $options: "i" } },
+        { customLabel: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -610,7 +665,11 @@ export const updateWorkoutAssignment = async (req, res) => {
   try {
     const { shareId } = req.params;
     const { uid, name } = req.user;
-    const { customLabel, instructions, targetDate, dueDate, status } = req.body;
+    const { targetDate, dueDate, status } = req.body;
+    const { customLabel, instructions } = sanitizeObjectTextFields(req.body || {}, [
+      "customLabel",
+      "instructions",
+    ]);
 
     // Verify share exists and belongs to trainer
     const share = await WorkoutAssignment.findOne({
@@ -654,8 +713,14 @@ export const continueAssignedWorkout = async (req, res) => {
   try {
     const { shareId } = req.params;
     const { uid } = req.user;
-    const { additionalExercises, userNotes, rating, addedBy, instructions } =
-      req.body;
+    const { rating, addedBy } = req.body;
+    const additionalExercises = sanitizeCompletedExercises(
+      req.body?.additionalExercises
+    );
+    const { userNotes, instructions } = sanitizeObjectTextFields(req.body || {}, [
+      "userNotes",
+      "instructions",
+    ]);
 
     // Verify share exists and belongs to user OR was assigned by the trainer
     const share = await WorkoutAssignment.findOne({
@@ -742,7 +807,11 @@ export const completeAssignedWorkout = async (req, res) => {
   try {
     const { shareId } = req.params;
     const { uid } = req.user;
-    const { userNotes, rating, feedback, instructions } = req.body;
+    const { rating } = req.body;
+    const { userNotes, feedback, instructions } = sanitizeObjectTextFields(
+      req.body || {},
+      ["userNotes", "feedback", "instructions"]
+    );
 
     // Verify share exists and belongs to user
     const share = await WorkoutAssignment.findOne({
@@ -803,7 +872,8 @@ export const completeAssignedWorkout = async (req, res) => {
 // Check for pending workouts assigned to a name/email
 export const checkPendingWorkouts = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const name = sanitizeTextInput(req.body?.name);
+    const email = sanitizeTextInput(req.body?.email);
 
     if (!name && !email) {
       return res.status(400).json({
@@ -862,8 +932,9 @@ export const checkPendingWorkouts = async (req, res) => {
 // Claim pending workouts when user creates an account
 export const claimPendingWorkouts = async (req, res) => {
   try {
-    const { uid, name } = req.user;
-    const { email } = req.body;
+    const { uid } = req.user;
+    const name = sanitizeTextInput(req.user?.name);
+    const email = sanitizeTextInput(req.body?.email);
 
     // Normalize name for searching (lowercase, trimmed)
     const normalizedName = name ? name.trim().toLowerCase() : null;
@@ -1187,7 +1258,8 @@ export const saveSharedWorkoutToAccount = async (req, res) => {
 export const getTrainerClients = async (req, res) => {
   try {
     const { uid } = req.user;
-    const { page = 1, limit = 10, search, sortBy = "recent" } = req.query;
+    const { page = 1, limit = 10, sortBy = "recent" } = req.query;
+    const search = sanitizeTextInput(req.query?.search);
 
     // Find all assignments where the trainer shared workouts and clients have claimed them
     const query = {
@@ -1198,9 +1270,10 @@ export const getTrainerClients = async (req, res) => {
     };
 
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { assignedToName: { $regex: search, $options: "i" } },
-        { customLabel: { $regex: search, $options: "i" } },
+        { assignedToName: { $regex: safeSearch, $options: "i" } },
+        { customLabel: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -1279,7 +1352,7 @@ export const getTrainerClients = async (req, res) => {
 export const generateClientShareableLink = async (req, res) => {
   try {
     const { uid, name } = req.user;
-    const { clientName } = req.body;
+    const clientName = sanitizeTextInput(req.body?.clientName);
 
     if (!clientName || !clientName.trim()) {
       return res.status(400).json({
@@ -1294,7 +1367,9 @@ export const generateClientShareableLink = async (req, res) => {
     // Find all workouts for this client under this trainer
     const clientWorkouts = await SharedWorkout.find({
       creatorUid: uid,
-      clientName: { $regex: new RegExp(`^${normalizedClientName}$`, "i") },
+      clientName: {
+        $regex: new RegExp(`^${escapeRegex(normalizedClientName)}$`, "i"),
+      },
       isActive: true,
     });
 
@@ -1382,7 +1457,8 @@ export const getClientWorkoutsByToken = async (req, res) => {
       });
     }
 
-    const [uid, normalizedClientName, , expiresAtStr] = tokenParts;
+    const [uid, rawClientNameFromToken, , expiresAtStr] = tokenParts;
+    const normalizedClientName = sanitizeTextInput(rawClientNameFromToken);
     const expiresAt = parseInt(expiresAtStr, 10);
 
     // Validate token components
@@ -1404,7 +1480,9 @@ export const getClientWorkoutsByToken = async (req, res) => {
     // Find all workouts for this client under this trainer
     const clientWorkouts = await SharedWorkout.find({
       creatorUid: uid,
-      clientName: { $regex: new RegExp(`^${normalizedClientName}$`, "i") },
+      clientName: {
+        $regex: new RegExp(`^${escapeRegex(normalizedClientName)}$`, "i"),
+      },
       isActive: true,
     }).sort({ createdAt: -1 });
 
@@ -1492,7 +1570,8 @@ export const claimClientWorkoutsByToken = async (req, res) => {
       });
     }
 
-    const [trainerUid, normalizedClientName, , expiresAtStr] = tokenParts;
+    const [trainerUid, rawClientNameFromToken, , expiresAtStr] = tokenParts;
+    const normalizedClientName = sanitizeTextInput(rawClientNameFromToken);
     const expiresAt = parseInt(expiresAtStr, 10);
 
     // Validate token components
@@ -1514,7 +1593,9 @@ export const claimClientWorkoutsByToken = async (req, res) => {
     // Find all workouts for this client under this trainer
     const clientWorkouts = await SharedWorkout.find({
       creatorUid: trainerUid,
-      clientName: { $regex: new RegExp(`^${normalizedClientName}$`, "i") },
+      clientName: {
+        $regex: new RegExp(`^${escapeRegex(normalizedClientName)}$`, "i"),
+      },
       isActive: true,
     });
 
