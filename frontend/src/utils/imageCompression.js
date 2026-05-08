@@ -2,16 +2,33 @@ import imageCompression from "browser-image-compression";
 
 /**
  * Image Compression Utility
- * Automatically compresses images larger than 5MB to reduce file size
+ * Re-encodes uploads to smaller feed-friendly images before they hit the API.
  */
 
 // Default compression options
 const defaultOptions = {
-  maxSizeMB: 5, // Maximum file size in MB
-  maxWidthOrHeight: 1920, // Maximum width or height
-  useWebWorker: true, // Use web worker for better performance
-  fileType: "image/jpeg", // Output file type
-  quality: 0.8, // Compression quality (0.8 = 80%)
+  maxSizeMB: 5, // Validation limit, not the output target
+  targetSizeMB: 1.25,
+  maxWidthOrHeight: 1600,
+  useWebWorker: true,
+  initialQuality: 0.78,
+  alwaysKeepResolution: false,
+};
+
+const isAnimatedOrUnsupported = (file) => {
+  return file?.type === "image/gif" || file?.type === "image/svg+xml";
+};
+
+const optimizedFileName = (name, outputType) => {
+  const extension = outputType === "image/webp" ? "webp" : "jpg";
+  return String(name || `image-${Date.now()}`)
+    .replace(/\.[a-z0-9]+$/i, "")
+    .concat(`.${extension}`);
+};
+
+const renameFile = (file, name, type) => {
+  if (file.name === name && file.type === type) return file;
+  return new File([file], name, { type, lastModified: Date.now() });
 };
 
 /**
@@ -21,28 +38,32 @@ const defaultOptions = {
  * @returns {Promise<File>} - Compressed file or original file if no compression needed
  */
 export const compressImageIfNeeded = async (file, options = {}) => {
-
   const compressionOptions = { ...defaultOptions, ...options };
-  const maxSizeBytes = compressionOptions.maxSizeMB * 1024 * 1024;
+  const targetSizeMB =
+    compressionOptions.targetSizeMB ||
+    Math.min(compressionOptions.maxSizeMB || defaultOptions.maxSizeMB, 1.25);
 
-
-  // Check if file needs compression
-  if (file.size <= maxSizeBytes) {
+  if (isAnimatedOrUnsupported(file)) {
     return file;
   }
 
   try {
-    const compressedFile = await imageCompression(file, compressionOptions);
+    const outputType = compressionOptions.fileType || "image/webp";
+    const compressedFile = await imageCompression(file, {
+      ...compressionOptions,
+      maxSizeMB: targetSizeMB,
+      fileType: outputType,
+    });
 
-    const originalSize = (file.size / 1024 / 1024).toFixed(2);
-    const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
-    const compressionRatio = (
-      (1 - compressedFile.size / file.size) *
-      100
-    ).toFixed(1);
+    if (compressedFile.size >= file.size) {
+      return file;
+    }
 
-
-    return compressedFile;
+    return renameFile(
+      compressedFile,
+      optimizedFileName(file.name, outputType),
+      outputType,
+    );
   } catch (error) {
     // Return original file if compression fails
     return file;
@@ -63,7 +84,7 @@ export const compressImageWithQuality = async (
 ) => {
   const options = {
     ...defaultOptions,
-    quality,
+    initialQuality: quality,
     maxSizeMB,
   };
 
@@ -168,7 +189,7 @@ export const handleImageUploadWithCompression = async (
     }
 
 
-    // Compress if needed
+    // Compress/downscale for faster feed and profile loads.
     const processedFile = await compressImageIfNeeded(file, options);
 
     // Create preview

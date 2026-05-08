@@ -6,7 +6,12 @@ import { useTheme } from "../contexts/ThemeContext";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { cn } from "../lib/utils";
 
-const ThemeSelector = ({ onThemeChange, className }) => {
+const ThemeSelector = ({
+  onThemeChange,
+  className,
+  inheritColor = false,
+  labelPrefix = "",
+}) => {
   const { currentTheme, setTheme } = useTheme();
   const colors = useThemeColors();
   const { colorMode } = useColorMode();
@@ -33,14 +38,25 @@ const ThemeSelector = ({ onThemeChange, className }) => {
       onClick={toggleTheme}
       cursor="pointer"
       aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
-      color={colors.textSecondary}
+      color={inheritColor ? "inherit" : colors.textSecondary}
       width="100%"
       className={className}
       w="100%"
       _hover={{ opacity: 0.8 }}
     >
-      <Icon as={CurrentIcon} color={colors.textSecondary} w={5} h={5} />
-      <Text fontSize="sm" color={colors.textSecondary}>
+      <Icon
+        as={CurrentIcon}
+        color={inheritColor ? "currentColor" : colors.textSecondary}
+        w={5}
+        h={5}
+      />
+      <Text
+        fontSize={inheritColor ? "xs" : "sm"}
+        fontWeight={inheritColor ? "medium" : "normal"}
+        lineHeight={inheritColor ? "1rem" : undefined}
+        color={inheritColor ? "inherit" : colors.textSecondary}
+      >
+        {labelPrefix}
         {isDark ? "Dark" : "Light"}
       </Text>
     </Box>

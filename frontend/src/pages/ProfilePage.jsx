@@ -25,10 +25,9 @@ import {
   Badge,
   HStack,
 } from "@chakra-ui/react";
-import { useEffect, useState, useCallback } from "react";
+import { lazy, Suspense, useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
-import ProductCard from "../components/ProductCard";
 import { FileUploader } from "../components/FileUploader";
 import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
@@ -55,6 +54,7 @@ import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 
 const isCapacitorNative = getIsCapacitorNative();
+const ProductCard = lazy(() => import("../components/ProductCard"));
 
 const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -95,9 +95,9 @@ const ProfilePage = () => {
   const colors = useThemeColors();
   const { currentTheme } = useTheme();
   const {
-    profileTabCache,
     setProfileTabCache,
     clearProfileTabCache,
+    feedCacheTtlMs,
   } = useUiStore();
   const profileColorMode =
     colors.currentTheme === "light" ? lightUrl : nightUrl;
@@ -157,39 +157,40 @@ const ProfilePage = () => {
       const user = await getCurrentAuthUser();
       if (user) {
         // Restore cached profile instantly when returning to the tab.
+        const cachedTab = useProductStore.getState().profileTabCache;
         if (
-          profileTabCache &&
-          profileTabCache.uid === user.uid &&
-          (profileTabCache.profileLoaded || profileTabCache.postsLoaded) &&
-          Date.now() - profileTabCache.cachedAt < 60_000
+          cachedTab &&
+          cachedTab.uid === user.uid &&
+          (cachedTab.profileLoaded || cachedTab.postsLoaded) &&
+          Date.now() - cachedTab.cachedAt < feedCacheTtlMs
         ) {
           setIsSignedIn(true);
           setUid(user.uid);
           useProductStore.getState().setCurrentUser(user);
-          setCurrentPage(profileTabCache.currentPage ?? 1);
-          setEntries(profileTabCache.entries || []);
+          setCurrentPage(cachedTab.currentPage ?? 1);
+          setEntries(cachedTab.entries || []);
           setPagination(
-            profileTabCache.pagination || {
-              currentPage: profileTabCache.currentPage ?? 1,
+            cachedTab.pagination || {
+              currentPage: cachedTab.currentPage ?? 1,
               totalPages: 1,
-              totalPosts: (profileTabCache.entries || []).length,
+              totalPosts: (cachedTab.entries || []).length,
               limit,
             }
           );
-          if (profileTabCache.userProfile) {
-            setUserProfile(profileTabCache.userProfile);
+          if (cachedTab.userProfile) {
+            setUserProfile(cachedTab.userProfile);
           }
-          setFollowRequests(profileTabCache.followRequests || []);
-          setIsAdmin(Boolean(profileTabCache.isAdmin));
+          setFollowRequests(cachedTab.followRequests || []);
+          setIsAdmin(Boolean(cachedTab.isAdmin));
           setIsLoading(false);
 
           // If posts cache is partial/empty, force-load posts for the current page.
-          const restoredPage = profileTabCache.currentPage ?? 1;
-          if (!hasUsablePostsCache(profileTabCache, restoredPage)) {
+          const restoredPage = cachedTab.currentPage ?? 1;
+          if (!hasUsablePostsCache(cachedTab, restoredPage)) {
             fetchUserPosts(user.uid, restoredPage);
           }
           // If we only cached posts but never cached profile, fetch profile now.
-          if (!hasUsableProfileCache(profileTabCache)) {
+          if (!hasUsableProfileCache(cachedTab)) {
             fetchUserProfile(user);
           }
           return;
@@ -246,27 +247,28 @@ const ProfilePage = () => {
           setUid(user.uid);
           useProductStore.getState().setCurrentUser(user);
           // Avoid refetch if cache is warm.
+          const cachedTab = useProductStore.getState().profileTabCache;
           if (
-            profileTabCache &&
-            profileTabCache.uid === user.uid &&
-            (profileTabCache.profileLoaded || profileTabCache.postsLoaded) &&
-            Date.now() - profileTabCache.cachedAt < 60_000
+            cachedTab &&
+            cachedTab.uid === user.uid &&
+            (cachedTab.profileLoaded || cachedTab.postsLoaded) &&
+            Date.now() - cachedTab.cachedAt < feedCacheTtlMs
           ) {
-            setCurrentPage(profileTabCache.currentPage ?? 1);
-            setEntries(profileTabCache.entries || []);
+            setCurrentPage(cachedTab.currentPage ?? 1);
+            setEntries(cachedTab.entries || []);
             setPagination(
-              profileTabCache.pagination || {
-                currentPage: profileTabCache.currentPage ?? 1,
+              cachedTab.pagination || {
+                currentPage: cachedTab.currentPage ?? 1,
                 totalPages: 1,
-                totalPosts: (profileTabCache.entries || []).length,
+                totalPosts: (cachedTab.entries || []).length,
                 limit,
               }
             );
-            if (profileTabCache.userProfile) {
-              setUserProfile(profileTabCache.userProfile);
+            if (cachedTab.userProfile) {
+              setUserProfile(cachedTab.userProfile);
             }
-            setFollowRequests(profileTabCache.followRequests || []);
-            if (!hasUsableProfileCache(profileTabCache)) {
+            setFollowRequests(cachedTab.followRequests || []);
+            if (!hasUsableProfileCache(cachedTab)) {
               fetchUserProfile(user);
             }
           } else {
@@ -282,7 +284,7 @@ const ProfilePage = () => {
     );
 
     return () => subscription.unsubscribe();
-  }, [profileTabCache, clearProfileTabCache]);
+  }, [clearProfileTabCache, feedCacheTtlMs]);
 
   // Fetch posts when page changes. Do not depend on profileTabCache — every cache merge
   // bumps cachedAt and would retrigger this effect (many duplicate requests on errors).
@@ -292,7 +294,7 @@ const ProfilePage = () => {
     if (
       cache?.uid === uid &&
       hasUsablePostsCache(cache, currentPage) &&
-      Date.now() - cache.cachedAt < 60_000
+      Date.now() - cache.cachedAt < feedCacheTtlMs
     ) {
       return;
     }
@@ -303,6 +305,16 @@ const ProfilePage = () => {
   useEffect(() => {
     if (isSignedIn && uid) {
       const checkAdminStatus = async () => {
+        const cache = useProductStore.getState().profileTabCache;
+        if (
+          cache?.uid === uid &&
+          cache.adminLoaded === true &&
+          Date.now() - cache.cachedAt < feedCacheTtlMs
+        ) {
+          setIsAdmin(Boolean(cache.isAdmin));
+          return;
+        }
+
         try {
           const response = await apiClient.get(API_ENDPOINTS.CHECK_IS_ADMIN);
           if (response.data.success) {
@@ -326,7 +338,7 @@ const ProfilePage = () => {
     } else {
       setIsAdmin(false);
     }
-  }, [isSignedIn, uid]);
+  }, [isSignedIn, uid, feedCacheTtlMs]);
 
   // Fetch follow requests
   const fetchFollowRequests = async () => {
@@ -392,15 +404,22 @@ const ProfilePage = () => {
   // Add useEffect to fetch follow requests when user is authenticated
   useEffect(() => {
     if (uid) {
+      const cache = useProductStore.getState().profileTabCache;
+      if (
+        cache?.uid === uid &&
+        cache.followRequestsLoaded === true &&
+        Date.now() - cache.cachedAt < feedCacheTtlMs
+      ) {
+        setFollowRequests(cache.followRequests || []);
+        return;
+      }
       fetchFollowRequests();
     }
-  }, [uid]);
+  }, [uid, feedCacheTtlMs]);
 
   const fetchUserProfile = async (user) => {
     try {
-      const response = await apiClient.get(
-        API_ENDPOINTS.GET_USER_PROFILE(user.uid)
-      );
+      const response = await apiClient.get(API_ENDPOINTS.GET_USER_PROFILE(user.uid));
 
       const data = response.data;
       const userData = data?.data?.user || {};
@@ -965,23 +984,36 @@ const ProfilePage = () => {
           </Box>
         ) : entries.length > 0 ? (
           <>
-            <SimpleGrid
-              columns={{ base: 1, md: 2, lg: 3 }}
-              spacing={10}
-              w={"full"}
-              alignItems="center"
-              justifyItems="center"
+            <Suspense
+              fallback={
+                <Box display="flex" justifyContent="center" py={8}>
+                  <Spinner
+                    size="lg"
+                    thickness="4px"
+                    color={colors.textSecondary}
+                  />
+                </Box>
+              }
             >
-              {entries.map((entry) => (
-                <ProductCard
-                  key={entry._id}
-                  entry={entry}
-                  isOwner={uid === entry.uid}
-                  onUpdate={handlePostUpdate}
-                  onDelete={handlePostDelete}
-                />
-              ))}
-            </SimpleGrid>
+              <SimpleGrid
+                columns={{ base: 1, md: 2, lg: 3 }}
+                spacing={10}
+                w={"full"}
+                alignItems="center"
+                justifyItems="center"
+              >
+                {entries.map((entry, index) => (
+                  <ProductCard
+                    key={entry._id}
+                    entry={entry}
+                    priority={index < 3}
+                    isOwner={uid === entry.uid}
+                    onUpdate={handlePostUpdate}
+                    onDelete={handlePostDelete}
+                  />
+                ))}
+              </SimpleGrid>
+            </Suspense>
             <PaginationComponent
               currentPage={currentPage}
               totalPages={pagination.totalPages}

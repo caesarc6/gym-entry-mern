@@ -44,7 +44,10 @@ import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
-import { getProfileImageRequestDeduped } from "../utils/profileImageApi";
+import {
+  getProfileImageRequestDeduped,
+  setCachedProfileSnippet,
+} from "../utils/profileImageApi";
 import {
   clearEditEntryDraft,
   readEditEntryDraft,
@@ -73,8 +76,10 @@ const ProductCard = ({
   onUpdate,
   onDelete,
   profileCache,
+  priority = false,
 }) => {
-  const [currentUser, setCurrentUser] = useState(null);
+  const globalCurrentUser = useProductStore((state) => state.currentUser);
+  const [currentUser, setCurrentUser] = useState(globalCurrentUser);
   const isOwner = propIsOwner ?? currentUser?.uid === entry.uid;
   const colors = useThemeColors();
   const profileImageFallback =
@@ -100,8 +105,11 @@ const ProductCard = ({
     if (profileCache && profileCache.has(entry.uid)) {
       return profileCache.get(entry.uid);
     }
+    if (entry.authorProfile) {
+      return entry.authorProfile;
+    }
     return null;
-  }, [profileCache, entry.uid]);
+  }, [profileCache, entry.uid, entry.authorProfile]);
 
   const [profileImage, setProfileImage] = useState(() => {
     // Initialize with cached profile image if available, otherwise use default
@@ -116,15 +124,20 @@ const ProductCard = ({
 
   // Trainer profile info for shared workouts
   const [trainerProfileImage, setTrainerProfileImage] = useState(
-    profileImageFallback
+    entry.trainerProfile?.profileImage || profileImageFallback
   );
   const [trainerDisplayName, setTrainerDisplayName] = useState(() => {
     // Initialize from entry data if available
-    return entry.trainerName || entry.trainerUsername || null;
+    return (
+      entry.trainerProfile?.displayName ||
+      entry.trainerName ||
+      entry.trainerUsername ||
+      null
+    );
   });
   const [trainerIsUsername, setTrainerIsUsername] = useState(() => {
     // Initialize from entry data if available
-    return !!entry.trainerUsername;
+    return entry.trainerProfile?.isUsername || !!entry.trainerUsername;
   });
   const [trainerProfileImageLoaded, setTrainerProfileImageLoaded] =
     useState(false);
@@ -158,6 +171,23 @@ const ProductCard = ({
   updatedEntryRef.current = updatedEntry;
 
   useEffect(() => {
+    if (entry.authorProfile) {
+      setCachedProfileSnippet(entry.uid, entry.authorProfile);
+    }
+    if (entry.trainerUid && entry.trainerProfile) {
+      setCachedProfileSnippet(entry.trainerUid, entry.trainerProfile);
+    }
+  }, [entry.uid, entry.authorProfile, entry.trainerUid, entry.trainerProfile]);
+
+  useEffect(() => {
+    if (globalCurrentUser) {
+      setCurrentUser(globalCurrentUser);
+    }
+  }, [globalCurrentUser]);
+
+  useEffect(() => {
+    if (globalCurrentUser) return undefined;
+
     const syncAuth = async () => {
       const user = await getCurrentAuthUser();
       setCurrentUser(user);
@@ -188,7 +218,7 @@ const ProductCard = ({
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [globalCurrentUser]);
 
   // Debug currentUserInfo changes
   useEffect(() => {
@@ -259,12 +289,6 @@ const ProductCard = ({
       }
 
       try {
-        if (!currentUser) {
-          setProfileImage(profileImageFallback);
-          setUserDisplayName("Unknown User");
-          return;
-        }
-
         const response = await getProfileImageRequestDeduped(entry.uid);
 
         // Check if the response has the expected structure
@@ -281,25 +305,55 @@ const ProductCard = ({
           setUserDisplayName(displayName);
           setIsUsername(isUsernameValue);
         } else {
-          // Only set to default if we don't already have a profile image
-          if (
-            !profileImage ||
-            profileImage === lightUrl ||
-            profileImage === nightUrl
-          ) {
-            setProfileImage(profileImageFallback);
-          }
+          setProfileImage(profileImageFallback);
           setUserDisplayName("Unknown User");
         }
       } catch (error) {
-        if (
-          !profileImage ||
-          profileImage === lightUrl ||
-          profileImage === nightUrl
-        ) {
-          setProfileImage(profileImageFallback);
-        }
+        setProfileImage(profileImageFallback);
         setUserDisplayName("Unknown User");
+      }
+    };
+
+    const fetchTrainerProfile = async () => {
+      if (entry.trainerProfile) {
+        if (entry.trainerProfile.profileImage) {
+          setTrainerProfileImage(entry.trainerProfile.profileImage);
+          setTrainerProfileImageLoaded(true);
+        }
+        setTrainerDisplayName(entry.trainerProfile.displayName || "Trainer");
+        setTrainerIsUsername(Boolean(entry.trainerProfile.isUsername));
+        return;
+      }
+
+      // If we already have trainer name/username from entry, use those
+      if (entry.trainerName || entry.trainerUsername) {
+        setTrainerDisplayName(entry.trainerName || entry.trainerUsername);
+        setTrainerIsUsername(!!entry.trainerUsername);
+      }
+
+      // Always try to fetch profile image even if we have name/username
+      if (!entry.trainerUid) return;
+
+      try {
+        const response = await getProfileImageRequestDeduped(entry.trainerUid);
+
+        if (response.data.success) {
+          const data = response.data.data;
+          if (data.picture) {
+            setTrainerProfileImage(data.picture);
+            setTrainerProfileImageLoaded(true);
+          }
+          if (data.name || data.username) {
+            setTrainerDisplayName(data.name || data.username);
+            setTrainerIsUsername(!!data.username);
+          }
+        }
+      } catch (error) {
+        // If we have trainer name/username from entry, still show it
+        if (entry.trainerName || entry.trainerUsername) {
+          setTrainerDisplayName(entry.trainerName || entry.trainerUsername);
+          setTrainerIsUsername(!!entry.trainerUsername);
+        }
       }
     };
 
@@ -307,7 +361,7 @@ const ProductCard = ({
       fetchProfileImage();
     }
 
-    // Always fetch trainer profile if this is a shared workout (independent of cachedProfile)
+    // Fetch trainer profile only as a fallback when the feed did not include it.
     if (entry.trainerUid) {
       fetchTrainerProfile();
     }
@@ -316,45 +370,10 @@ const ProductCard = ({
     entry.trainerUid,
     entry.trainerName,
     entry.trainerUsername,
+    entry.trainerProfile,
     cachedProfile,
-    currentUser,
-    profileImage,
     profileImageFallback,
   ]);
-
-  // Fetch trainer profile info
-  const fetchTrainerProfile = async () => {
-    // If we already have trainer name/username from entry, use those
-    if (entry.trainerName || entry.trainerUsername) {
-      setTrainerDisplayName(entry.trainerName || entry.trainerUsername);
-      setTrainerIsUsername(!!entry.trainerUsername);
-    }
-
-    // Always try to fetch profile image even if we have name/username
-    if (!entry.trainerUid) return;
-
-    try {
-      const response = await getProfileImageRequestDeduped(entry.trainerUid);
-
-      if (response.data.success) {
-        const data = response.data.data;
-        if (data.picture) {
-          setTrainerProfileImage(data.picture);
-          setTrainerProfileImageLoaded(true);
-        }
-        if (data.name || data.username) {
-          setTrainerDisplayName(data.name || data.username);
-          setTrainerIsUsername(!!data.username);
-        }
-      }
-    } catch (error) {
-      // If we have trainer name/username from entry, still show it
-      if (entry.trainerName || entry.trainerUsername) {
-        setTrainerDisplayName(entry.trainerName || entry.trainerUsername);
-        setTrainerIsUsername(!!entry.trainerUsername);
-      }
-    }
-  };
 
   const handleTrainerProfileImageError = () => {
     setTrainerProfileImage(profileImageFallback);
@@ -468,6 +487,7 @@ const ProductCard = ({
     status: "idle", // idle | saving | saved | error
     lastSavedAt: null,
   });
+  const [isUpdateSubmitting, setIsUpdateSubmitting] = useState(false);
   /** Stringified baseline for Revert; state (not ref) so the Revert button re-renders when it updates. */
   const [editBaselineSnapshot, setEditBaselineSnapshot] = useState("");
   const editAutosaveTimerRef = useRef(null);
@@ -968,6 +988,12 @@ const ProductCard = ({
   };
 
   const handleUpdateEntry = async (pid, updatedEntry) => {
+    if (isUpdateSubmitting) return;
+    if (editAutosaveTimerRef.current) {
+      clearTimeout(editAutosaveTimerRef.current);
+      editAutosaveTimerRef.current = null;
+    }
+
     const previousEntry = { ...updatedEntry };
     setUpdatedEntry((prevEntry) => ({ ...prevEntry, ...updatedEntry }));
     
@@ -985,53 +1011,61 @@ const ProductCard = ({
       payload.image = updatedEntry.image;
       payload.imageName = updatedEntry.imageName;
     }
-    
-    const { success, message, data } = await updateEntry(pid, payload);
 
-    onClose();
-    if (!success) {
-      setUpdatedEntry(previousEntry);
-      toastError("Error", message);
-    } else {
-      lastEditServerPayloadHashRef.current = JSON.stringify(payload);
-      if (data) {
-        const { name, description, likes, comments, image } = data;
-        setUpdatedEntry((prevEntry) => {
-          const newUpdatedEntry = {
-            ...prevEntry,
-            name,
-            description,
-            likes,
-            comments,
-            image, // Add the image field to update the UI
-          };
-          const savedSnap = JSON.stringify({
-            name: name ?? "",
-            description: description ?? "",
-            image: image ?? "",
-            imageName: prevEntry?.imageName || "",
+    setIsUpdateSubmitting(true);
+    try {
+      const { success, message, data } = await updateEntry(pid, payload);
+
+      onClose();
+      if (!success) {
+        setUpdatedEntry(previousEntry);
+        toastError("Error", message);
+      } else {
+        lastEditServerPayloadHashRef.current = JSON.stringify(payload);
+        if (data) {
+          const { name, description, likes, comments, image } = data;
+          setUpdatedEntry((prevEntry) => {
+            const newUpdatedEntry = {
+              ...prevEntry,
+              name,
+              description,
+              likes,
+              comments,
+              image, // Add the image field to update the UI
+            };
+            const savedSnap = JSON.stringify({
+              name: name ?? "",
+              description: description ?? "",
+              image: image ?? "",
+              imageName: prevEntry?.imageName || "",
+            });
+            lastEditAutosavedSnapshotRef.current = savedSnap;
+            setEditBaselineSnapshot(savedSnap);
+            lastEditAutosavedEntryRef.current = {
+              name: name ?? "",
+              description: description ?? "",
+              image: image ?? "",
+              imageName: prevEntry?.imageName || "",
+            };
+            return newUpdatedEntry;
           });
-          lastEditAutosavedSnapshotRef.current = savedSnap;
-          setEditBaselineSnapshot(savedSnap);
-          lastEditAutosavedEntryRef.current = {
-            name: name ?? "",
-            description: description ?? "",
-            image: image ?? "",
-            imageName: prevEntry?.imageName || "",
-          };
-          return newUpdatedEntry;
-        });
-        onUpdate(pid, data);
-      }
-      toastSuccess("Success", "Entry updated successfully");
-      (async () => {
-        try {
-          const user = await getCurrentAuthUser();
-          clearEditEntryDraft(user?.uid || "anon", pid);
-        } catch (e) {
-          // ignore
+          onUpdate(pid, data);
         }
-      })();
+        toastSuccess("Success", "Entry updated successfully");
+        (async () => {
+          try {
+            const user = await getCurrentAuthUser();
+            clearEditEntryDraft(user?.uid || "anon", pid);
+          } catch (e) {
+            // ignore
+          }
+        })();
+      }
+    } catch (error) {
+      setUpdatedEntry(previousEntry);
+      toastError("Update failed", error.message || "Unable to update post.");
+    } finally {
+      setIsUpdateSubmitting(false);
     }
   };
 
@@ -1440,6 +1474,8 @@ const ProductCard = ({
             onError={handleImageError}
             fallbackSrc={postImageFallback}
             onLoad={handleImageLoad}
+            decoding="async"
+            fetchpriority={priority ? "high" : "auto"}
             style={{
               position: "absolute",
               top: 0,
@@ -1451,7 +1487,7 @@ const ProductCard = ({
               width: "100%",
               height: "auto",
             }}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
           />
 
           {/* Description overlay with gradient background */}
@@ -2627,6 +2663,8 @@ const ProductCard = ({
               colorScheme="blue"
               mr={3}
               onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
+              isLoading={isUpdateSubmitting}
+              loadingText="Updating"
               fontFamily="Arial, sans-serif"
             >
               Update
@@ -2726,6 +2764,7 @@ ProductCard.propTypes = {
   onUpdate: PropTypes.func.isRequired,
   onDelete: PropTypes.func,
   profileCache: PropTypes.instanceOf(Map),
+  priority: PropTypes.bool,
 };
 
 export default ProductCard;

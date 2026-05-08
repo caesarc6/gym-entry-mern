@@ -9,10 +9,16 @@ import {
   Flex,
   HStack,
 } from "@chakra-ui/react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
-import ProductCard from "../components/ProductCard";
 import { supabase } from "../supabase/supabase";
 import { Hero } from "../components/Hero";
 import { HomeLandingSections } from "../components/HomeLandingSections";
@@ -29,10 +35,16 @@ import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlat
 import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
 
 const isCapacitorNative = getIsCapacitorNative();
+const ProductCard = lazy(() => import("../components/ProductCard"));
 
 const HomePage = () => {
-  const { clearEntrys, homeFeedCache, setHomeFeedCache, clearHomeFeedCache } =
-    useProductStore();
+  const {
+    clearEntrys,
+    homeFeedCache,
+    setHomeFeedCache,
+    clearHomeFeedCache,
+    feedCacheTtlMs,
+  } = useProductStore();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -193,38 +205,6 @@ const HomePage = () => {
     }
   }, [currentUserInfo]);
 
-  useEffect(() => {
-    const fetchFollowing = async () => {
-      if (!uid) return;
-
-      try {
-        const response = await apiClient.get(
-          API_ENDPOINTS.USERS_FOLLOWING(uid)
-        );
-
-        const data = response.data;
-        if (data.success) {
-          const uids = data.data.map((user) => user.uid);
-          if (uids.length === 0) {
-            toast.info(
-              "No followed users",
-              "Follow users to see their posts in your feed."
-            );
-          }
-        } else {
-          throw new Error(data.message || "Failed to fetch following");
-        }
-      } catch (error) {
-        toast.error("Error", error.message || "Failed to load followed users");
-      }
-    };
-
-    if (uid) {
-      fetchFollowing();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- toast from useCustomToast is not referentially stable
-  }, [uid]);
-
   // Single home-feed request (server merges self + following, paginated)
   useEffect(() => {
     const fetchHomeFeed = async () => {
@@ -241,14 +221,14 @@ const HomePage = () => {
       }
 
       try {
-        // If we already have this page cached (e.g. user switched tabs), restore instantly.
-        if (
+        // Restore cached pages instantly; stale pages can refresh in the background.
+        const cachedForPage =
           homeFeedCache &&
           homeFeedCache.uid === uid &&
           homeFeedCache.page === currentPage &&
-          homeFeedCache.limit === limit &&
-          Date.now() - homeFeedCache.cachedAt < 60_000
-        ) {
+          homeFeedCache.limit === limit;
+
+        if (cachedForPage) {
           setEntries(homeFeedCache.entries || []);
           setPagination(
             homeFeedCache.pagination || {
@@ -259,10 +239,14 @@ const HomePage = () => {
             }
           );
           setIsLoading(false);
-          return;
+          if (Date.now() - homeFeedCache.cachedAt < feedCacheTtlMs) {
+            return;
+          }
         }
 
-        setIsLoading(true);
+        if (!cachedForPage) {
+          setIsLoading(true);
+        }
         const includeCount = currentPage === 1 || pagination.totalPosts === 0;
         const response = await apiClient.get(
           API_ENDPOINTS.HOME_FEED(currentPage, limit, includeCount)
@@ -286,6 +270,8 @@ const HomePage = () => {
           trainerUid: post.trainerUid || null,
           trainerName: post.trainerName || null,
           trainerUsername: post.trainerUsername || null,
+          authorProfile: post.authorProfile || null,
+          trainerProfile: post.trainerProfile || null,
         }));
 
         setEntries(normalized);
@@ -337,7 +323,7 @@ const HomePage = () => {
 
     fetchHomeFeed();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- toast from useCustomToast is not referentially stable
-  }, [uid, currentPage, limit, homeFeedCache, setHomeFeedCache]);
+  }, [uid, currentPage, limit, homeFeedCache, setHomeFeedCache, feedCacheTtlMs]);
 
   const handleUpdateEntry = (pid, updatedEntry) => {
     setEntries((prevEntries) =>
@@ -465,30 +451,44 @@ const HomePage = () => {
                 </Box>
               ) : (
                 <>
-                  <SimpleGrid
-                    columns={{
-                      base: 1,
-                      md: 2,
-                      lg: 3,
-                    }}
-                    spacing={10}
-                    w={"full"}
-                    alignItems="center"
-                    justifyItems="center"
+                  <Suspense
+                    fallback={
+                      <Box display="flex" justifyContent="center" py={8}>
+                        <Spinner
+                          size="lg"
+                          thickness="4px"
+                          speed="1.2s"
+                          color={spinnerColor}
+                        />
+                      </Box>
+                    }
                   >
-                    {entries.map((entry) => (
-                      <ProductCard
-                        key={entry._id}
-                        entry={entry}
-                        isOwner={
-                          uid === (entry.ownerId || entry.uid)
-                        }
-                        onUpdate={handleUpdateEntry}
-                        onDelete={handleDeleteEntry}
-                        profileCache={profileCache}
-                      />
-                    ))}
-                  </SimpleGrid>
+                    <SimpleGrid
+                      columns={{
+                        base: 1,
+                        md: 2,
+                        lg: 3,
+                      }}
+                      spacing={10}
+                      w={"full"}
+                      alignItems="center"
+                      justifyItems="center"
+                    >
+                      {entries.map((entry, index) => (
+                        <ProductCard
+                          key={entry._id}
+                          entry={entry}
+                          priority={index < 3}
+                          isOwner={
+                            uid === (entry.ownerId || entry.uid)
+                          }
+                          onUpdate={handleUpdateEntry}
+                          onDelete={handleDeleteEntry}
+                          profileCache={profileCache}
+                        />
+                      ))}
+                    </SimpleGrid>
+                  </Suspense>
                   <PaginationComponent
                     currentPage={currentPage}
                     totalPages={pagination.totalPages}

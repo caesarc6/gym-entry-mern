@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Box,
   Text,
@@ -10,21 +9,34 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import { RECOGNIZED_GYMS, getGymVariations } from "../utils/gymNormalizer.js";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const GymNameHelper = () => {
   const { isOpen, onToggle } = useDisclosure();
+  const colors = useThemeColors();
 
   return (
     <Box>
-      <Button size="sm" variant="outline" onClick={onToggle} mb={2}>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onToggle}
+        mb={2}
+        bg={colors.background}
+        color={colors.textPrimary}
+        borderColor={colors.borderColorInput}
+        _hover={{ bg: colors.bgHover, borderColor: colors.ring }}
+      >
         {isOpen ? "Hide" : "Show"} Gym Name Help
       </Button>
 
       <Collapse in={isOpen} animateOpacity>
         <Box
           p={4}
-          bg="gray.50"
-          _dark={{ bg: "gray.700" }}
+          bg={colors.bgCard}
+          color={colors.textPrimary}
+          border="1px solid"
+          borderColor={colors.borderColorLight}
           borderRadius="md"
           mb={4}
         >
@@ -37,7 +49,7 @@ const GymNameHelper = () => {
               const variations = getGymVariations(gym);
               return (
                 <Box key={gym}>
-                  <Text fontWeight="bold" fontSize="sm">
+                  <Text fontWeight="bold" fontSize="sm" color={colors.textPrimary}>
                     {gym}
                   </Text>
                   <HStack spacing={1} flexWrap="wrap">
@@ -62,9 +74,9 @@ const GymNameHelper = () => {
             })}
           </VStack>
 
-          <Text fontSize="xs" color="gray.600" mt={3}>
-            💡 Tip: Use @ symbol before gym names (e.g., "Push @blink" or "Legs
-            @pf")
+          <Text fontSize="xs" color={colors.textMuted} mt={3}>
+            💡 Tip: Use @ symbol before gym names (e.g., &quot;Push @blink&quot;
+            or &quot;Legs @pf&quot;)
           </Text>
         </Box>
       </Collapse>

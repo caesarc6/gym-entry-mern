@@ -59,6 +59,52 @@ const findUserByEmailCaseInsensitive = (email, select = PROFILE_IMAGE_SELECT) =>
   return q;
 };
 
+const buildProfileSnippet = (user, requestedUid) => ({
+  uid: requestedUid,
+  profileImage: user?.picture || "",
+  displayName: user?.username || user?.name || "Unknown User",
+  isUsername: Boolean(user?.username),
+});
+
+const buildProfileSnippetMap = async (uids) => {
+  const uniqueUids = [...new Set((uids || []).filter(Boolean))];
+  if (uniqueUids.length === 0) return new Map();
+
+  const users = await User.find(
+    {
+      $or: [
+        { uid: { $in: uniqueUids } },
+        { firebaseUid: { $in: uniqueUids } },
+        { supabaseUid: { $in: uniqueUids } },
+      ],
+    },
+    { uid: 1, firebaseUid: 1, supabaseUid: 1, name: 1, username: 1, picture: 1 },
+  ).lean();
+
+  const map = new Map();
+  for (const user of users) {
+    for (const uid of linkedUidStrings(user)) {
+      map.set(uid, buildProfileSnippet(user, uid));
+    }
+  }
+  return map;
+};
+
+const inferImageContentType = (imageData, fileName, fallback = "image/jpeg") => {
+  if (typeof imageData === "string") {
+    const match = imageData.match(/^data:([^;]+);base64,/);
+    if (match?.[1]) return match[1];
+  }
+
+  const ext = String(fileName || "").split(".").pop()?.toLowerCase();
+  if (ext === "webp") return "image/webp";
+  if (ext === "png") return "image/png";
+  if (ext === "gif") return "image/gif";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+
+  return fallback;
+};
+
 /**
  * When the client passes a Supabase UUID but Mongo still only has the legacy
  * Firebase-backed row (supabaseUid not set yet), resolve via Auth API + email.
@@ -346,6 +392,7 @@ export const getBatchProfileImages = async (req, res) => {
       })
       .filter(Boolean);
 
+    res.setHeader("Cache-Control", "private, max-age=300, stale-while-revalidate=600");
     res.status(200).json({
       success: true,
       data: profileData,
@@ -391,6 +438,7 @@ export const getProfileImageByUid = async (req, res) => {
     }
 
     if (!user) {
+      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
       return res.status(200).json({
         success: true,
         data: {
@@ -401,6 +449,7 @@ export const getProfileImageByUid = async (req, res) => {
       });
     }
 
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.status(200).json({
       success: true,
       data: {
@@ -651,7 +700,7 @@ export const updateUserProfile = async (req, res) => {
         const { error } = await supabase.storage
           .from("user_profiles")
           .upload(filePath, imageBuffer, {
-            contentType: "image/jpeg",
+            contentType: inferImageContentType(profileImage, profileImageName),
             cacheControl: "3600",
             upsert: true,
           });
@@ -828,6 +877,8 @@ export const createPost = async (req, res) => {
   }
 
   try {
+    const author = await findUserByAnyUid(uid);
+    const canonicalUid = author?.uid || uid;
     let finalImage = image;
 
     if (
@@ -838,12 +889,12 @@ export const createPost = async (req, res) => {
       const safeName = imageName || "post-image.jpg";
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
-      const filePath = generateSafeFilePath(uid, safeName, "images");
+      const filePath = generateSafeFilePath(canonicalUid, safeName, "images");
 
       const { error } = await supabase.storage
         .from("post_images")
         .upload(filePath, imageBuffer, {
-          contentType: "image/jpeg",
+          contentType: inferImageContentType(image, safeName),
           cacheControl: "3600",
           upsert: true,
         });
@@ -859,7 +910,7 @@ export const createPost = async (req, res) => {
     }
 
     const post = new Entry({
-      uid,
+      uid: canonicalUid,
       name,
       description,
       image: finalImage,
@@ -868,7 +919,15 @@ export const createPost = async (req, res) => {
 
     await post.save();
 
-    res.status(201).json({ success: true, data: post });
+    const data = post.toObject();
+    res.status(201).json({
+      success: true,
+      data: {
+        ...data,
+        _id: data._id.toString(),
+        authorProfile: buildProfileSnippet(author, canonicalUid),
+      },
+    });
   } catch (error) {
     res.status(500).json({ error: "Failed to create post" });
   }
@@ -915,14 +974,27 @@ export const getPostsByUID = async (req, res) => {
       });
     }
 
-    const posts = await Entry.find({ uid: { $in: targetUids } })
+    const postsQuery = Entry.find({ uid: { $in: targetUids } })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
+      .select(
+        "uid name description image likes comments createdAt trainerUid trainerName trainerUsername",
+      )
       .lean();
-    await attachPopulatedLikesToEntries(posts);
+    const [posts, totalPosts] = await Promise.all([
+      postsQuery,
+      Entry.countDocuments({ uid: { $in: targetUids } }),
+    ]);
+    const profileUids = [
+      ...posts.map((post) => post.uid),
+      ...posts.map((post) => post.trainerUid),
+    ].filter(Boolean);
+    const [profileSnippetMap] = await Promise.all([
+      buildProfileSnippetMap(profileUids),
+      attachPopulatedLikesToEntries(posts),
+    ]);
 
-    const totalPosts = await Entry.countDocuments({ uid: { $in: targetUids } });
     const totalPages = Math.ceil(totalPosts / limit);
 
     const normalizedPosts = posts.map((post) => ({
@@ -943,6 +1015,12 @@ export const getPostsByUID = async (req, res) => {
       trainerUid: post.trainerUid || null,
       trainerName: post.trainerName || null,
       trainerUsername: post.trainerUsername || null,
+      authorProfile:
+        profileSnippetMap.get(post.uid) || buildProfileSnippet(null, post.uid),
+      trainerProfile: post.trainerUid
+        ? profileSnippetMap.get(post.trainerUid) ||
+          buildProfileSnippet(null, post.trainerUid)
+        : null,
     }));
 
     res.status(200).json({
@@ -1257,6 +1335,7 @@ export const uploadBackgroundPicture = [
       const { error } = await supabase.storage
         .from("user_backgrounds")
         .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype || inferImageContentType(null, req.file.originalname),
           cacheControl: "3600",
           upsert: true,
         });
@@ -1327,6 +1406,7 @@ export const uploadProfilePic = [
       const { error } = await supabase.storage
         .from("user_profiles")
         .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype || inferImageContentType(null, req.file.originalname),
           cacheControl: "3600",
           upsert: true,
         });
@@ -1457,6 +1537,7 @@ export const getUserProfile = async (req, res) => {
   try {
     // Handle both uid and userId parameters
     const userId = req.params.uid || req.params.userId;
+    const includePosts = req.query.includePosts !== "false";
 
     let viewerUser = null;
     if (req.user?.uid) {
@@ -1509,7 +1590,7 @@ export const getUserProfile = async (req, res) => {
     const targetUids = [user.uid, user.firebaseUid, user.supabaseUid].filter(
       Boolean
     );
-    if (canViewPosts && user.privacy.showEntries) {
+    if (includePosts && canViewPosts && user.privacy.showEntries) {
       posts = await Entry.find({ uid: { $in: targetUids } }).lean();
       await attachPopulatedLikesToEntries(posts);
     }
@@ -2020,7 +2101,14 @@ export const getHomeFeed = async (req, res) => {
       shouldIncludeCount ? Entry.countDocuments(query) : Promise.resolve(null),
     ]);
     const postsLoadedAt = Date.now();
-    await attachPopulatedLikesToEntries(posts);
+    const profileUids = [
+      ...posts.map((post) => post.uid),
+      ...posts.map((post) => post.trainerUid),
+    ].filter(Boolean);
+    const [profileSnippetMap] = await Promise.all([
+      buildProfileSnippetMap(profileUids),
+      attachPopulatedLikesToEntries(posts),
+    ]);
     const likesLoadedAt = Date.now();
 
     const normalizedPosts = posts.map((post) => ({
@@ -2042,6 +2130,12 @@ export const getHomeFeed = async (req, res) => {
       trainerUid: post.trainerUid || null,
       trainerName: post.trainerName || null,
       trainerUsername: post.trainerUsername || null,
+      authorProfile:
+        profileSnippetMap.get(post.uid) || buildProfileSnippet(null, post.uid),
+      trainerProfile: post.trainerUid
+        ? profileSnippetMap.get(post.trainerUid) ||
+          buildProfileSnippet(null, post.trainerUid)
+        : null,
     }));
 
     const totalPages =

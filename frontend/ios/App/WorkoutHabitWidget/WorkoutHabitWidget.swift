@@ -106,12 +106,11 @@ struct WorkoutHabitWidgetView: View {
     }
 
     private var columns: [GridItem] {
-        let count = family == .systemMedium ? 6 : 10
-        return Array(repeating: GridItem(.flexible(), spacing: 0), count: count)
+        Array(repeating: GridItem(.flexible(), spacing: 0), count: columnCount(compact: false))
     }
 
     private var compactColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 0), count: 10)
+        Array(repeating: GridItem(.flexible(), spacing: 0), count: columnCount(compact: true))
     }
 
     private var lastWorkoutText: String {
@@ -269,6 +268,7 @@ struct WorkoutHabitWidgetView: View {
         ZStack(alignment: .topLeading) {
             calendarCells(blurredOverlay: false, compact: compact)
             blurOverlays(style: style, compact: compact)
+            gridLineOverlay(compact: compact)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -323,16 +323,60 @@ struct WorkoutHabitWidgetView: View {
         }
     }
 
+    private func columnCount(compact: Bool) -> Int {
+        if compact {
+            return 10
+        }
+
+        return family == .systemMedium ? 6 : 10
+    }
+
     private func dayCell(workedOut: Bool, blurredOverlay: Bool) -> some View {
         Rectangle()
             .fill(dayCellColor(workedOut: workedOut, blurredOverlay: blurredOverlay))
-            .overlay {
-                if !blurredOverlay {
-                    Rectangle()
-                        .stroke(palette.gridLine, lineWidth: 0.35)
+            .aspectRatio(1, contentMode: .fit)
+    }
+
+    private func gridLineOverlay(compact: Bool) -> some View {
+        let lineWidth: CGFloat = 0.35
+        let columns = columnCount(compact: compact)
+        let rows = Int(ceil(Double(entry.summary.workoutDays.suffix(30).count) / Double(columns)))
+
+        return GeometryReader { proxy in
+            let cellWidth = proxy.size.width / CGFloat(columns)
+            let cellHeight = proxy.size.height / CGFloat(rows)
+
+            ZStack(alignment: .topLeading) {
+                ForEach(0...rows, id: \.self) { row in
+                    horizontalGridLine
+                        .frame(width: proxy.size.width, height: lineWidth)
+                        .position(x: proxy.size.width / 2, y: CGFloat(row) * cellHeight)
+                }
+
+                ForEach(0...columns, id: \.self) { column in
+                    verticalGridLine
+                        .frame(width: lineWidth, height: proxy.size.height)
+                        .position(x: CGFloat(column) * cellWidth, y: proxy.size.height / 2)
                 }
             }
-            .aspectRatio(1, contentMode: .fit)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var horizontalGridLine: some View {
+        LinearGradient(
+            colors: [.clear, palette.gridLine, palette.gridLine, .clear],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    private var verticalGridLine: some View {
+        LinearGradient(
+            colors: [.clear, palette.gridLine, palette.gridLine, .clear],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     private func dayCellColor(workedOut: Bool, blurredOverlay: Bool) -> Color {

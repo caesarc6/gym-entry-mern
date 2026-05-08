@@ -14,18 +14,20 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Radio,
-  RadioGroup,
   Skeleton,
-  SkeletonText,
-  Stack,
   Text,
   Textarea,
   useDisclosure,
   VStack,
-  HStack,
 } from "@chakra-ui/react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { FiArrowLeft } from "react-icons/fi";
 import { useThemeColors } from "../hooks/useThemeColors";
@@ -37,9 +39,7 @@ import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { cn } from "../lib/utils";
 import { useProductStore } from "../store/product";
-import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 
-const isCapacitorNative = getIsCapacitorNative();
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
 const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
 const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
@@ -47,6 +47,11 @@ const defaultBgNightUrl = new URL(
   "../assets/defaultBgNight.jpg",
   import.meta.url
 ).href;
+const THEME_OPTIONS = [
+  { value: "light", label: "Light", description: "Bright" },
+  { value: "dark", label: "Dark", description: "Dim" },
+  { value: "system", label: "System", description: "Device" },
+];
 
 const SettingsPage = () => {
   const colors = useThemeColors();
@@ -68,6 +73,12 @@ const SettingsPage = () => {
   const [isSavingBackground, setIsSavingBackground] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const themeSliderRef = useRef(null);
+  const isThemeDraggingRef = useRef(false);
+  const themeDragStartXRef = useRef(0);
+  const didDragThemeRef = useRef(false);
+  const [themeSliderWidth, setThemeSliderWidth] = useState(0);
+  const [themeDragX, setThemeDragX] = useState(null);
 
   const [userProfile, setUserProfile] = useState({
     name: "",
@@ -100,6 +111,128 @@ const SettingsPage = () => {
     if (themeMode === "light") return "light";
     return "dark";
   }, [themeMode]);
+  const themeOptionIndex = useMemo(
+    () =>
+      Math.max(
+        THEME_OPTIONS.findIndex((option) => option.value === themeValue),
+        0
+      ),
+    [themeValue]
+  );
+  const themeThumbWidth = themeSliderWidth > 0 ? themeSliderWidth / 3 : 0;
+  const selectedThemeX = themeThumbWidth * themeOptionIndex;
+  const activeThemeX = themeDragX ?? selectedThemeX;
+
+  useLayoutEffect(() => {
+    const slider = themeSliderRef.current;
+    if (!slider) return;
+
+    const updateSliderWidth = () => {
+      setThemeSliderWidth(Math.max(slider.clientWidth - 8, 0));
+    };
+
+    updateSliderWidth();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateSliderWidth);
+      return () => window.removeEventListener("resize", updateSliderWidth);
+    }
+
+    const observer = new ResizeObserver(updateSliderWidth);
+    observer.observe(slider);
+    return () => observer.disconnect();
+  }, []);
+
+  const getThemeXFromPointer = useCallback(
+    (clientX) => {
+      const slider = themeSliderRef.current;
+      if (!slider || !themeThumbWidth) return selectedThemeX;
+
+      const rect = slider.getBoundingClientRect();
+      const innerLeft = rect.left + 4;
+      const rawX = clientX - innerLeft - themeThumbWidth / 2;
+      return Math.min(Math.max(rawX, 0), themeThumbWidth * 2);
+    },
+    [selectedThemeX, themeThumbWidth]
+  );
+
+  const commitThemeX = useCallback(
+    (x) => {
+      if (!themeThumbWidth) return;
+      const nextIndex = Math.min(
+        Math.max(Math.round(x / themeThumbWidth), 0),
+        THEME_OPTIONS.length - 1
+      );
+      setThemeMode(THEME_OPTIONS[nextIndex].value);
+    },
+    [setThemeMode, themeThumbWidth]
+  );
+
+  const handleThemePointerDown = useCallback(
+    (event) => {
+      if (event.button !== undefined && event.button !== 0) return;
+
+      isThemeDraggingRef.current = true;
+      didDragThemeRef.current = false;
+      themeDragStartXRef.current = event.clientX;
+      setThemeDragX(getThemeXFromPointer(event.clientX));
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    [getThemeXFromPointer]
+  );
+
+  const handleThemePointerMove = useCallback(
+    (event) => {
+      if (!isThemeDraggingRef.current) return;
+
+      if (Math.abs(event.clientX - themeDragStartXRef.current) > 4) {
+        didDragThemeRef.current = true;
+      }
+      setThemeDragX(getThemeXFromPointer(event.clientX));
+    },
+    [getThemeXFromPointer]
+  );
+
+  const handleThemePointerEnd = useCallback(
+    (event) => {
+      if (!isThemeDraggingRef.current) return;
+
+      const nextX = getThemeXFromPointer(event.clientX);
+      isThemeDraggingRef.current = false;
+      setThemeDragX(null);
+      commitThemeX(nextX);
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    },
+    [commitThemeX, getThemeXFromPointer]
+  );
+
+  const handleThemeOptionClick = useCallback(
+    (event, value) => {
+      if (didDragThemeRef.current) {
+        event.preventDefault();
+        didDragThemeRef.current = false;
+        return;
+      }
+      setThemeMode(value);
+    },
+    [setThemeMode]
+  );
+
+  const handleThemeOptionKeyDown = useCallback(
+    (event, index) => {
+      let nextIndex = index;
+      if (event.key === "ArrowLeft") nextIndex = Math.max(index - 1, 0);
+      else if (event.key === "ArrowRight") {
+        nextIndex = Math.min(index + 1, THEME_OPTIONS.length - 1);
+      } else if (event.key === "Home") nextIndex = 0;
+      else if (event.key === "End") nextIndex = THEME_OPTIONS.length - 1;
+      else if (event.key !== "Enter" && event.key !== " ") return;
+
+      event.preventDefault();
+      setThemeMode(THEME_OPTIONS[nextIndex].value);
+    },
+    [setThemeMode]
+  );
 
   const applyUserProfileToForm = useCallback((p) => {
     setBackgroundPreview(p.backgroundPicture || "");
@@ -343,131 +476,279 @@ const SettingsPage = () => {
                 </span>
               </div>
 
-              <HStack spacing={1} />
+              <Box w={10} />
             </div>
           </div>
         </div>
       </nav>
 
-      <Container maxW="container.xl" py={12}>
-        <div className="pt-4" />
+      <Container maxW="800px" py={{ base: 10, md: 16 }} px={{ base: 8, md: 14 }}>
+        <VStack align="stretch" spacing={{ base: 10, md: 12 }}>
+          <Box textAlign="center">
+            <Text
+              fontSize="xs"
+              letterSpacing="0.22em"
+              textTransform="uppercase"
+              color={colors.textMuted}
+              mb={3}
+            >
+              Preferences
+            </Text>
+            <Heading
+              size={{ base: "lg", md: "xl" }}
+              color={colors.textPrimary}
+              fontWeight="500"
+            >
+              Keep your space simple.
+            </Heading>
+            <Text
+              maxW="460px"
+              mx="auto"
+              mt={4}
+              fontSize="sm"
+              color={colors.textMuted}
+              lineHeight="1.8"
+            >
+              Tune the essentials for your profile, privacy, appearance, and session.
+            </Text>
+          </Box>
+
         <Box
-          maxW="580px"
           w="full"
-          bg={colors.bgCard}
-          boxShadow="2xl"
-          rounded="md"
-          overflow="hidden"
-          p={6}
+          p={{ base: 0, md: 4 }}
           mx="auto"
         >
-          <VStack align="stretch" spacing={6}>
+          <VStack align="stretch" spacing={{ base: 10, md: 12 }}>
             <Box>
-              <Heading size="sm" color={colors.textPrimary} mb={2}>
-                Profile
-              </Heading>
+              <Flex
+                align={{ base: "stretch", md: "center" }}
+                justify="space-between"
+                gap={5}
+                direction={{ base: "column", md: "row" }}
+              >
+                <Box>
+                  <Heading size="sm" color={colors.textPrimary} fontWeight="500">
+                    Profile
+                  </Heading>
+                  <Text fontSize="sm" color={colors.textMuted} mt={2} lineHeight="1.7">
+                    Update how your account appears to others.
+                  </Text>
+                </Box>
               {isUserDataLoading ? (
-                <VStack align="stretch" spacing={3}>
-                  <Skeleton height="40px" borderRadius="md" />
-                  <Skeleton height="40px" borderRadius="md" />
-                  <SkeletonText noOfLines={1} skeletonHeight={3} />
+                <VStack align="stretch" spacing={3} minW={{ md: "220px" }}>
+                  <Skeleton height="42px" borderRadius="full" />
+                  <Skeleton height="42px" borderRadius="full" />
                 </VStack>
               ) : profileLoadError ? (
-                <Text fontSize="sm" color="red.400">
+                <Text fontSize="sm" color="red.400" maxW={{ md: "260px" }}>
                   {profileLoadError}
                 </Text>
               ) : (
-                <VStack align="stretch" spacing={3}>
+                <VStack align="stretch" spacing={3} minW={{ md: "220px" }}>
                   <Button
-                    colorScheme="blue"
                     variant="outline"
                     color={colors.textPrimary}
                     borderColor={colors.borderColor}
-                    _hover={{ bg: colors.bgHover }}
+                    borderRadius="full"
+                    fontWeight="500"
+                    _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
                     onClick={onProfileOpen}
                   >
                     Edit Profile
                   </Button>
                   <Button
                     onClick={onBackgroundOpen}
-                    colorScheme="blue"
                     variant="outline"
                     color={colors.textPrimary}
                     borderColor={colors.borderColor}
-                    _hover={{ bg: colors.bgHover }}
+                    borderRadius="full"
+                    fontWeight="500"
+                    _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
                   >
                     Edit Background
                   </Button>
                 </VStack>
               )}
-            </Box>
-
-            <Box>
-              <Heading size="sm" color={colors.textPrimary} mb={2}>
-                Privacy
-              </Heading>
-              <Button
-                onClick={onPrivacyOpen}
-                colorScheme="gray"
-                variant="outline"
-                color={colors.textPrimary}
-                borderColor={colors.borderColor}
-                _hover={{ bg: colors.bgHover }}
-                w="full"
-              >
-                Privacy Settings
-              </Button>
-            </Box>
-
-            <Box>
-              <Flex align="center" justify="space-between" mb={2}>
-                <Heading size="sm" color={colors.textPrimary}>
-                  Theme
-                </Heading>
-                {themeValue === "system" && (
-                  <Badge colorScheme="purple" variant="subtle">
-                    System
-                  </Badge>
-                )}
               </Flex>
-              <RadioGroup value={themeValue} onChange={setThemeMode}>
-                <Stack direction={{ base: "column", md: "row" }} spacing={4}>
-                  <Radio value="light" colorScheme="blue">
-                    <Text color={colors.textPrimary}>Light</Text>
-                  </Radio>
-                  <Radio value="dark" colorScheme="blue">
-                    <Text color={colors.textPrimary}>Dark</Text>
-                  </Radio>
-                  <Radio value="system" colorScheme="blue">
-                    <Text color={colors.textPrimary}>System</Text>
-                  </Radio>
-                </Stack>
-              </RadioGroup>
-              <Text fontSize="sm" color={colors.textMuted} mt={2}>
-                Dark includes your dark variants (dark / dark-black / dark-blue).
-              </Text>
             </Box>
 
             <Box>
-              <Heading size="sm" color={colors.textPrimary} mb={2}>
-                Account
-              </Heading>
-              <Text fontSize="sm" color={colors.textMuted} mb={4}>
-                Sign out of Ethereal Gains on this device.
-              </Text>
-              <Button
-                w="full"
-                colorScheme="red"
-                variant="outline"
-                onClick={handleSignOut}
-                isLoading={isSigningOut}
-                loadingText="Signing out…"
+              <Flex
+                align={{ base: "stretch", md: "center" }}
+                justify="space-between"
+                gap={5}
+                direction={{ base: "column", md: "row" }}
               >
-                Sign out
-              </Button>
+                <Box>
+                  <Heading size="sm" color={colors.textPrimary} fontWeight="500">
+                    Privacy
+                  </Heading>
+                  <Text fontSize="sm" color={colors.textMuted} mt={2} lineHeight="1.7">
+                    Decide who can find you and view your activity.
+                  </Text>
+                </Box>
+                <Button
+                  onClick={onPrivacyOpen}
+                  variant="outline"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColor}
+                  borderRadius="full"
+                  fontWeight="500"
+                  minW={{ md: "220px" }}
+                  _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
+                >
+                  Privacy Settings
+                </Button>
+              </Flex>
+            </Box>
+
+            <Box>
+              <Flex align="center" justify="space-between" gap={4} mb={5}>
+                <Box>
+                  <Heading size="sm" color={colors.textPrimary} fontWeight="500">
+                    Appearance
+                  </Heading>
+                  <Text fontSize="sm" color={colors.textMuted} mt={2} lineHeight="1.7">
+                    Choose a calm theme for your device.
+                  </Text>
+                </Box>
+                <Badge
+                  colorScheme={themeValue === "system" ? "purple" : "gray"}
+                  variant="subtle"
+                  borderRadius="full"
+                  px={3}
+                  py={1}
+                >
+                  {THEME_OPTIONS.find((option) => option.value === themeValue)?.label}
+                </Badge>
+              </Flex>
+              <Box
+                ref={themeSliderRef}
+                role="radiogroup"
+                aria-label="Theme mode"
+                position="relative"
+                display="grid"
+                gridTemplateColumns="repeat(3, minmax(0, 1fr))"
+                gap={0}
+                p="4px"
+                bg={colors.bgMuted}
+                border="1px solid"
+                borderColor={colors.borderColor}
+                borderRadius="full"
+                overflow="hidden"
+                cursor={themeDragX === null ? "grab" : "grabbing"}
+                userSelect="none"
+                touchAction="pan-y"
+                onPointerDown={handleThemePointerDown}
+                onPointerMove={handleThemePointerMove}
+                onPointerUp={handleThemePointerEnd}
+                onPointerCancel={handleThemePointerEnd}
+              >
+                <Box
+                  position="absolute"
+                  top="4px"
+                  bottom="4px"
+                  left="4px"
+                  w={
+                    themeThumbWidth
+                      ? `${themeThumbWidth}px`
+                      : "calc((100% - 8px) / 3)"
+                  }
+                  bg={colors.bgCard}
+                  border="1px solid"
+                  borderColor={colors.borderColorInput}
+                  borderRadius="full"
+                  boxShadow="0 10px 30px rgba(0, 0, 0, 0.14)"
+                  transform={
+                    themeThumbWidth
+                      ? `translateX(${activeThemeX}px)`
+                      : `translateX(${themeOptionIndex * 100}%)`
+                  }
+                  transition={
+                    themeDragX === null
+                      ? "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 180ms ease"
+                      : "background-color 180ms ease"
+                  }
+                />
+                {THEME_OPTIONS.map((option, index) => {
+                  const isSelected = option.value === themeValue;
+                  return (
+                    <Box
+                      key={option.value}
+                      as="button"
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      tabIndex={isSelected ? 0 : -1}
+                      onClick={(event) =>
+                        handleThemeOptionClick(event, option.value)
+                      }
+                      onKeyDown={(event) =>
+                        handleThemeOptionKeyDown(event, index)
+                      }
+                      position="relative"
+                      zIndex={1}
+                      px={{ base: 2, md: 4 }}
+                      py={3.5}
+                      borderRadius="full"
+                      textAlign="center"
+                      cursor="pointer"
+                      color={isSelected ? colors.textPrimary : colors.textMuted}
+                      _hover={{ color: colors.textPrimary }}
+                      _focusVisible={{
+                        outline: "2px solid",
+                        outlineColor: colors.primary,
+                        outlineOffset: "2px",
+                      }}
+                    >
+                      <Text fontSize="sm" fontWeight={isSelected ? "700" : "600"}>
+                        {option.label}
+                      </Text>
+                      <Text
+                        fontSize="xs"
+                        color={isSelected ? colors.textSecondary : colors.textMuted}
+                        display={{ base: "none", sm: "block" }}
+                      >
+                        {option.description}
+                      </Text>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+
+            <Box>
+              <Flex
+                align={{ base: "stretch", md: "center" }}
+                justify="space-between"
+                gap={5}
+                direction={{ base: "column", md: "row" }}
+              >
+                <Box>
+                  <Heading size="sm" color={colors.textPrimary} fontWeight="500">
+                    Account
+                  </Heading>
+                  <Text fontSize="sm" color={colors.textMuted} mt={2} lineHeight="1.7">
+                    Sign out of Ethereal Gains on this device.
+                  </Text>
+                </Box>
+                <Button
+                  minW={{ md: "220px" }}
+                  colorScheme="red"
+                  variant="outline"
+                  borderRadius="full"
+                  borderColor="red.300"
+                  onClick={handleSignOut}
+                  isLoading={isSigningOut}
+                  loadingText="Signing out…"
+                >
+                  Sign out
+                </Button>
+              </Flex>
             </Box>
           </VStack>
         </Box>
+        </VStack>
       </Container>
 
       {/* Background Edit Modal */}

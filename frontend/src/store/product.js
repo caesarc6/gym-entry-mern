@@ -4,8 +4,166 @@ import { supabase } from "../supabase/supabase";
 import { getCurrentAuthUser } from "../utils/auth";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
+const FEED_CACHE_TTL_MS = 15 * 60_000;
+
 // change fetch URL in dev mode to http://localhost:5173/api/entrys
 // Production URL is https://gym-tracker-brown.vercel.app/api/entrys/
+
+const normalizePostForFeeds = (post) => ({
+  ...post,
+  _id: String(post._id),
+  likes: Array.isArray(post.likes) ? post.likes : [],
+  comments: Array.isArray(post.comments) ? post.comments : [],
+  createdAt: post.createdAt || new Date().toISOString(),
+  ownerId: post.ownerId || post.uid,
+  trainerUid: post.trainerUid || null,
+  trainerName: post.trainerName || null,
+  trainerUsername: post.trainerUsername || null,
+});
+
+const upsertEntryInCache = (cache, entry, ownerUid) => {
+  if (!cache || cache.uid !== ownerUid || cache.currentPage > 1 || cache.page > 1) {
+    return cache;
+  }
+
+  const entries = Array.isArray(cache.entries) ? cache.entries : [];
+  if (entries.some((item) => String(item._id) === String(entry._id))) {
+    return cache;
+  }
+
+  const limit = cache.limit || cache.pagination?.limit || 6;
+  const nextEntries = [entry, ...entries].slice(0, limit);
+  const nextPagination = cache.pagination
+    ? {
+        ...cache.pagination,
+        totalPosts: (cache.pagination.totalPosts || entries.length) + 1,
+        totalPages: Math.max(
+          1,
+          Math.ceil(((cache.pagination.totalPosts || entries.length) + 1) / limit),
+        ),
+      }
+    : cache.pagination;
+
+  return {
+    ...cache,
+    entries: nextEntries,
+    pagination: nextPagination,
+    postsLoaded: cache.postsLoaded ?? true,
+    cachedAt: Date.now(),
+  };
+};
+
+const replaceEntryInCache = (cache, tempId, entry) => {
+  if (!cache || !Array.isArray(cache.entries)) return cache;
+  const entries = cache.entries.map((item) =>
+    String(item._id) === String(tempId) ? entry : item,
+  );
+  return { ...cache, entries, cachedAt: Date.now() };
+};
+
+const removeEntryFromCache = (cache, id) => {
+  if (!cache || !Array.isArray(cache.entries)) return cache;
+  const entries = cache.entries.filter((item) => String(item._id) !== String(id));
+  const limit = cache.limit || cache.pagination?.limit || 6;
+  const nextPagination = cache.pagination
+    ? {
+        ...cache.pagination,
+        totalPosts: Math.max(0, (cache.pagination.totalPosts || 0) - 1),
+        totalPages: Math.max(
+          1,
+          Math.ceil(Math.max(0, (cache.pagination.totalPosts || 0) - 1) / limit),
+        ),
+      }
+    : cache.pagination;
+  return { ...cache, entries, pagination: nextPagination, cachedAt: Date.now() };
+};
+
+const buildOptimisticProfile = (state, entry, ownerUid) => {
+  const currentInfo = state.currentUserInfo || {};
+  const currentUser = state.currentUser || {};
+  const snippet = entry.authorProfile || {};
+
+  return {
+    name:
+      currentInfo.name ||
+      currentUser.name ||
+      (!snippet.isUsername ? snippet.displayName : "") ||
+      "Name",
+    username:
+      currentInfo.username ||
+      (snippet.isUsername ? snippet.displayName : "") ||
+      currentInfo.name ||
+      currentUser.name ||
+      "Username",
+    goal: currentInfo.goal || "Not set",
+    gymName: currentInfo.gymName || "Not specified",
+    postsCount: 1,
+    profileImage:
+      currentInfo.picture ||
+      currentInfo.profileImage ||
+      snippet.profileImage ||
+      currentUser.picture ||
+      "",
+    backgroundPicture: currentInfo.backgroundPicture || "",
+    bio: currentInfo.bio || "No bio available",
+    followersCount: currentInfo.followersCount || 0,
+    followingCount: currentInfo.followingCount || 0,
+    uid: ownerUid,
+  };
+};
+
+const seedHomeFeedCache = (entry, viewerUid) => ({
+  uid: viewerUid,
+  page: 1,
+  limit: 6,
+  entries: [entry],
+  pagination: {
+    currentPage: 1,
+    totalPages: 1,
+    totalPosts: 1,
+    limit: 6,
+  },
+  cachedAt: Date.now(),
+});
+
+const seedProfileTabCache = (state, entry, ownerUid) => ({
+  uid: ownerUid,
+  currentPage: 1,
+  limit: 6,
+  entries: [entry],
+  pagination: {
+    currentPage: 1,
+    totalPages: 1,
+    totalPosts: 1,
+    limit: 6,
+  },
+  userProfile: buildOptimisticProfile(state, entry, ownerUid),
+  profileLoaded: true,
+  postsLoaded: true,
+  cachedAt: Date.now(),
+});
+
+const bumpProfilePostCount = (cache) => {
+  if (!cache?.userProfile) return cache;
+  return {
+    ...cache,
+    userProfile: {
+      ...cache.userProfile,
+      postsCount: (cache.userProfile.postsCount || 0) + 1,
+    },
+  };
+};
+
+const ENTRY_UPDATE_TIMEOUT_MS = 45_000;
+const RETRYABLE_ENTRY_UPDATE_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRetryableEntryUpdateError = (error) =>
+  error?.code === "ECONNABORTED" ||
+  error?.code === "ERR_NETWORK" ||
+  !error?.response ||
+  RETRYABLE_ENTRY_UPDATE_STATUS_CODES.has(error.response.status);
 
 export const useProductStore = create((set) => ({
   currentUser: null,
@@ -34,6 +192,7 @@ export const useProductStore = create((set) => ({
     set({ showClaimedWorkoutsModal: show }),
 
   // Lightweight in-memory cache for tab state (prevents refetch/reload on tab switch)
+  feedCacheTtlMs: FEED_CACHE_TTL_MS,
   homeFeedCache: null, // { uid, page, limit, entries, pagination, cachedAt }
   setHomeFeedCache: (cache) => set({ homeFeedCache: cache }),
   clearHomeFeedCache: () => set({ homeFeedCache: null }),
@@ -74,12 +233,67 @@ export const useProductStore = create((set) => ({
       const response = await apiClient.post(API_ENDPOINTS.CREATE_POST, postPayload);
 
       const data = response.data;
+      const createdPost = normalizePostForFeeds(data.data);
 
-      set((state) => ({ posts: [...state.posts, data.data] }));
-      return { success: true, message: "Post created successfully" };
+      return {
+        success: true,
+        message: "Post created successfully",
+        data: createdPost,
+      };
     } catch (error) {
       throw new Error(error.response?.data?.error || "Failed to create post");
     }
+  },
+
+  addOptimisticPost: (entry) => {
+    const optimisticEntry = normalizePostForFeeds(entry);
+    set((state) => {
+      const ownerUid = optimisticEntry.ownerId || optimisticEntry.uid;
+      const viewerUid =
+        state.currentUser?.uid || state.currentUserInfo?.uid || ownerUid;
+      const nextHomeCache =
+        upsertEntryInCache(state.homeFeedCache, optimisticEntry, viewerUid) ||
+        (viewerUid === ownerUid
+          ? seedHomeFeedCache(optimisticEntry, viewerUid)
+          : state.homeFeedCache);
+      const upsertedProfileCache = upsertEntryInCache(
+        state.profileTabCache,
+        optimisticEntry,
+        ownerUid,
+      );
+      const nextProfileCache =
+        upsertedProfileCache && upsertedProfileCache !== state.profileTabCache
+          ? bumpProfilePostCount(upsertedProfileCache)
+          : upsertedProfileCache ||
+            (viewerUid === ownerUid
+              ? seedProfileTabCache(state, optimisticEntry, ownerUid)
+              : state.profileTabCache);
+
+      return {
+        posts: [optimisticEntry, ...state.posts],
+        homeFeedCache: nextHomeCache,
+        profileTabCache: nextProfileCache,
+      };
+    });
+  },
+
+  replaceOptimisticPost: (tempId, serverEntry) => {
+    const entry = normalizePostForFeeds(serverEntry);
+    set((state) => ({
+      posts: state.posts.map((item) =>
+        String(item._id) === String(tempId) ? entry : item,
+      ),
+      homeFeedCache: replaceEntryInCache(state.homeFeedCache, tempId, entry),
+      profileTabCache: replaceEntryInCache(state.profileTabCache, tempId, entry),
+    }));
+  },
+
+  removeOptimisticPost: (tempId) => {
+    set((state) => ({
+      posts: state.posts.filter((item) => String(item._id) !== String(tempId)),
+      homeFeedCache: removeEntryFromCache(state.homeFeedCache, tempId),
+      profileTabCache: removeEntryFromCache(state.profileTabCache, tempId),
+    }));
   },
 
   createEntry: async (newEntry) => {
@@ -147,10 +361,22 @@ export const useProductStore = create((set) => ({
 
   updateEntry: async (pid, updatedEntry) => {
     try {
-      const response = await apiClient.put(
-        API_ENDPOINTS.UPDATE_ENTRY(pid),
-        updatedEntry
-      );
+      const url = API_ENDPOINTS.UPDATE_ENTRY(pid);
+      const requestConfig = { timeout: ENTRY_UPDATE_TIMEOUT_MS };
+      let response;
+
+      try {
+        response = await apiClient.put(url, updatedEntry, requestConfig);
+      } catch (error) {
+        if (!isRetryableEntryUpdateError(error)) {
+          throw error;
+        }
+
+        // The first request after a long idle can wake a cold backend/DB connection.
+        await wait(750);
+        response = await apiClient.put(url, updatedEntry, requestConfig);
+      }
+
       const data = response.data;
 
       if (!data.success) return { success: false, message: data.message };
@@ -162,7 +388,14 @@ export const useProductStore = create((set) => ({
       }));
       return { success: true, message: data.message, data: data.data };
     } catch (error) {
-      throw new Error(error.response?.data?.error || "Failed to update entry");
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        (error.code === "ECONNABORTED"
+          ? "Save timed out. Please check your connection and try again."
+          : error.message) ||
+        "Failed to update entry";
+      throw new Error(message);
     }
   },
 

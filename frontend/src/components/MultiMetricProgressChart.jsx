@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,11 +14,11 @@ import { Line } from "react-chartjs-2";
 import {
   Box,
   Text,
-  useColorModeValue,
   HStack,
   Button,
   VStack,
 } from "@chakra-ui/react";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 // Register Chart.js components
 ChartJS.register(
@@ -32,46 +32,40 @@ ChartJS.register(
   Filler
 );
 
+const getCssHsl = (variableName, fallback, alpha) => {
+  if (typeof window === "undefined") return fallback;
+
+  const value = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(`--${variableName}`)
+    .trim();
+
+  if (!value) return fallback;
+  return alpha === undefined ? `hsl(${value})` : `hsl(${value} / ${alpha})`;
+};
+
 const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
   const [selectedMetrics, setSelectedMetrics] = useState(["weight", "volume"]);
+  const colors = useThemeColors();
 
-  const textColor = useColorModeValue("gray.800", "white");
-  const gridColor = useColorModeValue(
-    "rgba(0, 0, 0, 0.1)",
-    "rgba(255, 255, 255, 0.1)"
-  );
+  const textColor = getCssHsl("workout-text-primary", "#f8fafc");
+  const mutedTextColor = getCssHsl("workout-text-muted", "#94a3b8");
+  const popoverTextColor = getCssHsl("popover-foreground", "#f8fafc");
+  const gridColor = getCssHsl("border", "rgba(148, 163, 184, 0.22)", 0.45);
 
   // Color scheme for different metrics
   const metricColors = {
     weight: {
-      border: useColorModeValue(
-        "rgba(59, 130, 246, 0.8)",
-        "rgba(59, 130, 246, 0.8)"
-      ),
-      background: useColorModeValue(
-        "rgba(59, 130, 246, 0.1)",
-        "rgba(59, 130, 246, 0.1)"
-      ),
+      border: getCssHsl("ring", "rgba(59, 130, 246, 0.85)", 0.85),
+      background: getCssHsl("ring", "rgba(59, 130, 246, 0.12)", 0.12),
     },
     volume: {
-      border: useColorModeValue(
-        "rgba(16, 185, 129, 0.8)",
-        "rgba(16, 185, 129, 0.8)"
-      ),
-      background: useColorModeValue(
-        "rgba(16, 185, 129, 0.1)",
-        "rgba(16, 185, 129, 0.1)"
-      ),
+      border: "rgba(16, 185, 129, 0.85)",
+      background: "rgba(16, 185, 129, 0.12)",
     },
     reps: {
-      border: useColorModeValue(
-        "rgba(245, 158, 11, 0.8)",
-        "rgba(245, 158, 11, 0.8)"
-      ),
-      background: useColorModeValue(
-        "rgba(245, 158, 11, 0.1)",
-        "rgba(245, 158, 11, 0.1)"
-      ),
+      border: "rgba(245, 158, 11, 0.85)",
+      background: "rgba(245, 158, 11, 0.12)",
     },
   };
 
@@ -82,7 +76,7 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
   ) {
     return (
       <Box p={4} textAlign="center">
-        <Text color="gray.500">
+        <Text color={colors.textMuted}>
           No progress data available for this exercise
         </Text>
       </Box>
@@ -190,12 +184,9 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
         },
       },
       tooltip: {
-        backgroundColor: useColorModeValue(
-          "rgba(0, 0, 0, 0.8)",
-          "rgba(0, 0, 0, 0.9)"
-        ),
-        titleColor: "white",
-        bodyColor: "white",
+        backgroundColor: getCssHsl("popover", "rgba(15, 23, 42, 0.95)", 0.95),
+        titleColor: popoverTextColor,
+        bodyColor: popoverTextColor,
         borderColor: metricColors.weight.border,
         borderWidth: 1,
         cornerRadius: 8,
@@ -235,7 +226,7 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
           color: gridColor,
         },
         ticks: {
-          color: textColor,
+          color: mutedTextColor,
           maxRotation: 45,
         },
       },
@@ -256,7 +247,7 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
           color: gridColor,
         },
         ticks: {
-          color: textColor,
+          color: mutedTextColor,
           callback: function (value) {
             return value + " lbs";
           },
@@ -280,7 +271,7 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
           drawOnChartArea: false,
         },
         ticks: {
-          color: textColor,
+          color: mutedTextColor,
           callback: function (value) {
             return value.toLocaleString() + " lbs";
           },
@@ -304,7 +295,7 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
           drawOnChartArea: false,
         },
         ticks: {
-          color: textColor,
+          color: mutedTextColor,
         },
         beginAtZero: false,
       },
@@ -354,9 +345,11 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
         w="full"
         h="400px"
         p={4}
-        bg={useColorModeValue("white", "gray.800")}
+        bg={colors.card}
+        border="1px solid"
+        borderColor={colors.borderColorLight}
         borderRadius="lg"
-        boxShadow="md"
+        boxShadow="sm"
       >
         <Line data={chartData} options={options} />
       </Box>

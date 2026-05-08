@@ -142,6 +142,54 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  html.theme-transition,
+  html.theme-transition body,
+  html.theme-transition body *,
+  html.theme-transition body *::before,
+  html.theme-transition body *::after {
+    transition:
+      background-color 520ms ease,
+      color 520ms ease,
+      border-color 520ms ease,
+      box-shadow 520ms ease,
+      fill 520ms ease,
+      stroke 520ms ease;
+  }
+
+  html.theme-fade-overlay::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    pointer-events: none;
+    background: var(--theme-fade-color, hsl(var(--background)));
+    animation: theme-fade-away 520ms ease forwards;
+  }
+
+  @keyframes theme-fade-away {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.theme-transition,
+    html.theme-transition body,
+    html.theme-transition body *,
+    html.theme-transition body *::before,
+    html.theme-transition body *::after {
+      transition: none;
+    }
+
+    html.theme-fade-overlay::before {
+      animation: none;
+      opacity: 0;
+    }
+  }
 }
 
 /* Mobile float animation - more specific to override Tailwind */

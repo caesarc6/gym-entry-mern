@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Container,
   Box,
@@ -21,7 +21,6 @@ import {
   TabPanels,
   Tab,
   TabPanel,
-  useColorModeValue,
   Spinner,
   Center,
   Alert,
@@ -40,6 +39,7 @@ import WorkoutDetailsModal from "../components/modals/WorkoutDetailsModal";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -62,8 +62,40 @@ const AnalyticsPage = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
   const { showToast } = useCustomToast();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const cardBg = useColorModeValue("gray.50", "gray.700");
+  const colors = useThemeColors();
+  const pageBg = colors.background;
+  const cardBg = colors.bgCard;
+  const cardText = colors.textPrimary;
+  const mutedText = colors.textMuted;
+  const rowBg = colors.muted;
+  const rowHoverBg = colors.bgHover;
+  const borderColor = colors.borderColor;
+  const softBorderColor = colors.borderColorLight;
+  const inputBg = colors.background;
+  const inputBorderColor = colors.borderColorInput;
+  const controlProps = {
+    bg: inputBg,
+    color: cardText,
+    borderColor: inputBorderColor,
+    _hover: { borderColor: colors.ring },
+    _focus: {
+      borderColor: colors.ring,
+      boxShadow: `0 0 0 1px ${colors.ring}`,
+    },
+  };
+  const cardProps = {
+    bg: cardBg,
+    color: cardText,
+    border: "1px solid",
+    borderColor: softBorderColor,
+    boxShadow: "sm",
+  };
+  const rowProps = {
+    bg: rowBg,
+    color: cardText,
+    border: "1px solid",
+    borderColor,
+  };
   const { analyticsTabCache, setAnalyticsTabCache, clearAnalyticsTabCache } =
     useProductStore();
 
@@ -215,7 +247,8 @@ const AnalyticsPage = () => {
           personalRecords: response.data.data,
         });
       }
-    } catch (error) {
+    } catch {
+      // Personal records are supplemental; keep analytics usable if unavailable.
     }
   };
 
@@ -237,7 +270,7 @@ const AnalyticsPage = () => {
           exerciseProgress: response.data.data,
         });
       }
-    } catch (error) {
+    } catch {
       showToast({
         title: "Error",
         description: "Failed to load exercise progress",
@@ -323,7 +356,8 @@ const AnalyticsPage = () => {
           autoProcessNewEntries(trulyUnprocessed); // Pass only workout entries
         }
       }
-    } catch (error) {
+    } catch {
+      // Entries are supplemental; analytics can still render without them.
     }
   };
 
@@ -356,7 +390,7 @@ const AnalyticsPage = () => {
       }
 
       return processedIds;
-    } catch (error) {
+    } catch {
       return new Set();
     }
   };
@@ -365,7 +399,6 @@ const AnalyticsPage = () => {
     if (entries.length === 0) return;
 
     let processedCount = 0;
-    let errorCount = 0;
     let skippedCount = 0;
 
     for (const entry of entries) {
@@ -381,8 +414,6 @@ const AnalyticsPage = () => {
           prev.map((e) => (e._id === entry._id ? { ...e, processed: true } : e))
         );
       } catch (error) {
-        errorCount++;
-
         // Handle different types of errors
         if (error.response?.data?.message?.includes("already processed")) {
           setProcessedEntryIds((prev) => new Set([...prev, entry._id]));
@@ -441,9 +472,7 @@ const AnalyticsPage = () => {
   const processEntry = async (entryId) => {
     try {
       setProcessingEntry(entryId);
-      const response = await apiClient.post(
-        API_ENDPOINTS.PROCESS_WORKOUT(entryId)
-      );
+      await apiClient.post(API_ENDPOINTS.PROCESS_WORKOUT(entryId));
       showToast({
         title: "Success",
         description: "Workout data processed successfully",
@@ -579,7 +608,7 @@ const AnalyticsPage = () => {
       // Refresh analytics to show updated gym names and exercise names
       fetchAnalytics();
       fetchPersonalRecords();
-    } catch (error) {
+    } catch {
       showToast({
         title: "Error",
         description: "Failed to reprocess workouts",
@@ -596,11 +625,14 @@ const AnalyticsPage = () => {
         maxW="container.xl"
         pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
         pb={8}
+        minH="100dvh"
+        bg={pageBg}
+        color={cardText}
       >
         <Center>
           <VStack spacing={4}>
-            <Spinner size="xl" />
-            <Text>Loading analytics...</Text>
+            <Spinner size="xl" color={cardText} />
+            <Text color={mutedText}>Loading analytics...</Text>
           </VStack>
         </Center>
       </Container>
@@ -618,13 +650,16 @@ const AnalyticsPage = () => {
         maxW="container.xl"
         pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
         pb={8}
+        minH="100dvh"
+        bg={pageBg}
+        color={cardText}
       >
         <VStack spacing={8} align="stretch">
           <Box>
-            <Heading size="lg" mb={4}>
+            <Heading size="lg" mb={4} color={cardText}>
               Workout Analytics
             </Heading>
-            <Text mb={4}>
+            <Text mb={4} color={mutedText}>
               No workout analytics found. You need to process your workout
               entries first.
             </Text>
@@ -633,12 +668,14 @@ const AnalyticsPage = () => {
 
           {/* Show unprocessed entries */}
           {userEntries.length > 0 && (
-            <Card bg={cardBg}>
+            <Card {...cardProps}>
               <CardBody>
                 <HStack justify="space-between" mb={4}>
                   <Box>
-                    <Heading size="md">Workout Entries</Heading>
-                    <Text fontSize="sm" color="gray.600" mt={1}>
+                    <Heading size="md" color={cardText}>
+                      Workout Entries
+                    </Heading>
+                    <Text fontSize="sm" color={mutedText} mt={1}>
                       {autoProcessEnabled
                         ? hasAutoProcessed
                           ? "Auto-processing has run. Use 'Reset' to run it again, or manually process remaining entries below."
@@ -648,7 +685,7 @@ const AnalyticsPage = () => {
                   </Box>
                   <VStack spacing={2} align="end">
                     <HStack spacing={2}>
-                      <Text fontSize="sm" color="gray.600">
+                      <Text fontSize="sm" color={mutedText}>
                         Auto-process:
                       </Text>
                       <Button
@@ -706,20 +743,22 @@ const AnalyticsPage = () => {
                         key={entry._id}
                         justify="space-between"
                         p={3}
-                        bg={bgColor}
+                        {...rowProps}
                         borderRadius="md"
                         opacity={isProcessed ? 0.6 : 1}
                       >
                         <VStack align="start" flex={1}>
                           <HStack>
-                            <Text fontWeight="bold">{entry.name}</Text>
+                            <Text fontWeight="bold" color={cardText}>
+                              {entry.name}
+                            </Text>
                             {isProcessed && (
                               <Badge colorScheme="green" size="sm">
                                 Processed
                               </Badge>
                             )}
                           </HStack>
-                          <Text fontSize="sm" color="gray.500" noOfLines={2}>
+                          <Text fontSize="sm" color={mutedText} noOfLines={2}>
                             {entry.description}
                           </Text>
                         </VStack>
@@ -751,16 +790,16 @@ const AnalyticsPage = () => {
 
           {/* Skipped Entries Section */}
           {skippedEntries.length > 0 && (
-            <Card bg={cardBg}>
+            <Card {...cardProps}>
               <CardBody>
                 <HStack justify="space-between" mb={4}>
                   <Box>
-                    <Heading size="md">
+                    <Heading size="md" color={cardText}>
                       Skipped Entries ({skippedEntries.length})
                     </Heading>
-                    <Text fontSize="sm" color="gray.600" mt={1}>
-                      These entries were skipped because they don't contain
-                      valid workout data or couldn't be processed.
+                    <Text fontSize="sm" color={mutedText} mt={1}>
+                      These entries were skipped because they don&apos;t contain
+                      valid workout data or couldn&apos;t be processed.
                     </Text>
                   </Box>
                   <Button
@@ -777,26 +816,26 @@ const AnalyticsPage = () => {
                       key={entry.id}
                       justify="space-between"
                       p={3}
-                      bg="red.50"
+                      bg="hsl(var(--destructive) / 0.08)"
                       borderRadius="md"
                       border="1px solid"
-                      borderColor="red.200"
-                      _dark={{ bg: "red.900/20", borderColor: "red.800" }}
+                      borderColor="hsl(var(--destructive) / 0.28)"
                     >
                       <VStack align="start" flex={1}>
                         <HStack>
-                          <Text fontWeight="bold">{entry.name}</Text>
+                          <Text fontWeight="bold" color={cardText}>
+                            {entry.name}
+                          </Text>
                           <Badge colorScheme="red" size="sm">
                             Skipped
                           </Badge>
                         </HStack>
-                        <Text fontSize="sm" color="gray.500" noOfLines={2}>
+                        <Text fontSize="sm" color={mutedText} noOfLines={2}>
                           {entry.description}
                         </Text>
                         <Text
                           fontSize="xs"
-                          color="red.500"
-                          _dark={{ color: "red.400" }}
+                          color="hsl(var(--destructive))"
                         >
                           Reason: {entry.reason}
                         </Text>
@@ -817,10 +856,13 @@ const AnalyticsPage = () => {
       maxW="container.xl"
       pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
       pb={8}
+      minH="100dvh"
+      bg={pageBg}
+      color={cardText}
     >
       <VStack spacing={8} align="stretch">
         <Box>
-          <Heading size="lg" mb={4}>
+          <Heading size="lg" mb={4} color={cardText}>
             Workout Analytics
           </Heading>
           <HStack spacing={4} mb={6}>
@@ -828,32 +870,62 @@ const AnalyticsPage = () => {
               value={timeframe}
               onChange={(e) => setTimeframe(e.target.value)}
               w="200px"
+              {...controlProps}
             >
               <option value="7d">Last 7 days</option>
               <option value="30d">Last 30 days</option>
               <option value="90d">Last 90 days</option>
               <option value="1y">Last year</option>
             </Select>
-            <Button onClick={fetchAnalytics} size="sm">
+            <Button
+              onClick={fetchAnalytics}
+              size="sm"
+              variant="outline"
+              {...controlProps}
+            >
               Refresh
             </Button>
           </HStack>
           <GymNameHelper />
         </Box>
 
-        <Tabs variant="enclosed">
-          <TabList>
-            <Tab>Overview</Tab>
-            <Tab>Exercises</Tab>
-            <Tab>Personal Records</Tab>
-            <Tab>Progress</Tab>
+        <Tabs variant="enclosed" color={cardText}>
+          <TabList borderColor={borderColor} overflowX="auto" overflowY="hidden">
+            <Tab
+              color={mutedText}
+              borderColor={borderColor}
+              _selected={{ color: cardText, bg: cardBg, borderColor }}
+            >
+              Overview
+            </Tab>
+            <Tab
+              color={mutedText}
+              borderColor={borderColor}
+              _selected={{ color: cardText, bg: cardBg, borderColor }}
+            >
+              Exercises
+            </Tab>
+            <Tab
+              color={mutedText}
+              borderColor={borderColor}
+              _selected={{ color: cardText, bg: cardBg, borderColor }}
+            >
+              Personal Records
+            </Tab>
+            <Tab
+              color={mutedText}
+              borderColor={borderColor}
+              _selected={{ color: cardText, bg: cardBg, borderColor }}
+            >
+              Progress
+            </Tab>
           </TabList>
 
           <TabPanels>
             {/* Overview Tab */}
             <TabPanel>
               <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
-                <Card bg={cardBg}>
+                <Card {...cardProps}>
                   <CardBody>
                     <Stat>
                       <StatLabel>Total Workouts</StatLabel>
@@ -863,7 +935,7 @@ const AnalyticsPage = () => {
                   </CardBody>
                 </Card>
 
-                <Card bg={cardBg}>
+                <Card {...cardProps}>
                   <CardBody>
                     <Stat>
                       <StatLabel>Total Volume</StatLabel>
@@ -875,7 +947,7 @@ const AnalyticsPage = () => {
                   </CardBody>
                 </Card>
 
-                <Card bg={cardBg}>
+                <Card {...cardProps}>
                   <CardBody>
                     <Stat>
                       <StatLabel>Avg Volume/Workout</StatLabel>
@@ -889,7 +961,7 @@ const AnalyticsPage = () => {
                   </CardBody>
                 </Card>
 
-                <Card bg={cardBg}>
+                <Card {...cardProps}>
                   <CardBody>
                     <Stat>
                       <StatLabel>Unique Exercises</StatLabel>
@@ -904,16 +976,18 @@ const AnalyticsPage = () => {
 
               {/* Splits and Gyms */}
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={8}>
-                <Card bg={cardBg}>
+                <Card {...cardProps}>
                   <CardBody>
-                    <Heading size="md" mb={4}>
+                    <Heading size="md" mb={4} color={cardText}>
                       Workout Splits
                     </Heading>
                     <VStack align="start" spacing={2}>
                       {Object.entries(analytics.splits).map(
                         ([split, count]) => (
                           <HStack key={split} justify="space-between" w="full">
-                            <Text fontWeight="medium">{split}</Text>
+                            <Text fontWeight="medium" color={cardText}>
+                              {split}
+                            </Text>
                             <Badge colorScheme="blue">{count}</Badge>
                           </HStack>
                         )
@@ -922,15 +996,15 @@ const AnalyticsPage = () => {
                   </CardBody>
                 </Card>
 
-                <Card bg={cardBg}>
+                <Card {...cardProps}>
                   <CardBody>
-                    <Heading size="md" mb={4}>
+                    <Heading size="md" mb={4} color={cardText}>
                       Gyms Visited
                     </Heading>
                     <VStack align="start" spacing={2}>
                       {Object.entries(analytics.gyms).map(([gym, count]) => (
                         <HStack key={gym} justify="space-between" w="full">
-                          <Text fontWeight="medium">{gym}</Text>
+                          <Text fontWeight="medium" color={cardText}>{gym}</Text>
                           <Badge colorScheme="green">{count}</Badge>
                         </HStack>
                       ))}
@@ -941,11 +1015,11 @@ const AnalyticsPage = () => {
 
               {/* Unprocessed Entries Section */}
               {userEntries.length > 0 && (
-                <Card bg={cardBg} mt={8}>
+                <Card {...cardProps} mt={8}>
                   <CardBody>
                     <HStack justify="space-between" mb={4}>
                       <Box>
-                        <Heading size="md">
+                        <Heading size="md" color={cardText}>
                           Unprocessed Workout Entries (
                           {
                             userEntries.filter(
@@ -954,7 +1028,7 @@ const AnalyticsPage = () => {
                           }
                           )
                         </Heading>
-                        <Text fontSize="sm" color="gray.600" mt={1}>
+                        <Text fontSize="sm" color={mutedText} mt={1}>
                           {autoProcessEnabled
                             ? hasAutoProcessed
                               ? "Auto-processing has run. Use 'Reset' to run it again, or manually process remaining entries below."
@@ -964,7 +1038,7 @@ const AnalyticsPage = () => {
                       </Box>
                       <VStack spacing={2} align="end">
                         <HStack spacing={2}>
-                          <Text fontSize="sm" color="gray.600">
+                          <Text fontSize="sm" color={mutedText}>
                             Auto-process:
                           </Text>
                           <Button
@@ -1024,18 +1098,22 @@ const AnalyticsPage = () => {
                             key={entry._id}
                             justify="space-between"
                             p={3}
-                            bg={bgColor}
+                            {...rowProps}
                             borderRadius="md"
                           >
                             <VStack align="start" flex={1}>
                               <HStack>
-                                <Text fontWeight="bold" fontSize="sm">
+                                <Text
+                                  fontWeight="bold"
+                                  fontSize="sm"
+                                  color={cardText}
+                                >
                                   {entry.name}
                                 </Text>
                               </HStack>
                               <Text
                                 fontSize="xs"
-                                color="gray.500"
+                                color={mutedText}
                                 noOfLines={2}
                               >
                                 {entry.description}
@@ -1071,12 +1149,16 @@ const AnalyticsPage = () => {
               <VStack spacing={4} align="stretch">
                 {Object.entries(analytics.exercises).map(
                   ([exerciseName, stats]) => (
-                    <Card key={exerciseName} bg={cardBg}>
+                    <Card key={exerciseName} {...cardProps}>
                       <CardBody>
                         <HStack justify="space-between" mb={4}>
-                          <Heading size="md">{exerciseName}</Heading>
+                          <Heading size="md" color={cardText}>
+                            {exerciseName}
+                          </Heading>
                           <Button
                             size="sm"
+                            variant="outline"
+                            {...controlProps}
                             onClick={() => handleExerciseSelect(exerciseName)}
                           >
                             View Progress
@@ -1111,9 +1193,9 @@ const AnalyticsPage = () => {
                 <VStack spacing={4} align="stretch">
                   {Object.entries(personalRecords).map(
                     ([exerciseName, prs]) => (
-                      <Card key={exerciseName} bg={cardBg}>
+                      <Card key={exerciseName} {...cardProps}>
                         <CardBody>
-                          <Heading size="md" mb={4}>
+                          <Heading size="md" mb={4} color={cardText}>
                             {exerciseName}
                           </Heading>
                           <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
@@ -1170,6 +1252,7 @@ const AnalyticsPage = () => {
                     value={selectedExercise}
                     onChange={(e) => handleExerciseSelect(e.target.value)}
                     w="300px"
+                    {...controlProps}
                   >
                     {Object.keys(analytics.exercises).map((exercise) => (
                       <option key={exercise} value={exercise}>
@@ -1186,6 +1269,7 @@ const AnalyticsPage = () => {
                       }
                     }}
                     w="150px"
+                    {...controlProps}
                   >
                     <option value="7d">Last 7 days</option>
                     <option value="30d">Last 30 days</option>
@@ -1196,7 +1280,7 @@ const AnalyticsPage = () => {
 
                 {progressLoading && (
                   <Center>
-                    <Spinner />
+                    <Spinner color={cardText} />
                   </Center>
                 )}
 
@@ -1223,7 +1307,7 @@ const AnalyticsPage = () => {
                     </HStack>
 
                     {/* Progress Chart */}
-                    <Card bg={cardBg}>
+                    <Card {...cardProps}>
                       <CardBody>
                         {chartType === "simple" ? (
                           <ExerciseProgressChart
@@ -1240,16 +1324,16 @@ const AnalyticsPage = () => {
                     </Card>
 
                     {/* Progress Insights */}
-                    <Card bg={cardBg}>
+                    <Card {...cardProps}>
                       <CardBody>
                         <ProgressInsights exerciseProgress={exerciseProgress} />
                       </CardBody>
                     </Card>
 
                     {/* Progress Stats */}
-                    <Card bg={cardBg}>
+                    <Card {...cardProps}>
                       <CardBody>
-                        <Heading size="md" mb={4}>
+                        <Heading size="md" mb={4} color={cardText}>
                           {exerciseProgress.exercise} Progress Summary
                         </Heading>
                         <VStack spacing={4} align="stretch">
@@ -1279,7 +1363,11 @@ const AnalyticsPage = () => {
                               <Text fontWeight="medium">
                                 Recent Workouts:
                               </Text>
-                              <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                              <Text
+                                fontSize="xs"
+                                color={mutedText}
+                                fontStyle="italic"
+                              >
                                 Click any workout for details
                               </Text>
                             </HStack>
@@ -1293,13 +1381,13 @@ const AnalyticsPage = () => {
                                     justify="space-between"
                                     w="full"
                                     p={3}
-                                    bg={useColorModeValue('gray.50', 'gray.600')}
+                                    {...rowProps}
                                     borderRadius="md"
                                     cursor="pointer"
                                     _hover={{
-                                      bg: useColorModeValue('gray.100', 'gray.500'),
-                                      transform: 'translateY(-1px)',
-                                      boxShadow: 'md',
+                                      bg: rowHoverBg,
+                                      transform: "translateY(-1px)",
+                                      boxShadow: "md",
                                     }}
                                     transition="all 0.2s"
                                     onClick={() => {
@@ -1309,17 +1397,21 @@ const AnalyticsPage = () => {
                                   >
                                     <VStack align="start" spacing={1}>
                                       <HStack spacing={2}>
-                                        <Text fontWeight="medium">
+                                        <Text fontWeight="medium" color={cardText}>
                                           {new Date(
                                             point.date
                                           ).toLocaleDateString()}
                                         </Text>
-                                        <Icon as={FiExternalLink} color="gray.400" boxSize={3} />
+                                        <Icon
+                                          as={FiExternalLink}
+                                          color={mutedText}
+                                          boxSize={3}
+                                        />
                                       </HStack>
-                                      <Text fontSize="xs" color="gray.500">
+                                      <Text fontSize="xs" color={mutedText}>
                                         {new Date(point.date).toLocaleTimeString([], { 
-                                          hour: '2-digit', 
-                                          minute: '2-digit' 
+                                          hour: "2-digit", 
+                                          minute: "2-digit" 
                                         })}
                                       </Text>
                                     </VStack>

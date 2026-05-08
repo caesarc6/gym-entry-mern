@@ -4,14 +4,14 @@ import { Route, Routes, useLocation } from "react-router-dom";
 import { HeroHeader } from "./components/hero9-header";
 import "./index.css";
 import { useTheme } from "./contexts/ThemeContext";
-import AuthCallback from "./pages/AuthCallback";
-import HomePage from "./pages/HomePage";
 import MobileAppShell from "./components/MobileAppShell";
 import RequireAuth from "./routes/RequireAuth";
-import SignUpFlow from "./pages/SignUpFlow";
 import { useProductStore } from "./store/product";
 import { isCapacitorNative as getIsCapacitorNative } from "./utils/isNativePlatform";
 
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const HomePage = lazy(() => import("./pages/HomePage"));
+const SignUpFlow = lazy(() => import("./pages/SignUpFlow"));
 const CreatePage = lazy(() => import("./pages/CreatePage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const Login = lazy(() => import("./pages/Login"));

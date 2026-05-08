@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Box,
   Text,
@@ -10,12 +9,22 @@ import {
   StatNumber,
   StatHelpText,
   SimpleGrid,
-  useColorModeValue,
 } from "@chakra-ui/react";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 const ProgressInsights = ({ exerciseProgress }) => {
-  const textColor = useColorModeValue("gray.800", "white");
-  const cardBg = useColorModeValue("gray.50", "gray.700");
+  const colors = useThemeColors();
+  const textColor = colors.textPrimary;
+  const mutedText = colors.textMuted;
+  const cardBg = colors.muted;
+  const cardBorder = colors.borderColor;
+  const insightCardProps = {
+    bg: cardBg,
+    color: textColor,
+    border: "1px solid",
+    borderColor: cardBorder,
+    borderRadius: "lg",
+  };
 
   if (
     !exerciseProgress ||
@@ -24,7 +33,7 @@ const ProgressInsights = ({ exerciseProgress }) => {
   ) {
     return (
       <Box p={4} textAlign="center">
-        <Text color="gray.500">
+        <Text color={mutedText}>
           Need at least 2 data points to show insights
         </Text>
       </Box>
@@ -124,23 +133,23 @@ const ProgressInsights = ({ exerciseProgress }) => {
       </Text>
 
       {/* Time Period Summary */}
-      <Box p={4} bg={cardBg} borderRadius="lg">
+      <Box p={4} {...insightCardProps}>
         <Text fontWeight="medium" mb={2}>
           Time Period
         </Text>
         <HStack justify="space-between">
-          <Text fontSize="sm">
+          <Text fontSize="sm" color={mutedText}>
             {new Date(firstWorkout.date).toLocaleDateString()} to{" "}
             {new Date(lastWorkout.date).toLocaleDateString()}
           </Text>
           <Badge colorScheme="blue">{daysBetween} days</Badge>
         </HStack>
         <HStack justify="space-between" mt={2}>
-          <Text fontSize="sm">Total Workouts</Text>
+          <Text fontSize="sm" color={mutedText}>Total Workouts</Text>
           <Badge colorScheme="purple">{totalWorkouts}</Badge>
         </HStack>
         <HStack justify="space-between" mt={2}>
-          <Text fontSize="sm">Weekly Frequency</Text>
+          <Text fontSize="sm" color={mutedText}>Weekly Frequency</Text>
           <Badge colorScheme={getConsistencyColor(consistencyLevel)}>
             {workoutFrequency} workouts/week
           </Badge>
@@ -149,7 +158,7 @@ const ProgressInsights = ({ exerciseProgress }) => {
 
       {/* Progress Metrics */}
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-        <Box p={4} bg={cardBg} borderRadius="lg">
+        <Box p={4} {...insightCardProps}>
           <Stat>
             <StatLabel>Weight Progress</StatLabel>
             <StatNumber color={getTrendColor(weightTrend)}>
@@ -162,7 +171,7 @@ const ProgressInsights = ({ exerciseProgress }) => {
           </Stat>
         </Box>
 
-        <Box p={4} bg={cardBg} borderRadius="lg">
+        <Box p={4} {...insightCardProps}>
           <Stat>
             <StatLabel>Volume Progress</StatLabel>
             <StatNumber color={getTrendColor(volumeTrend)}>
@@ -175,7 +184,7 @@ const ProgressInsights = ({ exerciseProgress }) => {
           </Stat>
         </Box>
 
-        <Box p={4} bg={cardBg} borderRadius="lg">
+        <Box p={4} {...insightCardProps}>
           <Stat>
             <StatLabel>Reps Progress</StatLabel>
             <StatNumber color={getTrendColor(repsTrend)}>
@@ -190,28 +199,28 @@ const ProgressInsights = ({ exerciseProgress }) => {
       </SimpleGrid>
 
       {/* Personal Records */}
-      <Box p={4} bg={cardBg} borderRadius="lg">
+      <Box p={4} {...insightCardProps}>
         <Text fontWeight="medium" mb={3}>
           Personal Records
         </Text>
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
           <HStack justify="space-between">
-            <Text fontSize="sm">Max Weight</Text>
+            <Text fontSize="sm" color={mutedText}>Max Weight</Text>
             <Badge colorScheme="green">{maxWeight} lbs</Badge>
           </HStack>
           <HStack justify="space-between">
-            <Text fontSize="sm">Max Volume</Text>
+            <Text fontSize="sm" color={mutedText}>Max Volume</Text>
             <Badge colorScheme="blue">{maxVolume.toLocaleString()}</Badge>
           </HStack>
           <HStack justify="space-between">
-            <Text fontSize="sm">Max Reps</Text>
+            <Text fontSize="sm" color={mutedText}>Max Reps</Text>
             <Badge colorScheme="purple">{maxReps}</Badge>
           </HStack>
         </SimpleGrid>
       </Box>
 
       {/* Recommendations */}
-      <Box p={4} bg={cardBg} borderRadius="lg">
+      <Box p={4} {...insightCardProps}>
         <Text fontWeight="medium" mb={3}>
           Recommendations
         </Text>
@@ -238,7 +247,7 @@ const ProgressInsights = ({ exerciseProgress }) => {
           )}
           {totalWorkouts >= 10 && (
             <Text fontSize="sm" color="blue.500">
-              🏆 You've been consistent! Keep up the great work
+              🏆 You&apos;ve been consistent! Keep up the great work
             </Text>
           )}
         </VStack>

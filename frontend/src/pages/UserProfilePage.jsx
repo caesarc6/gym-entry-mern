@@ -12,11 +12,10 @@ import {
   Box,
 } from "@chakra-ui/react";
 import { Stack, Image } from "@chakra-ui/react";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { lazy, Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
-import ProductCard from "../components/ProductCard";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
 
@@ -31,6 +30,9 @@ const defaultBgNightUrl = new URL(
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
 import { getCurrentAuthUser } from "../utils/auth";
+import { useProductStore } from "../store/product";
+
+const ProductCard = lazy(() => import("../components/ProductCard"));
 
 const UserProfilePage = () => {
   const { userId: paramUserId } = useParams(); // Rename to avoid confusion
@@ -90,6 +92,7 @@ const UserProfilePage = () => {
     const syncAuthUser = async () => {
       const user = await getCurrentAuthUser();
       setCurrentUser(user);
+      useProductStore.getState().setCurrentUser(user);
       setIsAuthLoading(false);
     };
 
@@ -99,6 +102,19 @@ const UserProfilePage = () => {
       (_event, session) => {
         if (session?.user) {
           setCurrentUser({
+            uid: session.user.id,
+            email: session.user.email,
+            name:
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email?.split("@")[0],
+            picture:
+              session.user.user_metadata?.avatar_url ||
+              session.user.user_metadata?.picture ||
+              "",
+            authProvider: "supabase",
+          });
+          useProductStore.getState().setCurrentUser({
             uid: session.user.id,
             email: session.user.email,
             name:
@@ -237,6 +253,13 @@ const UserProfilePage = () => {
             trainerUid: post.trainerUid || null,
             trainerName: post.trainerName || null,
             trainerUsername: post.trainerUsername || null,
+            authorProfile: post.authorProfile || {
+              uid: post.uid || userId,
+              profileImage: finalProfileImage,
+              displayName: userData.username || userData.name || "Unknown User",
+              isUsername: Boolean(userData.username),
+            },
+            trainerProfile: post.trainerProfile || null,
           }));
           setEntries(normalizedEntries);
           setPagination(postsData.pagination);
@@ -495,21 +518,30 @@ const UserProfilePage = () => {
         </Center>
       ) : (
         <>
-          <SimpleGrid
-            columns={{ base: 1, md: 2, lg: 3 }}
-            spacing={6}
-            alignItems="center"
-            justifyItems="center"
+          <Suspense
+            fallback={
+              <Center py={8}>
+                <Spinner size="lg" />
+              </Center>
+            }
           >
-            {entries.map((entry) => (
-              <ProductCard
-                key={entry._id}
-                entry={entry}
-                onUpdate={handlePostUpdate}
-                onDelete={handlePostDelete}
-              />
-            ))}
-          </SimpleGrid>
+            <SimpleGrid
+              columns={{ base: 1, md: 2, lg: 3 }}
+              spacing={6}
+              alignItems="center"
+              justifyItems="center"
+            >
+              {entries.map((entry, index) => (
+                <ProductCard
+                  key={entry._id}
+                  entry={entry}
+                  priority={index < 3}
+                  onUpdate={handlePostUpdate}
+                  onDelete={handlePostDelete}
+                />
+              ))}
+            </SimpleGrid>
+          </Suspense>
           <PaginationComponent
             currentPage={currentPage}
             totalPages={pagination.totalPages}

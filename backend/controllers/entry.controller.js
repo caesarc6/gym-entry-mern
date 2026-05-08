@@ -59,6 +59,19 @@ const findUserByAuth = async (authUser) => {
   return User.findOne({ $or: conditions });
 };
 
+const ensureMongoReadyForRequest = async (res) => {
+  const dbReady = await ensureMongoConnected();
+  if (dbReady.ok) {
+    return true;
+  }
+
+  res.status(503).json({
+    success: false,
+    message: dbReady.message || "Database not ready",
+  });
+  return false;
+};
+
 const getUserUidSet = (user, fallbackUid) => {
   const uids = new Set();
   if (fallbackUid) uids.add(fallbackUid);
@@ -66,6 +79,21 @@ const getUserUidSet = (user, fallbackUid) => {
   if (user?.firebaseUid) uids.add(user.firebaseUid);
   if (user?.supabaseUid) uids.add(user.supabaseUid);
   return uids;
+};
+
+const inferImageContentType = (imageData, fileName, fallback = "image/jpeg") => {
+  if (typeof imageData === "string") {
+    const match = imageData.match(/^data:([^;]+);base64,/);
+    if (match?.[1]) return match[1];
+  }
+
+  const ext = String(fileName || "").split(".").pop()?.toLowerCase();
+  if (ext === "webp") return "image/webp";
+  if (ext === "png") return "image/png";
+  if (ext === "gif") return "image/gif";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+
+  return fallback;
 };
 
 const cleanupReplacedPostImage = async ({ previousUrl, newUrl, ownerUid }) => {
@@ -152,8 +180,6 @@ export const createEntry = async (req, res) => {
 export const updateEntry = async (req, res) => {
   const { pid, name, description, image, imageName } = req.body; // Extract fields directly from req.body
   const { uid } = req.user;
-  const authUser = await findUserByAuth(req.user);
-  const canonicalUid = authUser?.uid || uid;
 
   // Check if at least one of the fields (name or description) is provided
   if (!name) {
@@ -161,13 +187,10 @@ export const updateEntry = async (req, res) => {
   }
 
   try {
-    const dbReady = await ensureMongoConnected();
-    if (!dbReady.ok) {
-      return res.status(503).json({
-        success: false,
-        message: dbReady.message || "Database not ready",
-      });
-    }
+    if (!(await ensureMongoReadyForRequest(res))) return;
+
+    const authUser = await findUserByAuth(req.user);
+    const canonicalUid = authUser?.uid || uid;
 
     // Get the entry first to check if it exists and to preserve existing image
     const existingEntry = await Entry.findById(pid);
@@ -190,7 +213,7 @@ export const updateEntry = async (req, res) => {
         const { data: file, error } = await supabase.storage
           .from("post_images")
           .upload(filePath, imageBuffer, {
-            contentType: "image/jpeg",
+            contentType: inferImageContentType(image, imageName),
             cacheControl: "3600",
             upsert: true,
           });
@@ -299,8 +322,6 @@ export const saveEntryDraft = async (req, res) => {
   }
 
   const { uid } = req.user;
-  const authUser = await findUserByAuth(req.user);
-  const uidSet = getUserUidSet(authUser, uid);
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -309,6 +330,11 @@ export const saveEntryDraft = async (req, res) => {
   }
 
   try {
+    if (!(await ensureMongoReadyForRequest(res))) return;
+
+    const authUser = await findUserByAuth(req.user);
+    const uidSet = getUserUidSet(authUser, uid);
+
     const entry = await Entry.findById(id);
     if (!entry) {
       return res
@@ -359,8 +385,6 @@ export const getEntryDraft = async (req, res) => {
   }
 
   const { uid } = req.user;
-  const authUser = await findUserByAuth(req.user);
-  const uidSet = getUserUidSet(authUser, uid);
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -369,6 +393,11 @@ export const getEntryDraft = async (req, res) => {
   }
 
   try {
+    if (!(await ensureMongoReadyForRequest(res))) return;
+
+    const authUser = await findUserByAuth(req.user);
+    const uidSet = getUserUidSet(authUser, uid);
+
     const entry = await Entry.findById(id).select("+editDraft uid");
     if (!entry) {
       return res
@@ -409,8 +438,6 @@ export const clearEntryDraft = async (req, res) => {
   }
 
   const { uid } = req.user;
-  const authUser = await findUserByAuth(req.user);
-  const uidSet = getUserUidSet(authUser, uid);
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -419,6 +446,11 @@ export const clearEntryDraft = async (req, res) => {
   }
 
   try {
+    if (!(await ensureMongoReadyForRequest(res))) return;
+
+    const authUser = await findUserByAuth(req.user);
+    const uidSet = getUserUidSet(authUser, uid);
+
     const entry = await Entry.findById(id).select("uid");
     if (!entry) {
       return res
@@ -453,9 +485,6 @@ export const updateEntryPut = async (req, res) => {
   }
 
   const { uid } = req.user;
-  const authUser = await findUserByAuth(req.user);
-  const canonicalUid = authUser?.uid || uid;
-  const uidSet = getUserUidSet(authUser, uid);
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -471,13 +500,11 @@ export const updateEntryPut = async (req, res) => {
   }
 
   try {
-    const dbReady = await ensureMongoConnected();
-    if (!dbReady.ok) {
-      return res.status(503).json({
-        success: false,
-        message: dbReady.message || "Database not ready",
-      });
-    }
+    if (!(await ensureMongoReadyForRequest(res))) return;
+
+    const authUser = await findUserByAuth(req.user);
+    const canonicalUid = authUser?.uid || uid;
+    const uidSet = getUserUidSet(authUser, uid);
 
     // First, check if the entry exists and if the user is the owner
     const existingEntry = await Entry.findById(id);
@@ -507,7 +534,7 @@ export const updateEntryPut = async (req, res) => {
       const { data: file, error } = await supabase.storage
         .from("post_images")
         .upload(filePath, imageBuffer, {
-          contentType: "image/jpeg",
+          contentType: inferImageContentType(image, imageName),
           cacheControl: "3600",
           upsert: true,
         });

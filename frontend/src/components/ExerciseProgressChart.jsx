@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,7 +10,8 @@ import {
   Filler,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { Box, Text, useColorModeValue } from '@chakra-ui/react';
+import { Box, Text } from '@chakra-ui/react';
+import { useThemeColors } from '../hooks/useThemeColors';
 
 // Register Chart.js components
 ChartJS.register(
@@ -25,16 +25,33 @@ ChartJS.register(
   Filler
 );
 
+const getCssHsl = (variableName, fallback, alpha) => {
+  if (typeof window === "undefined") return fallback;
+
+  const value = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(`--${variableName}`)
+    .trim();
+
+  if (!value) return fallback;
+  return alpha === undefined ? `hsl(${value})` : `hsl(${value} / ${alpha})`;
+};
+
 const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
-  const textColor = useColorModeValue('gray.800', 'white');
-  const gridColor = useColorModeValue('rgba(0, 0, 0, 0.1)', 'rgba(255, 255, 255, 0.1)');
-  const borderColor = useColorModeValue('rgba(59, 130, 246, 0.8)', 'rgba(59, 130, 246, 0.8)');
-  const backgroundColor = useColorModeValue('rgba(59, 130, 246, 0.1)', 'rgba(59, 130, 246, 0.1)');
+  const colors = useThemeColors();
+  const textColor = getCssHsl("workout-text-primary", "#f8fafc");
+  const mutedTextColor = getCssHsl("workout-text-muted", "#94a3b8");
+  const popoverTextColor = getCssHsl("popover-foreground", "#f8fafc");
+  const gridColor = getCssHsl("border", "rgba(148, 163, 184, 0.22)", 0.45);
+  const borderColor = getCssHsl("ring", "rgba(59, 130, 246, 0.85)", 0.85);
+  const backgroundColor = getCssHsl("ring", "rgba(59, 130, 246, 0.12)", 0.12);
 
   if (!exerciseProgress || !exerciseProgress.dataPoints || exerciseProgress.dataPoints.length === 0) {
     return (
       <Box p={4} textAlign="center">
-        <Text color="gray.500">No progress data available for this exercise</Text>
+        <Text color={colors.textMuted}>
+          No progress data available for this exercise
+        </Text>
       </Box>
     );
   }
@@ -95,9 +112,9 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
         },
       },
       tooltip: {
-        backgroundColor: useColorModeValue('rgba(0, 0, 0, 0.8)', 'rgba(0, 0, 0, 0.9)'),
-        titleColor: 'white',
-        bodyColor: 'white',
+        backgroundColor: getCssHsl("popover", "rgba(15, 23, 42, 0.95)", 0.95),
+        titleColor: popoverTextColor,
+        bodyColor: popoverTextColor,
         borderColor: borderColor,
         borderWidth: 1,
         cornerRadius: 8,
@@ -130,7 +147,7 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
           color: gridColor,
         },
         ticks: {
-          color: textColor,
+          color: mutedTextColor,
           maxRotation: 45,
         },
       },
@@ -148,7 +165,7 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
           color: gridColor,
         },
         ticks: {
-          color: textColor,
+          color: mutedTextColor,
           callback: function(value) {
             return value + ' lbs';
           },
@@ -172,9 +189,11 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
       w="full" 
       h="400px" 
       p={4} 
-      bg={useColorModeValue('white', 'gray.800')}
+      bg={colors.card}
+      border="1px solid"
+      borderColor={colors.borderColorLight}
       borderRadius="lg"
-      boxShadow="md"
+      boxShadow="sm"
     >
       <Line data={chartData} options={options} />
     </Box>

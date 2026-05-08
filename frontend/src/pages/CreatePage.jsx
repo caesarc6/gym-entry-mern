@@ -224,11 +224,18 @@ const CreatePage = () => {
 
   const toast = useCustomToast();
 
-  const { createPost } = useProductStore();
+  const {
+    createPost,
+    addOptimisticPost,
+    replaceOptimisticPost,
+    removeOptimisticPost,
+  } = useProductStore();
+  const currentUserInfo = useProductStore((state) => state.currentUserInfo);
 
   const handleAddPost = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    let optimisticPostId = null;
 
     // get current user from auth
     try {
@@ -240,23 +247,54 @@ const CreatePage = () => {
       const currUser = currentUser.uid;
 
       const postWithUID = { ...newPost, uid: currUser };
+      const tempId = `optimistic-${Date.now()}`;
+      optimisticPostId = tempId;
+      const optimisticEntry = {
+        _id: tempId,
+        uid: currUser,
+        ownerId: currUser,
+        name: newPost.name,
+        description: newPost.description,
+        image: newPost.postImage || newPost.image || null,
+        likes: [],
+        comments: [],
+        createdAt: new Date().toISOString(),
+        authorProfile: {
+          uid: currUser,
+          profileImage:
+            currentUserInfo?.picture || currentUser.picture || "",
+          displayName:
+            currentUserInfo?.username ||
+            currentUserInfo?.name ||
+            currentUser.name ||
+            "You",
+          isUsername: Boolean(currentUserInfo?.username),
+        },
+        isOptimistic: true,
+      };
 
-      const { success, message } = await createPost(postWithUID);
+      addOptimisticPost(optimisticEntry);
+      setNewPost({ name: "", description: "", image: "", uid: "" });
+      navigate("/");
+
+      const { success, message, data } = await createPost(postWithUID);
 
       if (!success) {
+        removeOptimisticPost(tempId);
         toast.error("Error", message);
       } else {
-        toast.success("Success", message);
+        replaceOptimisticPost(tempId, data);
         try {
           localStorage.removeItem(draftStorageKey);
         } catch {
           // ignore
         }
-        // Redirect to the main page after successful entry creation
-        navigate("/"); // Replace "/" with the path to your main page
-        setNewPost({ name: "", description: "", image: "", uid: "" });
+        toast.success("Success", message);
       }
     } catch (error) {
+      if (optimisticPostId) {
+        removeOptimisticPost(optimisticPostId);
+      }
       toast.error("Error", error?.message || "Failed to create post.");
     } finally {
       setIsSubmitting(false);

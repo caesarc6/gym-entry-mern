@@ -2,7 +2,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Search } from "lucide-react";
 import { Button } from "./ui/button";
 import React, { useEffect, useRef, useState } from "react";
-import { useScroll, motion } from "framer-motion";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion, useScroll } from "framer-motion";
 import { cn } from "../lib/utils";
 import {
   HERO_OUTLINE_CTA_BUTTON_CLASSNAME,
@@ -61,13 +62,33 @@ export const HeroHeader = () => {
       ? NAV_OUTLINE_AUTH_BUTTON_LIGHT_CLASSNAME
       : HERO_OUTLINE_CTA_BUTTON_CLASSNAME;
 
-  /** Mobile drawer uses `bg-background` (light when color mode is light) — not the dark home nav bar */
+  const isLightTheme = currentTheme === "light";
+
+  /** Mobile drawer follows the app theme, not Chakra's color mode. */
   const mobileMenuAuthOutlineClassName =
-    colorMode === "light"
+    isLightTheme
       ? NAV_OUTLINE_AUTH_BUTTON_LIGHT_CLASSNAME
       : HERO_OUTLINE_CTA_BUTTON_CLASSNAME;
 
   const lightNavSurface = !isHome && currentTheme === "light";
+  const mobileDrawerSurfaceClassName =
+    currentTheme === "light"
+      ? "border-zinc-200 bg-white/90 text-zinc-900 shadow-zinc-900/20 backdrop-blur-xl"
+      : currentTheme === "dark-blue"
+        ? "border-blue-300/10 bg-slate-950/95 text-blue-50 shadow-black/40 backdrop-blur-xl"
+        : "border-white/10 bg-zinc-950/95 text-zinc-100 shadow-black/40 backdrop-blur-xl";
+  const mobileDrawerOptionTextClassName = "text-xs font-medium";
+  const mobileDrawerItemClassName = cn(
+    mobileDrawerOptionTextClassName,
+    isLightTheme
+      ? "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+      : currentTheme === "dark-blue"
+        ? "text-blue-100/80 hover:text-blue-100 hover:bg-blue-400/10"
+        : "text-gray-300 hover:text-blue-300 hover:bg-white/10",
+  );
+  const mobileDrawerLoadingClassName = isLightTheme
+    ? "bg-gray-200 text-gray-700"
+    : "bg-white/10 text-gray-200";
 
   // Search-related states
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -81,6 +102,7 @@ export const HeroHeader = () => {
   const searchRef = useRef(null);
   const dropdownRef = useRef(null);
   const navRef = useRef(null);
+  const drawerRef = useRef(null);
 
   // Function to close the mobile menu
   const closeMenu = () => setMenuState(false);
@@ -92,12 +114,15 @@ export const HeroHeader = () => {
   };
 
   // Animation variants for the mobile menu
-  const menuVariants = {
-    closed: { y: -20, opacity: 0 },
+  const backdropVariants = {
+    closed: { opacity: 0 },
+    open: { opacity: 1, transition: { duration: 0.2, ease: "easeOut" } },
+  };
+  const drawerVariants = {
+    closed: { x: "100%" },
     open: {
-      y: 0,
-      opacity: 1,
-      transition: { duration: 0.3, ease: "easeInOut" },
+      x: 0,
+      transition: { duration: 0.28, ease: "easeOut" },
     },
   };
 
@@ -163,7 +188,12 @@ export const HeroHeader = () => {
     if (!menuState) return;
 
     const handlePointerDown = (event) => {
-      if (navRef.current && !navRef.current.contains(event.target)) {
+      const target = event.target;
+      const clickedNav = navRef.current && navRef.current.contains(target);
+      const clickedDrawer =
+        drawerRef.current && drawerRef.current.contains(target);
+
+      if (!clickedNav && !clickedDrawer) {
         setMenuState(false);
       }
     };
@@ -173,6 +203,25 @@ export const HeroHeader = () => {
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [menuState]);
+
+  useEffect(() => {
+    if (!menuState) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setMenuState(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [menuState]);
 
@@ -835,145 +884,175 @@ export const HeroHeader = () => {
             </div>
 
             {/* Mobile Menu */}
-            <motion.div
-              variants={menuVariants}
-              initial="closed"
-              animate={menuState ? "open" : "closed"}
-              className={cn(
-                "w-full md:hidden",
-                menuState
-                  ? "block bg-background mb-6 rounded-xl border p-6 shadow-2xl shadow-zinc-400/20 mt-4"
-                  : "hidden",
-              )}
-            >
-              <div className="mt-1 flex flex-col space-y-3">
-                {isLoading ? (
-                  <Button
-                    disabled
-                    size="sm"
-                    className={cn(
-                      colorMode === "light"
-                        ? "bg-gray-200 text-gray-700"
-                        : "bg-gray-700 text-gray-200",
-                    )}
+            {createPortal(
+              <AnimatePresence>
+                {menuState && (
+                  <motion.div
+                    className="fixed inset-0 z-30 md:hidden"
+                    initial="closed"
+                    animate="open"
+                    exit="closed"
                   >
-                    Loading...
-                  </Button>
-                ) : isSignedIn ? (
-                  <>
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
-                      )}
+                    <motion.button
+                      type="button"
+                      aria-label="Close menu"
+                      className="absolute inset-0 h-full w-full bg-black/35 backdrop-blur-sm"
+                      variants={backdropVariants}
                       onClick={closeMenu}
-                    >
-                      <Link to="/profile" className="flex items-center gap-2">
-                        <RxAvatar className="!w-5 !h-5" />
-                        <span>Profile</span>
-                      </Link>
-                    </Button>
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
+                    />
+                    <motion.div
+                      ref={drawerRef}
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="Mobile navigation menu"
+                      variants={drawerVariants}
                       className={cn(
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
+                        "absolute right-0 top-0 flex h-[100dvh] w-[70vw] max-w-sm flex-col border-l p-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] shadow-2xl",
+                        mobileDrawerSurfaceClassName,
                       )}
-                      onClick={closeMenu}
+                      onClick={(event) => event.stopPropagation()}
                     >
-                      <Link to="/analytics" className="flex items-center gap-2">
-                        <Search className="!w-5 !h-5" />
-                        <span>Analytics</span>
-                      </Link>
-                    </Button>
-                    {hasTrainerDashboardAccess && (
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          colorMode === "light"
-                            ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                            : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
-                        )}
+                    <div className="mb-6 flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium uppercase tracking-[0.2em] text-current/60">
+                        Menu
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Close menu"
+                        className="rounded-full p-2 text-current/70 transition hover:bg-current/10 hover:text-current"
                         onClick={closeMenu}
                       >
-                        <Link
-                          to="/trainer/dashboard"
-                          className="flex items-center gap-2"
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col space-y-3">
+                      {isLoading ? (
+                        <Button
+                          disabled
+                          size="sm"
+                          className={mobileDrawerLoadingClassName}
                         >
-                          <FiUsers className="!w-5 !h-5" />
-                          <span>Trainer Dashboard</span>
-                        </Link>
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleSignOutAndClose}
-                      className={cn(
-                        colorMode === "light"
-                          ? "text-gray-500 bg-inherit hover:bg-gray-200"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
+                          Loading...
+                        </Button>
+                      ) : isSignedIn ? (
+                        <>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="sm"
+                            className={cn("justify-start", mobileDrawerItemClassName)}
+                            onClick={closeMenu}
+                          >
+                            <Link
+                              to="/profile"
+                              className="flex items-center gap-2"
+                            >
+                              <RxAvatar className="!w-5 !h-5" />
+                              <span>Profile</span>
+                            </Link>
+                          </Button>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="sm"
+                            className={cn("justify-start", mobileDrawerItemClassName)}
+                            onClick={closeMenu}
+                          >
+                            <Link
+                              to="/analytics"
+                              className="flex items-center gap-2"
+                            >
+                              <Search className="!w-5 !h-5" />
+                              <span>Analytics</span>
+                            </Link>
+                          </Button>
+                          {hasTrainerDashboardAccess && (
+                            <Button
+                              asChild
+                              variant="ghost"
+                              size="sm"
+                              className={cn(
+                                "justify-start",
+                                mobileDrawerItemClassName,
+                              )}
+                              onClick={closeMenu}
+                            >
+                              <Link
+                                to="/trainer/dashboard"
+                                className="flex items-center gap-2"
+                              >
+                                <FiUsers className="!w-5 !h-5" />
+                                <span>Trainer Dashboard</span>
+                              </Link>
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "w-full justify-start",
+                              mobileDrawerItemClassName,
+                            )}
+                            onClick={closeMenu}
+                          >
+                            <ThemeSelector
+                              onThemeChange={closeMenu}
+                              className={cn(
+                                "justify-start",
+                                mobileDrawerOptionTextClassName,
+                              )}
+                              inheritColor
+                            />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSignOutAndClose}
+                            className={cn(
+                              "justify-start",
+                              mobileDrawerItemClassName,
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <PiSignOutThin />
+                              <span>Sign Out</span>
+                            </div>
+                          </Button>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-stretch gap-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAuthNavigate("/login")}
+                            className={cn(
+                              mobileMenuAuthOutlineClassName,
+                              "w-full justify-center",
+                            )}
+                          >
+                            Login
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAuthNavigate("/signup")}
+                            className={cn(
+                              mobileMenuAuthOutlineClassName,
+                              "w-full justify-center",
+                            )}
+                          >
+                            Sign Up
+                          </Button>
+                        </div>
                       )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <PiSignOutThin />
-                        <span>Sign Out</span>
-                      </div>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "w-full justify-center",
-                        colorMode === "light"
-                          ? "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                          : "text-gray-500 hover:text-blue-400 hover:bg-gray-200",
-                      )}
-                      onClick={closeMenu}
-                    >
-                      <ThemeSelector
-                        onThemeChange={closeMenu}
-                        className="w-full"
-                      />
-                    </Button>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAuthNavigate("/login")}
-                      className={cn(
-                        mobileMenuAuthOutlineClassName,
-                        "w-auto min-w-[8.75rem] max-w-[16rem] justify-center",
-                      )}
-                    >
-                      Login
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAuthNavigate("/signup")}
-                      className={cn(
-                        mobileMenuAuthOutlineClassName,
-                        "w-auto min-w-[8.75rem] max-w-[16rem] justify-center",
-                      )}
-                    >
-                      Sign Up
-                    </Button>
-                  </div>
+                    </div>
+                    </motion.div>
+                  </motion.div>
                 )}
-              </div>
-            </motion.div>
+              </AnimatePresence>,
+              document.body,
+            )}
           </motion.div>
         </div>
       </nav>

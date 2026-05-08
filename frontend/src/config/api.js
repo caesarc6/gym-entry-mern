@@ -42,7 +42,10 @@ export const API_ENDPOINTS = {
   GET_CURRENT_USER: buildApiUrl("getCurrentUser"),
 
   // User endpoints
-  GET_USER_PROFILE: (uid) => buildApiUrl(`getUserProfile/${uid}`),
+  GET_USER_PROFILE: (uid, { includePosts = false } = {}) =>
+    buildApiUrl(
+      `getUserProfile/${uid}?includePosts=${includePosts ? "true" : "false"}`,
+    ),
   UPDATE_USER_PROFILE: buildApiUrl("updateUserProfile"),
   UPDATE_USER_BACKGROUND: buildApiUrl("updateUserBackgroundPicture"),
   GET_CURRENT_MONGODB_USER: buildApiUrl("getCurrentMongoDBUser"),

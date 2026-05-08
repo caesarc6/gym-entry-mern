@@ -22,6 +22,9 @@ const LEGACY_THEME_STORAGE_KEY = "theme";
 const THEME_CLASSES = ["light", "dark", "dark-black", "dark-blue"];
 const EXPLICIT_THEMES = ["light", "dark", "dark-black", "dark-blue"];
 const DEFAULT_THEME_MODE = "system";
+const THEME_TRANSITION_CLASS = "theme-transition";
+const THEME_FADE_CLASS = "theme-fade-overlay";
+const THEME_TRANSITION_MS = 520;
 
 const getSystemPrefersDark = () => {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -64,6 +67,8 @@ export const ThemeProvider = ({ children }) => {
   );
 
   useEffect(() => {
+    let transitionTimer;
+
     // Save preference to localStorage (keep legacy key in sync for older code paths)
     try {
       localStorage.setItem(THEME_MODE_STORAGE_KEY, themeMode);
@@ -72,12 +77,7 @@ export const ThemeProvider = ({ children }) => {
       // Ignore storage errors
     }
 
-    const apply = (appliedTheme) => {
-      setCurrentTheme(appliedTheme);
-
-      // Apply theme to document
-      const root = document.documentElement;
-
+    const applyThemeClasses = (root, appliedTheme) => {
       // Remove all theme classes
       root.classList.remove(...THEME_CLASSES);
 
@@ -94,9 +94,47 @@ export const ThemeProvider = ({ children }) => {
       }
     };
 
+    const apply = (appliedTheme) => {
+      // Apply theme to document
+      const root = document.documentElement;
+      const canAnimate =
+        root.dataset.themeReady === "true" &&
+        !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      if (canAnimate) {
+        window.clearTimeout(transitionTimer);
+        const previousBackground =
+          window.getComputedStyle(document.body).backgroundColor ||
+          window.getComputedStyle(root).backgroundColor;
+        root.style.setProperty("--theme-fade-color", previousBackground);
+        root.classList.add(THEME_TRANSITION_CLASS);
+        root.classList.add(THEME_FADE_CLASS);
+      }
+
+      setCurrentTheme(appliedTheme);
+      applyThemeClasses(root, appliedTheme);
+
+      root.dataset.themeReady = "true";
+
+      if (canAnimate) {
+        transitionTimer = window.setTimeout(() => {
+          root.classList.remove(THEME_TRANSITION_CLASS);
+          root.classList.remove(THEME_FADE_CLASS);
+          root.style.removeProperty("--theme-fade-color");
+        }, THEME_TRANSITION_MS);
+      }
+    };
+
     apply(resolveAppliedTheme(themeMode));
 
-    if (themeMode !== "system") return;
+    if (themeMode !== "system") {
+      return () => {
+        window.clearTimeout(transitionTimer);
+        document.documentElement.classList.remove(THEME_TRANSITION_CLASS);
+        document.documentElement.classList.remove(THEME_FADE_CLASS);
+        document.documentElement.style.removeProperty("--theme-fade-color");
+      };
+    }
 
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
       return;
@@ -106,10 +144,22 @@ export const ThemeProvider = ({ children }) => {
     const handler = () => apply(resolveAppliedTheme("system"));
     if (typeof media.addEventListener === "function") {
       media.addEventListener("change", handler);
-      return () => media.removeEventListener("change", handler);
+      return () => {
+        media.removeEventListener("change", handler);
+        window.clearTimeout(transitionTimer);
+        document.documentElement.classList.remove(THEME_TRANSITION_CLASS);
+        document.documentElement.classList.remove(THEME_FADE_CLASS);
+        document.documentElement.style.removeProperty("--theme-fade-color");
+      };
     }
     media.addListener(handler);
-    return () => media.removeListener(handler);
+    return () => {
+      media.removeListener(handler);
+      window.clearTimeout(transitionTimer);
+      document.documentElement.classList.remove(THEME_TRANSITION_CLASS);
+      document.documentElement.classList.remove(THEME_FADE_CLASS);
+      document.documentElement.style.removeProperty("--theme-fade-color");
+    };
   }, [themeMode]);
 
   const setTheme = useCallback((theme) => {
