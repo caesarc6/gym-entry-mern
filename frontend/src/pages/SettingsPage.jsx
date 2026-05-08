@@ -666,8 +666,8 @@ const SettingsPage = () => {
                   }
                   transition={
                     themeDragX === null
-                      ? "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 180ms ease"
-                      : "background-color 180ms ease"
+                      ? "transform 820ms cubic-bezier(0.42, 0, 0.58, 1), background-color 820ms cubic-bezier(0.42, 0, 0.58, 1)"
+                      : "background-color 820ms cubic-bezier(0.42, 0, 0.58, 1)"
                   }
                 />
                 {THEME_OPTIONS.map((option, index) => {

@@ -3,9 +3,17 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
+
+import {
+  THEME_CHROME_TRANSITION_CLASS,
+  THEME_CHROME_TRANSITION_MS,
+} from "../constants/themeShellTiming.js";
 
 const ThemeContext = createContext();
 
@@ -22,9 +30,6 @@ const LEGACY_THEME_STORAGE_KEY = "theme";
 const THEME_CLASSES = ["light", "dark", "dark-black", "dark-blue"];
 const EXPLICIT_THEMES = ["light", "dark", "dark-black", "dark-blue"];
 const DEFAULT_THEME_MODE = "system";
-const THEME_TRANSITION_CLASS = "theme-transition";
-const THEME_FADE_CLASS = "theme-fade-overlay";
-const THEME_TRANSITION_MS = 520;
 
 const getSystemPrefersDark = () => {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -49,6 +54,28 @@ const resolveAppliedTheme = (mode) => {
   return resolveAppliedTheme(DEFAULT_THEME_MODE);
 };
 
+/** Apply theme classes without ever leaving `html` without light/dark (avoids :root light flash). */
+const applyThemeClasses = (root, appliedTheme) => {
+  const next = new Set();
+  if (appliedTheme === "light") {
+    next.add("light");
+  } else {
+    next.add("dark");
+    if (appliedTheme === "dark-black") {
+      next.add("dark-black");
+    } else if (appliedTheme === "dark-blue") {
+      next.add("dark-blue");
+    }
+  }
+  for (const c of THEME_CLASSES) {
+    if (next.has(c)) {
+      root.classList.add(c);
+    } else {
+      root.classList.remove(c);
+    }
+  }
+};
+
 export const ThemeProvider = ({ children }) => {
   const [themeMode, setThemeMode] = useState(() => {
     // Prefer new key; fall back to legacy key.
@@ -66,10 +93,60 @@ export const ThemeProvider = ({ children }) => {
     )
   );
 
-  useEffect(() => {
-    let transitionTimer;
+  /** Last palette actually applied on `document.documentElement` (not the user's mode preference). */
+  const lastAppliedResolvedRef = useRef(null);
 
-    // Save preference to localStorage (keep legacy key in sync for older code paths)
+  const chromeTransitionTimerRef = useRef(null);
+
+  useEffect(
+    () => () => {
+      if (chromeTransitionTimerRef.current !== null) {
+        window.clearTimeout(chromeTransitionTimerRef.current);
+      }
+    },
+    []
+  );
+
+  const applyResolvedTheme = useCallback((appliedTheme) => {
+    const root = document.documentElement;
+
+    const alreadyApplied =
+      lastAppliedResolvedRef.current !== null &&
+      lastAppliedResolvedRef.current === appliedTheme;
+
+    if (alreadyApplied) {
+      flushSync(() => {
+        setCurrentTheme(appliedTheme);
+      });
+      root.dataset.themeReady = "true";
+      return;
+    }
+
+    const reducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const prevResolved = lastAppliedResolvedRef.current;
+    if (prevResolved !== null && prevResolved !== appliedTheme && !reducedMotion) {
+      root.classList.add(THEME_CHROME_TRANSITION_CLASS);
+      if (chromeTransitionTimerRef.current !== null) {
+        window.clearTimeout(chromeTransitionTimerRef.current);
+      }
+      chromeTransitionTimerRef.current = window.setTimeout(() => {
+        root.classList.remove(THEME_CHROME_TRANSITION_CLASS);
+        chromeTransitionTimerRef.current = null;
+      }, THEME_CHROME_TRANSITION_MS);
+    }
+
+    applyThemeClasses(root, appliedTheme);
+    flushSync(() => {
+      setCurrentTheme(appliedTheme);
+    });
+    lastAppliedResolvedRef.current = appliedTheme;
+    root.dataset.themeReady = "true";
+  }, []);
+
+  useLayoutEffect(() => {
     try {
       localStorage.setItem(THEME_MODE_STORAGE_KEY, themeMode);
       localStorage.setItem(LEGACY_THEME_STORAGE_KEY, themeMode);
@@ -77,90 +154,33 @@ export const ThemeProvider = ({ children }) => {
       // Ignore storage errors
     }
 
-    const applyThemeClasses = (root, appliedTheme) => {
-      // Remove all theme classes
-      root.classList.remove(...THEME_CLASSES);
+    applyResolvedTheme(resolveAppliedTheme(themeMode));
+  }, [applyResolvedTheme, themeMode]);
 
-      // Add current theme class
-      if (appliedTheme === "light") {
-        root.classList.add("light");
-      } else {
-        root.classList.add("dark");
-        if (appliedTheme === "dark-black") {
-          root.classList.add("dark-black");
-        } else if (appliedTheme === "dark-blue") {
-          root.classList.add("dark-blue");
-        }
-      }
-    };
-
-    const apply = (appliedTheme) => {
-      // Apply theme to document
-      const root = document.documentElement;
-      const canAnimate =
-        root.dataset.themeReady === "true" &&
-        !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-      if (canAnimate) {
-        window.clearTimeout(transitionTimer);
-        const previousBackground =
-          window.getComputedStyle(document.body).backgroundColor ||
-          window.getComputedStyle(root).backgroundColor;
-        root.style.setProperty("--theme-fade-color", previousBackground);
-        root.classList.add(THEME_TRANSITION_CLASS);
-        root.classList.add(THEME_FADE_CLASS);
-      }
-
-      setCurrentTheme(appliedTheme);
-      applyThemeClasses(root, appliedTheme);
-
-      root.dataset.themeReady = "true";
-
-      if (canAnimate) {
-        transitionTimer = window.setTimeout(() => {
-          root.classList.remove(THEME_TRANSITION_CLASS);
-          root.classList.remove(THEME_FADE_CLASS);
-          root.style.removeProperty("--theme-fade-color");
-        }, THEME_TRANSITION_MS);
-      }
-    };
-
-    apply(resolveAppliedTheme(themeMode));
-
-    if (themeMode !== "system") {
-      return () => {
-        window.clearTimeout(transitionTimer);
-        document.documentElement.classList.remove(THEME_TRANSITION_CLASS);
-        document.documentElement.classList.remove(THEME_FADE_CLASS);
-        document.documentElement.style.removeProperty("--theme-fade-color");
-      };
-    }
-
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return;
+  useEffect(() => {
+    if (
+      themeMode !== "system" ||
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      return undefined;
     }
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => apply(resolveAppliedTheme("system"));
+    const handler = () =>
+      applyResolvedTheme(resolveAppliedTheme("system"));
+
     if (typeof media.addEventListener === "function") {
       media.addEventListener("change", handler);
       return () => {
         media.removeEventListener("change", handler);
-        window.clearTimeout(transitionTimer);
-        document.documentElement.classList.remove(THEME_TRANSITION_CLASS);
-        document.documentElement.classList.remove(THEME_FADE_CLASS);
-        document.documentElement.style.removeProperty("--theme-fade-color");
       };
     }
     media.addListener(handler);
     return () => {
       media.removeListener(handler);
-      window.clearTimeout(transitionTimer);
-      document.documentElement.classList.remove(THEME_TRANSITION_CLASS);
-      document.documentElement.classList.remove(THEME_FADE_CLASS);
-      document.documentElement.style.removeProperty("--theme-fade-color");
     };
-  }, [themeMode]);
+  }, [applyResolvedTheme, themeMode]);
 
   const setTheme = useCallback((theme) => {
     // Backward compatible: selecting a concrete theme disables system mode.

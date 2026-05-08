@@ -5,6 +5,7 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { BrowserRouter } from "react-router-dom";
 import theme from "./theme/chakraTheme.js";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
+import { CanvasShellProvider } from "./contexts/CanvasShellContext.jsx";
 import { Toaster } from "./components/ui/sonner";
 import ErrorBoundary from "./components/system/ErrorBoundary.jsx";
 // Expose auth helpers to window for console debugging
@@ -51,12 +52,14 @@ createRoot(document.getElementById("root")).render(
       }}
     >
       <ThemeProvider>
-        <ChakraProvider theme={theme}>
-          <ErrorBoundary>
-            <App />
-          </ErrorBoundary>
-          <Toaster />
-        </ChakraProvider>
+        <CanvasShellProvider>
+          <ChakraProvider theme={theme}>
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
+            <Toaster />
+          </ChakraProvider>
+        </CanvasShellProvider>
       </ThemeProvider>
     </BrowserRouter>
   </StrictMode>

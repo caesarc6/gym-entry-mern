@@ -1,7 +1,9 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Search } from "lucide-react";
 import { Button } from "./ui/button";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../firebase";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useScroll } from "framer-motion";
 import { cn } from "../lib/utils";
@@ -34,6 +36,7 @@ import {
 import { debounce } from "lodash";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useTheme } from "../contexts/ThemeContext";
+import { useCanvasShell, hexAlpha } from "../contexts/CanvasShellContext.jsx";
 import ThemeSelector from "./ThemeSelector";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
@@ -51,6 +54,8 @@ export const HeroHeader = () => {
   const { scrollYProgress } = useScroll();
   const { colorMode } = useColorMode();
   const { currentTheme, setTheme } = useTheme();
+  const { paintHex, prefersReducedMotion, transition: canvasTransition } =
+    useCanvasShell();
   const colors = useThemeColors();
   const toast = useCustomToast();
   const navigate = useNavigate();
@@ -103,6 +108,8 @@ export const HeroHeader = () => {
   const dropdownRef = useRef(null);
   const navRef = useRef(null);
   const drawerRef = useRef(null);
+  const authSyncGenerationRef = useRef(0);
+  const skipNextPathnameAuthSyncRef = useRef(true);
 
   // Function to close the mobile menu
   const closeMenu = () => setMenuState(false);
@@ -225,9 +232,14 @@ export const HeroHeader = () => {
     };
   }, [menuState]);
 
-  React.useEffect(() => {
-    const syncAuthState = async () => {
+  const syncAuthState = useCallback(async (showFullLoading = true) => {
+    const gen = ++authSyncGenerationRef.current;
+    if (showFullLoading) {
+      setIsLoading(true);
+    }
+    try {
       const user = await getCurrentAuthUser();
+      if (gen !== authSyncGenerationRef.current) return;
       if (user) {
         setIsSignedIn(true);
         setUid(user.uid);
@@ -241,10 +253,15 @@ export const HeroHeader = () => {
         setHasTrainerDashboardAccess(false);
         setCurrentUser(null);
       }
-      setIsLoading(false);
-    };
+    } finally {
+      if (gen === authSyncGenerationRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
 
-    syncAuthState();
+  React.useEffect(() => {
+    void syncAuthState(true);
 
     const {
       data: { subscription },
@@ -267,13 +284,31 @@ export const HeroHeader = () => {
         setUid(user.uid);
         setUserName(user.name || "User");
         setCurrentUser(user);
+        setIsLoading(false);
       } else {
-        syncAuthState();
+        void syncAuthState(false);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    const unsubFirebase = onAuthStateChanged(auth, () => {
+      void syncAuthState(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      unsubFirebase();
+    };
+  }, [syncAuthState]);
+
+  // After login/signup/OAuth, route changes can happen before Supabase events reach this component;
+  // re-resolve the user from storage without flashing the full nav loading state.
+  React.useEffect(() => {
+    if (skipNextPathnameAuthSyncRef.current) {
+      skipNextPathnameAuthSyncRef.current = false;
+      return;
+    }
+    void syncAuthState(false);
+  }, [location.pathname, syncAuthState]);
 
   // Check trainer dashboard access when user is signed in
   React.useEffect(() => {
@@ -344,17 +379,24 @@ export const HeroHeader = () => {
       <nav ref={navRef} className="fixed z-20 w-full">
         <div
           className={cn(
-            "mx-auto max-w-7xl border-b px-6 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl lg:px-12",
+            "mx-auto max-w-7xl border-b px-6 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:px-12",
             isHome
-              ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88"
+              ? "border-[rgb(39_39_42_/_6%)]"
               : currentTheme === "light"
-                ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
+                ? "border-zinc-200/80 shadow-sm"
                 : currentTheme === "dark-black"
-                  ? "border-neutral-800/55 bg-neutral-950/88"
+                  ? "border-neutral-800/55"
                   : currentTheme === "dark-blue"
-                    ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
-                    : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
+                    ? "border-[rgb(39_39_42_/_6%)]"
+                    : "border-[rgb(39_39_42_/_6%)]",
           )}
+          style={{
+            backgroundColor: hexAlpha(
+              paintHex,
+              !isHome && currentTheme === "light" ? 0.92 : 0.88
+            ),
+            transition: prefersReducedMotion ? undefined : canvasTransition,
+          }}
         >
           <motion.div
             className={cn(

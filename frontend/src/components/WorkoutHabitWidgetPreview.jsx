@@ -154,7 +154,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
               {currentStreak}
             </Text>
             <Text color={mutedColor} fontSize="xs" textTransform="uppercase">
-              day streak
+              streak
             </Text>
           </Box>
         </Flex>
@@ -241,7 +241,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
 
         <Flex justify="space-between" align="center" gap={3} flexWrap="wrap">
           <Text color={mutedColor} fontSize="sm">
-            {workoutCount} active days in the last 30 days
+            {workoutCount} of 30 days
           </Text>
           {(error || widgetSyncLabel) && (
             <Text color={error ? "red.400" : mutedColor} fontSize="sm">

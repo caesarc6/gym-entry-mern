@@ -40,7 +40,7 @@ export default function MobileAppShell({ children }) {
   }, [currentUser]);
 
   return (
-    <div className="min-h-[100dvh] bg-background text-foreground">
+    <div className="min-h-[100dvh] bg-transparent text-foreground">
       <main className="pb-[calc(64px+env(safe-area-inset-bottom))]">{children}</main>
       <BottomTabBar />
     </div>

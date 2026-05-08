@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { HeroHeader } from "./components/hero9-header";
 import "./index.css";
-import { useTheme } from "./contexts/ThemeContext";
+import { useCanvasShell } from "./contexts/CanvasShellContext.jsx";
 import MobileAppShell from "./components/MobileAppShell";
 import RequireAuth from "./routes/RequireAuth";
 import { useProductStore } from "./store/product";
@@ -177,35 +177,15 @@ function NativeTabsLayout() {
 }
 
 function App() {
-  const { currentTheme } = useTheme();
   const isCapacitorNative = getIsCapacitorNative();
+  const { paintHex, prefersReducedMotion, transition } = useCanvasShell();
 
-  const getBackgroundStyle = () => {
-    switch (currentTheme) {
-      case "light":
-        return {
-          bgGradient: "linear(235deg, #e5e7eb, #f3f4f6, #e5e7eb)",
-          backgroundAttachment: "fixed",
-        };
-      case "dark":
-        return { bg: "#070708" };
-      case "dark-black":
-        return {
-          bgGradient: "linear(305deg, #000000, #0f0f10, #000000)",
-          backgroundAttachment: "fixed",
-        };
-      case "dark-blue":
-        return {
-          bg: "#050508",
-          backgroundAttachment: "fixed",
-        };
-      default:
-        return { bg: "gray.200" };
-    }
-  };
+  const shellBgStyle = prefersReducedMotion
+    ? { backgroundColor: paintHex }
+    : { backgroundColor: paintHex, transition };
 
   return (
-    <Box minH={"100vh"} {...getBackgroundStyle()}>
+    <Box minH="100dvh" w="100%" style={shellBgStyle}>
       {!isCapacitorNative && <HeroHeader />}
       {isCapacitorNative ? (
         <MobileAppShell>

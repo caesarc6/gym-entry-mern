@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
+import { hexAlpha, useCanvasShell } from "../contexts/CanvasShellContext.jsx";
 import { Home, PlusSquare, BarChart3, User } from "lucide-react";
 
 const tabs = [
@@ -17,6 +18,11 @@ function isActivePath(pathname, to) {
 export default function BottomTabBar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { paintHex, prefersReducedMotion, transition } = useCanvasShell();
+
+  const barStyle = prefersReducedMotion
+    ? { backgroundColor: hexAlpha(paintHex, 0.9) }
+    : { backgroundColor: hexAlpha(paintHex, 0.9), transition };
 
   return (
     <nav
@@ -24,9 +30,10 @@ export default function BottomTabBar() {
       aria-label="Bottom navigation"
       className={cn(
         "fixed inset-x-0 bottom-0 z-50",
-        "border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+        "border-t border-border backdrop-blur supports-[backdrop-filter]:backdrop-blur",
         "pb-[env(safe-area-inset-bottom)]",
       )}
+      style={barStyle}
     >
       <div className="mx-auto flex max-w-3xl items-stretch justify-between px-2">
         {tabs.map(({ key, label, to, Icon }) => {

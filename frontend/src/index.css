@@ -139,60 +139,23 @@
   * {
     @apply border-border;
   }
+  html {
+    height: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
+    min-height: 100%;
   }
 
-  html.theme-transition,
-  html.theme-transition body,
-  html.theme-transition body *,
-  html.theme-transition body *::before,
-  html.theme-transition body *::after {
-    transition:
-      background-color 520ms ease,
-      color 520ms ease,
-      border-color 520ms ease,
-      box-shadow 520ms ease,
-      fill 520ms ease,
-      stroke 520ms ease;
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 
-  html.theme-fade-overlay::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 2147483647;
-    pointer-events: none;
-    background: var(--theme-fade-color, hsl(var(--background)));
-    animation: theme-fade-away 520ms ease forwards;
-  }
-
-  @keyframes theme-fade-away {
-    from {
-      opacity: 1;
-    }
-    to {
-      opacity: 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    html.theme-transition,
-    html.theme-transition body,
-    html.theme-transition body *,
-    html.theme-transition body *::before,
-    html.theme-transition body *::after {
-      transition: none;
-    }
-
-    html.theme-fade-overlay::before {
-      animation: none;
-      opacity: 0;
-    }
-  }
+  /* Theme chrome transitions: defined unlayered at end of file so they beat Tailwind `transition-*` utilities */
 }
 
-/* Mobile float animation - more specific to override Tailwind */
 @keyframes mobileFloat {
   0%,
   100% {
@@ -264,6 +227,41 @@
 
 .animate-blob-reverse {
   animation: blob-reverse 8s ease-in-out infinite;
+}
+
+/*
+ * Unlayered (wins over @layer utilities): while ThemeContext sets html.theme-chrome-transition
+ * before flipping palette classes, overrides component `transition-colors` / Chakra shorthands.
+ */
+html.theme-chrome-transition *,
+html.theme-chrome-transition *::before,
+html.theme-chrome-transition *::after {
+  transition-property:
+    border-color,
+    outline-color,
+    outline-width,
+    outline-offset,
+    box-shadow,
+    background-color,
+    color,
+    fill,
+    stroke,
+    text-decoration-color,
+    column-rule-color;
+  transition-duration: var(--theme-shell-duration, 1.35s);
+  transition-delay: var(--theme-shell-delay, 0.42s);
+  transition-timing-function: var(
+    --theme-shell-ease,
+    cubic-bezier(0.42, 0, 0.58, 1)
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-chrome-transition *,
+  html.theme-chrome-transition *::before,
+  html.theme-chrome-transition *::after {
+    transition: none !important;
+  }
 }
 
 /* Button styles */
