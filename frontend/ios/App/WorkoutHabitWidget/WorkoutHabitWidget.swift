@@ -119,6 +119,7 @@ struct WorkoutHabitWidgetView: View {
                 smallLayout
             }
         }
+        .animation(.easeInOut(duration: 1.0), value: colorScheme)
         .padding(.horizontal, family == .systemSmall ? 6 : 9)
         .padding(.vertical, family == .systemSmall ? 8 : 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

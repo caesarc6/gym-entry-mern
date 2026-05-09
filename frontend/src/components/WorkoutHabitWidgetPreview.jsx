@@ -6,7 +6,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
-import { useTheme } from "../contexts/ThemeContext";
+import { useThemeColors } from "../hooks/useThemeColors";
 import {
   canSyncWorkoutHabitWidget,
   fetchWorkoutHabitSummary,
@@ -45,19 +45,10 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
   const [error, setError] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null);
   const canSyncIosWidget = canSyncWorkoutHabitWidget();
-  const { currentTheme } = useTheme();
-  const isLightTheme = currentTheme === "light";
-
-  const cardBg = isLightTheme
-    ? "linear-gradient(235deg, #f8fafc, #e5e7eb, #f3f4f6)"
-    : "linear-gradient(135deg, #070708, #0d1117, #111827)";
-  const borderColor = isLightTheme ? "gray.200" : "whiteAlpha.200";
-  const textColor = isLightTheme ? "gray.800" : "white";
-  const mutedColor = isLightTheme ? "gray.600" : "gray.400";
-  const emptyCellBg = "rgba(255, 255, 255, 0.94)";
-  const activeCellBlur = isLightTheme
-    ? "rgba(20, 30, 44, 0.8)"
-    : "rgba(8, 14, 22, 0.9)";
+  const colors = useThemeColors();
+  const cellEmpty = "hsl(var(--card) / 0.92)";
+  const cellActive = "hsl(var(--primary) / 0.11)";
+  const activeCellBlur = "hsl(var(--primary) / 0.52)";
 
   useEffect(() => {
     let ignore = false;
@@ -128,9 +119,9 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
       mx="auto"
       rounded="3xl"
       border="1px solid"
-      borderColor={borderColor}
-      bg={cardBg}
-      color={textColor}
+      borderColor={colors.borderColor}
+      bg={colors.bgCard}
+      color={colors.textPrimary}
       p={{ base: 4, md: 5 }}
       textAlign="left"
       shadow="xl"
@@ -145,7 +136,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
             >
               Workout widget
             </Text>
-            <Text color={mutedColor} fontSize="sm">
+            <Text color={colors.textMuted} fontSize="sm">
               Last workout: {lastWorkoutName} - {lastWorkoutAt}
             </Text>
           </Box>
@@ -153,7 +144,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
             <Text fontSize="2xl" fontWeight="black" lineHeight="1">
               {currentStreak}
             </Text>
-            <Text color={mutedColor} fontSize="xs" textTransform="uppercase">
+            <Text color={colors.textMuted} fontSize="xs" textTransform="uppercase">
               streak
             </Text>
           </Box>
@@ -172,7 +163,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
                   title={`${day.date}: ${day.workedOut ? "Workout logged" : "No workout"}`}
                   aspectRatio="1"
                   rounded="0"
-                  bg={day.workedOut ? "rgba(38, 53, 71, 0.14)" : emptyCellBg}
+                  bg={day.workedOut ? cellActive : cellEmpty}
                 />
               ))}
             </Box>
@@ -240,11 +231,11 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
         </Skeleton>
 
         <Flex justify="space-between" align="center" gap={3} flexWrap="wrap">
-          <Text color={mutedColor} fontSize="sm">
+          <Text color={colors.textMuted} fontSize="sm">
             {workoutCount} of 30 days
           </Text>
           {(error || widgetSyncLabel) && (
-            <Text color={error ? "red.400" : mutedColor} fontSize="sm">
+            <Text color={error ? "red.400" : colors.textMuted} fontSize="sm">
               {error || widgetSyncLabel}
             </Text>
           )}

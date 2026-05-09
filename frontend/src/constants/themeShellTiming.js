@@ -6,8 +6,8 @@
 export const THEME_CHROME_TRANSITION_CLASS = "theme-chrome-transition";
 
 export const THEME_SHELL_EASING = "cubic-bezier(0.42, 0, 0.58, 1)";
-export const THEME_SHELL_DURATION_MS = 1350;
-export const THEME_SHELL_DELAY_MS = 420;
+export const THEME_SHELL_DURATION_MS = 1000;
+export const THEME_SHELL_DELAY_MS = 700;
 
 /** How long html.theme-chrome-transition stays: delay + duration + buffer. */
 export const THEME_CHROME_TRANSITION_MS =

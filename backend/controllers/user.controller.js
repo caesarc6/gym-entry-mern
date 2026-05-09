@@ -1796,6 +1796,13 @@ export const acceptFollowRequest = async (req, res) => {
       });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(requestId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid follow request id",
+      });
+    }
+
     const followRequest = await FollowRequest.findById(requestId)
       .populate("requester", "uid name username picture")
       .populate("recipient", "uid name username picture");
@@ -1815,39 +1822,73 @@ export const acceptFollowRequest = async (req, res) => {
       });
     }
 
-    if (followRequest.status !== "pending") {
+    if (followRequest.status === "rejected") {
       return res.status(400).json({
         success: false,
         message: "Request is not pending",
       });
     }
 
-    // Update request status
-    followRequest.status = "approved";
-    await followRequest.save();
+    let approvedRequest = followRequest;
+    let alreadyAccepted = followRequest.status === "approved";
 
-    // Add to followers/following
-    const requester = await User.findById(followRequest.requester._id);
-    const recipient = await User.findById(followRequest.recipient._id);
+    // Only one in-flight accept can transition pending → approved (avoids duplicate followers/following under concurrency).
+    if (!alreadyAccepted) {
+      const updated = await FollowRequest.findOneAndUpdate(
+        {
+          _id: requestId,
+          recipient: user._id,
+          status: "pending",
+        },
+        { $set: { status: "approved" } },
+        { new: true }
+      )
+        .populate("requester", "uid name username picture")
+        .populate("recipient", "uid name username picture");
 
-    if (!requester.following.includes(recipient._id)) {
-      requester.following.push(recipient._id);
+      if (updated) {
+        approvedRequest = updated;
+      } else {
+        const fresh = await FollowRequest.findById(requestId)
+          .populate("requester", "uid name username picture")
+          .populate("recipient", "uid name username picture");
+        if (
+          fresh?.status === "approved" &&
+          fresh.recipient._id.equals(user._id)
+        ) {
+          approvedRequest = fresh;
+          alreadyAccepted = true;
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: "Request is not pending",
+          });
+        }
+      }
     }
-    if (!recipient.followers.includes(requester._id)) {
-      recipient.followers.push(requester._id);
-    }
 
-    await requester.save();
-    await recipient.save();
+    const requesterId = approvedRequest.requester._id;
+    const recipientId = approvedRequest.recipient._id;
+
+    await User.updateOne(
+      { _id: requesterId },
+      { $addToSet: { following: recipientId } }
+    );
+    await User.updateOne(
+      { _id: recipientId },
+      { $addToSet: { followers: requesterId } }
+    );
 
     res.status(200).json({
       success: true,
-      message: "Follow request accepted",
+      message: alreadyAccepted
+        ? "Follow request already accepted"
+        : "Follow request accepted",
       requester: {
-        uid: requester.uid,
-        name: requester.name,
-        username: requester.username,
-        picture: requester.picture,
+        uid: approvedRequest.requester.uid,
+        name: approvedRequest.requester.name,
+        username: approvedRequest.requester.username,
+        picture: approvedRequest.requester.picture,
       },
     });
   } catch (error) {

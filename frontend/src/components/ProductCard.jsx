@@ -1420,7 +1420,6 @@ const ProductCard = ({
         bg={colors.bgCard}
         borderRadius="4px"
         overflow="hidden"
-        transition="all .33s ease-in-out"
         _hover={{
           shadow:
             colors.currentTheme === "light"
