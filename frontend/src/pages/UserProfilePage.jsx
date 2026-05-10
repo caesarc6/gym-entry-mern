@@ -528,8 +528,9 @@ const UserProfilePage = () => {
             <SimpleGrid
               columns={{ base: 1, md: 2, lg: 3 }}
               spacing={6}
-              alignItems="center"
-              justifyItems="center"
+              w="full"
+              alignItems="stretch"
+              justifyItems="stretch"
             >
               {entries.map((entry, index) => (
                 <ProductCard

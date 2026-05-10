@@ -133,6 +133,9 @@ export const HeroHeader = () => {
     },
   };
 
+  const DRAWER_SWIPE_CLOSE_OFFSET_PX = 56;
+  const DRAWER_SWIPE_CLOSE_VELOCITY = 400;
+
   // Search users function
   const searchUsers = debounce(async (query) => {
     if (!query.trim()) {
@@ -948,6 +951,20 @@ export const HeroHeader = () => {
                       aria-modal="true"
                       aria-label="Mobile navigation menu"
                       variants={drawerVariants}
+                      drag={prefersReducedMotion ? false : "x"}
+                      dragDirectionLock
+                      dragConstraints={{ left: 0, right: 280 }}
+                      dragElastic={0.08}
+                      dragMomentum={false}
+                      onDragEnd={(_event, info) => {
+                        if (prefersReducedMotion) return;
+                        if (
+                          info.offset.x > DRAWER_SWIPE_CLOSE_OFFSET_PX ||
+                          info.velocity.x > DRAWER_SWIPE_CLOSE_VELOCITY
+                        ) {
+                          closeMenu();
+                        }
+                      }}
                       className={cn(
                         "absolute right-0 top-0 flex h-[100dvh] w-[70vw] max-w-sm flex-col border-l p-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] shadow-2xl",
                         mobileDrawerSurfaceClassName,

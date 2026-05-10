@@ -471,8 +471,8 @@ const HomePage = () => {
                       }}
                       spacing={10}
                       w={"full"}
-                      alignItems="center"
-                      justifyItems="center"
+                      alignItems="stretch"
+                      justifyItems="stretch"
                     >
                       {entries.map((entry, index) => (
                         <ProductCard

@@ -70,6 +70,48 @@ const EDIT_SERVER_AUTOSAVE_DEBOUNCE_MS = 1400;
 /** If the user keeps typing across a save, at most this many PUTs per “wave” (safety cap). */
 const EDIT_SERVER_AUTOSAVE_MAX_CHAIN = 5;
 
+/** Matches CanvasShell/CSS theme chrome timing; sx wins over stylesheet order for crossfade under Chakra/emotion */
+const ENTRY_POST_THEME_TRANSITION_SX = {
+  transitionDuration: "var(--theme-shell-duration, 1s)",
+  transitionDelay: "var(--theme-shell-delay, 0.7s)",
+  transitionTimingFunction:
+    "var(--theme-shell-ease, cubic-bezier(0.42, 0, 0.58, 1))",
+};
+
+const ENTRY_POST_DESCRIPTION_OVERLAY_SX = {
+  /**
+   * Frosted scrape: hue from `--workout-card` only (interpolates on theme flip).
+   * Fade uses a neutral alpha mask (not `--workout-*`) so tint + mask edges stay aligned.
+   * Avoid `backdrop-filter` here — it draws in the full box; masks often clip only the
+   * background fill, leaving a blurry rectangle larger than the scrape ("outline").
+   *
+   * `minWidth/maxWidth`: iOS Safari + grid/`justify-items:center` can shrink the
+   * percentage containing block unless the chain has `min-width: 0` and stretched cells.
+   */
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+  boxSizing: "border-box",
+  backgroundColor: "hsl(var(--workout-card) / 0.93)",
+  WebkitMaskImage:
+    "linear-gradient(to top, rgb(0 0 0 / 0.995) 0%, rgb(0 0 0 / 0.66) 36%, rgb(0 0 0 / 0.24) 68%, rgb(0 0 0 / 0) 93%, rgb(0 0 0 / 0) 100%)",
+  maskImage:
+    "linear-gradient(to top, rgb(0 0 0 / 0.995) 0%, rgb(0 0 0 / 0.66) 36%, rgb(0 0 0 / 0.24) 68%, rgb(0 0 0 / 0) 93%, rgb(0 0 0 / 0) 100%)",
+  WebkitMaskSize: "100% 100%",
+  maskSize: "100% 100%",
+  WebkitMaskRepeat: "no-repeat",
+  maskRepeat: "no-repeat",
+  overflow: "hidden",
+  isolation: "isolate",
+  transitionProperty: "background-color",
+  ...ENTRY_POST_THEME_TRANSITION_SX,
+};
+
+const ENTRY_POST_OVERLAY_TEXT_SX = {
+  transitionProperty: "color, opacity",
+  ...ENTRY_POST_THEME_TRANSITION_SX,
+};
+
 const ProductCard = ({
   entry,
   isOwner: propIsOwner,
@@ -1432,6 +1474,7 @@ const ProductCard = ({
         // Container that adapts to content
         maxW="400px"
         w="100%"
+        minW={0}
         mx="auto"
         alignSelf="center"
       >
@@ -1439,6 +1482,7 @@ const ProductCard = ({
         <Box
           position="relative"
           w="full"
+          minW={0}
           aspectRatio="4/5"
           overflow="hidden"
           display="flex"
@@ -1489,28 +1533,23 @@ const ProductCard = ({
             loading={priority ? "eager" : "lazy"}
           />
 
-          {/* Description overlay with gradient background */}
+          {/* Full-bleed tint; pad only inner scroll area so scrape matches image edges */}
           <Box
             position="absolute"
             bottom="0"
             left="0"
             right="0"
-            p="8px"
-            background={
-              colors.currentTheme === "light"
-                ? "linear-gradient(to top, white 0%, rgba(0, 0, 0, 0.1) 50%, rgba(255, 255, 255, 0.1) 100%)"
-                : "linear-gradient(to top, #1a202cfc 0%, rgb(0 0 0 / 74%) 50%, rgb(0 0 0 / 54%) 100%)"
-            }
-            backdropFilter="blur(2px)"
             display="flex"
             flexDirection="column"
             justifyContent="center"
-            alignItems="center"
+            alignItems="stretch"
             minH="180px"
+            sx={ENTRY_POST_DESCRIPTION_OVERLAY_SX}
           >
             <Box
               w="100%"
               maxH="180px"
+              p="8px"
               overflowY="auto"
               overflowX="hidden"
               css={{
@@ -1547,6 +1586,7 @@ const ProductCard = ({
                     fontWeight="400"
                     textAlign="center"
                     w="full"
+                    sx={ENTRY_POST_OVERLAY_TEXT_SX}
                   >
                     {updatedEntry.name}
                   </Heading>
@@ -1557,6 +1597,7 @@ const ProductCard = ({
                     fontWeight="700"
                     textAlign="center"
                     w="full"
+                    sx={ENTRY_POST_OVERLAY_TEXT_SX}
                   >
                     {formatDateHour(updatedEntry.createdAt)}
                     {" • "}
@@ -1574,6 +1615,7 @@ const ProductCard = ({
                   wordBreak="break-word"
                   textAlign="left"
                   alignSelf="stretch"
+                  sx={ENTRY_POST_OVERLAY_TEXT_SX}
                 >
                   {updatedEntry.description}
                 </Text>

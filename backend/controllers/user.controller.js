@@ -17,6 +17,11 @@ import {
 } from "../utils/fileUtils.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
 import { sanitizeTextFields, sanitizeTextInput } from "../utils/sanitizeInput.js";
+import {
+  addGregorianDaysToDateKey,
+  calendarDateKeyInTimeZone,
+  normalizeWorkoutCalendarTimeZone,
+} from "../utils/workoutCalendarDate.js";
 
 const buildUidQuery = (uid) => ({
   $or: [{ uid }, { firebaseUid: uid }, { supabaseUid: uid }],
@@ -1069,22 +1074,20 @@ export const getWorkoutHabitSummary = async (req, res) => {
     const targetUids = user ? linkedUidStrings(user) : [requesterUid];
     const uniqueTargetUids = [...new Set(targetUids.filter(Boolean))];
 
+    const calendarTz = normalizeWorkoutCalendarTimeZone(
+      req.headers["x-workout-calendar-tz"],
+    );
+
     const now = new Date();
-    const todayKey = now.toISOString().slice(0, 10);
-    const windowStart = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() - 29,
-      0,
-      0,
-      0,
-      0,
-    ));
+    const todayKey =
+      calendarTz === "UTC"
+        ? now.toISOString().slice(0, 10)
+        : calendarDateKeyInTimeZone(now, calendarTz);
 
     const streakLookbackStart = new Date(Date.UTC(
       now.getUTCFullYear(),
       now.getUTCMonth(),
-      now.getUTCDate() - 730,
+      now.getUTCDate() - (730 + 14),
       0,
       0,
       0,
@@ -1100,16 +1103,15 @@ export const getWorkoutHabitSummary = async (req, res) => {
       .lean();
 
     const workoutDateSet = new Set(
-      entries
-        .map((entry) => entry.createdAt?.toISOString?.().slice(0, 10))
-        .filter(Boolean),
+      entries.map((entry) =>
+        calendarDateKeyInTimeZone(entry.createdAt, calendarTz),
+      ),
     );
 
+    const windowStartKey = addGregorianDaysToDateKey(todayKey, -29);
     const workoutDays = [];
     for (let i = 0; i < 30; i += 1) {
-      const day = new Date(windowStart);
-      day.setUTCDate(windowStart.getUTCDate() + i);
-      const date = day.toISOString().slice(0, 10);
+      const date = addGregorianDaysToDateKey(windowStartKey, i);
       workoutDays.push({
         date,
         workedOut: workoutDateSet.has(date),
@@ -1117,18 +1119,10 @@ export const getWorkoutHabitSummary = async (req, res) => {
     }
 
     let currentStreak = 0;
-    const streakProbe = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      0,
-      0,
-      0,
-      0,
-    ));
-    while (workoutDateSet.has(streakProbe.toISOString().slice(0, 10))) {
+    let streakProbeKey = todayKey;
+    while (workoutDateSet.has(streakProbeKey)) {
       currentStreak += 1;
-      streakProbe.setUTCDate(streakProbe.getUTCDate() - 1);
+      streakProbeKey = addGregorianDaysToDateKey(streakProbeKey, -1);
     }
 
     const workoutCount30d = workoutDays.filter((d) => d.workedOut).length;

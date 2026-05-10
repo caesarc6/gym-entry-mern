@@ -18,7 +18,19 @@ export function canSyncWorkoutHabitWidget() {
 }
 
 export async function fetchWorkoutHabitSummary() {
-  const response = await apiClient.get(API_ENDPOINTS.WORKOUT_HABIT_SUMMARY);
+  let calendarTz = "UTC";
+  try {
+    calendarTz =
+      Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    calendarTz = "UTC";
+  }
+
+  const response = await apiClient.get(API_ENDPOINTS.WORKOUT_HABIT_SUMMARY, {
+    headers: {
+      "x-workout-calendar-tz": calendarTz,
+    },
+  });
   const data = response.data;
 
   if (!data?.success) {

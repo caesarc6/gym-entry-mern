@@ -841,7 +841,7 @@ export default function ThemePlaygroundPage() {
                       spacing={10}
                       w="full"
                       alignItems="stretch"
-                      justifyItems="center"
+                      justifyItems="stretch"
                     >
                       {MOCK_WORKOUT_ENTRIES.map((entry) => (
                         <ProductCard

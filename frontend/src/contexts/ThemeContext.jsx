@@ -76,6 +76,15 @@ const applyThemeClasses = (root, appliedTheme) => {
   }
 };
 
+/** Avoid flushSync during layout/commit; defer to a microtask (still runs before typical paint). */
+const flushCurrentThemeState = (setCurrentThemeImpl, appliedTheme) => {
+  queueMicrotask(() => {
+    flushSync(() => {
+      setCurrentThemeImpl(appliedTheme);
+    });
+  });
+};
+
 export const ThemeProvider = ({ children }) => {
   const [themeMode, setThemeMode] = useState(() => {
     // Prefer new key; fall back to legacy key.
@@ -115,9 +124,7 @@ export const ThemeProvider = ({ children }) => {
       lastAppliedResolvedRef.current === appliedTheme;
 
     if (alreadyApplied) {
-      flushSync(() => {
-        setCurrentTheme(appliedTheme);
-      });
+      flushCurrentThemeState(setCurrentTheme, appliedTheme);
       root.dataset.themeReady = "true";
       return;
     }
@@ -139,9 +146,7 @@ export const ThemeProvider = ({ children }) => {
     }
 
     applyThemeClasses(root, appliedTheme);
-    flushSync(() => {
-      setCurrentTheme(appliedTheme);
-    });
+    flushCurrentThemeState(setCurrentTheme, appliedTheme);
     lastAppliedResolvedRef.current = appliedTheme;
     root.dataset.themeReady = "true";
   }, []);

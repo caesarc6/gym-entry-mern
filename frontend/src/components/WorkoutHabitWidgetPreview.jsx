@@ -21,22 +21,51 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
-const buildEmptyDays = () => {
-  const today = new Date();
-  const start = new Date(Date.UTC(
-    today.getUTCFullYear(),
-    today.getUTCMonth(),
-    today.getUTCDate() - 29,
-  ));
+const addGregorianDaysToDateKeyLocal = (ymdKey, deltaDays) => {
+  const parts = String(ymdKey).split("-").map(Number);
+  if (
+    parts.length !== 3 ||
+    parts.some((n) => !Number.isFinite(n))
+  ) {
+    return new Date().toISOString().slice(0, 10);
+  }
+  const [y, m, d] = parts;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + deltaDays);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+};
 
-  return Array.from({ length: 30 }, (_, index) => {
-    const day = new Date(start);
-    day.setUTCDate(start.getUTCDate() + index);
-    return {
-      date: day.toISOString().slice(0, 10),
-      workedOut: false,
-    };
-  });
+const buildEmptyDays = () => {
+  let calendarTz = "UTC";
+  try {
+    calendarTz =
+      Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    calendarTz = "UTC";
+  }
+
+  const now = new Date();
+  let todayKey;
+  if (calendarTz === "UTC") {
+    todayKey = now.toISOString().slice(0, 10);
+  } else {
+    try {
+      todayKey = new Intl.DateTimeFormat("en-CA", {
+        timeZone: calendarTz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(now);
+    } catch {
+      todayKey = now.toISOString().slice(0, 10);
+    }
+  }
+
+  const windowStartKey = addGregorianDaysToDateKeyLocal(todayKey, -29);
+  return Array.from({ length: 30 }, (_, index) => ({
+    date: addGregorianDaysToDateKeyLocal(windowStartKey, index),
+    workedOut: false,
+  }));
 };
 
 export default function WorkoutHabitWidgetPreview({ refreshKey }) {

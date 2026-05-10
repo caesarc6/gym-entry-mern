@@ -119,6 +119,8 @@ async function tryVerifySupabaseJwt(token) {
     console.warn("[auth] supabase jwt secret missing or invalid for HS token", {
       alg: tokenAlg,
       hasJwtSecret: Boolean(process.env.SUPABASE_JWT_SECRET),
+      hint:
+        "Set SUPABASE_JWT_SECRET for the API server (Dashboard → Project Settings → API → JWT signing keys / legacy JWT secret). Optionally set SUPABASE_SERVICE_ROLE_KEY so auth.getUser fallback works.",
     });
     return null;
   }

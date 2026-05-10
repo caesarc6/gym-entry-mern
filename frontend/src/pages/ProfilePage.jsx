@@ -999,8 +999,8 @@ const ProfilePage = () => {
                 columns={{ base: 1, md: 2, lg: 3 }}
                 spacing={10}
                 w={"full"}
-                alignItems="center"
-                justifyItems="center"
+                alignItems="stretch"
+                justifyItems="stretch"
               >
                 {entries.map((entry, index) => (
                   <ProductCard
