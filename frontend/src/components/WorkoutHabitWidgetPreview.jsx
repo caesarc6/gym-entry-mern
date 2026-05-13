@@ -146,7 +146,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
       w="full"
       maxW="720px"
       mx="auto"
-      rounded="3xl"
+      rounded="sm"
       border="1px solid"
       borderColor={colors.borderColor}
       bg={colors.bgCard}

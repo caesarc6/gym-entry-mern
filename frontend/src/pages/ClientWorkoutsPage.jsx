@@ -20,7 +20,6 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  Spinner,
   Center,
   Flex,
   Select,
@@ -40,6 +39,7 @@ import {
   Divider,
   Progress,
 } from "@chakra-ui/react";
+import { LoadingIndicator } from "../components/loading";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -388,7 +388,7 @@ const ClientWorkoutsPage = () => {
     return (
       <Container maxW="container.xl" pt={20} pb={8} px={6}>
         <Center>
-          <Spinner size="xl" />
+          <LoadingIndicator variant="page" />
         </Center>
       </Container>
     );

@@ -19,7 +19,6 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  Spinner,
   Center,
   Select,
   Input,
@@ -27,6 +26,7 @@ import {
   InputLeftElement,
   Box,
 } from "@chakra-ui/react";
+import { LoadingIndicator } from "../components/loading";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -435,7 +435,7 @@ const TrainerDashboard = () => {
       <Container maxW="container.xl" pt={20} pb={8} px={6}>
         <Center>
           <VStack spacing={4}>
-            <Spinner size="xl" />
+            <LoadingIndicator variant="page" />
             <Text>Checking access...</Text>
           </VStack>
         </Center>
@@ -474,7 +474,7 @@ const TrainerDashboard = () => {
     return (
       <Container maxW="container.xl" pt={20} pb={8} px={6}>
         <Center>
-          <Spinner size="xl" />
+          <LoadingIndicator variant="page" />
         </Center>
       </Container>
     );

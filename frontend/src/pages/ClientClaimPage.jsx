@@ -6,7 +6,6 @@ import {
   Heading,
   Button,
   Box,
-  Spinner,
   Avatar,
   Badge,
   Divider,
@@ -29,6 +28,7 @@ import {
   AlertDialogContent,
   AlertDialogOverlay,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
@@ -200,7 +200,7 @@ const ClientClaimPage = () => {
       <Container maxW="container.lg" py={12}>
         <Flex justify="center" align="center" minH="400px">
           <VStack spacing={4}>
-            <Spinner size="xl" color="blue.500" />
+            <LoadingIndicator variant="page" chakraColor="blue.500" />
             <Text>Loading workouts...</Text>
           </VStack>
         </Flex>
@@ -353,6 +353,7 @@ const ClientClaimPage = () => {
                   size="lg"
                   onClick={handleClaimWorkouts}
                   isLoading={isClaiming}
+                  spinner={<ButtonLoadingSpinner />}
                   loadingText="Claiming..."
                 >
                   Claim All Workouts
@@ -414,6 +415,7 @@ const ClientClaimPage = () => {
                 onClick={handleConfirmClaim}
                 ml={3}
                 isLoading={isClaiming}
+                spinner={<ButtonLoadingSpinner />}
                 loadingText="Claiming..."
               >
                 Yes, Claim All Workouts

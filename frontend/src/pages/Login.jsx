@@ -17,7 +17,7 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useCustomToast();
-  const { requestGoogleOAuth, IosGoogleAuthModal } = useIosAwareGoogleOAuth();
+  const { requestGoogleOAuth } = useIosAwareGoogleOAuth();
 
   const redirectPath = location.state?.from || "/";
 
@@ -87,7 +87,6 @@ const Login = () => {
 
   return (
     <>
-      {IosGoogleAuthModal}
       <div
         className={cn(
           "w-full min-w-0 min-h-[100dvh] pb-[env(safe-area-inset-bottom)] bg-white bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200/80",

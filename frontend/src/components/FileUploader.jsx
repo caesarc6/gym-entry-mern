@@ -52,12 +52,20 @@ import {
   DrawerBody,
   useDisclosure,
   IconButton,
+  Slider,
+  SliderTrack,
+  SliderFilledTrack,
+  SliderThumb,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner } from "./loading";
 import { CloseIcon } from "@chakra-ui/icons";
+import Cropper from "react-easy-crop";
+import "react-easy-crop/react-easy-crop.css";
 import { useCustomToast } from "../hooks/useCustomToast";
 import {
   handleImageUploadWithCompression,
 } from "../utils/imageCompression";
+import { getCroppedImgAsFile } from "../utils/getCroppedImg";
 import "../index.css";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -67,12 +75,17 @@ export const FileUploader = ({
   maxSizeMB = 5,
   enableNativeCamera = true,
   showSelectedPreview = true,
+  /** When set (width/height), user crops inside the preview before compression. */
+  cropAspect = undefined,
 }) => {
   const hiddenFileInput = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState(null);
   const [pendingSource, setPendingSource] = useState(null); // "camera" | "photos" | "file"
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [selectedPreviewUrl, setSelectedPreviewUrl] = useState(null);
   const [isSelectedActive, setIsSelectedActive] = useState(false);
   const previewDisclosure = useDisclosure();
@@ -95,6 +108,23 @@ export const FileUploader = ({
       }
     };
   }, [pendingPreviewUrl, selectedPreviewUrl]);
+
+  useEffect(() => {
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+  }, [pendingPreviewUrl, cropAspect]);
+
+  const showCropper =
+    cropAspect != null &&
+    Number.isFinite(cropAspect) &&
+    pendingPreviewUrl &&
+    pendingFile &&
+    pendingFile.type !== "image/gif" &&
+    pendingFile.type !== "image/svg+xml";
+
+  const canConfirmCrop =
+    !showCropper || (croppedAreaPixels != null && croppedAreaPixels.width > 0);
 
   const handleClick = (e) => {
     e.preventDefault(); // Prevent form submission
@@ -203,12 +233,34 @@ export const FileUploader = ({
   };
 
   const confirmUsePhoto = async () => {
-    if (!pendingFile) return;
+    if (!pendingFile || !canConfirmCrop) return;
     setIsProcessing(true);
 
     try {
+      let fileToCompress = pendingFile;
+      if (
+        showCropper &&
+        croppedAreaPixels &&
+        pendingPreviewUrl
+      ) {
+        try {
+          fileToCompress = await getCroppedImgAsFile(
+            pendingPreviewUrl,
+            croppedAreaPixels,
+            pendingFile.name
+          );
+        } catch (err) {
+          toast.error(
+            "Crop Error",
+            err?.message || "Could not crop image. Try another photo."
+          );
+          setIsProcessing(false);
+          return;
+        }
+      }
+
       await handleImageUploadWithCompression(
-        pendingFile,
+        fileToCompress,
         (result) => {
           handleFile(result.file);
           setIsSelectedActive(false);
@@ -309,6 +361,7 @@ export const FileUploader = ({
           onClick={handleClick}
           type="button"
           isLoading={isProcessing}
+          spinner={<ButtonLoadingSpinner />}
           loadingText="Processing..."
           isDisabled={isProcessing}
           colorScheme="blue"
@@ -345,12 +398,14 @@ export const FileUploader = ({
             <Box
               flex="1"
               display="flex"
-              alignItems="center"
-              justifyContent="center"
+              flexDirection="column"
+              alignItems={showCropper ? "stretch" : "center"}
+              justifyContent={showCropper ? "flex-start" : "center"}
               position="relative"
               px={3}
               pt={6}
               pb={20}
+              minH={0}
             >
               {/* Top controls */}
               <HStack
@@ -395,15 +450,58 @@ export const FileUploader = ({
               </HStack>
 
               {pendingPreviewUrl ? (
-                <Box
-                  as="img"
-                  src={pendingPreviewUrl}
-                  alt="Selected"
-                  maxH="100%"
-                  maxW="100%"
-                  objectFit="contain"
-                  borderRadius="md"
-                />
+                showCropper ? (
+                  <VStack spacing={0} align="stretch" w="100%" flex="1" minH={0}>
+                    <Box
+                      position="relative"
+                      w="100%"
+                      flex="1"
+                      minH={{ base: "280px", md: "340px" }}
+                      borderRadius="md"
+                      overflow="hidden"
+                    >
+                      <Cropper
+                        image={pendingPreviewUrl}
+                        crop={crop}
+                        zoom={zoom}
+                        aspect={cropAspect}
+                        onCropChange={setCrop}
+                        onZoomChange={setZoom}
+                        onCropComplete={(_area, areaPixels) =>
+                          setCroppedAreaPixels(areaPixels)
+                        }
+                      />
+                    </Box>
+                    <Box px={4} py={3} w="100%">
+                      <Text fontSize="sm" color="whiteAlpha.800" mb={2}>
+                        Zoom
+                      </Text>
+                      <Slider
+                        aria-label="Crop zoom"
+                        min={1}
+                        max={3}
+                        step={0.02}
+                        value={zoom}
+                        onChange={setZoom}
+                      >
+                        <SliderTrack bg="whiteAlpha.300">
+                          <SliderFilledTrack bg="blue.300" />
+                        </SliderTrack>
+                        <SliderThumb />
+                      </Slider>
+                    </Box>
+                  </VStack>
+                ) : (
+                  <Box
+                    as="img"
+                    src={pendingPreviewUrl}
+                    alt="Selected"
+                    maxH="100%"
+                    maxW="100%"
+                    objectFit="contain"
+                    borderRadius="md"
+                  />
+                )
               ) : null}
             </Box>
 
@@ -433,7 +531,9 @@ export const FileUploader = ({
                       }}
                       size="lg"
                       isLoading={isProcessing}
+                      spinner={<ButtonLoadingSpinner />}
                       loadingText="Processing..."
+                      isDisabled={!canConfirmCrop}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();

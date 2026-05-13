@@ -5,10 +5,10 @@ import {
   Button,
   Center,
   Container,
-  Spinner,
   Text,
   VStack,
 } from "@chakra-ui/react";
+import { LoadingIndicator } from "../components/loading";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { maybeMigrateAccount } from "../utils/migration";
@@ -22,21 +22,45 @@ import {
 } from "../utils/auth";
 import { useCustomToast } from "../hooks/useCustomToast";
 
+const GET_SESSION_MS = 25_000;
+
 const AuthCallback = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  /** useCustomToast() returns a fresh object each render — must not live in effect deps or OAuth restarts mid-flight on every setState. */
   const toast = useCustomToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [errorMessage, setErrorMessage] = useState(null);
-  const [statusMessage, setStatusMessage] = useState("Finishing sign-in…");
   const hasHandledRef = useRef(false);
 
   useEffect(() => {
     const handleCallback = async () => {
+      const toast = toastRef.current;
       if (hasHandledRef.current) {
         return;
       }
       hasHandledRef.current = true;
       let aborted = false;
+
+      const getSessionWithTimeout = async (label) => {
+        try {
+          return await Promise.race([
+            supabase.auth.getSession(),
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error(`getSession timeout (${label})`)),
+                GET_SESSION_MS
+              )
+            ),
+          ]);
+        } catch (err) {
+          pushAuthDebug(`AuthCallback: getSession error (${label})`, {
+            message: err?.message,
+          });
+          return { data: { session: null }, error: err };
+        }
+      };
 
       const locationPayload = {
         href: window.location.href,
@@ -46,7 +70,10 @@ const AuthCallback = () => {
         supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
       };
       pushAuthDebug("AuthCallback: location", locationPayload);
-      console.debug("[AuthCallback] location", locationPayload);
+
+      // Must exceed Supabase steps + apiClient timeout: cold API can take 15–30s+.
+      const backendTimeoutMs = apiClient.defaults.timeout ?? 30000;
+      const authFailSafeMs = backendTimeoutMs + 35000;
 
       const failSafeTimer = setTimeout(() => {
         aborted = true;
@@ -54,10 +81,8 @@ const AuthCallback = () => {
           "Authentication Timeout",
           "Login took too long. Please try again."
         );
-        setErrorMessage(
-          "Authentication timed out. See debug details in the console."
-        );
-      }, 20000);
+        setErrorMessage("Authentication timed out. Please try again.");
+      }, authFailSafeMs);
 
       const params = new URLSearchParams(location.search);
       const hashParams = new URLSearchParams(location.hash.replace("#", ""));
@@ -66,7 +91,6 @@ const AuthCallback = () => {
         hashParams: Object.fromEntries(hashParams.entries()),
       };
       pushAuthDebug("AuthCallback: raw params", rawParams);
-      console.debug("[AuthCallback] raw params", rawParams);
       const stored = consumeAuthRedirect();
       const mode = params.get("mode") || stored.mode || "login";
       const redirectParam = params.get("redirect");
@@ -89,10 +113,8 @@ const AuthCallback = () => {
         authErrorDescription,
       };
       pushAuthDebug("AuthCallback: parsed params", parsedParams);
-      console.debug("[AuthCallback] params", parsedParams);
 
       try {
-        setStatusMessage("Validating session…");
         if (authError) {
           throw new Error(
             authErrorDescription
@@ -103,18 +125,17 @@ const AuthCallback = () => {
 
         // getSession() awaits Supabase init, which runs detectSessionInUrl and exchanges
         // PKCE ?code= before we read the URL again — so "missing code" was a false negative.
-        const { data: sessionAfterInit } = await supabase.auth.getSession();
+        const { data: sessionAfterInit } = await getSessionWithTimeout("init");
         if (aborted) return;
-        let hasAccessToken = Boolean(sessionAfterInit?.session?.access_token);
+        let resolvedSession = sessionAfterInit?.session || null;
+        let hasAccessToken = Boolean(resolvedSession?.access_token);
 
         if (hasAccessToken) {
           pushAuthDebug("AuthCallback: session after init (PKCE / storage)", {
             source: "detectSessionInUrl_or_existing",
           });
         } else if (codeAtStart) {
-          setStatusMessage("Exchanging login code…");
           pushAuthDebug("AuthCallback: exchanging code (fallback)", null);
-          console.debug("[AuthCallback] exchanging code for session");
           const exchangeResult = await Promise.race([
             supabase.auth.exchangeCodeForSession(codeAtStart),
             new Promise((_, reject) =>
@@ -127,11 +148,13 @@ const AuthCallback = () => {
             error: exchangeResult?.error?.message,
           };
           pushAuthDebug("AuthCallback: exchange result", exchangePayload);
-          console.debug("[AuthCallback] exchange result", exchangePayload);
           if (exchangeResult?.error) {
             throw exchangeResult.error;
           }
-          hasAccessToken = Boolean(exchangeResult?.data?.session?.access_token);
+          if (exchangeResult?.data?.session) {
+            resolvedSession = exchangeResult.data.session;
+          }
+          hasAccessToken = Boolean(resolvedSession?.access_token);
         } else if (location.hash) {
           const hashErr = hashParams.get("error");
           const hashErrDesc = hashParams.get("error_description");
@@ -145,17 +168,24 @@ const AuthCallback = () => {
 
           const accessToken = hashParams.get("access_token");
           const refreshToken = hashParams.get("refresh_token");
-          const expiresAt = hashParams.get("expires_at");
+          let expiresAt = hashParams.get("expires_at");
+          if (!expiresAt) {
+            const expiresInRaw = hashParams.get("expires_in");
+            if (expiresInRaw != null && expiresInRaw !== "") {
+              const sec = Number(expiresInRaw);
+              if (Number.isFinite(sec)) {
+                expiresAt = String(Math.floor(Date.now() / 1000) + sec);
+              }
+            }
+          }
           const hashPayload = {
             hasAccessToken: Boolean(accessToken),
             hasRefreshToken: Boolean(refreshToken),
             expiresAt,
           };
           pushAuthDebug("AuthCallback: hash session", hashPayload);
-          console.debug("[AuthCallback] hash session", hashPayload);
 
           if (accessToken && refreshToken) {
-            setStatusMessage("Restoring session…");
             setTempSupabaseSession(accessToken, refreshToken, expiresAt);
             const userProbe = await Promise.race([
               supabase.auth.getUser(accessToken),
@@ -199,28 +229,31 @@ const AuthCallback = () => {
                 "AuthCallback: setSession result",
                 setSessionPayload
               );
-              console.debug(
-                "[AuthCallback] setSession result",
-                setSessionPayload
-              );
               if (setResult?.error) {
                 throw setResult.error;
               }
               if (setResult?.data?.session?.access_token) {
                 hasAccessToken = true;
+                resolvedSession = setResult.data.session;
               }
             }
           }
           if (!hasAccessToken) {
-            const { data: afterHash } = await supabase.auth.getSession();
+            const { data: afterHash } = await getSessionWithTimeout("afterHash");
             if (aborted) return;
+            if (afterHash?.session?.access_token) {
+              resolvedSession = afterHash.session;
+            }
             hasAccessToken = Boolean(afterHash?.session?.access_token);
           }
         }
 
         if (!hasAccessToken) {
-          const { data: finalCheck } = await supabase.auth.getSession();
+          const { data: finalCheck } = await getSessionWithTimeout("finalCheck");
           if (aborted) return;
+          if (finalCheck?.session?.access_token) {
+            resolvedSession = finalCheck.session;
+          }
           hasAccessToken = Boolean(finalCheck?.session?.access_token);
         }
 
@@ -232,7 +265,7 @@ const AuthCallback = () => {
         }
 
         const waitForSession = async () => {
-          const { data: { session } } = await supabase.auth.getSession();
+          const { data: { session } } = await getSessionWithTimeout("waitStart");
           if (aborted) return null;
           if (session?.access_token) {
             return session;
@@ -255,8 +288,13 @@ const AuthCallback = () => {
           });
         };
 
-        setStatusMessage("Finalizing session…");
-        const session = await waitForSession();
+        if (!resolvedSession?.access_token) {
+          const waited = await waitForSession();
+          if (aborted) return;
+          resolvedSession = waited || resolvedSession;
+        }
+
+        const session = resolvedSession;
         if (aborted) return;
         const sessionPayload = {
           hasAccessToken: Boolean(session?.access_token),
@@ -265,7 +303,6 @@ const AuthCallback = () => {
           expiresAt: session?.expires_at,
         };
         pushAuthDebug("AuthCallback: session", sessionPayload);
-        console.debug("[AuthCallback] session", sessionPayload);
         const tempToken = getTempAccessToken();
         if (!session?.access_token && tempToken) {
           pushAuthDebug("AuthCallback: temp token fallback", {
@@ -278,11 +315,13 @@ const AuthCallback = () => {
           apiClient.defaults.headers.common.Authorization = `Bearer ${session.access_token}`;
         }
 
-        setStatusMessage("Syncing account…");
         const response = await Promise.race([
           apiClient.post(API_ENDPOINTS.PROTECTED),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Backend timeout")), 10000)
+            setTimeout(
+              () => reject(new Error("Backend timeout")),
+              backendTimeoutMs
+            )
           ),
         ]);
         if (aborted) return;
@@ -291,7 +330,6 @@ const AuthCallback = () => {
           created: response?.data?.created,
         };
         pushAuthDebug("AuthCallback: backend response", backendPayload);
-        console.debug("[AuthCallback] backend response", backendPayload);
         const wasCreated = response?.data?.created === true;
         const userData = response?.data?.data;
 
@@ -314,7 +352,6 @@ const AuthCallback = () => {
 
         await maybeMigrateAccount(userData);
 
-        setStatusMessage("Redirecting…");
         navigate(redirectTo, { replace: true });
       } catch (error) {
         pushAuthDebug("AuthCallback: error", {
@@ -351,7 +388,7 @@ const AuthCallback = () => {
 
     clearAuthDebug();
     handleCallback();
-  }, [location.search, navigate, toast]);
+  }, [location.pathname, location.search, location.hash, navigate]);
 
   return (
     <Container maxW="container.md" py={16}>
@@ -375,11 +412,7 @@ const AuthCallback = () => {
           </VStack>
         ) : (
           <VStack spacing={4} align="center" textAlign="center" w="full">
-            <Spinner size="lg" color="blue.400" thickness="4px" speed="0.9s" />
-            <Text fontWeight="semibold">Signing you in…</Text>
-            <Text fontSize="sm" color="gray.500">
-              {statusMessage}
-            </Text>
+            <LoadingIndicator variant="hero" chakraColor="blue.400" />
             <Box minH="12vh" w="full" aria-busy="true" />
           </VStack>
         )}

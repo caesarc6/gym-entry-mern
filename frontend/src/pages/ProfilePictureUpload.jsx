@@ -10,6 +10,7 @@ import { handleImageUploadWithCompression } from "../utils/imageCompression";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { getCurrentAuthUser } from "../utils/auth";
 import { FileUploader } from "../components/FileUploader";
+import { PROFILE_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 
 function ProfilePictureUpload() {
   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
@@ -81,6 +82,7 @@ function ProfilePictureUpload() {
       <FileUploader
         handleFile={handleFileUpload}
         maxSizeMB={5}
+        cropAspect={PROFILE_IMAGE_ASPECT}
       />
 
       {isProcessing && (

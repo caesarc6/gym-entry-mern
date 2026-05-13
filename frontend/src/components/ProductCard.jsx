@@ -29,9 +29,18 @@ import {
   Divider,
 } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
+import { ButtonLoadingSpinner } from "./loading";
 import { FileUploader } from "./FileUploader";
+import { ENTRY_POST_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import { useProductStore } from "../store/product";
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  memo,
+} from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api"; // Import API configuration
@@ -42,6 +51,7 @@ import {
 import ShareWorkoutModal from "./ShareWorkoutModal";
 import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { useCanvasShell } from "../contexts/CanvasShellContext.jsx";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import {
@@ -53,6 +63,11 @@ import {
   readEditEntryDraft,
   writeEditEntryDraft,
 } from "../utils/workoutDraftStorage";
+import {
+  THEME_SHELL_ARTWORK_DURATION_MS,
+  THEME_SHELL_DELAY_MS,
+  THEME_SHELL_EASING,
+} from "../constants/themeShellTiming.js";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -78,7 +93,74 @@ const ENTRY_POST_THEME_TRANSITION_SX = {
     "var(--theme-shell-ease, cubic-bezier(0.42, 0, 0.58, 1))",
 };
 
-const ENTRY_POST_DESCRIPTION_OVERLAY_SX = {
+const EntryPostDefaultThemeArtwork = memo(function EntryPostDefaultThemeArtwork({
+  alt,
+  showLight,
+  prefersReducedMotion,
+  reveal = true,
+  onLoaded,
+  boxProps,
+  imageStyle,
+  decoding,
+  fetchPriority,
+  loading,
+}) {
+  /** Inline so `html.theme-chrome-transition *` cannot drop `opacity` from `transition-property`. */
+  const placeholderOpacityTransition = prefersReducedMotion
+    ? "none"
+    : `opacity ${THEME_SHELL_ARTWORK_DURATION_MS}ms ${THEME_SHELL_EASING} ${THEME_SHELL_DELAY_MS}ms`;
+
+  const lightOpacity = reveal ? (showLight ? 1 : 0) : 0;
+  const nightOpacity = reveal ? (showLight ? 0 : 1) : 0;
+
+  const imgShared = {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPosition: "center",
+    ...imageStyle,
+  };
+
+  return (
+    <Box role="img" aria-label={alt} {...boxProps}>
+      <Image
+        src={defaultBgUrl}
+        alt=""
+        aria-hidden
+        decoding={decoding}
+        fetchpriority={fetchPriority}
+        loading={loading}
+        onLoad={onLoaded}
+        onError={onLoaded}
+        sx={{
+          ...imgShared,
+          opacity: lightOpacity,
+        }}
+        style={{ transition: placeholderOpacityTransition }}
+      />
+      <Image
+        src={defaultBgNightUrl}
+        alt=""
+        aria-hidden
+        decoding={decoding}
+        fetchpriority={fetchPriority}
+        loading={loading}
+        onLoad={onLoaded}
+        onError={onLoaded}
+        sx={{
+          ...imgShared,
+          opacity: nightOpacity,
+        }}
+        style={{ transition: placeholderOpacityTransition }}
+      />
+    </Box>
+  );
+});
+
+/** Tint + vertical fade mask only — keep on a backdrop layer so text is not faded. */
+const ENTRY_POST_DESCRIPTION_OVERLAY_BACKDROP_SX = {
   /**
    * Frosted scrape: hue from `--workout-card` only (interpolates on theme flip).
    * Fade uses a neutral alpha mask (not `--workout-*`) so tint + mask edges stay aligned.
@@ -88,6 +170,8 @@ const ENTRY_POST_DESCRIPTION_OVERLAY_SX = {
    * `minWidth/maxWidth`: iOS Safari + grid/`justify-items:center` can shrink the
    * percentage containing block unless the chain has `min-width: 0` and stretched cells.
    */
+  inset: 0,
+  pointerEvents: "none",
   width: "100%",
   maxWidth: "100%",
   minWidth: 0,
@@ -112,18 +196,19 @@ const ENTRY_POST_OVERLAY_TEXT_SX = {
   ...ENTRY_POST_THEME_TRANSITION_SX,
 };
 
-const ProductCard = ({
+const ProductCard = memo(function ProductCard({
   entry,
   isOwner: propIsOwner,
   onUpdate,
   onDelete,
   profileCache,
   priority = false,
-}) => {
+}) {
   const globalCurrentUser = useProductStore((state) => state.currentUser);
   const [currentUser, setCurrentUser] = useState(globalCurrentUser);
   const isOwner = propIsOwner ?? currentUser?.uid === entry.uid;
   const colors = useThemeColors();
+  const { prefersReducedMotion } = useCanvasShell();
   const profileImageFallback =
     colors.currentTheme === "light" ? lightUrl : nightUrl;
   const postImageFallback =
@@ -576,11 +661,6 @@ const ProductCard = ({
     updatedEntry?.image,
     updatedEntry?.imageName,
   ]);
-
-  // Debug log when updatedEntry changes
-  useEffect(() => {
-    // updatedEntry changes tracked
-  }, [updatedEntry]);
 
   // Sync entry.image to updatedEntry.image when entry changes
   // This ensures we always use the actual entry image, not the placeholder
@@ -1452,9 +1532,11 @@ const ProductCard = ({
   };
 
   const rawEntryImage = updatedEntry.image || entry.image;
-  const displayEntryImage = isPlaceholderImage(rawEntryImage)
+  const usesThemeDefaultPostArt = isPlaceholderImage(rawEntryImage);
+  const displayEntryImage = usesThemeDefaultPostArt
     ? postImageFallback
     : rawEntryImage;
+  const showLightDefaultBg = colors.currentTheme === "light";
 
   return (
     <>
@@ -1485,55 +1567,66 @@ const ProductCard = ({
           minW={0}
           aspectRatio="4/5"
           overflow="hidden"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          sx={{
-            "--aspect-ratio": "1.25", // 4:5 ratio (5/4 = 1.25)
-            "&::before": {
-              content: '""',
-              display: "block",
-              paddingTop: "calc(100% / var(--aspect-ratio))",
-              width: "100%",
-            },
-          }}
         >
           {!imageLoaded && (
             <Skeleton
+              position="absolute"
+              inset={0}
               w="full"
-              h="auto"
-              aspectRatio="4/5"
+              h="full"
+              borderRadius="0"
               startColor={colors.borderColor}
               endColor={colors.borderColorInput}
             />
           )}
-          <Image
-            src={displayEntryImage}
-            alt={entry.name}
-            w="full"
-            h="auto"
-            objectFit="cover"
-            objectPosition="center"
-            onError={handleImageError}
-            fallbackSrc={postImageFallback}
-            onLoad={handleImageLoad}
-            decoding="async"
-            fetchpriority={priority ? "high" : "auto"}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              display: imageLoaded ? "block" : "none",
-              opacity: imageLoaded ? 1 : 0,
-              transition: "opacity 0.3s ease-in-out",
-              aspectRatio: "4/5",
-              width: "100%",
-              height: "auto",
-            }}
-            loading={priority ? "eager" : "lazy"}
-          />
+          {usesThemeDefaultPostArt ? (
+            <EntryPostDefaultThemeArtwork
+              key={`${entry._id}-default-art`}
+              alt={entry.name}
+              showLight={showLightDefaultBg}
+              prefersReducedMotion={prefersReducedMotion}
+              reveal={imageLoaded}
+              onLoaded={handleImageLoad}
+              decoding="async"
+              fetchPriority={priority ? "high" : "auto"}
+              loading={priority ? "eager" : "lazy"}
+              boxProps={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                w: "100%",
+                aspectRatio: "4/5",
+              }}
+            />
+          ) : (
+            <Image
+              src={displayEntryImage}
+              alt={entry.name}
+              w="full"
+              h="auto"
+              objectFit="cover"
+              objectPosition="center"
+              onError={handleImageError}
+              fallbackSrc={postImageFallback}
+              onLoad={handleImageLoad}
+              decoding="async"
+              fetchpriority={priority ? "high" : "auto"}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                opacity: imageLoaded ? 1 : 0,
+                transition: "opacity 0.3s ease-in-out",
+                aspectRatio: "4/5",
+                width: "100%",
+                height: "auto",
+                pointerEvents: imageLoaded ? "auto" : "none",
+              }}
+              loading={priority ? "eager" : "lazy"}
+            />
+          )}
 
-          {/* Full-bleed tint; pad only inner scroll area so scrape matches image edges */}
+          {/* Full-bleed tint; mask on backdrop only so title/description stay opaque */}
           <Box
             position="absolute"
             bottom="0"
@@ -1544,9 +1637,16 @@ const ProductCard = ({
             justifyContent="center"
             alignItems="stretch"
             minH="180px"
-            sx={ENTRY_POST_DESCRIPTION_OVERLAY_SX}
+            isolation="isolate"
           >
             <Box
+              position="absolute"
+              sx={ENTRY_POST_DESCRIPTION_OVERLAY_BACKDROP_SX}
+              aria-hidden
+            />
+            <Box
+              position="relative"
+              zIndex={1}
               w="100%"
               maxH="180px"
               p="8px"
@@ -2050,25 +2150,44 @@ const ProductCard = ({
             bg={colors.bgCard}
           >
             <VStack spacing={{ base: 2, md: 3 }} align="stretch">
-              {/* Image Section */}
+              {/* Image Section — portrait frame (taller than closed card 4:5) */}
               <Box
+                position="relative"
                 w="full"
-                aspectRatio={{ base: "16/10", md: "4/3" }}
-                maxH={{ base: "280px", md: "320px" }}
+                aspectRatio={{ base: "9/16", md: "9/16" }}
+                maxH={{ base: "min(68vh, 520px)", md: "min(62vh, 540px)" }}
+                mx="auto"
+                maxW={{ base: "100%", md: "420px" }}
                 overflow="hidden"
                 borderRadius="4px"
               >
-                <Image
-                  src={displayEntryImage}
-                  alt={entry.name}
-                  w="full"
-                  h="100%"
-                  objectFit="cover"
-                  objectPosition="center"
-                  style={{ width: "100%", height: "100%" }}
-                  fallbackSrc={postImageFallback}
-                  fallback={<Skeleton h="auto" aspectRatio="4/5" />}
-                />
+                {usesThemeDefaultPostArt ? (
+                  <EntryPostDefaultThemeArtwork
+                    alt={entry.name}
+                    showLight={showLightDefaultBg}
+                    prefersReducedMotion={prefersReducedMotion}
+                    reveal
+                    decoding="async"
+                    boxProps={{
+                      position: "absolute",
+                      inset: 0,
+                      w: "100%",
+                      h: "100%",
+                    }}
+                  />
+                ) : (
+                  <Image
+                    src={displayEntryImage}
+                    alt={entry.name}
+                    w="full"
+                    h="100%"
+                    objectFit="cover"
+                    objectPosition="center"
+                    style={{ width: "100%", height: "100%" }}
+                    fallbackSrc={postImageFallback}
+                    fallback={<Skeleton h="full" w="full" aspectRatio="9/16" />}
+                  />
+                )}
               </Box>
 
               {/* Content Section - column centered on post; text left within column */}
@@ -2674,14 +2793,35 @@ const ProductCard = ({
                   ? "Could not save to your post. Check your connection."
                   : "Changes save to your post as you type. Update is optional."}
               </Text>
-              <Image
-                src={displayEntryImage}
-                alt="Entry Image"
-                boxSize="150px"
-                objectFit="cover"
-                borderRadius="3xl"
+              {usesThemeDefaultPostArt ? (
+                <Box position="relative" boxSize="150px" borderRadius="3xl" overflow="hidden">
+                  <EntryPostDefaultThemeArtwork
+                    alt="Entry Image"
+                    showLight={showLightDefaultBg}
+                    prefersReducedMotion={prefersReducedMotion}
+                    reveal
+                    decoding="async"
+                    boxProps={{
+                      position: "absolute",
+                      inset: 0,
+                      w: "100%",
+                      h: "100%",
+                    }}
+                  />
+                </Box>
+              ) : (
+                <Image
+                  src={displayEntryImage}
+                  alt="Entry Image"
+                  boxSize="150px"
+                  objectFit="cover"
+                  borderRadius="3xl"
+                />
+              )}
+              <FileUploader
+                handleFile={handleFileUpload}
+                cropAspect={ENTRY_POST_IMAGE_ASPECT}
               />
-              <FileUploader handleFile={handleFileUpload} />
             </VStack>
           </ModalBody>
           <ModalFooter>
@@ -2705,6 +2845,7 @@ const ProductCard = ({
               mr={3}
               onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
               isLoading={isUpdateSubmitting}
+              spinner={<ButtonLoadingSpinner />}
               loadingText="Updating"
               fontFamily="Arial, sans-serif"
             >
@@ -2772,7 +2913,7 @@ const ProductCard = ({
       />
     </>
   );
-};
+});
 
 ProductCard.propTypes = {
   entry: PropTypes.shape({

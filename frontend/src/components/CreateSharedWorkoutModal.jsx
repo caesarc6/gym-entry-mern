@@ -21,8 +21,8 @@ import {
   Box,
   FormHelperText,
   Select,
-  Spinner,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner } from "./loading";
 import { useState, useEffect } from "react";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { apiClient, API_ENDPOINTS } from "../config/api";
@@ -318,6 +318,7 @@ const CreateSharedWorkoutModal = ({
               colorScheme="blue"
               onClick={handleSubmit}
               isLoading={isSubmitting}
+              spinner={<ButtonLoadingSpinner />}
               loadingText="Creating..."
               type="button"
               onTouchStart={(e) => e.stopPropagation()}

@@ -20,6 +20,7 @@ import {
   useDisclosure,
   VStack,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner } from "../components/loading";
 import {
   useCallback,
   useEffect,
@@ -33,6 +34,7 @@ import { FiArrowLeft } from "react-icons/fi";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useTheme } from "../contexts/ThemeContext";
 import { FileUploader } from "../components/FileUploader";
+import { PROFILE_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import PrivacySettings from "../components/PrivacySettings";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { getCurrentAuthUser, signOutAll } from "../utils/auth";
@@ -740,6 +742,7 @@ const SettingsPage = () => {
                   borderColor="red.300"
                   onClick={handleSignOut}
                   isLoading={isSigningOut}
+                  spinner={<ButtonLoadingSpinner />}
                   loadingText="Signing out…"
                 >
                   Sign out
@@ -783,6 +786,7 @@ const SettingsPage = () => {
                 colorScheme="blue"
                 mr={3}
                 isLoading={isSavingBackground}
+                spinner={<ButtonLoadingSpinner />}
                 loadingText="Saving…"
               >
                 Save Changes
@@ -820,6 +824,7 @@ const SettingsPage = () => {
                 <FileUploader
                   handleFile={handleProfileImageUpload}
                   accept="image/jpeg,image/png,image/gif"
+                  cropAspect={PROFILE_IMAGE_ASPECT}
                 />
                 <Input
                   type="text"
@@ -897,6 +902,7 @@ const SettingsPage = () => {
                 colorScheme="blue"
                 mr={3}
                 isLoading={isSavingProfile}
+                spinner={<ButtonLoadingSpinner />}
                 loadingText="Saving…"
               >
                 Save Changes

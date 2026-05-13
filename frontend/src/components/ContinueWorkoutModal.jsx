@@ -20,6 +20,7 @@ import {
   Box,
   IconButton,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner } from "./loading";
 import { useState } from "react";
 import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
 import { apiClient, API_ENDPOINTS } from "../config/api";
@@ -445,6 +446,7 @@ const ContinueWorkoutModal = ({
               colorScheme="blue"
               onClick={handleContinueWorkout}
               isLoading={isLoading}
+              spinner={<ButtonLoadingSpinner />}
               loadingText="Adding..."
             >
               {addedBy === "trainer"
@@ -458,6 +460,7 @@ const ContinueWorkoutModal = ({
                 colorScheme="green"
                 onClick={handleCompleteWorkout}
                 isLoading={isLoading}
+                spinner={<ButtonLoadingSpinner />}
                 loadingText="Completing..."
               >
                 {addedBy === "trainer"

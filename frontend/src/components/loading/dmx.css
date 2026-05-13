@@ -1,0 +1,39 @@
+.dmx-root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.dmx-grid {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+}
+
+.dmx-dot {
+  display: block;
+  border-radius: 9999px;
+  background-color: var(--dmx-dot-fill, currentColor);
+  transition: opacity 0.15s ease-out;
+}
+
+.dmx-dot.dmx-inactive {
+  visibility: hidden;
+}
+
+.dmx-muted .dmx-dot:not(.dmx-inactive) {
+  filter: saturate(0.85);
+}
+
+.dmx-bloom .dmx-grid {
+  filter: drop-shadow(
+    0 0 calc(var(--dmx-bloom-level, 0) * 6px) currentColor
+  );
+}
+
+.dmx-bloom-dot {
+  box-shadow: 0 0 calc(2px + var(--dmx-bloom-level, 0) * 4px)
+    var(--dmx-dot-fill, currentColor);
+}

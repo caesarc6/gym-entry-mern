@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import {
   Container,
   Box,
@@ -21,20 +21,25 @@ import {
   TabPanels,
   Tab,
   TabPanel,
-  Spinner,
   Center,
   Alert,
   AlertIcon,
   Icon,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { FiExternalLink } from "react-icons/fi";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
 import GymNameHelper from "../components/GymNameHelper";
-import ExerciseProgressChart from "../components/ExerciseProgressChart";
-import MultiMetricProgressChart from "../components/MultiMetricProgressChart";
 import ProgressInsights from "../components/ProgressInsights";
+
+const ExerciseProgressChart = lazy(
+  () => import("../components/ExerciseProgressChart")
+);
+const MultiMetricProgressChart = lazy(
+  () => import("../components/MultiMetricProgressChart")
+);
 import WorkoutDetailsModal from "../components/modals/WorkoutDetailsModal";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
@@ -631,7 +636,9 @@ const AnalyticsPage = () => {
       >
         <Center>
           <VStack spacing={4}>
-            <Spinner size="xl" color={cardText} />
+            <Box color={cardText}>
+              <LoadingIndicator variant="page" />
+            </Box>
             <Text color={mutedText}>Loading analytics...</Text>
           </VStack>
         </Center>
@@ -713,6 +720,7 @@ const AnalyticsPage = () => {
                       colorScheme="blue"
                       onClick={autoProcessAll}
                       isLoading={autoProcessing}
+                      spinner={<ButtonLoadingSpinner />}
                       loadingText="Processing All"
                       size="sm"
                     >
@@ -727,6 +735,7 @@ const AnalyticsPage = () => {
                       colorScheme="purple"
                       onClick={reprocessAllWorkoutsWithNormalization}
                       isLoading={autoProcessing}
+                      spinner={<ButtonLoadingSpinner />}
                       loadingText="Reprocessing"
                       size="sm"
                       variant="outline"
@@ -767,6 +776,7 @@ const AnalyticsPage = () => {
                           colorScheme={isProcessed ? "gray" : "blue"}
                           onClick={() => processEntry(entry._id)}
                           isLoading={processingEntry === entry._id}
+                          spinner={<ButtonLoadingSpinner />}
                           loadingText="Processing"
                           isDisabled={isProcessed}
                         >
@@ -1066,6 +1076,7 @@ const AnalyticsPage = () => {
                           colorScheme="blue"
                           onClick={autoProcessAll}
                           isLoading={autoProcessing}
+                          spinner={<ButtonLoadingSpinner />}
                           loadingText="Processing All"
                           size="sm"
                         >
@@ -1081,6 +1092,7 @@ const AnalyticsPage = () => {
                           colorScheme="purple"
                           onClick={reprocessAllWorkoutsWithNormalization}
                           isLoading={autoProcessing}
+                          spinner={<ButtonLoadingSpinner />}
                           loadingText="Reprocessing"
                           size="sm"
                           variant="outline"
@@ -1124,6 +1136,7 @@ const AnalyticsPage = () => {
                               colorScheme="blue"
                               onClick={() => processEntry(entry._id)}
                               isLoading={processingEntry === entry._id}
+                              spinner={<ButtonLoadingSpinner />}
                               loadingText="Processing"
                             >
                               Process
@@ -1280,7 +1293,9 @@ const AnalyticsPage = () => {
 
                 {progressLoading && (
                   <Center>
-                    <Spinner color={cardText} />
+                    <Box color={cardText}>
+                      <LoadingIndicator variant="inline" />
+                    </Box>
                   </Center>
                 )}
 
@@ -1306,20 +1321,30 @@ const AnalyticsPage = () => {
                       </Button>
                     </HStack>
 
-                    {/* Progress Chart */}
+                    {/* Progress Chart (chart.js loaded only when this card mounts) */}
                     <Card {...cardProps}>
                       <CardBody>
-                        {chartType === "simple" ? (
-                          <ExerciseProgressChart
-                            exerciseProgress={exerciseProgress}
-                            exerciseName={exerciseProgress.exercise}
-                          />
-                        ) : (
-                          <MultiMetricProgressChart
-                            exerciseProgress={exerciseProgress}
-                            exerciseName={exerciseProgress.exercise}
-                          />
-                        )}
+                        <Suspense
+                          fallback={
+                            <Center py={10}>
+                              <Box color={cardText}>
+                                <LoadingIndicator variant="inline" />
+                              </Box>
+                            </Center>
+                          }
+                        >
+                          {chartType === "simple" ? (
+                            <ExerciseProgressChart
+                              exerciseProgress={exerciseProgress}
+                              exerciseName={exerciseProgress.exercise}
+                            />
+                          ) : (
+                            <MultiMetricProgressChart
+                              exerciseProgress={exerciseProgress}
+                              exerciseName={exerciseProgress.exercise}
+                            />
+                          )}
+                        </Suspense>
                       </CardBody>
                     </Card>
 

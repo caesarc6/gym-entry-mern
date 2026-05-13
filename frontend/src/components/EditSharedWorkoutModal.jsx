@@ -16,6 +16,7 @@ import {
   Box,
   FormHelperText,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner } from "./loading";
 import { useState, useEffect } from "react";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { apiClient, API_ENDPOINTS } from "../config/api";
@@ -245,6 +246,7 @@ const EditSharedWorkoutModal = ({
               colorScheme="blue"
               onClick={handleSubmit}
               isLoading={isSubmitting}
+              spinner={<ButtonLoadingSpinner />}
               loadingText="Updating..."
               bg="blue.500"
               color="white"

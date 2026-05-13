@@ -19,7 +19,7 @@ const SignUpFlow = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useCustomToast();
-  const { requestGoogleOAuth, IosGoogleAuthModal } = useIosAwareGoogleOAuth();
+  const { requestGoogleOAuth } = useIosAwareGoogleOAuth();
 
   // Get the redirect path from location state, default to home
   const redirectPath = location.state?.from || "/";
@@ -233,7 +233,6 @@ const SignUpFlow = () => {
           </VStack>
         </Container>
       </div>
-      {IosGoogleAuthModal}
     </>
   );
 };

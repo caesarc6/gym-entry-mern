@@ -4,43 +4,45 @@ import {
   Text,
   VStack,
   Box,
-  Spinner,
   useColorModeValue,
   Flex,
   HStack,
 } from "@chakra-ui/react";
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { LoadingIndicator } from "../components/loading";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { supabase } from "../supabase/supabase";
 import { Hero } from "../components/Hero";
 import { HomeLandingSections } from "../components/HomeLandingSections";
+import axios from "axios";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import PaginationComponent from "../components/Pagination";
 import ClaimedWorkoutsModal from "../components/ClaimedWorkoutsModal";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import { cn } from "../lib/utils";
+import { landingDarkMainCanvas } from "../lib/homeLandingDarkTheme";
 import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
 import { FiPlus } from "react-icons/fi";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
+import ProductCard from "../components/ProductCard";
 
 const isCapacitorNative = getIsCapacitorNative();
-const ProductCard = lazy(() => import("../components/ProductCard"));
+/** Smaller pages on native reduce feed DOM + ProductCard instances per request. */
+const HOME_FEED_PAGE_SIZE = isCapacitorNative ? 4 : 6;
+
+const isRequestAbortError = (err) =>
+  axios.isCancel?.(err) ||
+  err?.code === "ERR_CANCELED" ||
+  err?.name === "CanceledError" ||
+  err?.name === "AbortError";
 
 const HomePage = () => {
   const {
     clearEntrys,
-    homeFeedCache,
     setHomeFeedCache,
     clearHomeFeedCache,
     feedCacheTtlMs,
@@ -51,19 +53,17 @@ const HomePage = () => {
   const [uid, setUid] = useState(null);
   const [entries, setEntries] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(6);
+  const [limit] = useState(HOME_FEED_PAGE_SIZE);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     totalPosts: 0,
-    limit: 6,
+    limit: HOME_FEED_PAGE_SIZE,
   });
   const [profileCache, setProfileCache] = useState(new Map());
   const toast = useCustomToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
-  const { currentTheme, setTheme } = useTheme();
-  const prevThemeRef = useRef(null);
-  const forcedLightRef = useRef(false);
+  const { currentTheme } = useTheme();
   const navigate = useNavigate();
 
   const handlePageChange = (newPage) => {
@@ -71,39 +71,6 @@ const HomePage = () => {
       setCurrentPage(newPage);
     }
   };
-
-  // Home page (signed-out): force light page content while keeping dark navbar.
-  // Once the user is signed in, stop forcing and restore their previous theme.
-  useEffect(() => {
-    // Web waits for auth before touching theme; native guest shell can render first.
-    if (!isAuthReady && !isCapacitorNative) return;
-
-    if (!isSignedIn) {
-      if (!forcedLightRef.current) {
-        prevThemeRef.current = currentTheme;
-        forcedLightRef.current = true;
-      }
-
-      if (currentTheme !== "light") setTheme("light");
-      return;
-    }
-
-    if (forcedLightRef.current) {
-      forcedLightRef.current = false;
-      const prev = prevThemeRef.current;
-      if (prev && prev !== "light") setTheme(prev);
-    }
-  }, [isAuthReady, isSignedIn, currentTheme, setTheme]);
-
-  useEffect(() => {
-    return () => {
-      if (forcedLightRef.current) {
-        forcedLightRef.current = false;
-        const prev = prevThemeRef.current;
-        if (prev && prev !== "light") setTheme(prev);
-      }
-    };
-  }, [setTheme]);
 
   // Reset to page 1 when signed-in user changes (before feed fetch effect runs)
   useLayoutEffect(() => {
@@ -207,6 +174,9 @@ const HomePage = () => {
 
   // Single home-feed request (server merges self + following, paginated)
   useEffect(() => {
+    const ac = new AbortController();
+    let cancelled = false;
+
     const fetchHomeFeed = async () => {
       if (!uid) {
         setEntries([]);
@@ -221,25 +191,31 @@ const HomePage = () => {
       }
 
       try {
+        // Read cache imperatively — listing `homeFeedCache` as an effect dependency
+        // re-ran this effect whenever we wrote the cache, aborted the in-flight request,
+        // and skipped applying results so the grid stayed empty until pagination changed.
+        const cacheSnapshot = useProductStore.getState().homeFeedCache;
+
         // Restore cached pages instantly; stale pages can refresh in the background.
         const cachedForPage =
-          homeFeedCache &&
-          homeFeedCache.uid === uid &&
-          homeFeedCache.page === currentPage &&
-          homeFeedCache.limit === limit;
+          cacheSnapshot &&
+          cacheSnapshot.uid === uid &&
+          cacheSnapshot.page === currentPage &&
+          cacheSnapshot.limit === limit;
 
         if (cachedForPage) {
-          setEntries(homeFeedCache.entries || []);
+          if (cancelled) return;
+          setEntries(cacheSnapshot.entries || []);
           setPagination(
-            homeFeedCache.pagination || {
+            cacheSnapshot.pagination || {
               currentPage,
               totalPages: 1,
-              totalPosts: homeFeedCache.entries?.length || 0,
+              totalPosts: cacheSnapshot.entries?.length || 0,
               limit,
             }
           );
           setIsLoading(false);
-          if (Date.now() - homeFeedCache.cachedAt < feedCacheTtlMs) {
+          if (Date.now() - cacheSnapshot.cachedAt < feedCacheTtlMs) {
             return;
           }
         }
@@ -247,15 +223,20 @@ const HomePage = () => {
         if (!cachedForPage) {
           setIsLoading(true);
         }
-        const includeCount = currentPage === 1 || pagination.totalPosts === 0;
+        // Count total posts only on page 1; repeats are expensive and this flag used to
+        // stay true whenever totalPosts was still 0, forcing count on every page request.
+        const includeCount = currentPage === 1;
         const response = await apiClient.get(
-          API_ENDPOINTS.HOME_FEED(currentPage, limit, includeCount)
+          API_ENDPOINTS.HOME_FEED(currentPage, limit, includeCount),
+          { signal: ac.signal }
         );
         const data = response.data;
 
         if (!data.success || !Array.isArray(data.data)) {
           throw new Error(data.message || "Failed to load feed");
         }
+
+        if (cancelled) return;
 
         const normalized = data.data.map((post) => ({
           _id: post._id,
@@ -274,16 +255,18 @@ const HomePage = () => {
           trainerProfile: post.trainerProfile || null,
         }));
 
+        if (cancelled) return;
+
         setEntries(normalized);
 
         const p = data.pagination;
         if (p) {
-          setPagination({
+          setPagination((prev) => ({
             currentPage: p.currentPage ?? currentPage,
-            totalPages: p.totalPages ?? pagination.totalPages,
-            totalPosts: p.totalPosts ?? pagination.totalPosts,
+            totalPages: p.totalPages ?? prev.totalPages,
+            totalPosts: p.totalPosts ?? prev.totalPosts,
             limit: p.limit ?? limit,
-          });
+          }));
         }
 
         setHomeFeedCache({
@@ -314,16 +297,26 @@ const HomePage = () => {
           );
         }
       } catch (error) {
+        if (cancelled || isRequestAbortError(error)) {
+          return;
+        }
         setEntries([]);
         toast.error("Error", error.message || "Failed to load feed");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
-    fetchHomeFeed();
+    void fetchHomeFeed();
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- toast from useCustomToast is not referentially stable
-  }, [uid, currentPage, limit, homeFeedCache, setHomeFeedCache, feedCacheTtlMs]);
+  }, [uid, currentPage, limit, feedCacheTtlMs, setHomeFeedCache]);
 
   const handleUpdateEntry = (pid, updatedEntry) => {
     setEntries((prevEntries) =>
@@ -362,12 +355,7 @@ const HomePage = () => {
           aria-busy
           aria-label="Checking session"
         >
-          <Spinner
-            size="lg"
-            thickness="4px"
-            speed="1.2s"
-            color={spinnerColor}
-          />
+          <LoadingIndicator variant="hero" chakraColor={spinnerColor} />
         </Flex>
       </Container>
     );
@@ -442,53 +430,35 @@ const HomePage = () => {
                   alignItems="center"
                   height="200px"
                 >
-                  <Spinner
-                    size="lg"
-                    thickness="4px"
-                    speed="1.2s"
-                    color={spinnerColor}
-                  />
+                  <LoadingIndicator variant="hero" chakraColor={spinnerColor} />
                 </Box>
               ) : (
                 <>
-                  <Suspense
-                    fallback={
-                      <Box display="flex" justifyContent="center" py={8}>
-                        <Spinner
-                          size="lg"
-                          thickness="4px"
-                          speed="1.2s"
-                          color={spinnerColor}
-                        />
-                      </Box>
-                    }
+                  <SimpleGrid
+                    columns={{
+                      base: 1,
+                      md: 2,
+                      lg: 3,
+                    }}
+                    spacing={10}
+                    w={"full"}
+                    alignItems="stretch"
+                    justifyItems="stretch"
                   >
-                    <SimpleGrid
-                      columns={{
-                        base: 1,
-                        md: 2,
-                        lg: 3,
-                      }}
-                      spacing={10}
-                      w={"full"}
-                      alignItems="stretch"
-                      justifyItems="stretch"
-                    >
-                      {entries.map((entry, index) => (
-                        <ProductCard
-                          key={entry._id}
-                          entry={entry}
-                          priority={index < 3}
-                          isOwner={
-                            uid === (entry.ownerId || entry.uid)
-                          }
-                          onUpdate={handleUpdateEntry}
-                          onDelete={handleDeleteEntry}
-                          profileCache={profileCache}
-                        />
-                      ))}
-                    </SimpleGrid>
-                  </Suspense>
+                    {entries.map((entry, index) => (
+                      <ProductCard
+                        key={entry._id}
+                        entry={entry}
+                        priority={index < 9}
+                        isOwner={
+                          uid === (entry.ownerId || entry.uid)
+                        }
+                        onUpdate={handleUpdateEntry}
+                        onDelete={handleDeleteEntry}
+                        profileCache={profileCache}
+                      />
+                    ))}
+                  </SimpleGrid>
                   <PaginationComponent
                     currentPage={currentPage}
                     totalPages={pagination.totalPages}
@@ -530,31 +500,32 @@ const HomePage = () => {
           </Container>
         </>
       ) : (
-        <>
+        <div className="landing-no-theme-chrome-fade">
           <Hero appGuestMarketing={isCapacitorNative} />
           <ProductPreviewSection />
           <div
             className={cn(
               "w-full min-w-0 bg-gradient-to-br from-zinc-200/75 via-zinc-50 to-white",
+              landingDarkMainCanvas,
             )}
           >
             <Container maxW="container.xl" className="text-center z-0 relative">
               <HomeLandingSections />
             </Container>
-            <footer className="border-t border-slate-200/80 bg-white/80 py-6">
+            <footer className="border-t border-slate-200/80 bg-white/80 py-6 dark:border-[#1e3f5c]/50 dark:bg-[#071c2c]/92">
               <Container maxW="container.xl">
-                <div className="flex flex-col items-center justify-between gap-3 text-sm text-slate-700 sm:flex-row">
+                <div className="flex flex-col items-center justify-between gap-3 text-sm text-slate-700 dark:text-slate-300 sm:flex-row">
                   <p>Copyright 2026 Ethereal Gains. All rights reserved.</p>
                   <div className="flex items-center gap-4">
                     <Link
                       to="/privacy-policy"
-                      className="font-medium text-slate-900 hover:underline"
+                      className="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-100"
                     >
                       Privacy Policy
                     </Link>
                     <Link
                       to="/terms-of-service"
-                      className="font-medium text-slate-900 hover:underline"
+                      className="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-100"
                     >
                       Terms of Service
                     </Link>
@@ -563,7 +534,7 @@ const HomePage = () => {
               </Container>
             </footer>
           </div>
-        </>
+        </div>
       )}
 
       <ClaimedWorkoutsModal

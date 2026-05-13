@@ -7,7 +7,6 @@ import {
   Image,
   Button,
   Box,
-  Spinner,
   Avatar,
   Badge,
   Divider,
@@ -21,6 +20,7 @@ import {
   ModalBody,
   ModalFooter,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
@@ -189,7 +189,7 @@ const SharedWorkoutPage = () => {
       <Container maxW="container.lg" py={12}>
         <Flex justify="center" align="center" minH="400px">
           <VStack spacing={4}>
-            <Spinner size="xl" color="blue.500" />
+            <LoadingIndicator variant="page" chakraColor="blue.500" />
             <Text>Loading shared workout...</Text>
           </VStack>
         </Flex>
@@ -351,6 +351,7 @@ const SharedWorkoutPage = () => {
                   size="lg"
                   onClick={handleSaveWorkout}
                   isLoading={isSaving}
+                  spinner={<ButtonLoadingSpinner />}
                   loadingText="Saving..."
                 >
                   Save to My Account

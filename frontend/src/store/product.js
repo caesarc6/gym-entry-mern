@@ -549,55 +549,100 @@ export const useProductStore = create((set) => ({
   },
 }));
 
-const runAuthBootstrap = async (session) => {
-  if (session?.user) {
-    try {
-      const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
-      if (response.data) {
-        useProductStore.getState().setCurrentUserInfo(response.data);
-      }
+/** Bumps when session identity changes or sign-out; stale bootstraps skip writing the store. */
+let authBootstrapGeneration = 0;
 
-      try {
-        const createUserResponse = await apiClient.get(
-          API_ENDPOINTS.GET_CURRENT_MONGODB_USER
-        );
+/** Coalesce parallel Supabase events (e.g. INITIAL_SESSION + SIGNED_IN) into one API round-trip. */
+let authBootstrapInflight = null;
 
-        if (
-          createUserResponse.data &&
-          (createUserResponse.data.data || createUserResponse.data) &&
-          (createUserResponse.data.data?.claimedWorkouts > 0 ||
-            createUserResponse.data.claimedWorkouts > 0)
-        ) {
-          const userData =
-            createUserResponse.data.data || createUserResponse.data;
-          if (userData.workouts) {
-            useProductStore.getState().setClaimedWorkouts(userData.workouts);
-
-            if (userData.isNewUser) {
-              useProductStore.getState().setShowClaimedWorkoutsModal(true);
-            }
-          }
-        }
-      } catch (claimError) {
-        // Silently handle errors - user might not have claimed workouts
-      }
-    } catch (e) {
-      const fallbackInfo = await getCurrentAuthUser();
-      useProductStore.getState().setCurrentUserInfo(fallbackInfo || null);
-    }
-  } else {
-    useProductStore.getState().setCurrentUserInfo(null);
-    useProductStore.getState().setClaimedWorkouts([]);
-    useProductStore.getState().setShowClaimedWorkoutsModal(false);
+const clearAuthBootstrapInflightIf = (promise) => {
+  if (authBootstrapInflight?.promise === promise) {
+    authBootstrapInflight = null;
   }
 };
 
+const applySignedInBootstrap = async (session, generation) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
+    if (generation !== authBootstrapGeneration) return;
+    if (response.data) {
+      useProductStore.getState().setCurrentUserInfo(response.data);
+    }
+
+    try {
+      const createUserResponse = await apiClient.get(
+        API_ENDPOINTS.GET_CURRENT_MONGODB_USER,
+      );
+      if (generation !== authBootstrapGeneration) return;
+
+      if (
+        createUserResponse.data &&
+        (createUserResponse.data.data || createUserResponse.data) &&
+        (createUserResponse.data.data?.claimedWorkouts > 0 ||
+          createUserResponse.data.claimedWorkouts > 0)
+      ) {
+        const userData =
+          createUserResponse.data.data || createUserResponse.data;
+        if (userData.workouts) {
+          useProductStore.getState().setClaimedWorkouts(userData.workouts);
+
+          if (userData.isNewUser) {
+            useProductStore.getState().setShowClaimedWorkoutsModal(true);
+          }
+        }
+      }
+    } catch (claimError) {
+      // Silently handle errors - user might not have claimed workouts
+    }
+  } catch (e) {
+    if (generation !== authBootstrapGeneration) return;
+    const fallbackInfo = await getCurrentAuthUser();
+    if (generation !== authBootstrapGeneration) return;
+    useProductStore.getState().setCurrentUserInfo(fallbackInfo || null);
+  }
+};
+
+const applySignedOutBootstrap = () => {
+  useProductStore.getState().setCurrentUserInfo(null);
+  useProductStore.getState().setClaimedWorkouts([]);
+  useProductStore.getState().setShowClaimedWorkoutsModal(false);
+};
+
+const scheduleAuthBootstrap = (session) => {
+  if (!session?.user) {
+    authBootstrapGeneration += 1;
+    authBootstrapInflight = null;
+    applySignedOutBootstrap();
+    return Promise.resolve();
+  }
+
+  const uid = session.user.id;
+  if (authBootstrapInflight?.key === uid) {
+    return authBootstrapInflight.promise;
+  }
+
+  authBootstrapGeneration += 1;
+  const generation = authBootstrapGeneration;
+
+  const promise = applySignedInBootstrap(session, generation).finally(() => {
+    clearAuthBootstrapInflightIf(promise);
+  });
+
+  authBootstrapInflight = { key: uid, promise };
+  return promise;
+};
+
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === "SIGNED_OUT" || !session?.user) {
-    runAuthBootstrap(null);
+  // Token rotation does not change Mongo profile; skip duplicate getCurrent* traffic.
+  if (event === "TOKEN_REFRESHED") {
     return;
   }
-  runAuthBootstrap(session);
+
+  if (event === "SIGNED_OUT" || !session?.user) {
+    void scheduleAuthBootstrap(null);
+    return;
+  }
+  void scheduleAuthBootstrap(session);
 });
 
 // Add sharing functionality to the store

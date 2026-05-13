@@ -28,7 +28,6 @@ export async function startGoogleSupabaseOAuth({
     : `${window.location.origin}/auth/callback`;
 
   pushAuthDebug(`${debugContext}: starting OAuth`, { redirectTo });
-  console.debug(`[${debugContext}] starting OAuth`, { redirectTo });
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -43,7 +42,6 @@ export async function startGoogleSupabaseOAuth({
   }
 
   pushAuthDebug(`${debugContext}: OAuth redirect`, { url: data?.url });
-  console.debug(`[${debugContext}] OAuth redirect`, { url: data?.url });
 
   if (!data?.url) {
     throw new Error("Missing OAuth redirect URL");

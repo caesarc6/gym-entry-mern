@@ -8,9 +8,9 @@ import {
   Avatar,
   Center,
   Flex,
-  Spinner,
   Box,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { Stack, Image } from "@chakra-ui/react";
 import { lazy, Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -477,6 +477,7 @@ const UserProfilePage = () => {
                 w={"full"}
                 isLoading={isFollowingLoading}
                 isDisabled={isFollowingLoadingInitial}
+                spinner={<ButtonLoadingSpinner />}
                 loadingText={
                   isFollowing
                     ? "Unfollowing..."
@@ -504,7 +505,7 @@ const UserProfilePage = () => {
     <Container maxW="container.xl" py={8}>
       {isLoading ? (
         <Center>
-          <Spinner size="lg" />
+          <LoadingIndicator variant="hero" />
         </Center>
       ) : entries.length === 0 ? (
         <Center>
@@ -521,7 +522,7 @@ const UserProfilePage = () => {
           <Suspense
             fallback={
               <Center py={8}>
-                <Spinner size="lg" />
+                <LoadingIndicator variant="hero" />
               </Center>
             }
           >
@@ -581,6 +582,7 @@ const UserProfilePage = () => {
                 colorScheme="blue"
                 isLoading={isFollowingLoading}
                 isDisabled={isFollowingLoadingInitial}
+                spinner={<ButtonLoadingSpinner />}
                 loadingText="Sending Request..."
               >
                 {isFollowingLoadingInitial
@@ -610,6 +612,7 @@ const UserProfilePage = () => {
               colorScheme="whiteAlpha"
               variant="outline"
               isLoading={isFollowingLoading}
+              spinner={<ButtonLoadingSpinner />}
               loadingText="Canceling Request..."
             >
               Cancel Request

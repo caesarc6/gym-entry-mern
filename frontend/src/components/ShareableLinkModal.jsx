@@ -20,6 +20,7 @@ import {
   Divider,
   useClipboard,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner } from "./loading";
 import { CopyIcon, ExternalLinkIcon, LinkIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 import { API_ENDPOINTS, apiClient } from "../config/api";
@@ -221,6 +222,7 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
                   size="lg"
                   onClick={handleGenerateLink}
                   isLoading={isGenerating}
+                  spinner={<ButtonLoadingSpinner />}
                   loadingText="Generating Link..."
                   leftIcon={<LinkIcon />}
                 >

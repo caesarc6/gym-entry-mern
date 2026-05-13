@@ -203,6 +203,16 @@ export const apiClient = axios.create({
   },
 });
 
+function requestAlreadyHasAuthHeader(config) {
+  const h = config.headers;
+  if (!h) return false;
+  if (h.Authorization || h.authorization) return true;
+  if (typeof h.get === "function") {
+    return Boolean(h.get("Authorization") || h.get("authorization"));
+  }
+  return false;
+}
+
 // Request interceptor to add auth token (supports both Firebase and Supabase)
 apiClient.interceptors.request.use(
   async (config) => {
@@ -214,6 +224,9 @@ apiClient.interceptors.request.use(
         delete h["Content-Type"];
         delete h["content-type"];
       }
+    }
+    if (requestAlreadyHasAuthHeader(config)) {
+      return config;
     }
     try {
       // Use dual-auth utility to get token from either provider

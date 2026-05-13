@@ -21,8 +21,8 @@ import {
   Wrap,
   WrapItem,
   Select,
-  Spinner,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AddIcon, DeleteIcon, ArrowBackIcon } from "@chakra-ui/icons";
@@ -238,7 +238,7 @@ const CreateSharedWorkout = () => {
                   </Text>
                 ) : isLoadingClients ? (
                   <HStack>
-                    <Spinner size="sm" />
+                    <LoadingIndicator variant="compact" />
                     <Text fontSize="sm" color="gray.700">
                       Loading clients...
                     </Text>
@@ -363,6 +363,7 @@ const CreateSharedWorkout = () => {
             colorScheme="blue"
             onClick={handleSubmit}
             isLoading={isSubmitting}
+            spinner={<ButtonLoadingSpinner />}
             loadingText="Creating Workout..."
             bg="blue.500"
             color="white"

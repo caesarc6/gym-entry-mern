@@ -34,6 +34,7 @@ import {
   Switch,
   Tooltip,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner } from "./loading";
 import { useState, useEffect, useCallback } from "react";
 import { useCustomToast } from "../hooks/useCustomToast";
 import {
@@ -608,6 +609,7 @@ const EnhancedWorkoutEditor = ({
               colorScheme="blue"
               onClick={handleManualSave}
               isLoading={isLoading}
+              spinner={<ButtonLoadingSpinner />}
               loadingText="Saving..."
             >
               Save Changes

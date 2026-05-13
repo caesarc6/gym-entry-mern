@@ -1,7 +1,7 @@
-import { Box, Spinner, Center } from "@chakra-ui/react";
-import { lazy, Suspense } from "react";
+import { Box, Center } from "@chakra-ui/react";
+import { LoadingIndicator } from "./components/loading";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
-import { HeroHeader } from "./components/hero9-header";
 import "./index.css";
 import { useCanvasShell } from "./contexts/CanvasShellContext.jsx";
 import MobileAppShell from "./components/MobileAppShell";
@@ -28,31 +28,62 @@ const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const HeroHeader = lazy(() =>
+  import("./components/hero9-header").then((m) => ({
+    default: m.HeroHeader,
+  }))
+);
 
 const RouteFallback = () => (
   <Center minH="40vh" py={12}>
-    <Spinner size="lg" color="blue.400" />
+    <LoadingIndicator variant="hero" chakraColor="blue.400" />
   </Center>
 );
+
+/** Minimal placeholder so layout does not jump while the header chunk loads. */
+const HeaderFallback = () => <Box minH="64px" w="100%" aria-hidden />;
+
+/** Tracks which main tabs the user has opened so we do not mount Analytics + Profile until needed (native perf). */
+function getNativeTabVisitSet(pathname) {
+  const visited = new Set();
+  if (pathname === "/" || pathname === "") visited.add("feed");
+  if (pathname === "/analytics") visited.add("analytics");
+  if (pathname === "/profile") visited.add("profile");
+  return visited;
+}
 
 function NativeTabsLayout() {
   const location = useLocation();
   const pathname = location.pathname;
   const currentUser = useProductStore((s) => s.currentUser);
 
+  const [visitedTabs, setVisitedTabs] = useState(() =>
+    getNativeTabVisitSet(location.pathname)
+  );
+
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      const next = new Set(prev);
+      if (pathname === "/" || pathname === "") next.add("feed");
+      if (pathname === "/analytics") next.add("analytics");
+      if (pathname === "/profile") next.add("profile");
+      return next;
+    });
+  }, [pathname]);
+
   const isFeedTab = pathname === "/";
   const isAnalyticsTab = pathname === "/analytics";
   const isProfileTab = pathname === "/profile";
   const isTabRoute = isFeedTab || isAnalyticsTab || isProfileTab;
 
-  // Signed-out on feed: do not mount other tabs yet. Hidden tabs used to mount RequireAuth
-  // and redirect the whole app away from the guest feed. Signed-in users keep all tabs mounted.
-  const mountAnalyticsTab = Boolean(currentUser) || isAnalyticsTab;
-  const mountProfileTab = Boolean(currentUser) || isProfileTab;
+  const mountAnalyticsTab =
+    (Boolean(currentUser) || isAnalyticsTab) &&
+    visitedTabs.has("analytics");
+  const mountProfileTab =
+    (Boolean(currentUser) || isProfileTab) && visitedTabs.has("profile");
 
   return (
     <>
-      {/* Keep main tabs mounted for signed-in users (native-like tab state). */}
       <div style={{ display: isFeedTab ? "block" : "none" }}>
         <HomePage />
       </div>
@@ -178,15 +209,23 @@ function NativeTabsLayout() {
 
 function App() {
   const isCapacitorNative = getIsCapacitorNative();
+  const location = useLocation();
   const { paintHex, prefersReducedMotion, transition } = useCanvasShell();
 
-  const shellBgStyle = prefersReducedMotion
-    ? { backgroundColor: paintHex }
-    : { backgroundColor: paintHex, transition };
+  const isHomePath =
+    location.pathname === "/" || location.pathname === "";
+  const shellBgStyle =
+    prefersReducedMotion || isHomePath
+      ? { backgroundColor: paintHex }
+      : { backgroundColor: paintHex, transition };
 
   return (
     <Box minH="100dvh" w="100%" style={shellBgStyle}>
-      {!isCapacitorNative && <HeroHeader />}
+      {!isCapacitorNative && (
+        <Suspense fallback={<HeaderFallback />}>
+          <HeroHeader />
+        </Suspense>
+      )}
       {isCapacitorNative ? (
         <MobileAppShell>
           <Suspense fallback={<RouteFallback />}>

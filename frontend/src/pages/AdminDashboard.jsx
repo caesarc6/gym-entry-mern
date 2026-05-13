@@ -9,7 +9,6 @@ import {
   CardBody,
   CardHeader,
   Badge,
-  Spinner,
   Center,
   Avatar,
   Box,
@@ -25,6 +24,7 @@ import {
   ModalFooter,
   ModalCloseButton,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustomToast } from "../hooks/useCustomToast";
@@ -201,7 +201,7 @@ const AdminDashboard = () => {
       <Container maxW="container.xl" pt={{ base: 16, md: 20 }} pb={8} px={{ base: 4, md: 6 }}>
         <Center>
           <VStack spacing={4}>
-            <Spinner size="xl" />
+            <LoadingIndicator variant="page" />
             <Text>Checking admin access...</Text>
           </VStack>
         </Center>
@@ -282,7 +282,7 @@ const AdminDashboard = () => {
 
         {isLoading ? (
           <Center py={8}>
-            <Spinner size="xl" />
+            <LoadingIndicator variant="page" />
           </Center>
         ) : (
           <>
@@ -334,6 +334,7 @@ const AdminDashboard = () => {
                               leftIcon={<CheckIcon />}
                               size={{ base: "sm", md: "sm" }}
                               isLoading={processingUserId === user.uid}
+                              spinner={<ButtonLoadingSpinner />}
                               onClick={() => handleApprove(user.uid)}
                               flex={{ base: "1 1 auto", md: "0 0 auto" }}
                               minW={{ base: "calc(50% - 4px)", md: "auto" }}
@@ -346,6 +347,7 @@ const AdminDashboard = () => {
                               size={{ base: "sm", md: "sm" }}
                               variant="outline"
                               isLoading={processingUserId === user.uid}
+                              spinner={<ButtonLoadingSpinner />}
                               onClick={() => handleRejectClick(user)}
                               flex={{ base: "1 1 auto", md: "0 0 auto" }}
                               minW={{ base: "calc(50% - 4px)", md: "auto" }}
@@ -412,6 +414,7 @@ const AdminDashboard = () => {
                             size={{ base: "sm", md: "sm" }}
                             variant="outline"
                             isLoading={processingUserId === user.uid}
+                            spinner={<ButtonLoadingSpinner />}
                             onClick={() => handleRejectClick(user)}
                             w={{ base: "100%", md: "auto" }}
                             alignSelf={{ base: "stretch", md: "flex-end" }}
@@ -466,6 +469,7 @@ const AdminDashboard = () => {
               colorScheme="red"
               onClick={handleRejectConfirm}
               isLoading={processingUserId === userToReject?.uid}
+              spinner={<ButtonLoadingSpinner />}
             >
               Confirm
             </Button>

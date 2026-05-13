@@ -5,7 +5,6 @@ import {
   VStack,
   Button,
   Box,
-  Spinner,
   Heading,
   Avatar,
   Center,
@@ -25,16 +24,19 @@ import {
   Badge,
   HStack,
 } from "@chakra-ui/react";
+import { LoadingIndicator } from "../components/loading";
 import { lazy, Suspense, useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader";
+import { PROFILE_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import { supabase } from "../supabase/supabase";
 import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { FiSettings } from "react-icons/fi";
 import PaginationComponent from "../components/Pagination";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useTheme } from "../contexts/ThemeContext";
+import { useCanvasShell } from "../contexts/CanvasShellContext.jsx";
 import { cn } from "../lib/utils";
 
 // Convert Vite asset imports to actual URLs
@@ -52,8 +54,12 @@ import PrivacySettings from "../components/PrivacySettings";
 import { useProductStore as useUiStore } from "../store/product";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+import {
+  THEME_SHELL_BG_BORDER_TRANSITION,
+} from "../constants/themeShellTiming.js";
 
 const isCapacitorNative = getIsCapacitorNative();
+const PROFILE_POSTS_PAGE_SIZE = isCapacitorNative ? 4 : 6;
 const ProductCard = lazy(() => import("../components/ProductCard"));
 
 const ProfilePage = () => {
@@ -62,12 +68,12 @@ const ProfilePage = () => {
   const [uid, setUid] = useState(null);
   const [entries, setEntries] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(6);
+  const [limit] = useState(PROFILE_POSTS_PAGE_SIZE);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     totalPosts: 0,
-    limit: 6,
+    limit: PROFILE_POSTS_PAGE_SIZE,
   });
   const [userProfile, setUserProfile] = useState({
     name: "",
@@ -94,6 +100,7 @@ const ProfilePage = () => {
   const toast = useCustomToast();
   const colors = useThemeColors();
   const { currentTheme } = useTheme();
+  const { prefersReducedMotion } = useCanvasShell();
   const {
     setProfileTabCache,
     clearProfileTabCache,
@@ -774,7 +781,7 @@ const ProfilePage = () => {
     return (
       <Container maxW="container.xl" py={12}>
         <Center minH="50vh">
-          <Spinner size="xl" thickness="4px" />
+          <LoadingIndicator variant="page" />
         </Center>
       </Container>
     );
@@ -805,7 +812,7 @@ const ProfilePage = () => {
         <nav className="sticky top-0 z-20 w-full">
           <div
             className={cn(
-              "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
+              "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] backdrop-blur-xl",
               currentTheme === "light"
                 ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
                 : currentTheme === "dark-black"
@@ -814,6 +821,11 @@ const ProfilePage = () => {
                     ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
                     : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
             )}
+            style={{
+              transition: prefersReducedMotion
+                ? undefined
+                : THEME_SHELL_BG_BORDER_TRANSITION,
+            }}
           >
             <div className="mx-auto w-full max-w-7xl">
               <div className="relative flex items-center justify-between py-2">
@@ -975,11 +987,9 @@ const ProfilePage = () => {
             alignItems="center"
             height="200px"
           >
-            <Spinner
-              size="lg"
-              thickness="4px"
-              speed="1.2s"
-              color={colors.textSecondary}
+            <LoadingIndicator
+              variant="hero"
+              chakraColor={colors.textSecondary}
             />
           </Box>
         ) : entries.length > 0 ? (
@@ -987,10 +997,9 @@ const ProfilePage = () => {
             <Suspense
               fallback={
                 <Box display="flex" justifyContent="center" py={8}>
-                  <Spinner
-                    size="lg"
-                    thickness="4px"
-                    color={colors.textSecondary}
+                  <LoadingIndicator
+                    variant="hero"
+                    chakraColor={colors.textSecondary}
                   />
                 </Box>
               }
@@ -1260,6 +1269,7 @@ const ProfilePage = () => {
                 <FileUploader
                   handleFile={handleProfileImageUpload}
                   accept="image/jpeg,image/png,image/gif"
+                  cropAspect={PROFILE_IMAGE_ASPECT}
                 />
                 <Input
                   type="text"

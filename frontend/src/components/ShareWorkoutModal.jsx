@@ -21,6 +21,7 @@ import {
   Link,
   useDisclosure,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner } from "./loading";
 import { useState } from "react";
 import { CopyIcon, ExternalLinkIcon } from "@chakra-ui/icons";
 import { FiShare2 } from "react-icons/fi";
@@ -163,6 +164,7 @@ const ShareWorkoutModal = ({ isOpen, onClose, entry, onShareGenerated }) => {
               <Button
                 onClick={handleGenerateShareLink}
                 isLoading={isGenerating}
+                spinner={<ButtonLoadingSpinner />}
                 loadingText="Generating..."
                 colorScheme="blue"
                 leftIcon={<FiShare2 />}

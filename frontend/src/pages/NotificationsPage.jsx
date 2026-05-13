@@ -4,10 +4,10 @@ import {
   Container,
   Flex,
   HStack,
-  Spinner,
   Text,
   VStack,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_ENDPOINTS, apiClient } from "../config/api";
@@ -112,7 +112,7 @@ export default function NotificationsPage() {
 
       {isLoading ? (
         <Flex justify="center" py={10}>
-          <Spinner size="lg" />
+          <LoadingIndicator variant="hero" />
         </Flex>
       ) : items.length === 0 ? (
         <Box
@@ -151,6 +151,7 @@ export default function NotificationsPage() {
                     colorScheme="blue"
                     variant="solid"
                     isLoading={actingId === req._id}
+                    spinner={<ButtonLoadingSpinner />}
                     onClick={() => act(req._id, "accept")}
                   >
                     Accept
@@ -160,6 +161,7 @@ export default function NotificationsPage() {
                     colorScheme="red"
                     variant="outline"
                     isLoading={actingId === req._id}
+                    spinner={<ButtonLoadingSpinner />}
                     onClick={() => act(req._id, "reject")}
                   >
                     Reject

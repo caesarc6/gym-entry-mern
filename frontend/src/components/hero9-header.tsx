@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Search } from "lucide-react";
 import { Button } from "./ui/button";
+import { HeroDesktopUserDropdown } from "./ui/dropdown-menu-1";
 import React, { useCallback, useEffect, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
@@ -17,28 +18,24 @@ import { useColorMode } from "@chakra-ui/react";
 import { RxAvatar } from "react-icons/rx";
 import { PiSignOutThin } from "react-icons/pi";
 import { FiUsers } from "react-icons/fi";
-import { MdArrowDropDown } from "react-icons/md";
 import { HiShieldCheck } from "react-icons/hi";
 import {
   Input,
   VStack,
   Text,
   Avatar,
-  Spinner,
   Flex,
-  Menu as ChakraMenu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   Box,
   Button as ChakraButton,
 } from "@chakra-ui/react";
-import { debounce } from "lodash";
+import { LoadingIndicator } from "../components/loading";
+import debounce from "lodash/debounce";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useTheme } from "../contexts/ThemeContext";
 import { useCanvasShell, hexAlpha } from "../contexts/CanvasShellContext.jsx";
 import ThemeSelector from "./ThemeSelector";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { THEME_SHELL_BG_BORDER_TRANSITION } from "../constants/themeShellTiming.js";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 
@@ -54,8 +51,7 @@ export const HeroHeader = () => {
   const { scrollYProgress } = useScroll();
   const { colorMode } = useColorMode();
   const { currentTheme, setTheme } = useTheme();
-  const { paintHex, prefersReducedMotion, transition: canvasTransition } =
-    useCanvasShell();
+  const { paintHex, prefersReducedMotion } = useCanvasShell();
   const colors = useThemeColors();
   const toast = useCustomToast();
   const navigate = useNavigate();
@@ -257,7 +253,9 @@ export const HeroHeader = () => {
         setCurrentUser(null);
       }
     } finally {
-      if (gen === authSyncGenerationRef.current) {
+      // Must not gate on authSyncGenerationRef: a newer sync() call bumps the generation
+      // before this one's await settles, leaving spinner stuck forever (seen on refresh).
+      if (showFullLoading) {
         setIsLoading(false);
       }
     }
@@ -398,7 +396,10 @@ export const HeroHeader = () => {
               paintHex,
               !isHome && currentTheme === "light" ? 0.92 : 0.88
             ),
-            transition: prefersReducedMotion ? undefined : canvasTransition,
+            transition:
+              prefersReducedMotion || isHome
+                ? undefined
+                : THEME_SHELL_BG_BORDER_TRANSITION,
           }}
         >
           <motion.div
@@ -567,7 +568,9 @@ export const HeroHeader = () => {
                             </Text>
                           ) : (
                             <Flex w="full" justify="center" align="center">
-                              <Spinner size="xs" />
+                              <Box color={colors.textSecondary}>
+                                <LoadingIndicator variant="micro" />
+                              </Box>
                             </Flex>
                           )}
                         </VStack>
@@ -758,7 +761,9 @@ export const HeroHeader = () => {
                         </Text>
                       ) : (
                         <Flex w="full" justify="center" align="center">
-                          <Spinner size="xs" />
+                          <Box color={colors.textSecondary}>
+                            <LoadingIndicator variant="micro" />
+                          </Box>
                         </Flex>
                       )}
                     </VStack>
@@ -798,116 +803,18 @@ export const HeroHeader = () => {
                   Loading...
                 </Button>
               ) : isSignedIn ? (
-                <ChakraMenu>
-                  <MenuButton
-                    as={Button}
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center justify-center"
-                    px={2}
-                    color={
-                      colors.currentTheme === "light"
-                        ? "black"
-                        : colors.textPrimary
-                    }
-                    _hover={{
-                      bg: colors.bgHover,
-                      color:
-                        colors.currentTheme === "light"
-                          ? "gray.900"
-                          : colors.textPrimary,
-                    }}
-                  >
-                    <Box display="flex" alignItems="center">
-                      <Text
-                        as="span"
-                        fontSize="sm"
-                        color={
-                          colors.currentTheme === "light"
-                            ? "gray.400"
-                            : "gray.500"
-                        }
-                      >
-                        @{userName}
-                      </Text>
-                      <Box
-                        ml="4px"
-                        display="inline-flex"
-                        alignItems="center"
-                        color={
-                          colors.currentTheme === "light"
-                            ? "gray.400"
-                            : "gray.500"
-                        }
-                      >
-                        <MdArrowDropDown
-                          size="1.2rem"
-                          style={{
-                            color: "inherit",
-                          }}
-                        />
-                      </Box>
-                    </Box>
-                  </MenuButton>
-                  <MenuList bg={colors.bgCard} borderColor={colors.border}>
-                    <MenuItem
-                      as={Link}
-                      to="/profile"
-                      className="flex items-center gap-2"
-                      bg={colors.bgCard}
-                      color={colors.textSecondary}
-                      _hover={{ bg: colors.bgHover }}
-                    >
-                      <RxAvatar className="!w-5 !h-5" />
-                      Profile
-                    </MenuItem>
-                    <MenuItem
-                      as={Link}
-                      to="/analytics"
-                      className="flex items-center gap-2"
-                      bg={colors.bgCard}
-                      color={colors.textSecondary}
-                      _hover={{ bg: colors.bgHover }}
-                    >
-                      <Search className="!w-5 !h-5" />
-                      Analytics
-                    </MenuItem>
-                    {hasTrainerDashboardAccess && (
-                      <MenuItem
-                        as={Link}
-                        to="/trainer/dashboard"
-                        className="flex items-center gap-2"
-                        bg={colors.bgCard}
-                        color={colors.textSecondary}
-                        _hover={{ bg: colors.bgHover }}
-                      >
-                        <FiUsers className="!w-5 !h-5" />
-                        Trainer Dashboard
-                      </MenuItem>
-                    )}
-                    <MenuItem
-                      onClick={handleSignOut}
-                      className="flex items-center gap-2"
-                      bg={colors.bgCard}
-                      color={colors.textSecondary}
-                      _hover={{ bg: colors.bgHover }}
-                    >
-                      <PiSignOutThin />
-                      Sign Out
-                    </MenuItem>
-                    <MenuItem
-                      bg={colors.bgCard}
-                      color={colors.textSecondary}
-                      _hover={{ bg: colors.bgHover }}
-                      className="flex items-center gap-2"
-                      onClick={closeMenu}
-                    >
-                      <ThemeSelector onThemeChange={closeMenu} />
-                    </MenuItem>
-                  </MenuList>
-                </ChakraMenu>
+                <HeroDesktopUserDropdown
+                  userName={userName}
+                  isLightTheme={colors.currentTheme === "light"}
+                  hasTrainerDashboardAccess={hasTrainerDashboardAccess}
+                  onSignOut={handleSignOut}
+                  onThemeChange={closeMenu}
+                />
               ) : (
                 <>
+                  <div className="mr-1 hidden items-center md:flex">
+                    <ThemeSelector fullWidth={false} />
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
@@ -1081,6 +988,24 @@ export const HeroHeader = () => {
                         </>
                       ) : (
                         <div className="flex flex-col items-stretch gap-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "w-full justify-start",
+                              mobileDrawerItemClassName,
+                            )}
+                            onClick={closeMenu}
+                          >
+                            <ThemeSelector
+                              onThemeChange={closeMenu}
+                              className={cn(
+                                "justify-start",
+                                mobileDrawerOptionTextClassName,
+                              )}
+                              inheritColor
+                            />
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"

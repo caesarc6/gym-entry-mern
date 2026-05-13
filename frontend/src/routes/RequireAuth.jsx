@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Center, Spinner } from "@chakra-ui/react";
+import { Center } from "@chakra-ui/react";
+import { LoadingIndicator } from "../components/loading";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
@@ -70,7 +71,7 @@ export default function RequireAuth({ children }) {
   if (!status.ready) {
     return (
       <Center minH="40vh" py={12}>
-        <Spinner size="lg" color="blue.400" />
+        <LoadingIndicator variant="hero" chakraColor="blue.400" />
       </Center>
     );
   }

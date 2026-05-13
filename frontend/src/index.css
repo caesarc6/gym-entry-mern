@@ -258,6 +258,15 @@ html.theme-chrome-transition *::after {
   );
 }
 
+/* Guest landing (Hero + marketing): avoid slow crossfade on shadcn/Chakra UI chrome. */
+html.theme-chrome-transition .landing-no-theme-chrome-fade,
+html.theme-chrome-transition .landing-no-theme-chrome-fade *,
+html.theme-chrome-transition .landing-no-theme-chrome-fade *::before,
+html.theme-chrome-transition .landing-no-theme-chrome-fade *::after {
+  transition-duration: 0ms !important;
+  transition-delay: 0ms !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html.theme-chrome-transition *,
   html.theme-chrome-transition *::before,

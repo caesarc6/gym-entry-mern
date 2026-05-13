@@ -10,7 +10,6 @@ import {
   Button,
   VStack,
   Text,
-  Spinner,
   Divider,
   Alert,
   AlertIcon,
@@ -22,6 +21,7 @@ import {
   ModalBody,
   ModalFooter,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner, LoadingIndicator } from "./loading";
 import { useColorMode } from "@chakra-ui/react";
 import { apiClient, API_ENDPOINTS } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
@@ -243,6 +243,7 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
             type="submit"
             colorScheme="blue"
             isLoading={isSubmitting}
+            spinner={<ButtonLoadingSpinner />}
             width="full"
           >
             Save Changes
@@ -299,6 +300,7 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
             colorScheme="blue"
             variant="outline"
             isLoading={isRequestingAccess}
+            spinner={<ButtonLoadingSpinner />}
             onClick={handleRequestTrainerDashboardAccess}
             width="full"
           >
@@ -332,7 +334,7 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
                 alignItems="center"
                 py={8}
               >
-                <Spinner size="xl" />
+                <LoadingIndicator variant="page" />
               </Box>
             ) : (
               renderContent()
@@ -362,7 +364,7 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
         minH="100vh"
         bg={colorMode === "light" ? "gray.100" : "gray.800"}
       >
-        <Spinner size="xl" />
+        <LoadingIndicator variant="page" />
       </Box>
     );
   }

@@ -9,16 +9,17 @@ import {
   IconButton,
   Input,
   Image,
-  Spinner,
   Text,
   Textarea,
   VStack,
 } from "@chakra-ui/react";
+import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { CloseIcon } from "@chakra-ui/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader"; // Import the FileUploader component
+import { ENTRY_POST_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import night from "../assets/night.jpg";
 import day from "../assets/light.jpg";
 import defaultBg from "../assets/defaultBg.jpg";
@@ -308,7 +309,7 @@ const CreatePage = () => {
     return (
       <Container maxW="container.sm">
         <Center minH="50vh">
-          <Spinner size="lg" color="blue.400" />
+          <LoadingIndicator variant="hero" chakraColor="blue.400" />
         </Center>
       </Container>
     );
@@ -450,6 +451,7 @@ const CreatePage = () => {
                   handleFile={handleFileUpload}
                   maxSizeMB={5}
                   showSelectedPreview={false}
+                  cropAspect={ENTRY_POST_IMAGE_ASPECT}
                 />
               </VStack>
             </FormControl>
@@ -482,6 +484,7 @@ const CreatePage = () => {
               isDisabled={!canSubmit || isSubmitting}
               isLoading={isSubmitting}
               loadingText="Adding..."
+              spinner={<ButtonLoadingSpinner />}
               w="full"
             >
               Add Post
