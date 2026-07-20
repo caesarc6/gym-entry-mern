@@ -88,6 +88,28 @@ const AnalyticsPage = () => {
       boxShadow: `0 0 0 1px ${colors.ring}`,
     },
   };
+  const primarySolidButtonProps = {
+    bg: colors.primary,
+    color: colors.primaryForeground,
+    _hover: {
+      bg: colors.primary,
+      filter: "brightness(1.08)",
+    },
+    _active: {
+      bg: colors.primary,
+      filter: "brightness(0.96)",
+    },
+  };
+  const primaryOutlineButtonProps = {
+    borderColor: colors.primary,
+    color: colors.primary,
+    bg: "transparent",
+    _hover: {
+      bg: colors.muted,
+      borderColor: colors.primary,
+      color: colors.primary,
+    },
+  };
   const cardProps = {
     bg: cardBg,
     color: cardText,
@@ -717,7 +739,7 @@ const AnalyticsPage = () => {
                       )}
                     </HStack>
                     <Button
-                      colorScheme="blue"
+                      {...primarySolidButtonProps}
                       onClick={autoProcessAll}
                       isLoading={autoProcessing}
                       spinner={<ButtonLoadingSpinner />}
@@ -773,7 +795,9 @@ const AnalyticsPage = () => {
                         </VStack>
                         <Button
                           size="sm"
-                          colorScheme={isProcessed ? "gray" : "blue"}
+                          {...(isProcessed
+                            ? { colorScheme: "gray" }
+                            : primarySolidButtonProps)}
                           onClick={() => processEntry(entry._id)}
                           isLoading={processingEntry === entry._id}
                           spinner={<ButtonLoadingSpinner />}
@@ -1073,7 +1097,7 @@ const AnalyticsPage = () => {
                           )}
                         </HStack>
                         <Button
-                          colorScheme="blue"
+                          {...primarySolidButtonProps}
                           onClick={autoProcessAll}
                           isLoading={autoProcessing}
                           spinner={<ButtonLoadingSpinner />}
@@ -1133,7 +1157,7 @@ const AnalyticsPage = () => {
                             </VStack>
                             <Button
                               size="xs"
-                              colorScheme="blue"
+                              {...primarySolidButtonProps}
                               onClick={() => processEntry(entry._id)}
                               isLoading={processingEntry === entry._id}
                               spinner={<ButtonLoadingSpinner />}
@@ -1306,7 +1330,9 @@ const AnalyticsPage = () => {
                       <Button
                         size="sm"
                         variant={chartType === "simple" ? "solid" : "outline"}
-                        colorScheme="blue"
+                        {...(chartType === "simple"
+                          ? primarySolidButtonProps
+                          : primaryOutlineButtonProps)}
                         onClick={() => setChartType("simple")}
                       >
                         Simple Chart

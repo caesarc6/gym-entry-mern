@@ -1,34 +1,16 @@
-import {
-  Box,
-  Button,
-  Center,
-  Container,
-  FormControl,
-  FormLabel,
-  Heading,
-  IconButton,
-  Input,
-  Image,
-  Text,
-  Textarea,
-  VStack,
-} from "@chakra-ui/react";
+import { Box, Button, Center, Container, Heading, VStack } from "@chakra-ui/react";
 import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
-import { CloseIcon } from "@chakra-ui/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader"; // Import the FileUploader component
 import { ENTRY_POST_IMAGE_ASPECT } from "../constants/imageAspectRatios";
-import night from "../assets/night.jpg";
-import day from "../assets/light.jpg";
-import defaultBg from "../assets/defaultBg.jpg";
-import defaultBgNight from "../assets/defaultBgNight.jpg";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import { supabase } from "../supabase/supabase";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
+import Card11 from "../components/ui/card-11";
 
 const CreatePage = () => {
   const draftStorageKey = useMemo(() => "gym-entry:create-post-draft:v1", []);
@@ -51,8 +33,6 @@ const CreatePage = () => {
 
   const navigate = useNavigate(); // Initialize useNavigate
   const colors = useThemeColors();
-  const bgColorMode =
-    colors.currentTheme === "light" ? defaultBg : defaultBgNight;
 
   useEffect(() => {
     let cancelled = false;
@@ -305,6 +285,27 @@ const CreatePage = () => {
     String(newPost?.name || "").trim().length > 0 &&
     String(newPost?.description || "").trim().length > 0;
 
+  const cardProfile = useMemo(() => {
+    const displayName =
+      currentUserInfo?.username ||
+      currentUserInfo?.name ||
+      authUser?.name ||
+      "You";
+    const handleStem =
+      currentUserInfo?.username ||
+      authUser?.email?.split("@")[0] ||
+      "you";
+    const picture = currentUserInfo?.picture || authUser?.picture || "";
+    const initials = displayName.trim().slice(0, 2).toUpperCase() || "YO";
+    return {
+      name: displayName,
+      handle: `@${handleStem}`,
+      imageSrc: picture,
+      imageAlt: displayName,
+      fallback: initials,
+    };
+  }, [authUser, currentUserInfo]);
+
   if (!sessionResolved) {
     return (
       <Container maxW="container.sm">
@@ -334,162 +335,54 @@ const CreatePage = () => {
           Create New Post
         </Heading>
 
-        <Box w={"full"} bg={colors.bgCard} p={6} rounded={"lg"} shadow={"md"}>
-          <VStack spacing={5} w="full" align="stretch">
-            <FormControl isRequired>
-              <FormLabel color={colors.textPrimary} mb={2}>
-                Workout session name
-              </FormLabel>
-              <Input
-                placeholder="e.g. Arm Day"
-                name="title"
-                value={newPost.name}
-                onChange={(e) => {
-                  setNewPost({ ...newPost, name: e.target.value });
-                }}
-                w="full"
-                color={colors.textPrimary}
-                borderColor={colors.borderColorInput}
-                _placeholder={{ color: colors.textMuted }}
+        <Box w="full" maxW="md" mx="auto">
+          <Card11
+            profile={cardProfile}
+            sessionTitle={newPost.name}
+            onSessionTitleChange={(value) =>
+              setNewPost((prev) => ({ ...prev, name: value }))
+            }
+            description={newPost.description}
+            onDescriptionChange={(value) =>
+              setNewPost((prev) => ({ ...prev, description: value }))
+            }
+            imagePreviewSrc={newPost.postImage}
+            imageAlt="Post image preview"
+            isImageHighlight={isPostImageActive}
+            imagePreviewRef={postImagePreviewRef}
+            onImagePreviewClick={() =>
+              setIsPostImageActive((active) => !active)
+            }
+            onRemoveImage={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleFileUpload(null);
+            }}
+            uploadSlot={
+              <FileUploader
+                key={fileUploaderKey}
+                handleFile={handleFileUpload}
+                maxSizeMB={5}
+                showSelectedPreview={false}
+                cropAspect={ENTRY_POST_IMAGE_ASPECT}
               />
-            </FormControl>
-
-            <FormControl isRequired>
-              <FormLabel color={colors.textPrimary} mb={2}>
-                Workout description
-              </FormLabel>
-              <Textarea
-                minH="185px"
-                placeholder={`E.g.\nDumbbell curls 6lbs: 3 sets of 10 reps`}
-                name="description"
-                value={newPost.description}
-                onChange={(e) => {
-                  setNewPost({ ...newPost, description: e.target.value });
-                }}
-                w="full"
-                color={colors.textPrimary}
-                borderColor={colors.borderColorInput}
-                _placeholder={{ color: colors.textMuted }}
-              />
-              <Text mt={2} fontSize="sm" color={colors.textMuted}>
-                Draft saves automatically while you type.
-              </Text>
-            </FormControl>
-
-            {/* <Input
-              placeholder="Image URL (optional)"
-              name="image"
-              value={newPost.image}
-              onChange={(e) =>
-                setNewPost({ ...newPost, image: e.target.value })
-              }
-              w="full"
-            /> */}
-
-            <FormControl>
-              <FormLabel color={colors.textPrimary} mb={2} textAlign="center">
-                Image (optional)
-              </FormLabel>
-              <VStack spacing={3} align="center" w="full">
-                {newPost.postImage ? (
-                  <Box
-                    ref={postImagePreviewRef}
-                    position="relative"
-                    borderRadius="2xl"
-                    overflow="hidden"
-                    border="1px solid"
-                    borderColor={isPostImageActive ? "blue.400" : colors.borderColorInput}
-                    boxShadow={isPostImageActive ? "0 10px 30px rgba(0,0,0,0.25)" : "0 6px 18px rgba(0,0,0,0.18)"}
-                    transform={isPostImageActive ? "scale(1.01)" : "scale(1)"}
-                    transition="transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease"
-                    onClick={() => setIsPostImageActive((v) => !v)}
-                    cursor="pointer"
-                    w="220px"
-                    h="160px"
-                    bg={colors.bgMuted}
-                  >
-                    {/* subtle top gradient like native media cards */}
-                    <Box
-                      position="absolute"
-                      inset={0}
-                      bgGradient="linear(to-b, blackAlpha.400, transparent 35%)"
-                      pointerEvents="none"
-                      opacity={0.65}
-                    />
-
-                    <Image
-                      src={newPost.postImage}
-                      alt="Post image preview"
-                      backgroundColor={colors.bgMuted}
-                      w="100%"
-                      h="100%"
-                      objectFit="cover"
-                    />
-
-                    {isPostImageActive ? (
-                      <IconButton
-                        aria-label="Remove photo"
-                        icon={<CloseIcon boxSize={3} />}
-                        size="sm"
-                        variant="solid"
-                        colorScheme="blackAlpha"
-                        position="absolute"
-                        top={3}
-                        right={3}
-                        borderRadius="full"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFileUpload(null);
-                        }}
-                      />
-                    ) : null}
-                  </Box>
-                ) : null}
-                <FileUploader
-                  key={fileUploaderKey}
-                  handleFile={handleFileUpload}
-                  maxSizeMB={5}
-                  showSelectedPreview={false}
-                  cropAspect={ENTRY_POST_IMAGE_ASPECT}
-                />
-              </VStack>
-            </FormControl>
-            {/* <Input
-              className="form-control form-control-lg mb-2 mt-2 !w-[267px] !h-[47px] text-lg text-center font-weight-light hover:file:cursor-pointer hover:file:text-slate-600 content-center"
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  setNewPost({
-                    ...newPost,
-                    postImage: reader.result,
-                    postImageName: file.name,
-                  });
-                  // console buffer of image
-                };
-                if (file) {
-                  reader.readAsDataURL(file);
-                }
-              }}
-              fontFamily="Arial, sans-serif"
-            /> */}
-            <Button
-              colorScheme="blue"
-              onClick={() => {
-                handleAddPost();
-              }}
-              isDisabled={!canSubmit || isSubmitting}
-              isLoading={isSubmitting}
-              loadingText="Adding..."
-              spinner={<ButtonLoadingSpinner />}
-              w="full"
-            >
-              Add Post
-            </Button>
-          </VStack>
+            }
+            previewSubtitle="Draft saves automatically while you type."
+          />
+          <Button
+            mt={5}
+            colorScheme="blue"
+            onClick={() => {
+              handleAddPost();
+            }}
+            isDisabled={!canSubmit || isSubmitting}
+            isLoading={isSubmitting}
+            loadingText="Adding..."
+            spinner={<ButtonLoadingSpinner />}
+            w="full"
+          >
+            Add Post
+          </Button>
         </Box>
       </VStack>
     </Container>

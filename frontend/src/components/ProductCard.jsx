@@ -1,9 +1,10 @@
-import { DeleteIcon, EditIcon, StarIcon, ChatIcon } from "@chakra-ui/icons";
+import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
 import { HamburgerIcon } from "@chakra-ui/icons";
 import { FiShare2 } from "react-icons/fi";
 import {
   Box,
   Button,
+  Flex,
   Heading,
   HStack,
   IconButton,
@@ -18,6 +19,7 @@ import {
   ModalOverlay,
   Text,
   Textarea,
+  useBreakpointValue,
   useDisclosure,
   VStack,
   Menu,
@@ -27,11 +29,16 @@ import {
   Skeleton,
   Badge,
   Divider,
+  Stack,
 } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
+import { cn } from "../lib/utils";
 import { ButtonLoadingSpinner } from "./loading";
 import { FileUploader } from "./FileUploader";
-import { ENTRY_POST_IMAGE_ASPECT } from "../constants/imageAspectRatios";
+import {
+  ENTRY_POST_IMAGE_ASPECT,
+  ENTRY_POST_MEDIA_ASPECT,
+} from "../constants/imageAspectRatios";
 import { useProductStore } from "../store/product";
 import {
   useState,
@@ -49,6 +56,7 @@ import {
   parseWorkoutTitle,
 } from "../utils/workoutParser.js";
 import ShareWorkoutModal from "./ShareWorkoutModal";
+import { FeedEntryCard } from "./ui/feed-entry-card";
 import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCanvasShell } from "../contexts/CanvasShellContext.jsx";
@@ -87,11 +95,61 @@ const EDIT_SERVER_AUTOSAVE_MAX_CHAIN = 5;
 
 /** Matches CanvasShell/CSS theme chrome timing; sx wins over stylesheet order for crossfade under Chakra/emotion */
 const ENTRY_POST_THEME_TRANSITION_SX = {
-  transitionDuration: "var(--theme-shell-duration, 1s)",
-  transitionDelay: "var(--theme-shell-delay, 0.7s)",
+  transitionDuration: "var(--theme-shell-duration, 0.45s)",
+  transitionDelay: "var(--theme-shell-delay, 0s)",
   transitionTimingFunction:
     "var(--theme-shell-ease, cubic-bezier(0.42, 0, 0.58, 1))",
 };
+
+/**
+ * Keep focused inputs/textareas visible inside an overflow modal when mobile
+ * keyboards resize the Visual Viewport.
+ */
+function scrollFocusedFieldIntoEditableModalScroller(scroller, field, visualViewport, margin = 14) {
+  if (!scroller || !field || !(field instanceof HTMLElement)) return;
+
+  const vv =
+    visualViewport ??
+    (typeof window !== "undefined" ? window.visualViewport : undefined);
+
+  const rect = field.getBoundingClientRect();
+
+  let bottomCeiling =
+    vv != null
+      ? vv.offsetTop + vv.height - margin
+      : typeof window !== "undefined"
+      ? window.innerHeight - margin
+      : NaN;
+
+  if (!Number.isFinite(bottomCeiling)) return;
+
+  const belowOverlap = rect.bottom - bottomCeiling;
+  if (belowOverlap > 0) {
+    scroller.scrollTop += belowOverlap + 8;
+    return;
+  }
+
+  let topFloor;
+  if (vv != null) {
+    topFloor = vv.offsetTop + margin * 2;
+  } else {
+    const sr = scroller.getBoundingClientRect();
+    topFloor = sr.top + margin * 2;
+  }
+
+  const aboveOverlap = topFloor - rect.top;
+  if (aboveOverlap > 0) {
+    scroller.scrollTop = Math.max(0, scroller.scrollTop - aboveOverlap - 8);
+  }
+}
+
+/** Subdocument IDs from Mongoose/API may expose `_id` or `id` and may compare unequal if not stringified. */
+function normalizeCommentMongoId(comment) {
+  const raw = comment?._id ?? comment?.id;
+  if (raw === undefined || raw === null) return null;
+  const s = String(raw);
+  return s.length ? s : null;
+}
 
 const EntryPostDefaultThemeArtwork = memo(function EntryPostDefaultThemeArtwork({
   alt,
@@ -158,43 +216,6 @@ const EntryPostDefaultThemeArtwork = memo(function EntryPostDefaultThemeArtwork(
     </Box>
   );
 });
-
-/** Tint + vertical fade mask only — keep on a backdrop layer so text is not faded. */
-const ENTRY_POST_DESCRIPTION_OVERLAY_BACKDROP_SX = {
-  /**
-   * Frosted scrape: hue from `--workout-card` only (interpolates on theme flip).
-   * Fade uses a neutral alpha mask (not `--workout-*`) so tint + mask edges stay aligned.
-   * Avoid `backdrop-filter` here — it draws in the full box; masks often clip only the
-   * background fill, leaving a blurry rectangle larger than the scrape ("outline").
-   *
-   * `minWidth/maxWidth`: iOS Safari + grid/`justify-items:center` can shrink the
-   * percentage containing block unless the chain has `min-width: 0` and stretched cells.
-   */
-  inset: 0,
-  pointerEvents: "none",
-  width: "100%",
-  maxWidth: "100%",
-  minWidth: 0,
-  boxSizing: "border-box",
-  backgroundColor: "hsl(var(--workout-card) / 0.93)",
-  WebkitMaskImage:
-    "linear-gradient(to top, rgb(0 0 0 / 0.995) 0%, rgb(0 0 0 / 0.66) 36%, rgb(0 0 0 / 0.24) 68%, rgb(0 0 0 / 0) 93%, rgb(0 0 0 / 0) 100%)",
-  maskImage:
-    "linear-gradient(to top, rgb(0 0 0 / 0.995) 0%, rgb(0 0 0 / 0.66) 36%, rgb(0 0 0 / 0.24) 68%, rgb(0 0 0 / 0) 93%, rgb(0 0 0 / 0) 100%)",
-  WebkitMaskSize: "100% 100%",
-  maskSize: "100% 100%",
-  WebkitMaskRepeat: "no-repeat",
-  maskRepeat: "no-repeat",
-  overflow: "hidden",
-  isolation: "isolate",
-  transitionProperty: "background-color",
-  ...ENTRY_POST_THEME_TRANSITION_SX,
-};
-
-const ENTRY_POST_OVERLAY_TEXT_SX = {
-  transitionProperty: "color, opacity",
-  ...ENTRY_POST_THEME_TRANSITION_SX,
-};
 
 const ProductCard = memo(function ProductCard({
   entry,
@@ -395,7 +416,74 @@ const ProductCard = memo(function ProductCard({
     onClose: onEnhancedEditClose,
   } = useDisclosure();
 
-  // Update profile data when cache changes
+  const commentsAnchorId = `post-detail-comments-${entry._id}`;
+
+  /** Scroll container for Edit workout modal (viewport + keyboard). */
+  const editModalScrollRef = useRef(null);
+  const editModalCentered =
+    useBreakpointValue({ base: false, md: true }, { fallback: false }) === true;
+
+  const ensureEditableFieldVisibleInEditModal = useCallback((element) => {
+    if (!(element instanceof HTMLElement)) return;
+    const scroller = editModalScrollRef.current;
+    const vv = typeof window !== "undefined" ? window.visualViewport : undefined;
+    const run = () => {
+      scrollFocusedFieldIntoEditableModalScroller(scroller, element, vv ?? undefined);
+    };
+    requestAnimationFrame(run);
+    setTimeout(run, 64);
+    setTimeout(run, 220);
+    setTimeout(run, 520);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      const el = editModalScrollRef.current;
+      if (el) el.style.maxHeight = "";
+      return undefined;
+    }
+
+    const vv = typeof window !== "undefined" ? window.visualViewport : undefined;
+
+    function scrollActiveFocusedFieldIntoView() {
+      const ae = document.activeElement;
+      if (!(ae instanceof HTMLInputElement || ae instanceof HTMLTextAreaElement)) {
+        return;
+      }
+      if (!editModalScrollRef.current?.contains(ae)) return;
+      scrollFocusedFieldIntoEditableModalScroller(editModalScrollRef.current, ae, vv);
+    }
+
+    function syncEditModalViewport() {
+      const content = editModalScrollRef.current;
+      if (!content) return;
+      const pad = 20;
+      if (vv && typeof vv.height === "number") {
+        content.style.maxHeight = `${Math.max(240, Math.round(vv.height - pad))}px`;
+      } else {
+        content.style.maxHeight = "";
+      }
+
+      scrollActiveFocusedFieldIntoView();
+      window.requestAnimationFrame(() => {
+        scrollActiveFocusedFieldIntoView();
+      });
+    }
+
+    syncEditModalViewport();
+    vv?.addEventListener("resize", syncEditModalViewport);
+    vv?.addEventListener("scroll", syncEditModalViewport);
+    window.addEventListener("orientationchange", syncEditModalViewport);
+
+    return () => {
+      vv?.removeEventListener("resize", syncEditModalViewport);
+      vv?.removeEventListener("scroll", syncEditModalViewport);
+      window.removeEventListener("orientationchange", syncEditModalViewport);
+      const el = editModalScrollRef.current;
+      if (el) el.style.maxHeight = "";
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     if (cachedProfile) {
       // Only update profile image if we have a valid cached profile image
@@ -1297,16 +1385,19 @@ const ProductCard = memo(function ProductCard({
 
   // Handle comment like
   const handleCommentLike = async (commentId) => {
+    const cid = commentId != null ? String(commentId).trim() : "";
+    if (!cid) return;
+
     try {
       const response = await apiClient.post(
-        API_ENDPOINTS.LIKE_COMMENT(entry._id, commentId)
+        API_ENDPOINTS.LIKE_COMMENT(String(entry._id), cid),
       );
 
       if (response.data.success) {
         setUpdatedEntry((prevEntry) => ({
           ...prevEntry,
           comments: prevEntry.comments.map((comment) => {
-            if (comment._id === commentId) {
+            if (normalizeCommentMongoId(comment) === cid) {
               const isLiked = comment.likes?.some(
                 (like) => like.uid === currentUserInfo?.uid
               );
@@ -1335,35 +1426,52 @@ const ProductCard = memo(function ProductCard({
   };
 
   // Handle comment reply
-  const handleCommentReply = async (commentId, replyText) => {
+  const handleCommentReply = async (commentId, replyDraft) => {
+    const rawId = commentId != null ? String(commentId).trim() : "";
+    const text = (replyDraft ?? "").trim();
+    if (!rawId || !text) return;
+
     try {
       const response = await apiClient.post(
-        API_ENDPOINTS.REPLY_TO_COMMENT(entry._id, commentId),
-        { text: replyText }
+        API_ENDPOINTS.REPLY_TO_COMMENT(String(entry._id), rawId),
+        { text },
       );
 
-      if (response.data.success) {
-        const newReply = {
-          text: replyText,
-          createdAt: new Date().toISOString(),
-          username: currentUserInfo?.username || null,
-          name: currentUserInfo?.name || "User",
-          picture: currentUserInfo?.picture || null,
-          uid: currentUserInfo?.uid || null,
-        };
+      const ok = Boolean(response?.data?.success);
 
-        setUpdatedEntry((prevEntry) => ({
-          ...prevEntry,
-          comments: prevEntry.comments.map((comment) => {
-            if (comment._id === commentId) {
-              return {
-                ...comment,
-                replies: [...(comment.replies || []), newReply],
-              };
-            }
-            return comment;
-          }),
-        }));
+      if (ok) {
+        const nextComments = response?.data?.data?.comments;
+
+        if (Array.isArray(nextComments)) {
+          setUpdatedEntry((prevEntry) => ({
+            ...prevEntry,
+            comments: nextComments,
+          }));
+        } else {
+          // Fallback if response shape omits comments (should not happen)
+          setUpdatedEntry((prevEntry) => ({
+            ...prevEntry,
+            comments: prevEntry.comments.map((c) => {
+              if (normalizeCommentMongoId(c) === rawId) {
+                return {
+                  ...c,
+                  replies: [
+                    ...(c.replies || []),
+                    {
+                      text,
+                      createdAt: new Date().toISOString(),
+                      username: currentUserInfo?.username || null,
+                      name: currentUserInfo?.name || "User",
+                      picture: currentUserInfo?.picture || null,
+                      uid: currentUserInfo?.uid || null,
+                    },
+                  ],
+                };
+              }
+              return c;
+            }),
+          }));
+        }
 
         setReplyText("");
         setReplyToComment(null);
@@ -1374,17 +1482,30 @@ const ProductCard = memo(function ProductCard({
           duration: 3000,
           isClosable: true,
         });
+      } else {
+        toastError(
+          "Error",
+          response?.data?.message || "Failed to add reply",
+        );
       }
     } catch (error) {
-      toastError("Error", "Failed to add reply");
+      toastError(
+        "Error",
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to add reply",
+      );
     }
   };
 
   // Handle comment edit
   const handleCommentEdit = async (commentId, newText) => {
+    const cid = commentId != null ? String(commentId).trim() : "";
+    if (!cid) return;
+
     try {
       const response = await apiClient.put(
-        API_ENDPOINTS.EDIT_COMMENT(entry._id, commentId),
+        API_ENDPOINTS.EDIT_COMMENT(String(entry._id), cid),
         { text: newText }
       );
 
@@ -1392,7 +1513,7 @@ const ProductCard = memo(function ProductCard({
         setUpdatedEntry((prevEntry) => ({
           ...prevEntry,
           comments: prevEntry.comments.map((comment) => {
-            if (comment._id === commentId) {
+            if (normalizeCommentMongoId(comment) === cid) {
               return { ...comment, text: newText, edited: true };
             }
             return comment;
@@ -1415,16 +1536,19 @@ const ProductCard = memo(function ProductCard({
 
   // Handle comment delete
   const handleCommentDelete = async (commentId) => {
+    const cid = commentId != null ? String(commentId).trim() : "";
+    if (!cid) return;
+
     try {
       const response = await apiClient.delete(
-        API_ENDPOINTS.DELETE_COMMENT(entry._id, commentId)
+        API_ENDPOINTS.DELETE_COMMENT(String(entry._id), cid)
       );
 
       if (response.data.success) {
         setUpdatedEntry((prevEntry) => ({
           ...prevEntry,
           comments: prevEntry.comments.filter(
-            (comment) => comment._id !== commentId
+            (c) => normalizeCommentMongoId(c) !== cid,
           ),
         }));
 
@@ -1538,748 +1662,360 @@ const ProductCard = memo(function ProductCard({
     : rawEntryImage;
   const showLightDefaultBg = colors.currentTheme === "light";
 
+  const captionHandle = isUsername ? `@${userDisplayName}` : userDisplayName;
+  const profileFallbackLetters =
+    userDisplayName.trim().slice(0, 2).toUpperCase() || "??";
+  const trainerDisplayLabel =
+    trainerIsUsername && trainerDisplayName
+      ? `@${trainerDisplayName}`
+      : trainerDisplayName || "Trainer";
+  const feedSubtitle =
+    updatedEntry.trainerUid &&
+    updatedEntry.trainerUid !== entry.uid &&
+    trainerDisplayName
+      ? `${trainerDisplayLabel} · ${updatedEntry.name}`
+      : `${updatedEntry.name} · ${formatDateHour(updatedEntry.createdAt)}`;
+
+  const ownerPostMenu = (
+    <Menu>
+      <MenuButton
+        as={IconButton}
+        icon={<HamburgerIcon />}
+        aria-label="Post actions"
+        variant="ghost"
+        size="sm"
+        borderRadius="full"
+        color="white"
+        bg="blackAlpha.500"
+        _hover={{ bg: "blackAlpha.600" }}
+      />
+      <MenuList>
+        <MenuItem
+          icon={<EditIcon />}
+          onClick={onEnhancedEditOpen}
+          color="green.500"
+          _hover={{
+            bg: colors.editBg,
+          }}
+        >
+          Enhanced Edit
+        </MenuItem>
+        <MenuItem
+          onClick={handleProcessWorkout}
+          color="blue.500"
+          _hover={{
+            bg: colors.processBg,
+          }}
+        >
+          Process Workout Data
+        </MenuItem>
+        <MenuItem
+          icon={<FiShare2 />}
+          onClick={onShareOpen}
+          color="green.500"
+          _hover={{
+            bg: colors.editBg,
+          }}
+        >
+          Share Workout
+        </MenuItem>
+        <MenuItem
+          icon={<DeleteIcon />}
+          onClick={onDeleteOpen}
+          color="red.500"
+          _hover={{
+            bg: colors.deleteBg,
+          }}
+        >
+          Delete Post
+        </MenuItem>
+      </MenuList>
+    </Menu>
+  );
+
+  const getSquareEntryMedia = (preferHighPriority, { compact = false } = {}) => (
+    <Box
+      position="relative"
+      aspectRatio={ENTRY_POST_MEDIA_ASPECT}
+      overflow="hidden"
+      {...(compact
+        ? {
+            sx: {
+              width: "min(max(236px, 58vw), 100%)",
+              maxWidth: "100%",
+              mx: "auto",
+              borderRadius: "lg",
+            },
+          }
+        : { w: "full" })}
+    >
+      {!imageLoaded && (
+        <Skeleton
+          position="absolute"
+          inset={0}
+          w="full"
+          h="full"
+          borderRadius="0"
+          startColor={colors.borderColor}
+          endColor={colors.borderColorInput}
+        />
+      )}
+      {usesThemeDefaultPostArt ? (
+        <EntryPostDefaultThemeArtwork
+          key={`${entry._id}-default-art`}
+          alt={entry.name}
+          showLight={showLightDefaultBg}
+          prefersReducedMotion={prefersReducedMotion}
+          reveal={imageLoaded}
+          onLoaded={handleImageLoad}
+          decoding="async"
+          fetchPriority={preferHighPriority ? "high" : "auto"}
+          loading={preferHighPriority ? "eager" : "lazy"}
+          boxProps={{
+            position: "absolute",
+            inset: 0,
+            w: "100%",
+            h: "100%",
+          }}
+        />
+      ) : (
+        <Image
+          src={displayEntryImage}
+          alt={entry.name}
+          w="full"
+          h="full"
+          objectFit="cover"
+          objectPosition="center"
+          onError={handleImageError}
+          fallbackSrc={postImageFallback}
+          onLoad={handleImageLoad}
+          decoding="async"
+          fetchpriority={preferHighPriority ? "high" : "auto"}
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: imageLoaded ? 1 : 0,
+            transition: "opacity 0.3s ease-in-out",
+            width: "100%",
+            height: "100%",
+            pointerEvents: imageLoaded ? "auto" : "none",
+          }}
+          loading={preferHighPriority ? "eager" : "lazy"}
+        />
+      )}
+    </Box>
+  );
+
   return (
     <>
-      <Box
-        bg={colors.bgCard}
-        borderRadius="4px"
-        overflow="hidden"
-        _hover={{
-          shadow:
-            colors.currentTheme === "light"
-              ? "0 8px 25px rgba(0,0,0,0.12)"
-              : "0 8px 25px rgba(0,0,0,0.3)",
-        }}
-        position="relative"
-        cursor="pointer"
-        onClick={onDetailOpen}
-        // Container that adapts to content
-        maxW="400px"
-        w="100%"
-        minW={0}
-        mx="auto"
-        alignSelf="center"
-      >
-        {/* Image container with fixed aspect ratio */}
-        <Box
-          position="relative"
-          w="full"
-          minW={0}
-          aspectRatio="4/5"
-          overflow="hidden"
-        >
-          {!imageLoaded && (
-            <Skeleton
-              position="absolute"
-              inset={0}
-              w="full"
-              h="full"
-              borderRadius="0"
-              startColor={colors.borderColor}
-              endColor={colors.borderColorInput}
-            />
-          )}
-          {usesThemeDefaultPostArt ? (
-            <EntryPostDefaultThemeArtwork
-              key={`${entry._id}-default-art`}
-              alt={entry.name}
-              showLight={showLightDefaultBg}
-              prefersReducedMotion={prefersReducedMotion}
-              reveal={imageLoaded}
-              onLoaded={handleImageLoad}
-              decoding="async"
-              fetchPriority={priority ? "high" : "auto"}
-              loading={priority ? "eager" : "lazy"}
-              boxProps={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                w: "100%",
-                aspectRatio: "4/5",
-              }}
-            />
-          ) : (
-            <Image
-              src={displayEntryImage}
-              alt={entry.name}
-              w="full"
-              h="auto"
-              objectFit="cover"
-              objectPosition="center"
-              onError={handleImageError}
-              fallbackSrc={postImageFallback}
-              onLoad={handleImageLoad}
-              decoding="async"
-              fetchpriority={priority ? "high" : "auto"}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                opacity: imageLoaded ? 1 : 0,
-                transition: "opacity 0.3s ease-in-out",
-                aspectRatio: "4/5",
-                width: "100%",
-                height: "auto",
-                pointerEvents: imageLoaded ? "auto" : "none",
-              }}
-              loading={priority ? "eager" : "lazy"}
-            />
-          )}
-
-          {/* Full-bleed tint; mask on backdrop only so title/description stay opaque */}
-          <Box
-            position="absolute"
-            bottom="0"
-            left="0"
-            right="0"
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="stretch"
-            minH="180px"
-            isolation="isolate"
-          >
-            <Box
-              position="absolute"
-              sx={ENTRY_POST_DESCRIPTION_OVERLAY_BACKDROP_SX}
-              aria-hidden
-            />
-            <Box
-              position="relative"
-              zIndex={1}
-              w="100%"
-              maxH="180px"
-              p="8px"
-              overflowY="auto"
-              overflowX="hidden"
-              css={{
-                "&::-webkit-scrollbar": {
-                  width: "3px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "#CBD5E0",
-                  borderRadius: "2px",
-                },
-                "&::-webkit-scrollbar-thumb:hover": {
-                  background: "#A0AEC0",
-                },
-              }}
-            >
-              <VStack
-                spacing={0.5}
-                align="stretch"
-                w="fit-content"
-                maxW="100%"
-                minW={0}
-                mx="auto"
-              >
-                <VStack spacing={0.5} align="center" w="full">
-                  <Heading
-                    as="h2"
-                    size="sm"
-                    color={colors.textTitle}
-                    fontFamily="Inter, system-ui, sans-serif"
-                    noOfLines={1}
-                    fontWeight="400"
-                    textAlign="center"
-                    w="full"
-                    sx={ENTRY_POST_OVERLAY_TEXT_SX}
-                  >
-                    {updatedEntry.name}
-                  </Heading>
-                  <Text
-                    color={colors.textOne}
-                    fontFamily="Inter, system-ui, sans-serif"
-                    fontSize="10px"
-                    fontWeight="700"
-                    textAlign="center"
-                    w="full"
-                    sx={ENTRY_POST_OVERLAY_TEXT_SX}
-                  >
-                    {formatDateHour(updatedEntry.createdAt)}
-                    {" • "}
-                    {formatDateTitleTime(updatedEntry.createdAt)}
-                  </Text>
-                </VStack>
-
-                <Text
-                  color={colors.textDesc}
-                  fontSize="12px"
-                  fontFamily="Inter, system-ui, sans-serif"
-                  lineHeight="1.4"
-                  fontWeight="400"
-                  whiteSpace="pre-wrap"
-                  wordBreak="break-word"
-                  textAlign="left"
-                  alignSelf="stretch"
-                  sx={ENTRY_POST_OVERLAY_TEXT_SX}
-                >
-                  {updatedEntry.description}
-                </Text>
-              </VStack>
-            </Box>
-          </Box>
-        </Box>
-        <HStack
-          position="absolute"
-          top="12px"
-          left="12px"
-          spacing={2}
-          bg={colors.currentTheme === "light" ? "rgba(255, 255, 255, 0.95)" : "rgba(45, 55, 72, 0.95)"}
-          px={3}
-          py={2}
-          borderRadius="12px"
-          shadow="0 2px 8px rgba(0,0,0,0.1)"
-          onClick={(e) => e.stopPropagation()}
-          backdropFilter="blur(8px)"
-        >
-          {updatedEntry.trainerUid && updatedEntry.trainerUid !== entry.uid ? (
-            // Show both trainer and client usernames for shared workouts
-            <>
-              <Box position="relative" boxSize="28px">
-                {!trainerProfileImageLoaded && (
-                  <Skeleton
-                    boxSize="28px"
-                    borderRadius="full"
-                    startColor={colors.borderColor}
-                    endColor={colors.borderColorInput}
-                  />
-                )}
-                <Image
-                  src={trainerProfileImage}
-                  alt="Trainer Profile"
-                  boxSize="28px"
-                  borderRadius="full"
-                  objectFit="cover"
-                  border="2px solid white"
-                  onError={handleTrainerProfileImageError}
-                  onLoad={handleTrainerProfileImageLoad}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    display: trainerProfileImageLoaded ? "block" : "none",
-                    opacity: trainerProfileImageLoaded ? 1 : 0,
-                    transition: "opacity 0.3s ease-in-out",
-                  }}
-                  loading="lazy"
-                />
-              </Box>
-              <Link to={`/user/${updatedEntry.trainerUid}`}>
-                <Text
-                  fontSize="12px"
-                  fontWeight="600"
-                  color={colors.textTitle}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  maxW="80px"
-                  noOfLines={1}
-                  _hover={{ textDecoration: "underline" }}
-                  cursor="pointer"
-                >
-                  {trainerIsUsername && trainerDisplayName
-                    ? `@${trainerDisplayName}`
-                    : trainerDisplayName || "Trainer"}
-                </Text>
-              </Link>
-              <Text fontSize="12px" color={colors.textMuted} fontWeight="500">
-                →
-              </Text>
-              <Box position="relative" boxSize="28px">
-                {!profileImageLoaded && (
-                  <Skeleton
-                    boxSize="28px"
-                    borderRadius="full"
-                    startColor={colors.borderColor}
-                    endColor={colors.borderColorInput}
-                  />
-                )}
-                <Image
-                  src={profileImage}
-                  alt="User Profile"
-                  boxSize="28px"
-                  borderRadius="full"
-                  objectFit="cover"
-                  border="2px solid white"
-                  onError={handleProfileImageError}
-                  onLoad={handleProfileImageLoad}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    display: profileImageLoaded ? "block" : "none",
-                    opacity: profileImageLoaded ? 1 : 0,
-                    transition: "opacity 0.3s ease-in-out",
-                  }}
-                  loading="lazy"
-                />
-              </Box>
-              <Link to={isOwner ? "/profile" : `/user/${entry.uid}`}>
-                <Text
-                  fontSize="12px"
-                  fontWeight="600"
-                  color={colors.textTitle}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  maxW="80px"
-                  noOfLines={1}
-                  _hover={{ textDecoration: "underline" }}
-                  cursor="pointer"
-                >
-                  {isUsername ? `@${userDisplayName}` : userDisplayName}
-                </Text>
-              </Link>
-            </>
-          ) : (
-            // Show only client username for regular posts
-            <>
-              <Box position="relative" boxSize="28px">
-                {!profileImageLoaded && (
-                  <Skeleton
-                    boxSize="28px"
-                    borderRadius="full"
-                    startColor={colors.borderColor}
-                    endColor={colors.borderColorInput}
-                  />
-                )}
-                <Image
-                  src={profileImage}
-                  alt="User Profile"
-                  boxSize="28px"
-                  borderRadius="full"
-                  objectFit="cover"
-                  border="2px solid white"
-                  onError={handleProfileImageError}
-                  onLoad={handleProfileImageLoad}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    display: profileImageLoaded ? "block" : "none",
-                    opacity: profileImageLoaded ? 1 : 0,
-                    transition: "opacity 0.3s ease-in-out",
-                  }}
-                  loading="lazy"
-                />
-              </Box>
-              <Link to={isOwner ? "/profile" : `/user/${entry.uid}`}>
-                <Text
-                  fontSize="13px"
-                  fontWeight="600"
-                  color={colors.textTitle}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  maxW="100px"
-                  noOfLines={1}
-                  _hover={{ textDecoration: "underline" }}
-                  cursor="pointer"
-                >
-                  {isUsername ? `@${userDisplayName}` : userDisplayName}
-                </Text>
-              </Link>
-            </>
-          )}
-        </HStack>
-        {/* Like and comment count badges - positioned below image */}
-        <Box p="6px">
-          {(Array.isArray(updatedEntry.likes) &&
-            updatedEntry.likes.length > 0) ||
-          (Array.isArray(updatedEntry.comments) &&
-            updatedEntry.comments.length > 0) ? (
-            <VStack spacing={2} justify="start" w="full" flexShrink="0">
-              <HStack spacing={2} justify="start" w="full">
-                {Array.isArray(updatedEntry.likes) &&
-                  updatedEntry.likes.length > 0 && (
-                    <Badge
-                      colorScheme="yellow"
-                      variant="subtle"
-                      fontSize="10px"
-                      px={2}
-                      py={1}
-                      borderRadius="6px"
-                    >
-                      ❤️ {updatedEntry.likes.length}
-                    </Badge>
-                  )}
-
-                {Array.isArray(updatedEntry.comments) &&
-                  updatedEntry.comments.length > 0 && (
-                    <Badge
-                      colorScheme="blue"
-                      variant="subtle"
-                      fontSize="10px"
-                      px={2}
-                      py={1}
-                      borderRadius="6px"
-                    >
-                      💬 {updatedEntry.comments.length}
-                    </Badge>
-                  )}
-              </HStack>
-            </VStack>
-          ) : null}
-        </Box>
-
-        {/* Bottom section with buttons and comment box - falls to bottom */}
-        <VStack
-          spacing={2}
-          mt={1}
-          pt={1}
-          flexShrink="0"
-        >
-          {/* Comment Section - Show for all users */}
-          <Box w="full" px={3} onClick={(e) => e.stopPropagation()}>
-            <HStack spacing={2} w="full">
-              <Input
-                placeholder="Add a comment..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                size="sm"
-                fontSize="11px"
-                borderRadius="4px"
-                borderColor={colors.borderColor}
-                _focus={{
-                  borderColor: "blue.400",
-                  boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                }}
-                h="28px"
-                flex={1}
-              />
-              <Button
-                colorScheme="blue"
-                onClick={() => handleCommentEntry(entry._id, comment)}
-                px={3}
-                py={1}
-                size="sm"
-                fontSize="11px"
-                borderRadius="4px"
-                fontWeight="500"
-                h="28px"
-                isDisabled={!comment.trim()}
-                _disabled={{
-                  opacity: 0.6,
-                  cursor: "not-allowed",
-                }}
-              >
-                Post
-              </Button>
-            </HStack>
-          </Box>
-
-          {/* Action Buttons - Restructured layout */}
-          {isOwner ? (
-            // Owner view: Like, edit, and menu buttons
-            <HStack
-              w="full"
-              justify="space-between"
-              spacing={0}
-              pt={0}
-              pb={0}
-              onClick={(e) => e.stopPropagation()}
-            >
+      <Box alignSelf="center" w="full" maxW="448px" mx="auto">
+        <FeedEntryCard
+          profile={{
+            displayName: captionHandle,
+            captionHandle,
+            imageSrc: profileImage,
+            imageAlt: "User Profile",
+            fallback: profileFallbackLetters,
+          }}
+          subtitle={feedSubtitle}
+          image={getSquareEntryMedia(priority)}
+          liked={isLiked}
+          onToggleLike={() => handleLikeEntry(entry._id)}
+          onCommentClick={onDetailOpen}
+          likesCount={
+            Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
+          }
+          commentsCount={
+            Array.isArray(updatedEntry.comments)
+              ? updatedEntry.comments.length
+              : 0
+          }
+          description={updatedEntry.description}
+          headerTrailing={isOwner ? ownerPostMenu : undefined}
+          toolbarExtra={
+            isOwner ? (
               <IconButton
-                onClick={() => handleLikeEntry(entry._id)}
-                icon={<StarIcon />}
-                py={7}
-                px={4}
-                bg={isLiked ? colors.likeBg : "transparent"}
-                color={isLiked ? colors.likeActive : colors.textSecondary}
-                size="sm"
-                borderRadius="0px"
-                _hover={{
-                  bg: isLiked ? colors.likeBgHover : colors.bgHover,
-                }}
-                transition="all 0.2s"
-              />
-              <IconButton
-                onClick={onOpen}
+                aria-label="Edit post"
                 icon={<EditIcon />}
-                bg="transparent"
-                color={colors.textSecondary}
-                borderRadius="0px"
+                variant="ghost"
                 size="sm"
-                py={7}
-                flex={1}
+                borderRadius="full"
+                color={colors.currentTheme === "light" ? "gray.800" : "white"}
                 _hover={{
-                  bg: colors.bgHover,
+                  bg:
+                    colors.currentTheme === "light"
+                      ? "blackAlpha.100"
+                      : "whiteAlpha.200",
                 }}
-                transition="all 0.2s"
-              />
-              <Menu>
-                <MenuButton
-                  as={IconButton}
-                  icon={<HamburgerIcon />}
-                  py={7}
-                  px={4}
-                  color={colors.textSecondary}
-                  variant="ghost"
-                  size="sm"
-                  borderRadius="0px"
-                  _hover={{
-                    bg: colors.bgHover,
-                  }}
-                  transition="all 0.2s"
-                />
-                <MenuList>
-                  <MenuItem
-                    icon={<EditIcon />}
-                    onClick={onEnhancedEditOpen}
-                    color="green.500"
-                    _hover={{
-                      bg: colors.editBg,
-                    }}
-                  >
-                    Enhanced Edit
-                  </MenuItem>
-                  <MenuItem
-                    onClick={handleProcessWorkout}
-                    color="blue.500"
-                    _hover={{
-                      bg: colors.processBg,
-                    }}
-                  >
-                    Process Workout Data
-                  </MenuItem>
-                  <MenuItem
-                    icon={<FiShare2 />}
-                    onClick={onShareOpen}
-                    color="green.500"
-                    _hover={{
-                      bg: colors.editBg,
-                    }}
-                  >
-                    Share Workout
-                  </MenuItem>
-                  <MenuItem
-                    icon={<DeleteIcon />}
-                    onClick={onDeleteOpen}
-                    color="red.500"
-                    _hover={{
-                      bg: colors.deleteBg,
-                    }}
-                  >
-                    Delete Post
-                  </MenuItem>
-                </MenuList>
-              </Menu>
-            </HStack>
-          ) : (
-            // Non-owner view: Like button only
-            <HStack
-              w="full"
-              justify="flex-start"
-              pt={1}
-              pb={0}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <IconButton
-                onClick={() => handleLikeEntry(entry._id)}
-                icon={<StarIcon />}
-                bg={isLiked ? colors.likeBg : "transparent"}
-                color={isLiked ? colors.likeActive : colors.textSecondary}
-                size="sm"
-                borderRadius="4px"
-                _hover={{
-                  bg: isLiked ? colors.likeBgHover : colors.bgHover,
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpen();
                 }}
-                transition="all 0.2s"
               />
-            </HStack>
-          )}
-        </VStack>
+            ) : undefined
+          }
+          onCardClick={onDetailOpen}
+          footer={
+            <VStack spacing={2} w="full">
+              <Box w="full" px={0}>
+                <HStack spacing={2} w="full">
+                  <Input
+                    placeholder="Add a comment..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    size="sm"
+                    fontSize="11px"
+                    borderRadius="4px"
+                    borderColor={colors.borderColor}
+                    _focus={{
+                      borderColor: "blue.400",
+                      boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                    }}
+                    h="28px"
+                    flex={1}
+                  />
+                  <Button
+                    onClick={() => handleCommentEntry(entry._id, comment)}
+                    px={3}
+                    py={1}
+                    size="sm"
+                    fontSize="11px"
+                    borderRadius="4px"
+                    fontWeight="500"
+                    h="28px"
+                    bg={colors.bgMuted}
+                    color={colors.textPrimary}
+                    borderWidth="1px"
+                    borderColor={colors.borderColor}
+                    _hover={{ bg: colors.bgHover }}
+                    isDisabled={!comment.trim()}
+                    _disabled={{
+                      opacity: 0.6,
+                      cursor: "not-allowed",
+                    }}
+                  >
+                    Post
+                  </Button>
+                </HStack>
+              </Box>
+            </VStack>
+          }
+        />
       </Box>
 
       {/* Detail Modal */}
-      <Modal isOpen={isDetailOpen} onClose={onDetailClose} size="xl">
-        <ModalOverlay bg="transparent" backdropFilter="blur(1px)" style={{ background: "hsl(var(--workout-modal-overlay) / 0.72)" }} />
+      <Modal
+        isOpen={isDetailOpen}
+        onClose={onDetailClose}
+        size="xl"
+        isCentered
+        scrollBehavior="inside"
+      >
+        <ModalOverlay
+          bg="transparent"
+          backdropFilter="blur(1px)"
+          style={{ background: "hsl(var(--workout-modal-overlay) / 0.72)" }}
+        />
         <ModalContent
-          maxW={{ base: "90vw", md: "600px" }}
-          mx={{ base: 2, md: 4 }}
-          // Keep the feed post modal compact on iOS (match other workout modals).
-          maxH={{ base: "80vh", md: "90vh" }}
-          overflow="hidden"
-          aspectRatio={{ base: "9/16", md: "2/3" }}
-          minH={{ base: "70vh", md: "640px" }}
-          borderRadius="4px"
-          bg={colors.bgCard}
+          position="relative"
+          bg="transparent"
+          boxShadow="none"
+          maxW="min(440px, 92vw)"
+          w="full"
+          mx="auto"
+          my={{ base: 4, md: 6 }}
+          maxH="calc(100dvh - 2rem)"
+          minH={0}
+          overflowY="auto"
+          sx={{
+            WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y",
+            overscrollBehavior: "contain",
+          }}
+          px={{ base: 1, md: 2 }}
+          py={{ base: 2, md: 3 }}
         >
-          <ModalHeader
-            fontFamily="Arial, sans-serif"
-            px={{ base: 3, md: 6 }}
-            py={{ base: 3, md: 4 }}
-            fontSize={{ base: "md", md: "lg" }}
-            color={colors.textPrimary}
-            bg={colors.bgCard}
-          >
-            <HStack spacing={{ base: 2, md: 3 }}>
-              <Box position="relative" boxSize={{ base: "32px", md: "40px" }}>
-                <Image
-                  src={profileImage}
-                  alt="User Profile"
-                  boxSize={{ base: "32px", md: "40px" }}
-                  borderRadius="full"
-                  objectFit="cover"
-                  border="2px solid white"
-                />
-              </Box>
-              <VStack align="start" spacing={0}>
-                <HStack spacing={2} w="full" align="start">
-                  <Text
-                    fontWeight="bold"
-                    fontSize={{ base: "sm", md: "lg" }}
-                    noOfLines={1}
-                    flex="1"
-                    color={colors.textPrimary}
-                  >
-                    {isUsername ? `@${userDisplayName}` : userDisplayName}
-                  </Text>
-                </HStack>
-              </VStack>
-            </HStack>
-          </ModalHeader>
           <ModalCloseButton
-            size={{ base: "sm", md: "md" }}
-            color={colors.textMuted}
+            size="md"
+            borderRadius="full"
+            zIndex={10}
+            bg={colors.bgMuted}
+            color={colors.textPrimary}
+            borderWidth="1px"
+            borderColor={colors.borderColor}
+            _hover={{ bg: colors.bgHover }}
           />
-          <ModalBody
-            px={{ base: 2, md: 3 }}
-            py={{ base: 1, md: 2 }}
-            overflowY="auto"
-            display="flex"
-            flexDirection="column"
-            bg={colors.bgCard}
-          >
-            <VStack spacing={{ base: 2, md: 3 }} align="stretch">
-              {/* Image Section — portrait frame (taller than closed card 4:5) */}
-              <Box
-                position="relative"
-                w="full"
-                aspectRatio={{ base: "9/16", md: "9/16" }}
-                maxH={{ base: "min(68vh, 520px)", md: "min(62vh, 540px)" }}
-                mx="auto"
-                maxW={{ base: "100%", md: "420px" }}
-                overflow="hidden"
-                borderRadius="4px"
-              >
-                {usesThemeDefaultPostArt ? (
-                  <EntryPostDefaultThemeArtwork
-                    alt={entry.name}
-                    showLight={showLightDefaultBg}
-                    prefersReducedMotion={prefersReducedMotion}
-                    reveal
-                    decoding="async"
-                    boxProps={{
-                      position: "absolute",
-                      inset: 0,
-                      w: "100%",
-                      h: "100%",
-                    }}
-                  />
-                ) : (
-                  <Image
-                    src={displayEntryImage}
-                    alt={entry.name}
-                    w="full"
-                    h="100%"
-                    objectFit="cover"
-                    objectPosition="center"
-                    style={{ width: "100%", height: "100%" }}
-                    fallbackSrc={postImageFallback}
-                    fallback={<Skeleton h="full" w="full" aspectRatio="9/16" />}
-                  />
-                )}
-              </Box>
-
-              {/* Content Section - column centered on post; text left within column */}
-              <VStack align="stretch" spacing={{ base: 2, md: 3 }} flexShrink={0} w="full">
-                <VStack
-                  align="stretch"
-                  spacing={{ base: 2, md: 3 }}
-                  w="fit-content"
-                  maxW="100%"
-                  minW={0}
-                  mx="auto"
-                >
-                  <VStack spacing={0} align="center" w="full">
-                    <Heading
-                      size={{ base: "sm", md: "md" }}
-                      color={colors.textTitle}
-                      fontFamily="Arial, sans-serif"
-                      textAlign="center"
-                      noOfLines={1}
-                      fontWeight="400"
-                      w="full"
-                    >
-                      {updatedEntry.name}
-                    </Heading>
-                    <Text
-                      fontSize={{ base: "xs", md: "sm" }}
-                      color={colors.textMuted}
-                      textAlign="center"
-                      fontWeight="700"
-                      w="full"
-                    >
-                      {formatDateHour(updatedEntry.createdAt)} -{" "}
-                      {formatDateTitleTime(updatedEntry.createdAt)}
-                    </Text>
-                  </VStack>
-
-                  <Box
-                    alignSelf="stretch"
-                    maxW="100%"
-                    minW={0}
-                    w="100%"
-                    maxH={{ base: "220px", md: "280px" }}
-                    overflowY="auto"
-                    overflowX="hidden"
-                    css={{
-                      "&::-webkit-scrollbar": {
-                        width: "4px",
-                      },
-                      "&::-webkit-scrollbar-track": {
-                        background: "transparent",
-                      },
-                      "&::-webkit-scrollbar-thumb": {
-                      background: colors.scrollbarThumb,
-                        borderRadius: "2px",
-                      },
-                      "&::-webkit-scrollbar-thumb:hover": {
-                      background: colors.scrollbarThumbHover,
-                      },
-                    }}
-                  >
-                    <Text
-                      color={colors.textDesc}
-                      fontFamily="Arial, sans-serif"
-                      whiteSpace="pre-wrap"
-                      fontSize={{ base: "sm", md: "md" }}
-                      lineHeight="1.55"
-                      textAlign="left"
-                      wordBreak="break-word"
-                      w="100%"
-                    >
-                      {updatedEntry.description}
-                    </Text>
-                  </Box>
-                </VStack>
-
-                {/* Likes Section */}
+          <FeedEntryCard
+            clipCardShell={false}
+            className={cn("mx-auto w-full max-w-[448px]")}
+            profile={{
+              displayName: captionHandle,
+              captionHandle,
+              imageSrc: profileImage,
+              imageAlt: "User Profile",
+              fallback: profileFallbackLetters,
+            }}
+            subtitle={feedSubtitle}
+            image={getSquareEntryMedia(false)}
+            liked={isLiked}
+            onToggleLike={() => handleLikeEntry(entry._id)}
+            onCommentClick={() => {
+              document
+                .getElementById(commentsAnchorId)
+                ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }}
+            likesCount={
+              Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
+            }
+            commentsCount={
+              Array.isArray(updatedEntry.comments)
+                ? updatedEntry.comments.length
+                : 0
+            }
+            description={updatedEntry.description}
+            headerTrailing={isOwner ? ownerPostMenu : undefined}
+            toolbarExtra={
+              isOwner ? (
+                <IconButton
+                  aria-label="Edit post"
+                  icon={<EditIcon />}
+                  variant="ghost"
+                  size="sm"
+                  borderRadius="full"
+                  color={colors.currentTheme === "light" ? "gray.800" : "white"}
+                  _hover={{
+                    bg:
+                      colors.currentTheme === "light"
+                        ? "blackAlpha.100"
+                        : "whiteAlpha.200",
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpen();
+                  }}
+                />
+              ) : undefined
+            }
+            footer={
+              <VStack spacing={3} align="stretch" w="full">
                 {Array.isArray(updatedEntry.likes) &&
                   updatedEntry.likes.length > 0 && (
                     <Box w="full">
                       <Text
                         fontWeight="semibold"
+                        fontSize="sm"
                         mb={1}
                         color={colors.textDesc}
-                        fontSize={{ base: "xs", md: "sm" }}
                       >
-                        Liked by {updatedEntry.likes.length} people:
+                        Liked by {updatedEntry.likes.length}{" "}
+                        {updatedEntry.likes.length === 1
+                          ? "person"
+                          : "people"}
                       </Text>
                       <Box
-                        fontSize={{ base: "xs", md: "sm" }}
-                        color={colors.textDesc}
-                        lineHeight="1.3"
-                        noOfLines={1}
+                        fontSize="xs"
+                        color={colors.textMuted}
+                        lineHeight="1.35"
                       >
                         {updatedEntry.likes.map((user, idx) => (
                           <span key={user.uid || user._id}>
@@ -2300,216 +2036,214 @@ const ProductCard = memo(function ProductCard({
                       </Box>
                     </Box>
                   )}
+                <Box w="full" id={commentsAnchorId}>
+                  <HStack spacing={2} w="full">
+                    <Input
+                      aria-label="Add a comment"
+                      placeholder="Add a comment..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      size="sm"
+                      fontSize="11px"
+                      borderRadius="4px"
+                      borderColor={colors.borderColor}
+                      _focus={{
+                        borderColor: "blue.400",
+                        boxShadow:
+                          "0 0 0 1px var(--chakra-colors-blue-400)",
+                      }}
+                      bg={colors.bgCard}
+                      flex={1}
+                      h="28px"
+                    />
+                    <Button
+                      onClick={() =>
+                        handleCommentEntry(entry._id, comment)
+                      }
+                      px={3}
+                      py={1}
+                      size="sm"
+                      fontSize="11px"
+                      borderRadius="4px"
+                      fontWeight="500"
+                      h="28px"
+                      bg={colors.bgMuted}
+                      color={colors.textPrimary}
+                      borderWidth="1px"
+                      borderColor={colors.borderColor}
+                      _hover={{ bg: colors.bgHover }}
+                      isDisabled={!comment.trim()}
+                      _disabled={{
+                        opacity: 0.6,
+                        cursor: "not-allowed",
+                      }}
+                    >
+                      Post
+                    </Button>
+                  </HStack>
 
-                {/* Comments Section */}
-                <Box w="full">
-                  {/* Comment Input Section */}
-                  <Box
-                    p={{ base: 2, md: 3 }}
-                    bg={colors.bgMuted}
-                    borderRadius="lg"
-                    mb={3}
-                  >
-                    <VStack spacing={2} w="full">
-                      <Box position="relative" w="full">
-                        <Textarea
-                          placeholder="Write a comment..."
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          size="sm"
-                          resize="none"
-                          rows={1}
-                          borderRadius="md"
-                          borderColor={colors.borderColorInput}
-                          _focus={{
-                            borderColor: "blue.400",
-                            boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                          }}
-                          bg={colors.bgCard}
-                          fontSize={{ base: "xs", md: "sm" }}
-                          pe={{ base: "70px", md: "80px" }}
-                          py={{ base: 2, md: 2.5 }}
-                        />
-                        <Button
-                          position="absolute"
-                          right="8px"
-                          top="50%"
-                          transform="translateY(-50%)"
-                          zIndex={1}
-                          colorScheme="blue"
-                          onClick={() => handleCommentEntry(entry._id, comment)}
-                          size="xs"
-                          px={{ base: 3, md: 4 }}
-                          fontSize={{ base: "xs", md: "sm" }}
-                          isDisabled={!comment.trim()}
-                          _disabled={{
-                            opacity: 0.6,
-                            cursor: "not-allowed",
-                          }}
-                        >
-                          Post
-                        </Button>
-                      </Box>
-                    </VStack>
-                  </Box>
-
-                  {/* Comments List */}
                   {Array.isArray(updatedEntry.comments) &&
-                    updatedEntry.comments.length > 0 && (
-                      <VStack
-                        spacing={2}
-                        align="start"
-                        maxH={{ base: "120px", md: "150px" }}
-                        overflowY="auto"
-                        w="full"
-                        flexShrink={0}
-                      >
-                        {updatedEntry.comments.map((comment, index) => (
-                          <Box
-                            key={comment._id || index}
-                            p={{ base: 2, md: 3 }}
-                            bg={colors.bgMuted}
-                            rounded="lg"
-                            w="full"
-                          >
-                            <HStack
-                              spacing={{ base: 2, md: 3 }}
-                              alignItems="flex-start"
-                            >
-                              <Box
-                                position="relative"
-                                boxSize={{ base: "24px", md: "28px" }}
+                  updatedEntry.comments.length > 0 ? (
+                    <Stack
+                      divider={<Divider borderColor={colors.borderColor} />}
+                      spacing={4}
+                      pt={4}
+                      w="full"
+                    >
+                      {updatedEntry.comments.map((cmt, index) => {
+                        const commentIdStr = normalizeCommentMongoId(cmt);
+                        const commentPicSrc =
+                          cmt.picture || getCurrentUserProfilePicture();
+
+                        return (
+                          <Box key={commentIdStr ?? `legacy-comment-${index}`}>
+                            <HStack spacing={2} align="flex-start">
+                              <Image
+                                src={commentPicSrc}
+                                fallbackSrc={postImageFallback}
+                                alt=""
+                                boxSize="22px"
+                                borderRadius="full"
+                                objectFit="cover"
+                                mt="4px"
                                 flexShrink={0}
-                              >
-                                <Image
-                                  src={
-                                    comment.picture ||
-                                    getCurrentUserProfilePicture()
-                                  }
-                                  alt="Commenter Profile"
-                                  boxSize={{ base: "24px", md: "28px" }}
-                                  borderRadius="full"
-                                  objectFit="cover"
-                                  border="2px solid"
-                                  borderColor={colors.borderColor}
-                                />
-                              </Box>
-                              <VStack align="start" spacing={1} flex={1}>
-                                <VStack align="start" spacing={1} w="full">
+                              />
+                              <VStack spacing={2} align="stretch" flex={1}>
+                                <Flex
+                                  justify="space-between"
+                                  gap={2}
+                                  wrap="wrap"
+                                  align="flex-start"
+                                  w="full"
+                                >
                                   <HStack
                                     spacing={2}
-                                    alignItems="center"
-                                    w="full"
-                                    justify="space-between"
-                                    flexWrap="wrap"
+                                    wrap="wrap"
+                                    align="baseline"
+                                    flex={1}
                                   >
-                                    <HStack
-                                      spacing={2}
-                                      alignItems="center"
-                                      flexWrap="wrap"
+                                    <Text
+                                      fontWeight="600"
+                                      fontSize="xs"
+                                      color={colors.textDesc}
+                                      noOfLines={1}
                                     >
+                                      {cmt.username
+                                        ? `@${cmt.username}`
+                                        : cmt.name ||
+                                          getCurrentUserDisplayName()}
+                                    </Text>
+                                    <Text fontSize="xs" color={colors.textMuted}>
+                                      {formatDate(cmt.createdAt)}
+                                    </Text>
+                                    {cmt.edited ? (
                                       <Text
-                                        fontWeight="600"
-                                        fontSize={{ base: "xs", md: "sm" }}
-                                        color={colors.textDesc}
-                                        noOfLines={1}
-                                      >
-                                        {comment.username
-                                          ? `@${comment.username}`
-                                          : comment.name ||
-                                            getCurrentUserDisplayName()}
-                                      </Text>
-                                      <Text
-                                        fontSize={{ base: "xs", md: "xs" }}
+                                        fontSize="xs"
                                         color={colors.textMuted}
                                       >
-                                        {formatDate(comment.createdAt)}
+                                        (edited)
                                       </Text>
-                                      {comment.edited && (
-                                        <Text
-                                          fontSize={{ base: "xs", md: "xs" }}
-                                          color="gray.400"
-                                        >
-                                          (edited)
-                                        </Text>
-                                      )}
-                                    </HStack>
-                                    {canEditComment(comment) && (
-                                      <Menu>
-                                        <MenuButton
-                                          as={IconButton}
-                                          icon={<HamburgerIcon />}
-                                          size={{ base: "xs", md: "xs" }}
-                                          variant="ghost"
-                                          color={colors.textMuted}
-                                        />
-                                        <MenuList>
-                                          <MenuItem
-                                            icon={<EditIcon />}
-                                            onClick={() =>
-                                              setEditingComment(comment._id)
-                                            }
-                                            fontSize={{ base: "sm", md: "md" }}
-                                          >
-                                            Edit
-                                          </MenuItem>
-                                          <MenuItem
-                                            icon={<DeleteIcon />}
-                                            color="red.500"
-                                            onClick={() =>
-                                              handleCommentDelete(comment._id)
-                                            }
-                                            fontSize={{ base: "sm", md: "md" }}
-                                          >
-                                            Delete
-                                          </MenuItem>
-                                        </MenuList>
-                                      </Menu>
-                                    )}
+                                    ) : null}
                                   </HStack>
-                                </VStack>
+                                  {commentIdStr &&
+                                  canEditComment(cmt) ? (
+                                    <Menu>
+                                      <MenuButton
+                                        as={IconButton}
+                                        aria-label="Comment actions"
+                                        icon={<HamburgerIcon />}
+                                        variant="ghost"
+                                        size="xs"
+                                        borderRadius="full"
+                                        color={colors.textMuted}
+                                      />
+                                      <MenuList fontSize="sm">
+                                        <MenuItem
+                                          icon={<EditIcon />}
+                                          onClick={() =>
+                                            setEditingComment(commentIdStr)
+                                          }
+                                        >
+                                          Edit
+                                        </MenuItem>
+                                        <MenuItem
+                                          icon={<DeleteIcon />}
+                                          color="red.500"
+                                          onClick={() =>
+                                            handleCommentDelete(commentIdStr)
+                                          }
+                                        >
+                                          Delete
+                                        </MenuItem>
+                                      </MenuList>
+                                    </Menu>
+                                  ) : null}
+                                </Flex>
 
-                                {/* Comment Text */}
-                                {editingComment === comment._id ? (
-                                  <VStack spacing={2} w="full">
+                                {commentIdStr &&
+                                editingComment === commentIdStr ? (
+                                  <VStack spacing={2} align="stretch">
                                     <Textarea
-                                      value={comment.text}
+                                      value={cmt.text}
                                       onChange={(e) => {
                                         setUpdatedEntry((prevEntry) => ({
                                           ...prevEntry,
-                                          comments: prevEntry.comments.map(
-                                            (c) =>
-                                              c._id === comment._id
+                                          comments:
+                                            prevEntry.comments.map((c) =>
+                                              normalizeCommentMongoId(c) ===
+                                              commentIdStr
                                                 ? {
                                                     ...c,
                                                     text: e.target.value,
                                                   }
-                                                : c
-                                          ),
+                                                : c,
+                                            ),
                                         }));
                                       }}
+                                      rows={3}
                                       size="sm"
                                       resize="none"
-                                      rows={2}
-                                      fontSize={{ base: "sm", md: "md" }}
+                                      fontSize="11px"
+                                      borderRadius="4px"
+                                      borderColor={colors.borderColor}
+                                      bg={colors.bgCard}
+                                      _focus={{
+                                        borderColor: "blue.400",
+                                        boxShadow:
+                                          "0 0 0 1px var(--chakra-colors-blue-400)",
+                                      }}
                                     />
                                     <HStack spacing={2}>
                                       <Button
-                                        size={{ base: "xs", md: "sm" }}
-                                        colorScheme="blue"
+                                        size="sm"
+                                        px={3}
+                                        fontSize="11px"
+                                        h="28px"
+                                        borderRadius="4px"
+                                        bg={colors.bgMuted}
+                                        color={colors.textPrimary}
+                                        borderWidth="1px"
+                                        borderColor={colors.borderColor}
+                                        _hover={{ bg: colors.bgHover }}
                                         onClick={() =>
                                           handleCommentEdit(
-                                            comment._id,
-                                            comment.text
+                                            commentIdStr,
+                                            cmt.text,
                                           )
                                         }
                                       >
                                         Save
                                       </Button>
                                       <Button
-                                        size={{ base: "xs", md: "sm" }}
-                                        variant="ghost"
-                                        onClick={() => setEditingComment(null)}
+                                        variant="outline"
+                                        size="sm"
+                                        px={3}
+                                        fontSize="11px"
+                                        h="28px"
+                                        borderRadius="4px"
+                                        onClick={() =>
+                                          setEditingComment(null)
+                                        }
                                       >
                                         Cancel
                                       </Button>
@@ -2517,350 +2251,405 @@ const ProductCard = memo(function ProductCard({
                                   </VStack>
                                 ) : (
                                   <Text
+                                    whiteSpace="pre-wrap"
+                                    wordBreak="break-word"
+                                    fontSize="xs"
+                                    lineHeight="1.35"
                                     color={colors.textDesc}
-                                    fontFamily="Inter, system-ui, sans-serif"
-                                    fontSize={{ base: "xs", md: "sm" }}
-                                    lineHeight="1.3"
-                                    noOfLines={2}
                                   >
-                                    {comment.text}
+                                    {cmt.text}
                                   </Text>
                                 )}
 
-                                {/* Comment Actions */}
-                                <HStack spacing={{ base: 2, md: 3 }} pt={1}>
+                                <HStack spacing={5} mt={2} wrap="wrap">
                                   <Button
-                                    size={{ base: "xs", md: "xs" }}
                                     variant="ghost"
-                                    leftIcon={<StarIcon />}
+                                    size="xs"
+                                    minW="unset"
+                                    h="auto"
+                                    minH={0}
+                                    py={1}
+                                    px={0}
+                                    fontSize="11px"
+                                    fontWeight="normal"
+                                    isDisabled={!commentIdStr}
                                     color={
-                                      hasLikedComment(comment)
+                                      hasLikedComment(cmt)
                                         ? "red.500"
                                         : colors.textMuted
                                     }
-                                    onClick={() =>
-                                      handleCommentLike(comment._id)
-                                    }
-                                    fontSize={{ base: "xs", md: "xs" }}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (!commentIdStr) return;
+                                      handleCommentLike(commentIdStr);
+                                    }}
                                   >
-                                    {comment.likes?.length || 0}
+                                    Like · {cmt.likes?.length || 0}
                                   </Button>
-                                  <Button
-                                    size={{ base: "xs", md: "xs" }}
-                                    variant="ghost"
-                                    leftIcon={<ChatIcon />}
-                                    color={colors.textMuted}
-                                    onClick={() =>
-                                      setReplyToComment(comment._id)
-                                    }
-                                    fontSize={{ base: "xs", md: "xs" }}
-                                  >
-                                    Reply
-                                  </Button>
+                                  {commentIdStr ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="xs"
+                                      minW="unset"
+                                      h="auto"
+                                      minH={0}
+                                      py={1}
+                                      px={0}
+                                      fontSize="11px"
+                                      fontWeight="normal"
+                                      color={
+                                        replyToComment === commentIdStr
+                                          ? colors.textDesc
+                                          : colors.textMuted
+                                      }
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setReplyToComment((current) =>
+                                          current === commentIdStr
+                                            ? null
+                                            : commentIdStr,
+                                        );
+                                      }}
+                                    >
+                                      Reply
+                                    </Button>
+                                  ) : null}
                                 </HStack>
 
-                                {/* Reply Input */}
-                                {replyToComment === comment._id && (
-                                  <Box w="full" pt={2}>
-                                    <VStack spacing={2}>
-                                      <Textarea
-                                        placeholder="Write a reply..."
-                                        value={replyText}
-                                        onChange={(e) =>
-                                          setReplyText(e.target.value)
-                                        }
-                                        size="sm"
-                                        resize="none"
-                                        rows={2}
-                                        fontSize={{ base: "sm", md: "md" }}
-                                      />
-                                      <HStack spacing={2}>
-                                        <Button
-                                          size={{ base: "xs", md: "sm" }}
-                                          colorScheme="blue"
-                                          onClick={() =>
-                                            handleCommentReply(
-                                              comment._id,
-                                              replyText
-                                            )
-                                          }
-                                          isDisabled={!replyText.trim()}
-                                        >
-                                          Reply
-                                        </Button>
-                                        <Button
-                                          size={{ base: "xs", md: "sm" }}
-                                          variant="ghost"
-                                          onClick={() => {
-                                            setReplyToComment(null);
-                                            setReplyText("");
-                                          }}
-                                        >
-                                          Cancel
-                                        </Button>
-                                      </HStack>
-                                    </VStack>
-                                  </Box>
-                                )}
-
-                                {/* Replies */}
-                                {comment.replies &&
-                                  comment.replies.length > 0 && (
-                                    <VStack
-                                      spacing={1}
-                                      w="full"
-                                      pl={{ base: 2, md: 3 }}
-                                      borderLeft="2px solid"
+                                {commentIdStr &&
+                                replyToComment === commentIdStr ? (
+                                  <HStack spacing={2} w="full" mt={3}>
+                                    <Input
+                                      aria-label="Write a reply"
+                                      placeholder="Write a reply..."
+                                      value={replyText}
+                                      flex={1}
+                                      minW={0}
+                                      onChange={(e) =>
+                                        setReplyText(e.target.value)
+                                      }
+                                      size="sm"
+                                      fontSize="11px"
+                                      borderRadius="4px"
                                       borderColor={colors.borderColor}
+                                      _focus={{
+                                        borderColor: "blue.400",
+                                        boxShadow:
+                                          "0 0 0 1px var(--chakra-colors-blue-400)",
+                                      }}
+                                      bg={colors.bgCard}
+                                      h="28px"
+                                    />
+                                    <Button
+                                      px={3}
+                                      py={1}
+                                      size="sm"
+                                      fontSize="11px"
+                                      borderRadius="4px"
+                                      fontWeight="500"
+                                      h="28px"
+                                      bg={colors.bgMuted}
+                                      color={colors.textPrimary}
+                                      borderWidth="1px"
+                                      borderColor={colors.borderColor}
+                                      _hover={{ bg: colors.bgHover }}
+                                      isDisabled={!replyText.trim()}
+                                      _disabled={{
+                                        opacity: 0.6,
+                                        cursor: "not-allowed",
+                                      }}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleCommentReply(
+                                          commentIdStr,
+                                          replyText,
+                                        );
+                                      }}
                                     >
-                                      {comment.replies.map(
-                                        (reply, replyIndex) => (
-                                          <Box
-                                            key={reply._id || replyIndex}
-                                            p={{ base: 1, md: 2 }}
-                                            bg={colors.bgHover}
-                                            rounded="md"
-                                            w="full"
-                                          >
-                                            <HStack
-                                              spacing={2}
-                                              alignItems="flex-start"
+                                      Reply
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      px={3}
+                                      py={1}
+                                      size="sm"
+                                      fontSize="11px"
+                                      borderRadius="4px"
+                                      h="28px"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setReplyToComment(null);
+                                        setReplyText("");
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </HStack>
+                                ) : null}
+
+                                {cmt.replies && cmt.replies.length > 0 ? (
+                                  <VStack
+                                    spacing={2}
+                                    align="stretch"
+                                    pl={3}
+                                    ml={3}
+                                    pt={3}
+                                    borderLeftWidth="1px"
+                                    borderLeftColor={colors.borderColor}
+                                  >
+                                    {cmt.replies.map((reply, replyIndex) => (
+                                      <HStack
+                                        key={reply._id || replyIndex}
+                                        spacing={2}
+                                        align="flex-start"
+                                      >
+                                        <Image
+                                          src={
+                                            reply.picture ||
+                                            getCurrentUserProfilePicture()
+                                          }
+                                          fallbackSrc={postImageFallback}
+                                          alt=""
+                                          boxSize="18px"
+                                          borderRadius="full"
+                                          objectFit="cover"
+                                          mt="4px"
+                                          flexShrink={0}
+                                        />
+                                        <VStack
+                                          spacing={0.5}
+                                          align="stretch"
+                                          minW={0}
+                                          flex={1}
+                                        >
+                                          <HStack spacing={2} wrap="wrap">
+                                            <Text
+                                              fontWeight="600"
+                                              fontSize="xs"
+                                              color={colors.textDesc}
+                                              noOfLines={1}
                                             >
-                                              <Box
-                                                position="relative"
-                                                boxSize={{
-                                                  base: "16px",
-                                                  md: "20px",
-                                                }}
-                                                flexShrink={0}
-                                              >
-                                                <Image
-                                                  src={
-                                                    reply.picture ||
-                                                    getCurrentUserProfilePicture()
-                                                  }
-                                                  alt="Reply Profile"
-                                                  boxSize={{
-                                                    base: "16px",
-                                                    md: "20px",
-                                                  }}
-                                                  borderRadius="full"
-                                                  objectFit="cover"
-                                                />
-                                              </Box>
-                                              <VStack
-                                                align="start"
-                                                spacing={1}
-                                                flex={1}
-                                              >
-                                                <HStack
-                                                  spacing={2}
-                                                  alignItems="center"
-                                                  flexWrap="wrap"
-                                                >
-                                                  <Text
-                                                    fontWeight="600"
-                                                    fontSize={{
-                                                      base: "xs",
-                                                      md: "xs",
-                                                    }}
-                                                    color={colors.textDesc}
-                                                    noOfLines={1}
-                                                  >
-                                                    {reply.username
-                                                      ? `@${reply.username}`
-                                                      : reply.name || "User"}
-                                                  </Text>
-                                                  <Text
-                                                    fontSize={{
-                                                      base: "xs",
-                                                      md: "xs",
-                                                    }}
-                                                    color={colors.textMuted}
-                                                  >
-                                                    {formatDate(
-                                                      reply.createdAt
-                                                    )}
-                                                  </Text>
-                                                </HStack>
-                                                <Text
-                                                  color={colors.textDesc}
-                                                  fontSize={{
-                                                    base: "xs",
-                                                    md: "xs",
-                                                  }}
-                                                  lineHeight="1.3"
-                                                  noOfLines={1}
-                                                >
-                                                  {reply.text}
-                                                </Text>
-                                              </VStack>
-                                            </HStack>
-                                          </Box>
-                                        )
-                                      )}
-                                    </VStack>
-                                  )}
+                                              {reply.username
+                                                ? `@${reply.username}`
+                                                : reply.name ||
+                                                  "User"}
+                                            </Text>
+                                            <Text
+                                              fontSize="11px"
+                                              color={colors.textMuted}
+                                            >
+                                              {formatDate(reply.createdAt)}
+                                            </Text>
+                                          </HStack>
+                                          <Text
+                                            whiteSpace="pre-wrap"
+                                            wordBreak="break-word"
+                                            fontSize="xs"
+                                            lineHeight="1.35"
+                                            color={colors.textDesc}
+                                          >
+                                            {reply.text}
+                                          </Text>
+                                        </VStack>
+                                      </HStack>
+                                    ))}
+                                  </VStack>
+                                ) : null}
                               </VStack>
                             </HStack>
                           </Box>
-                        ))}
-                      </VStack>
-                    )}
+                        );
+                      })}
+                    </Stack>
+                  ) : null}
                 </Box>
               </VStack>
-            </VStack>
-          </ModalBody>
-          <ModalFooter
-            px={{ base: 3, md: 6 }}
-            py={{ base: 2, md: 4 }}
-            flexShrink={0}
-            bg={colors.bgCard}
-          >
-            <Button
-              variant="ghost"
-              onClick={onDetailClose}
-              size={{ base: "sm", md: "md" }}
-              color={colors.textPrimary}
-              _hover={{ bg: colors.bgHover }}
-            >
-              Close
-            </Button>
-          </ModalFooter>
+            }
+          />
         </ModalContent>
       </Modal>
 
       {/* Edit Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent bg={colors.bgCard}>
-          <ModalHeader
-            fontFamily="Arial, sans-serif"
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        size="xl"
+        isCentered={editModalCentered}
+        scrollBehavior="inside"
+      >
+        <ModalOverlay
+          bg="transparent"
+          backdropFilter="blur(1px)"
+          style={{ background: "hsl(var(--workout-modal-overlay) / 0.72)" }}
+        />
+        <ModalContent
+          ref={editModalScrollRef}
+          position="relative"
+          bg="transparent"
+          boxShadow="none"
+          maxW="min(440px, 92vw)"
+          w="full"
+          mx="auto"
+          my={{ base: 4, md: 6 }}
+          maxH="calc(100dvh - 2rem)"
+          minH={0}
+          overflowY="auto"
+          sx={{
+            WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y",
+            overscrollBehavior: "contain",
+          }}
+          px={{ base: 1, md: 2 }}
+          py={{ base: 2, md: 3 }}
+          onFocusCapture={(event) => {
+            const node = event.target;
+            if (
+              node instanceof HTMLInputElement ||
+              node instanceof HTMLTextAreaElement
+            ) {
+              ensureEditableFieldVisibleInEditModal(node);
+            }
+          }}
+        >
+          <ModalCloseButton
+            size="md"
+            borderRadius="full"
+            zIndex={10}
+            bg={colors.bgMuted}
             color={colors.textPrimary}
-          >
-            Edit workout post
-          </ModalHeader>
-          <ModalCloseButton color={colors.textSecondary} />
-          <ModalBody>
-            <VStack spacing={4}>
-              <Input
-                placeholder="Entry Name"
-                name="name"
-                value={updatedEntry.name}
-                onChange={(e) =>
-                  setUpdatedEntry({ ...updatedEntry, name: e.target.value })
-                }
-                fontFamily="Arial, sans-serif"
-                bg={colors.bgMuted}
-                color={colors.textPrimary}
-                borderColor={colors.border}
-                _placeholder={{ color: colors.textMuted }}
-                _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
-              />
-              <Textarea
-                placeholder="Workout Split"
-                style={{ height: "185px" }}
-                name="description"
-                value={updatedEntry.description}
-                onChange={(e) =>
-                  setUpdatedEntry({
-                    ...updatedEntry,
-                    description: e.target.value,
-                  })
-                }
-                fontFamily="Arial, sans-serif"
-                bg={colors.bgMuted}
-                color={colors.textPrimary}
-                borderColor={colors.border}
-                _placeholder={{ color: colors.textMuted }}
-                _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
-              />
-              <Text
-                fontSize="sm"
-                color={colors.textMuted}
-                w="full"
-                noOfLines={2}
-                minH="2.6em"
-                lineHeight="1.3"
-                display="flex"
-                alignItems="center"
-              >
-                {editAutosaveMeta.status === "saving"
-                  ? "Saving to your post…"
-                  : editAutosaveMeta.status === "saved"
-                  ? `Saved to your post${editAutosaveMeta.lastSavedAt ? ` (${new Date(editAutosaveMeta.lastSavedAt).toLocaleTimeString()})` : ""}`
-                  : editAutosaveMeta.status === "error"
-                  ? "Could not save to your post. Check your connection."
-                  : "Changes save to your post as you type. Update is optional."}
-              </Text>
-              {usesThemeDefaultPostArt ? (
-                <Box position="relative" boxSize="150px" borderRadius="3xl" overflow="hidden">
-                  <EntryPostDefaultThemeArtwork
-                    alt="Entry Image"
-                    showLight={showLightDefaultBg}
-                    prefersReducedMotion={prefersReducedMotion}
-                    reveal
-                    decoding="async"
-                    boxProps={{
-                      position: "absolute",
-                      inset: 0,
-                      w: "100%",
-                      h: "100%",
-                    }}
-                  />
-                </Box>
-              ) : (
-                <Image
-                  src={displayEntryImage}
-                  alt="Entry Image"
-                  boxSize="150px"
-                  objectFit="cover"
-                  borderRadius="3xl"
+            borderWidth="1px"
+            borderColor={colors.borderColor}
+            _hover={{ bg: colors.bgHover }}
+          />
+          <FeedEntryCard
+            clipCardShell={false}
+            className={cn("mx-auto w-full max-w-[448px]")}
+            profile={{
+              displayName: captionHandle,
+              captionHandle,
+              imageSrc: profileImage,
+              imageAlt: "User Profile",
+              fallback: profileFallbackLetters,
+            }}
+            subtitle={`Edit · ${feedSubtitle}`}
+            image={getSquareEntryMedia(false, { compact: true })}
+            liked={isLiked}
+            onToggleLike={() => {}}
+            likesCount={
+              Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
+            }
+            commentsCount={
+              Array.isArray(updatedEntry.comments)
+                ? updatedEntry.comments.length
+                : 0
+            }
+            description=""
+            showSocialToolbar={false}
+            captionReplacement={
+              <VStack spacing={3} align="stretch" w="full">
+                <Input
+                  placeholder="Entry Name"
+                  name="name"
+                  value={updatedEntry.name}
+                  onChange={(e) =>
+                    setUpdatedEntry({ ...updatedEntry, name: e.target.value })
+                  }
+                  fontFamily="Arial, sans-serif"
+                  bg={colors.bgMuted}
+                  color={colors.textPrimary}
+                  borderColor={colors.border}
+                  _placeholder={{ color: colors.textMuted }}
+                  _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
                 />
-              )}
-              <FileUploader
-                handleFile={handleFileUpload}
-                cropAspect={ENTRY_POST_IMAGE_ASPECT}
-              />
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              variant="outline"
-              mr={3}
-              onClick={handleRevertEdits}
-              isDisabled={
-                !editBaselineSnapshot ||
-                currentEditSnapshot === editBaselineSnapshot
-              }
-              fontFamily="Arial, sans-serif"
-              color={colors.textPrimary}
-              borderColor={colors.borderColor}
-              _hover={{ bg: colors.bgHover }}
-            >
-              Revert
-            </Button>
-            <Button
-              colorScheme="blue"
-              mr={3}
-              onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
-              isLoading={isUpdateSubmitting}
-              spinner={<ButtonLoadingSpinner />}
-              loadingText="Updating"
-              fontFamily="Arial, sans-serif"
-            >
-              Update
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={onClose}
-              fontFamily="Arial, sans-serif"
-              color={colors.textSecondary}
-              _hover={{ bg: colors.bgHover }}
-            >
-              Cancel
-            </Button>
-          </ModalFooter>
+                <Textarea
+                  placeholder="Workout Split"
+                  minH="160px"
+                  name="description"
+                  value={updatedEntry.description}
+                  onChange={(e) =>
+                    setUpdatedEntry({
+                      ...updatedEntry,
+                      description: e.target.value,
+                    })
+                  }
+                  fontFamily="Arial, sans-serif"
+                  bg={colors.bgMuted}
+                  color={colors.textPrimary}
+                  borderColor={colors.border}
+                  _placeholder={{ color: colors.textMuted }}
+                  _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
+                />
+                {(editAutosaveMeta.status === "saving" ||
+                  editAutosaveMeta.status === "saved" ||
+                  editAutosaveMeta.status === "error") && (
+                  <Text
+                    fontSize="sm"
+                    color={colors.textMuted}
+                    w="full"
+                    noOfLines={2}
+                    minH="2.6em"
+                    lineHeight="1.3"
+                    display="flex"
+                    alignItems="center"
+                  >
+                    {editAutosaveMeta.status === "saving"
+                      ? "Saving to your post…"
+                      : editAutosaveMeta.status === "saved"
+                      ? `Saved to your post${editAutosaveMeta.lastSavedAt ? ` (${new Date(editAutosaveMeta.lastSavedAt).toLocaleTimeString()})` : ""}`
+                      : "Could not save to your post. Check your connection."}
+                  </Text>
+                )}
+              </VStack>
+            }
+            footer={
+              <VStack spacing={2} align="stretch" w="full">
+                <FileUploader
+                  handleFile={handleFileUpload}
+                  cropAspect={ENTRY_POST_IMAGE_ASPECT}
+                  compact
+                />
+                <HStack spacing={3} justify="flex-end" flexWrap="wrap" w="full">
+                  <Button
+                    variant="outline"
+                    onClick={handleRevertEdits}
+                    isDisabled={
+                      !editBaselineSnapshot ||
+                      currentEditSnapshot === editBaselineSnapshot
+                    }
+                    fontFamily="Arial, sans-serif"
+                    color={colors.textPrimary}
+                    borderColor={colors.borderColor}
+                    _hover={{ bg: colors.bgHover }}
+                  >
+                    Revert
+                  </Button>
+                  <Button
+                    colorScheme="blue"
+                    onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
+                    isLoading={isUpdateSubmitting}
+                    spinner={<ButtonLoadingSpinner />}
+                    loadingText="Updating"
+                    fontFamily="Arial, sans-serif"
+                  >
+                    Update
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={onClose}
+                    fontFamily="Arial, sans-serif"
+                    color={colors.textSecondary}
+                    _hover={{ bg: colors.bgHover }}
+                  >
+                    Cancel
+                  </Button>
+                </HStack>
+              </VStack>
+            }
+          />
         </ModalContent>
       </Modal>
 

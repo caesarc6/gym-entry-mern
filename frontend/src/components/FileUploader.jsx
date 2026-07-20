@@ -77,6 +77,8 @@ export const FileUploader = ({
   showSelectedPreview = true,
   /** When set (width/height), user crops inside the preview before compression. */
   cropAspect = undefined,
+  /** Smaller layout for dense modals (e.g. edit workout post). */
+  compact = false,
 }) => {
   const hiddenFileInput = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -308,9 +310,12 @@ export const FileUploader = ({
   };
 
   return (
-    <VStack spacing={3} align="stretch">
+    <VStack spacing={compact ? 2 : 3} align="stretch">
       {isCapacitorNative && enableNativeCamera ? (
-        <HStack spacing={3}>
+        <HStack
+          spacing={compact ? 2 : 3}
+          flexWrap={compact ? "wrap" : undefined}
+        >
           <Button
             className="button-upload"
             onClick={async (e) => {
@@ -327,6 +332,7 @@ export const FileUploader = ({
               }
             }}
             type="button"
+            size={compact ? "sm" : "md"}
             isDisabled={isProcessing}
             colorScheme="blue"
             variant="solid"
@@ -348,6 +354,7 @@ export const FileUploader = ({
               }
             }}
             type="button"
+            size={compact ? "sm" : "md"}
             isDisabled={isProcessing}
             colorScheme="blue"
             variant="outline"
@@ -360,6 +367,7 @@ export const FileUploader = ({
           className="button-upload"
           onClick={handleClick}
           type="button"
+          size={compact ? "sm" : "md"}
           isLoading={isProcessing}
           spinner={<ButtonLoadingSpinner />}
           loadingText="Processing..."
@@ -610,15 +618,15 @@ export const FileUploader = ({
         <Box
           position="relative"
           alignSelf="center"
-          borderRadius="lg"
+          borderRadius={compact ? "md" : "lg"}
           overflow="hidden"
           border="2px solid"
           borderColor={isSelectedActive ? selectedBorderColor : "transparent"}
           transition="border-color 120ms ease"
           onClick={() => setIsSelectedActive((v) => !v)}
           cursor="pointer"
-          w="160px"
-          h="160px"
+          w={compact ? "112px" : "160px"}
+          h={compact ? "112px" : "160px"}
         >
           <Box
             as="img"
@@ -652,7 +660,7 @@ export const FileUploader = ({
       {/* Processing Progress */}
       {isProcessing && (
         <Box>
-          <Text fontSize="sm" mb={2}>
+          <Text fontSize={compact ? "xs" : "sm"} mb={2}>
             Processing image...
           </Text>
           <Progress size="sm" isIndeterminate colorScheme="blue" />

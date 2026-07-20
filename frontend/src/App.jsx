@@ -3,6 +3,7 @@ import { LoadingIndicator } from "./components/loading";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import "./index.css";
+import HomePage from "./pages/HomePage";
 import { useCanvasShell } from "./contexts/CanvasShellContext.jsx";
 import MobileAppShell from "./components/MobileAppShell";
 import RequireAuth from "./routes/RequireAuth";
@@ -10,7 +11,6 @@ import { useProductStore } from "./store/product";
 import { isCapacitorNative as getIsCapacitorNative } from "./utils/isNativePlatform";
 
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
-const HomePage = lazy(() => import("./pages/HomePage"));
 const SignUpFlow = lazy(() => import("./pages/SignUpFlow"));
 const CreatePage = lazy(() => import("./pages/CreatePage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));

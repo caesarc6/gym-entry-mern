@@ -40,6 +40,8 @@ const ThemeSelector = ({
   const label = isDark ? "Dark mode" : "Light mode";
 
   const iconDim = uiShellTypography ? 4 : 5;
+  /** Fixed box so IoMoon / LuSun optically match adjacent menu SVG rows (e.g. desktop account menu). */
+  const iconBoxPx = uiShellTypography ? 16 : 20;
 
   return (
     <Box
@@ -74,20 +76,30 @@ const ThemeSelector = ({
       border="none"
       _hover={{ opacity: 0.8 }}
     >
-      <Icon
-        as={CurrentIcon}
-        color={
-          uiShellTypography
-            ? "currentColor"
-            : inheritColor
-              ? "currentColor"
-              : colors.textSecondary
-        }
-        w={iconDim}
-        h={iconDim}
+      <Box
         flexShrink={0}
-        aria-hidden
-      />
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        lineHeight={0}
+        w={`${iconBoxPx}px`}
+        h={`${iconBoxPx}px`}
+      >
+        <Icon
+          as={CurrentIcon}
+          color={
+            uiShellTypography
+              ? "currentColor"
+              : inheritColor
+                ? "currentColor"
+                : colors.textSecondary
+          }
+          w={iconDim}
+          h={iconDim}
+          display="block"
+          aria-hidden
+        />
+      </Box>
       {showLabel ? (
         uiShellTypography ? (
           <span>
@@ -97,9 +109,10 @@ const ThemeSelector = ({
         ) : (
           <Text
             as="span"
+            m={0}
             fontSize={inheritColor ? "xs" : "sm"}
             fontWeight={inheritColor ? "medium" : "normal"}
-            lineHeight={inheritColor ? "1rem" : undefined}
+            lineHeight={inheritColor ? "1.25" : undefined}
             color={inheritColor ? "inherit" : colors.textSecondary}
           >
             {labelPrefix}

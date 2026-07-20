@@ -250,8 +250,8 @@ html.theme-chrome-transition *::after {
     stroke,
     text-decoration-color,
     column-rule-color;
-  transition-duration: var(--theme-shell-duration, 1s);
-  transition-delay: var(--theme-shell-delay, 0.7s);
+  transition-duration: var(--theme-shell-duration, 0.45s);
+  transition-delay: var(--theme-shell-delay, 0s);
   transition-timing-function: var(
     --theme-shell-ease,
     cubic-bezier(0.42, 0, 0.58, 1)

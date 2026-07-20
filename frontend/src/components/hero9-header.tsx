@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Search } from "lucide-react";
+import { Menu, X, Search, LogIn, UserPlus, UserRound, Users, LogOut } from "lucide-react";
 import { Button } from "./ui/button";
 import { HeroDesktopUserDropdown } from "./ui/dropdown-menu-1";
 import React, { useCallback, useEffect, useRef } from "react";
@@ -15,10 +15,6 @@ import {
 import { supabase } from "../supabase/supabase";
 import { PlusSquareIcon } from "@chakra-ui/icons";
 import { useColorMode } from "@chakra-ui/react";
-import { RxAvatar } from "react-icons/rx";
-import { PiSignOutThin } from "react-icons/pi";
-import { FiUsers } from "react-icons/fi";
-import { HiShieldCheck } from "react-icons/hi";
 import {
   Input,
   VStack,
@@ -36,6 +32,7 @@ import { useCanvasShell, hexAlpha } from "../contexts/CanvasShellContext.jsx";
 import ThemeSelector from "./ThemeSelector";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { THEME_SHELL_BG_BORDER_TRANSITION } from "../constants/themeShellTiming.js";
+import { HEADER_ICON_STROKE } from "../constants/headerIconStroke.js";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 
@@ -64,12 +61,6 @@ export const HeroHeader = () => {
       : HERO_OUTLINE_CTA_BUTTON_CLASSNAME;
 
   const isLightTheme = currentTheme === "light";
-
-  /** Mobile drawer follows the app theme, not Chakra's color mode. */
-  const mobileMenuAuthOutlineClassName =
-    isLightTheme
-      ? NAV_OUTLINE_AUTH_BUTTON_LIGHT_CLASSNAME
-      : HERO_OUTLINE_CTA_BUTTON_CLASSNAME;
 
   const lightNavSurface = !isHome && currentTheme === "light";
   const mobileDrawerSurfaceClassName =
@@ -438,7 +429,10 @@ export const HeroHeader = () => {
                       }}
                       aria-label="Open search"
                     >
-                      <Search className="h-5 w-5" />
+                      <Search
+                        strokeWidth={HEADER_ICON_STROKE}
+                        className="h-5 w-5"
+                      />
                     </ChakraButton>
                   ) : (
                     <div
@@ -483,7 +477,7 @@ export const HeroHeader = () => {
                           )}
                           aria-label="Clear search"
                         >
-                          <X className="h-1 w-1" />
+                          <X strokeWidth={HEADER_ICON_STROKE} className="h-1 w-1" />
                         </Button>
                       )}
                       {searchQuery && (
@@ -604,6 +598,7 @@ export const HeroHeader = () => {
               >
                 <span className="relative block size-6">
                   <Menu
+                    strokeWidth={HEADER_ICON_STROKE}
                     className={cn(
                       "absolute inset-0 m-auto size-6 transition-transform duration-300 ease-in-out",
                       menuState
@@ -612,6 +607,7 @@ export const HeroHeader = () => {
                     )}
                   />
                   <X
+                    strokeWidth={HEADER_ICON_STROKE}
                     className={cn(
                       "absolute inset-0 m-auto size-6 transition-transform duration-300 ease-in-out",
                       menuState
@@ -663,7 +659,10 @@ export const HeroHeader = () => {
                     }}
                     aria-label="Search"
                   >
-                    <Search className="h-5 w-5" />
+                    <Search
+                      strokeWidth={HEADER_ICON_STROKE}
+                      className="h-5 w-5"
+                    />
                   </ChakraButton>
                   {searchQuery && (
                     <Button
@@ -681,7 +680,7 @@ export const HeroHeader = () => {
                           : "text-gray-400 hover:text-gray-200",
                       )}
                     >
-                      <X className="h-1 w-2" />
+                      <X strokeWidth={HEADER_ICON_STROKE} className="h-1 w-2" />
                     </Button>
                   )}
                   {searchQuery && (
@@ -805,7 +804,7 @@ export const HeroHeader = () => {
               ) : isSignedIn ? (
                 <HeroDesktopUserDropdown
                   userName={userName}
-                  isLightTheme={colors.currentTheme === "light"}
+                  appTheme={colors.currentTheme}
                   hasTrainerDashboardAccess={hasTrainerDashboardAccess}
                   onSignOut={handleSignOut}
                   onThemeChange={closeMenu}
@@ -888,7 +887,7 @@ export const HeroHeader = () => {
                         className="rounded-full p-2 text-current/70 transition hover:bg-current/10 hover:text-current"
                         onClick={closeMenu}
                       >
-                        <X className="h-5 w-5" />
+                        <X strokeWidth={HEADER_ICON_STROKE} className="h-5 w-5" />
                       </button>
                     </div>
 
@@ -914,7 +913,11 @@ export const HeroHeader = () => {
                               to="/profile"
                               className="flex items-center gap-2"
                             >
-                              <RxAvatar className="!w-5 !h-5" />
+                              <UserRound
+                                strokeWidth={HEADER_ICON_STROKE}
+                                className="size-5 shrink-0"
+                                aria-hidden
+                              />
                               <span>Profile</span>
                             </Link>
                           </Button>
@@ -929,7 +932,11 @@ export const HeroHeader = () => {
                               to="/analytics"
                               className="flex items-center gap-2"
                             >
-                              <Search className="!w-5 !h-5" />
+                              <Search
+                                strokeWidth={HEADER_ICON_STROKE}
+                                className="size-5 shrink-0"
+                                aria-hidden
+                              />
                               <span>Analytics</span>
                             </Link>
                           </Button>
@@ -948,7 +955,11 @@ export const HeroHeader = () => {
                                 to="/trainer/dashboard"
                                 className="flex items-center gap-2"
                               >
-                                <FiUsers className="!w-5 !h-5" />
+                                <Users
+                                  strokeWidth={HEADER_ICON_STROKE}
+                                  className="size-5 shrink-0"
+                                  aria-hidden
+                                />
                                 <span>Trainer Dashboard</span>
                               </Link>
                             </Button>
@@ -981,13 +992,17 @@ export const HeroHeader = () => {
                             )}
                           >
                             <div className="flex items-center gap-2">
-                              <PiSignOutThin />
+                              <LogOut
+                                strokeWidth={HEADER_ICON_STROKE}
+                                className="size-5 shrink-0"
+                                aria-hidden
+                              />
                               <span>Sign Out</span>
                             </div>
                           </Button>
                         </>
                       ) : (
-                        <div className="flex flex-col items-stretch gap-3">
+                        <>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1007,28 +1022,50 @@ export const HeroHeader = () => {
                             />
                           </Button>
                           <Button
-                            variant="outline"
+                            asChild
+                            variant="ghost"
                             size="sm"
-                            onClick={() => handleAuthNavigate("/login")}
                             className={cn(
-                              mobileMenuAuthOutlineClassName,
-                              "w-full justify-center",
+                              "justify-start",
+                              mobileDrawerItemClassName,
                             )}
+                            onClick={closeMenu}
                           >
-                            Login
+                            <Link
+                              to="/login"
+                              className="flex items-center gap-2"
+                            >
+                              <LogIn
+                                strokeWidth={HEADER_ICON_STROKE}
+                                className="size-5 shrink-0"
+                                aria-hidden
+                              />
+                              <span>Login</span>
+                            </Link>
                           </Button>
                           <Button
-                            variant="outline"
+                            asChild
+                            variant="ghost"
                             size="sm"
-                            onClick={() => handleAuthNavigate("/signup")}
                             className={cn(
-                              mobileMenuAuthOutlineClassName,
-                              "w-full justify-center",
+                              "justify-start",
+                              mobileDrawerItemClassName,
                             )}
+                            onClick={closeMenu}
                           >
-                            Sign Up
+                            <Link
+                              to="/signup"
+                              className="flex items-center gap-2"
+                            >
+                              <UserPlus
+                                strokeWidth={HEADER_ICON_STROKE}
+                                className="size-5 shrink-0"
+                                aria-hidden
+                              />
+                              <span>Sign Up</span>
+                            </Link>
                           </Button>
-                        </div>
+                        </>
                       )}
                     </div>
                     </motion.div>
