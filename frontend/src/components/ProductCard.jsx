@@ -776,9 +776,54 @@ const ProductCard = memo(function ProductCard({
     }
   }, [entry.image, entry._id]);
 
+  const flushEditDraftBackup = useCallback(() => {
+    if (!isOwner) return;
+    const current = updatedEntryRef.current;
+    const nameTrim = (current?.name || "").trim();
+    const descTrim = (current?.description || "").trim();
+    const hasNewImage = !!(
+      current?.imageName && current.imageName !== "undefined"
+    );
+    const hasDisplayImage =
+      current?.image && !isPlaceholderImage(current.image);
+    if (!nameTrim && !descTrim && !hasNewImage && !hasDisplayImage) return;
+
+    const snap = JSON.stringify({
+      name: current?.name || "",
+      description: current?.description || "",
+      image: current?.image || "",
+      imageName: current?.imageName || "",
+    });
+    // Nothing pending vs last successful publish/autosave.
+    if (snap === lastEditAutosavedSnapshotRef.current) return;
+
+    (async () => {
+      try {
+        const user = await getCurrentAuthUser();
+        const uid = user?.uid || "anon";
+        writeEditEntryDraft(uid, entry._id, {
+          name: current?.name || "",
+          description: current?.description || "",
+          image: current?.image || "",
+          imageName: current?.imageName || "",
+        });
+        await saveEntryDraft(entry._id, {
+          name: current?.name ?? "",
+          description: current?.description ?? "",
+        });
+      } catch {
+        // ignore quota / network
+      }
+    })();
+  }, [entry._id, isOwner, saveEntryDraft]);
+
   // Edit modal: server baseline for Revert + recover device draft if the app died mid-edit.
   useEffect(() => {
     if (!isOpen) {
+      // Closing cancels debounce timers — flush so drafts survive quick dismiss.
+      if (prevEditModalOpenRef.current) {
+        flushEditDraftBackup();
+      }
       if (editAutosaveTimerRef.current) {
         clearTimeout(editAutosaveTimerRef.current);
         editAutosaveTimerRef.current = null;
@@ -905,7 +950,7 @@ const ProductCard = memo(function ProductCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per open; entry is read at open time
   }, [isOpen]);
 
-  // Device-local backup while editing (survives crash / battery dying before server autosave).
+  // Device-local + server text backup while editing (survives crash / battery dying before publish autosave).
   useEffect(() => {
     if (!isOpen || !isOwner) return;
 
@@ -927,17 +972,18 @@ const ProductCard = memo(function ProductCard({
     editLocalDraftTimerRef.current = setTimeout(() => {
       (async () => {
         try {
+          const current = updatedEntryRef.current;
           const user = await getCurrentAuthUser();
           const uid = user?.uid || "anon";
           writeEditEntryDraft(uid, entry._id, {
-            name: updatedEntry?.name || "",
-            description: updatedEntry?.description || "",
-            image: updatedEntry?.image || "",
-            imageName: updatedEntry?.imageName || "",
+            name: current?.name || "",
+            description: current?.description || "",
+            image: current?.image || "",
+            imageName: current?.imageName || "",
           });
           saveEntryDraft(entry._id, {
-            name: updatedEntry?.name ?? "",
-            description: updatedEntry?.description ?? "",
+            name: current?.name ?? "",
+            description: current?.description ?? "",
           }).catch(() => {});
         } catch (e) {
           // ignore quota / private mode
@@ -966,30 +1012,7 @@ const ProductCard = memo(function ProductCard({
     if (!isOpen || !isOwner) return;
 
     const flushLocalDraft = () => {
-      const e = updatedEntryRef.current;
-      const nameTrim = (e?.name || "").trim();
-      const descTrim = (e?.description || "").trim();
-      const hasNewImage = !!(e?.imageName && e.imageName !== "undefined");
-      const hasDisplayImage = e?.image && !isPlaceholderImage(e.image);
-      if (!nameTrim && !descTrim && !hasNewImage && !hasDisplayImage) return;
-      (async () => {
-        try {
-          const user = await getCurrentAuthUser();
-          const uid = user?.uid || "anon";
-          writeEditEntryDraft(uid, entry._id, {
-            name: e?.name || "",
-            description: e?.description || "",
-            image: e?.image || "",
-            imageName: e?.imageName || "",
-          });
-          saveEntryDraft(entry._id, {
-            name: e?.name ?? "",
-            description: e?.description ?? "",
-          }).catch(() => {});
-        } catch (err) {
-          // ignore
-        }
-      })();
+      flushEditDraftBackup();
     };
 
     const onVis = () => {
@@ -1001,7 +1024,7 @@ const ProductCard = memo(function ProductCard({
       window.removeEventListener("pagehide", flushLocalDraft);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [isOpen, isOwner, entry._id, saveEntryDraft]);
+  }, [isOpen, isOwner, flushEditDraftBackup]);
 
   // Autosave edits to the real server: one debounced wave, then at most one extra PUT if you typed during the request (no overlapping calls).
   useEffect(() => {
@@ -1055,44 +1078,88 @@ const ProductCard = memo(function ProductCard({
 
             lastEditServerPayloadHashRef.current = payloadHash;
 
+            // Never write server name/description back into the open form — that
+            // races with typing and makes characters disappear mid-keystroke.
+            const sentName = candidate?.name || "";
+            const sentDesc = candidate?.description || "";
+            const sentImage = candidate?.image || "";
+            const sentImageName = candidate?.imageName || "";
+            const didSendNewImage = Boolean(
+              sentImageName && sentImageName !== "undefined",
+            );
+            const publishedImage =
+              data?.image && didSendNewImage ? data.image : sentImage;
+            const publishedImageName =
+              data?.image && didSendNewImage ? "" : sentImageName;
+
+            lastEditAutosavedEntryRef.current = {
+              name: sentName,
+              description: sentDesc,
+              image: publishedImage,
+              imageName: publishedImageName,
+            };
+            const savedSnap = JSON.stringify({
+              name: sentName,
+              description: sentDesc,
+              image: publishedImage,
+              imageName: publishedImageName,
+            });
+            lastEditAutosavedSnapshotRef.current = savedSnap;
+            setEditBaselineSnapshot(savedSnap);
+
+            setUpdatedEntry((prevEntry) => {
+              const next = {
+                ...prevEntry,
+                likes: data?.likes ?? prevEntry.likes,
+                comments: data?.comments ?? prevEntry.comments,
+              };
+              const imageUnchangedSinceSend =
+                (prevEntry.image || "") === sentImage &&
+                (prevEntry.imageName || "") === sentImageName;
+              if (imageUnchangedSinceSend && data?.image && didSendNewImage) {
+                next.image = data.image;
+                next.imageName = "";
+              }
+              return next;
+            });
+
             if (data) {
-              const { name, description, likes, comments, image } = data;
-              setUpdatedEntry((prevEntry) => {
-                const next = {
-                  ...prevEntry,
-                  name,
-                  description,
-                  likes,
-                  comments,
-                  image,
-                };
-                lastEditAutosavedEntryRef.current = {
-                  name: name ?? "",
-                  description: description ?? "",
-                  image: image ?? "",
-                  imageName: prevEntry?.imageName || "",
-                };
-                const savedSnap = JSON.stringify({
-                  name: name ?? "",
-                  description: description ?? "",
-                  image: image ?? "",
-                  imageName: prevEntry?.imageName || "",
-                });
-                lastEditAutosavedSnapshotRef.current = savedSnap;
-                setEditBaselineSnapshot(savedSnap);
-                return next;
-              });
               onUpdateRef.current(entry._id, data);
-            } else {
-              lastEditAutosavedSnapshotRef.current = snap;
-              setEditBaselineSnapshot(snap);
             }
 
-            try {
-              const user = await getCurrentAuthUser();
-              clearEditEntryDraft(user?.uid || "anon", entry._id);
-            } catch (clearErr) {
-              // ignore
+            // updatedEntryRef is still pre-setState; if the user typed or swapped
+            // the image during the request, keep drafts for recovery.
+            const latest = updatedEntryRef.current;
+            const formMatchesSent =
+              (latest?.name || "") === sentName &&
+              (latest?.description || "") === sentDesc &&
+              (latest?.image || "") === sentImage &&
+              (latest?.imageName || "") === sentImageName;
+            if (formMatchesSent) {
+              try {
+                const user = await getCurrentAuthUser();
+                clearEditEntryDraft(user?.uid || "anon", entry._id);
+              } catch (clearErr) {
+                // ignore
+              }
+              deleteEntryDraft(entry._id).catch(() => {});
+            } else {
+              // updateEntry $unsets editDraft — restore the newer in-progress text.
+              try {
+                const user = await getCurrentAuthUser();
+                writeEditEntryDraft(user?.uid || "anon", entry._id, {
+                  name: latest?.name || "",
+                  description: latest?.description || "",
+                  image: latest?.image || "",
+                  imageName: latest?.imageName || "",
+                });
+              } catch {
+                // ignore
+              }
+              saveEntryDraft(entry._id, {
+                name: latest?.name ?? "",
+                description: latest?.description ?? "",
+              }).catch(() => {});
             }
           }
 
@@ -1121,6 +1188,8 @@ const ProductCard = memo(function ProductCard({
     updatedEntry?.imageName,
     buildUpdatePayload,
     updateEntry,
+    deleteEntryDraft,
+    saveEntryDraft,
     currentEditSnapshot,
   ]);
 
@@ -1637,12 +1706,17 @@ const ProductCard = memo(function ProductCard({
 
   const formatDateHour = (dateString) => {
     const date = new Date(dateString);
-    const options = {
+    const datePart = date.toLocaleDateString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+    });
+    const timePart = date.toLocaleString("en-US", {
       hour: "numeric",
       minute: "numeric",
       hour12: true,
-    };
-    return date.toLocaleString("en-US", options);
+    });
+    return `${datePart} · ${timePart}`;
   };
 
   const formatDateTitleTime = (dateString) => {
@@ -1812,7 +1886,6 @@ const ProductCard = memo(function ProductCard({
         <FeedEntryCard
           profile={{
             displayName: captionHandle,
-            captionHandle,
             imageSrc: profileImage,
             imageAlt: "User Profile",
             fallback: profileFallbackLetters,
@@ -1950,7 +2023,6 @@ const ProductCard = memo(function ProductCard({
             className={cn("mx-auto w-full max-w-[448px]")}
             profile={{
               displayName: captionHandle,
-              captionHandle,
               imageSrc: profileImage,
               imageAlt: "User Profile",
               fallback: profileFallbackLetters,
@@ -2530,7 +2602,6 @@ const ProductCard = memo(function ProductCard({
             className={cn("mx-auto w-full max-w-[448px]")}
             profile={{
               displayName: captionHandle,
-              captionHandle,
               imageSrc: profileImage,
               imageAlt: "User Profile",
               fallback: profileFallbackLetters,
@@ -2555,9 +2626,10 @@ const ProductCard = memo(function ProductCard({
                   placeholder="Entry Name"
                   name="name"
                   value={updatedEntry.name}
-                  onChange={(e) =>
-                    setUpdatedEntry({ ...updatedEntry, name: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setUpdatedEntry((prev) => ({ ...prev, name: value }));
+                  }}
                   fontFamily="Arial, sans-serif"
                   bg={colors.bgMuted}
                   color={colors.textPrimary}
@@ -2570,12 +2642,13 @@ const ProductCard = memo(function ProductCard({
                   minH="160px"
                   name="description"
                   value={updatedEntry.description}
-                  onChange={(e) =>
-                    setUpdatedEntry({
-                      ...updatedEntry,
-                      description: e.target.value,
-                    })
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setUpdatedEntry((prev) => ({
+                      ...prev,
+                      description: value,
+                    }));
+                  }}
                   fontFamily="Arial, sans-serif"
                   bg={colors.bgMuted}
                   color={colors.textPrimary}

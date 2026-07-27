@@ -23,9 +23,7 @@ const toolbarStats: readonly ToolbarStat[] = [
 
 export type FeedEntryCardProfile = {
   fallback: string;
-  /** Bold prefix before workout description (often @handle). */
-  captionHandle: string;
-  /** Large header line (display name). */
+  /** Large header line (display name / @handle). */
   displayName: string;
   imageAlt: string;
   imageSrc: string;
@@ -219,11 +217,8 @@ export function FeedEntryCard({
             ) : likesLabel || descriptionTrimmed ? (
               <div className="w-full space-y-2 text-left">
                 {descriptionTrimmed ? (
-                  <div className="max-h-56 min-h-0 overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
-                    <p className="text-foreground whitespace-pre-wrap break-words text-[15px] leading-relaxed">
-                      <span className="mr-1.5 font-semibold">
-                        {profile.captionHandle}
-                      </span>
+                  <div className="mx-auto max-h-56 min-h-0 w-fit max-w-full overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
+                    <p className="text-foreground whitespace-pre-wrap break-words text-left text-[15px] leading-relaxed">
                       {description}
                     </p>
                   </div>

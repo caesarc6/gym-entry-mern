@@ -8,6 +8,10 @@ import { ENTRY_POST_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
+import {
+  fetchWorkoutHabitSummary,
+  syncWorkoutHabitWidget,
+} from "../utils/workoutHabitWidget";
 import { supabase } from "../supabase/supabase";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import Card11 from "../components/ui/card-11";
@@ -24,8 +28,10 @@ const CreatePage = () => {
   const [isPostImageActive, setIsPostImageActive] = useState(false);
   const postImagePreviewRef = useRef(null);
   const [fileUploaderKey, setFileUploaderKey] = useState(0);
-  const didHydrateDraftRef = useRef(false);
-  const saveDraftTimeoutRef = useRef(null);
+  const [draftReady, setDraftReady] = useState(false);
+  const skipDraftSaveRef = useRef(false);
+  const newPostRef = useRef(newPost);
+  newPostRef.current = newPost;
   const [sessionResolved, setSessionResolved] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [authUser, setAuthUser] = useState(null);
@@ -33,6 +39,42 @@ const CreatePage = () => {
 
   const navigate = useNavigate(); // Initialize useNavigate
   const colors = useThemeColors();
+
+  const persistDraft = (post) => {
+    if (skipDraftSaveRef.current) return;
+
+    const draft = {
+      version: 1,
+      lastLocalSaveAt: new Date().toISOString(),
+      name: post?.name ?? "",
+      description: post?.description ?? "",
+      image: post?.image ?? "",
+      postImage: post?.postImage ?? "",
+      postImageName: post?.postImageName ?? "",
+    };
+
+    const hasContent =
+      String(draft.name).trim() ||
+      String(draft.description).trim() ||
+      String(draft.postImage).trim() ||
+      String(draft.image).trim();
+
+    try {
+      if (!hasContent) {
+        localStorage.removeItem(draftStorageKey);
+        return;
+      }
+      localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+    } catch {
+      // Best-effort: localStorage may be full (especially with images).
+      try {
+        const { postImage, ...withoutImage } = draft;
+        localStorage.setItem(draftStorageKey, JSON.stringify(withoutImage));
+      } catch {
+        // ignore save errors
+      }
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -77,20 +119,13 @@ const CreatePage = () => {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(draftStorageKey);
-      if (!raw) {
-        didHydrateDraftRef.current = true;
-        return;
-      }
+      if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object") {
-        didHydrateDraftRef.current = true;
-        return;
-      }
+      if (!parsed || typeof parsed !== "object") return;
       if (parsed.lastLocalSaveAt) {
         const age = Date.now() - new Date(parsed.lastLocalSaveAt).getTime();
         if (!Number.isFinite(age) || age > draftMaxAgeMs) {
           localStorage.removeItem(draftStorageKey);
-          didHydrateDraftRef.current = true;
           return;
         }
       }
@@ -112,48 +147,46 @@ const CreatePage = () => {
     } catch {
       // ignore draft hydration errors
     } finally {
-      didHydrateDraftRef.current = true;
+      setDraftReady(true);
     }
   }, [draftMaxAgeMs, draftStorageKey]);
 
   useEffect(() => {
-    if (!didHydrateDraftRef.current) return;
+    if (!draftReady) return;
+    if (skipDraftSaveRef.current) return;
 
-    if (saveDraftTimeoutRef.current) {
-      clearTimeout(saveDraftTimeoutRef.current);
-    }
-
-    // Debounce so we don't thrash localStorage while typing.
-    saveDraftTimeoutRef.current = setTimeout(() => {
-      const draft = {
-        version: 1,
-        lastLocalSaveAt: new Date().toISOString(),
-        name: newPost?.name ?? "",
-        description: newPost?.description ?? "",
-        image: newPost?.image ?? "",
-        postImage: newPost?.postImage ?? "",
-        postImageName: newPost?.postImageName ?? "",
-      };
-
-      try {
-        localStorage.setItem(draftStorageKey, JSON.stringify(draft));
-      } catch {
-        // Best-effort: localStorage may be full (especially with images).
-        try {
-          const { postImage, ...withoutImage } = draft;
-          localStorage.setItem(draftStorageKey, JSON.stringify(withoutImage));
-        } catch {
-          // ignore save errors
-        }
-      }
+    const timeoutId = setTimeout(() => {
+      persistDraft(newPostRef.current);
     }, 350);
 
     return () => {
-      if (saveDraftTimeoutRef.current) {
-        clearTimeout(saveDraftTimeoutRef.current);
-      }
+      clearTimeout(timeoutId);
     };
-  }, [draftStorageKey, newPost]);
+    // persistDraft closes over draftStorageKey only; newPostRef holds latest fields
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftReady, draftStorageKey, newPost]);
+
+  // Flush draft on leave / background so a cancelled debounce cannot drop recent typing.
+  useEffect(() => {
+    if (!draftReady) return undefined;
+
+    const flush = () => {
+      persistDraft(newPostRef.current);
+    };
+
+    const onVis = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVis);
+      flush();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftReady, draftStorageKey]);
 
   const handleFileUpload = (file) => {
     const reader = new FileReader();
@@ -209,6 +242,10 @@ const CreatePage = () => {
     addOptimisticPost,
     replaceOptimisticPost,
     removeOptimisticPost,
+    beginOptimisticWorkoutHabit,
+    confirmWorkoutHabitSummary,
+    rollbackOptimisticWorkoutHabit,
+    clearOptimisticWorkoutHabit,
   } = useProductStore();
   const currentUserInfo = useProductStore((state) => state.currentUserInfo);
 
@@ -216,6 +253,8 @@ const CreatePage = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     let optimisticPostId = null;
+    let previousHabitSummary = null;
+    let didOptimisticHabit = false;
 
     // get current user from auth
     try {
@@ -253,7 +292,38 @@ const CreatePage = () => {
         isOptimistic: true,
       };
 
+      previousHabitSummary =
+        useProductStore.getState().workoutHabitSummary;
+      beginOptimisticWorkoutHabit({
+        name: optimisticEntry.name,
+        createdAt: optimisticEntry.createdAt,
+      });
+      didOptimisticHabit = true;
+      const optimisticHabitSummary =
+        useProductStore.getState().workoutHabitSummary;
+      void syncWorkoutHabitWidget(optimisticHabitSummary).catch(() => {});
+
       addOptimisticPost(optimisticEntry);
+      // Keep the submitted content in localStorage until the request succeeds so a
+      // failed create can restore it. Skipping saves prevents the cleared form from
+      // wiping that draft.
+      skipDraftSaveRef.current = true;
+      try {
+        localStorage.setItem(
+          draftStorageKey,
+          JSON.stringify({
+            version: 1,
+            lastLocalSaveAt: new Date().toISOString(),
+            name: postWithUID.name ?? "",
+            description: postWithUID.description ?? "",
+            image: postWithUID.image ?? "",
+            postImage: postWithUID.postImage ?? "",
+            postImageName: postWithUID.postImageName ?? "",
+          }),
+        );
+      } catch {
+        // ignore
+      }
       setNewPost({ name: "", description: "", image: "", uid: "" });
       navigate("/");
 
@@ -261,9 +331,21 @@ const CreatePage = () => {
 
       if (!success) {
         removeOptimisticPost(tempId);
+        if (didOptimisticHabit) {
+          rollbackOptimisticWorkoutHabit(previousHabitSummary);
+          void syncWorkoutHabitWidget(previousHabitSummary).catch(() => {});
+        }
+        skipDraftSaveRef.current = false;
         toast.error("Error", message);
       } else {
         replaceOptimisticPost(tempId, data);
+        try {
+          const confirmedSummary = await fetchWorkoutHabitSummary();
+          confirmWorkoutHabitSummary(confirmedSummary);
+          void syncWorkoutHabitWidget(confirmedSummary).catch(() => {});
+        } catch {
+          clearOptimisticWorkoutHabit();
+        }
         try {
           localStorage.removeItem(draftStorageKey);
         } catch {
@@ -275,6 +357,11 @@ const CreatePage = () => {
       if (optimisticPostId) {
         removeOptimisticPost(optimisticPostId);
       }
+      if (didOptimisticHabit) {
+        rollbackOptimisticWorkoutHabit(previousHabitSummary);
+        void syncWorkoutHabitWidget(previousHabitSummary).catch(() => {});
+      }
+      skipDraftSaveRef.current = false;
       toast.error("Error", error?.message || "Failed to create post.");
     } finally {
       setIsSubmitting(false);

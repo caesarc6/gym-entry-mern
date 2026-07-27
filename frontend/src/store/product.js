@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { supabase } from "../supabase/supabase";
 import { getCurrentAuthUser } from "../utils/auth";
+import { applyOptimisticWorkoutToSummary } from "../utils/workoutHabitWidget";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
 const FEED_CACHE_TTL_MS = 15 * 60_000;
@@ -208,6 +209,44 @@ export const useProductStore = create((set) => ({
   notificationsCache: null, // { uid, items, cachedAt }
   setNotificationsCache: (cache) => set({ notificationsCache: cache }),
   clearNotificationsCache: () => set({ notificationsCache: null }),
+
+  // In-app / iOS habit widget summary (shared so create can update optimistically)
+  workoutHabitSummary: null,
+  workoutHabitOptimisticWorkout: null, // { name, createdAt } while create is in flight
+  setWorkoutHabitSummary: (summary) =>
+    set((state) => ({
+      workoutHabitSummary: state.workoutHabitOptimisticWorkout
+        ? applyOptimisticWorkoutToSummary(
+            summary,
+            state.workoutHabitOptimisticWorkout,
+          )
+        : summary,
+    })),
+  beginOptimisticWorkoutHabit: (workout) =>
+    set((state) => ({
+      workoutHabitOptimisticWorkout: workout,
+      workoutHabitSummary: applyOptimisticWorkoutToSummary(
+        state.workoutHabitSummary,
+        workout,
+      ),
+    })),
+  confirmWorkoutHabitSummary: (summary) =>
+    set({
+      workoutHabitOptimisticWorkout: null,
+      workoutHabitSummary: summary,
+    }),
+  rollbackOptimisticWorkoutHabit: (previousSummary) =>
+    set({
+      workoutHabitOptimisticWorkout: null,
+      workoutHabitSummary: previousSummary ?? null,
+    }),
+  clearOptimisticWorkoutHabit: () =>
+    set({ workoutHabitOptimisticWorkout: null }),
+  clearWorkoutHabitSummary: () =>
+    set({
+      workoutHabitSummary: null,
+      workoutHabitOptimisticWorkout: null,
+    }),
 
   // write a createPosts with verifyIdToken
   createPost: async (newPost) => {
@@ -606,6 +645,7 @@ const applySignedOutBootstrap = () => {
   useProductStore.getState().setCurrentUserInfo(null);
   useProductStore.getState().setClaimedWorkouts([]);
   useProductStore.getState().setShowClaimedWorkoutsModal(false);
+  useProductStore.getState().clearWorkoutHabitSummary();
 };
 
 const scheduleAuthBootstrap = (session) => {

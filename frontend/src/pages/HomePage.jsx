@@ -318,6 +318,29 @@ const HomePage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- toast from useCustomToast is not referentially stable
   }, [uid, currentPage, limit, feedCacheTtlMs, setHomeFeedCache]);
 
+  // Apply optimistic home-feed cache writes while this page stays mounted (native tabs).
+  useEffect(() => {
+    if (!uid || currentPage !== 1) return undefined;
+
+    return useProductStore.subscribe((state, prevState) => {
+      const cache = state.homeFeedCache;
+      if (!cache || cache === prevState.homeFeedCache) return;
+      if (
+        cache.uid !== uid ||
+        cache.page !== currentPage ||
+        cache.limit !== limit
+      ) {
+        return;
+      }
+
+      setEntries(cache.entries || []);
+      if (cache.pagination) {
+        setPagination(cache.pagination);
+      }
+      setIsLoading(false);
+    });
+  }, [uid, currentPage, limit]);
+
   const handleUpdateEntry = (pid, updatedEntry) => {
     setEntries((prevEntries) =>
       prevEntries.map((entry) =>

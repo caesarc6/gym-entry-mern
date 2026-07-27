@@ -7,9 +7,12 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { useProductStore } from "../store/product";
 import {
+  addGregorianDaysToDateKey,
   canSyncWorkoutHabitWidget,
   fetchWorkoutHabitSummary,
+  getCalendarDateKey,
   syncWorkoutHabitWidget,
 } from "../utils/workoutHabitWidget";
 
@@ -21,56 +24,21 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
-const addGregorianDaysToDateKeyLocal = (ymdKey, deltaDays) => {
-  const parts = String(ymdKey).split("-").map(Number);
-  if (
-    parts.length !== 3 ||
-    parts.some((n) => !Number.isFinite(n))
-  ) {
-    return new Date().toISOString().slice(0, 10);
-  }
-  const [y, m, d] = parts;
-  const date = new Date(Date.UTC(y, m - 1, d));
-  date.setUTCDate(date.getUTCDate() + deltaDays);
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
-};
-
 const buildEmptyDays = () => {
-  let calendarTz = "UTC";
-  try {
-    calendarTz =
-      Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    calendarTz = "UTC";
-  }
-
-  const now = new Date();
-  let todayKey;
-  if (calendarTz === "UTC") {
-    todayKey = now.toISOString().slice(0, 10);
-  } else {
-    try {
-      todayKey = new Intl.DateTimeFormat("en-CA", {
-        timeZone: calendarTz,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(now);
-    } catch {
-      todayKey = now.toISOString().slice(0, 10);
-    }
-  }
-
-  const windowStartKey = addGregorianDaysToDateKeyLocal(todayKey, -29);
+  const todayKey = getCalendarDateKey();
+  const windowStartKey = addGregorianDaysToDateKey(todayKey, -29);
   return Array.from({ length: 30 }, (_, index) => ({
-    date: addGregorianDaysToDateKeyLocal(windowStartKey, index),
+    date: addGregorianDaysToDateKey(windowStartKey, index),
     workedOut: false,
   }));
 };
 
 export default function WorkoutHabitWidgetPreview({ refreshKey }) {
-  const [summary, setSummary] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const summary = useProductStore((state) => state.workoutHabitSummary);
+  const setWorkoutHabitSummary = useProductStore(
+    (state) => state.setWorkoutHabitSummary,
+  );
+  const [isLoading, setIsLoading] = useState(!summary);
   const [error, setError] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null);
   const canSyncIosWidget = canSyncWorkoutHabitWidget();
@@ -83,17 +51,22 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
     let ignore = false;
 
     const loadSummary = async () => {
-      setIsLoading(true);
+      const hasSummary = Boolean(useProductStore.getState().workoutHabitSummary);
+      if (!hasSummary) {
+        setIsLoading(true);
+      }
       setError(null);
       try {
         const nextSummary = await fetchWorkoutHabitSummary();
         if (ignore) return;
-        setSummary(nextSummary);
+        setWorkoutHabitSummary(nextSummary);
         if (!canSyncIosWidget) {
           return;
         }
         try {
-          const result = await syncWorkoutHabitWidget(nextSummary);
+          const summaryToSync =
+            useProductStore.getState().workoutHabitSummary || nextSummary;
+          const result = await syncWorkoutHabitWidget(summaryToSync);
           if (!ignore) setSyncStatus(result);
         } catch (syncError) {
           if (!ignore) {
@@ -114,7 +87,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
     return () => {
       ignore = true;
     };
-  }, [canSyncIosWidget, refreshKey]);
+  }, [canSyncIosWidget, refreshKey, setWorkoutHabitSummary]);
 
   const days = useMemo(
     () => summary?.workoutDays?.slice(-30) || buildEmptyDays(),
@@ -179,7 +152,7 @@ export default function WorkoutHabitWidgetPreview({ refreshKey }) {
           </Box>
         </Flex>
 
-        <Skeleton isLoaded={!isLoading} rounded="0">
+        <Skeleton isLoaded={!isLoading || Boolean(summary)} rounded="0">
           <Box position="relative" aria-label="Last 30 days workout chart">
             <Box
               display="grid"
