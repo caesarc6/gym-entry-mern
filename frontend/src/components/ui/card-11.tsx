@@ -58,7 +58,7 @@ const Card11 = ({
 }: Card11Props) => {
   return (
     <Card className="mx-auto max-w-md overflow-hidden rounded-xl border-border/70 bg-background shadow-sm">
-      <CardHeader className="flex flex-row items-center gap-3 space-y-0 px-4 py-4">
+      <CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b border-border/60 px-4 py-4">
         <Avatar className="size-9 shrink-0">
           {profile.imageSrc ? (
             <AvatarImage src={profile.imageSrc} alt={profile.imageAlt} />
@@ -67,21 +67,30 @@ const Card11 = ({
         </Avatar>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <CardTitle className="truncate text-sm">{profile.name}</CardTitle>
-          <label className="sr-only" htmlFor="card11-session-title">
-            Workout session name
-          </label>
-          <input
-            id="card11-session-title"
-            type="text"
-            autoComplete="off"
-            placeholder="Workout session name"
-            value={sessionTitle}
-            onChange={(e) => onSessionTitleChange(e.target.value)}
-            className="w-full min-w-0 bg-transparent text-xs text-muted-foreground outline-none placeholder:text-muted-foreground/70"
-          />
+          <p className="truncate text-xs text-muted-foreground">{profile.handle}</p>
         </div>
       </CardHeader>
       <CardContent className="space-y-3 px-0 pb-4 text-sm">
+        <div className="space-y-3 px-4 pt-4">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="card11-session-title"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Workout title
+            </label>
+            <input
+              id="card11-session-title"
+              type="text"
+              autoComplete="off"
+              placeholder="e.g. Push day"
+              value={sessionTitle}
+              onChange={(e) => onSessionTitleChange(e.target.value)}
+              className="w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-medium text-foreground outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/75 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+            />
+          </div>
+        </div>
+
         {imagePreviewSrc ? (
           <div
             ref={imagePreviewRef}
@@ -123,8 +132,11 @@ const Card11 = ({
         ) : null}
 
         <div className="space-y-3 px-4">
-          <div className="text-left leading-relaxed text-foreground">
-            <label className="sr-only" htmlFor="card11-description">
+          <div className="space-y-1.5 text-left">
+            <label
+              htmlFor="card11-description"
+              className="text-xs font-medium text-muted-foreground"
+            >
               Workout description
             </label>
             <textarea
@@ -133,7 +145,7 @@ const Card11 = ({
               placeholder={`Write your workout…\n\nE.g.\nDumbbell curls 6lbs: 3 sets of 10 reps`}
               value={description}
               onChange={(e) => onDescriptionChange(e.target.value)}
-              className="min-h-[12rem] w-full resize-y bg-transparent text-[15px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/80"
+              className="min-h-[12rem] w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-[15px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/75 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
             />
           </div>
 

@@ -8,6 +8,23 @@ private let summaryDataKey = "workoutHabitSummaryData"
 struct WorkoutDay: Codable, Hashable {
     let date: String
     let workedOut: Bool
+    let entryId: String?
+    let workoutName: String?
+    let workoutDescription: String?
+
+    init(
+        date: String,
+        workedOut: Bool,
+        entryId: String? = nil,
+        workoutName: String? = nil,
+        workoutDescription: String? = nil
+    ) {
+        self.date = date
+        self.workedOut = workedOut
+        self.entryId = entryId
+        self.workoutName = workoutName
+        self.workoutDescription = workoutDescription
+    }
 }
 
 struct WorkoutHabitSummary: Codable {

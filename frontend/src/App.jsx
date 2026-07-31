@@ -6,6 +6,7 @@ import "./index.css";
 import HomePage from "./pages/HomePage";
 import { useCanvasShell } from "./contexts/CanvasShellContext.jsx";
 import MobileAppShell from "./components/MobileAppShell";
+import GlassNavbar from "./components/GlassNavbar";
 import RequireAuth from "./routes/RequireAuth";
 import { useProductStore } from "./store/product";
 import { isCapacitorNative as getIsCapacitorNative } from "./utils/isNativePlatform";
@@ -240,41 +241,45 @@ function App() {
           </Suspense>
         </MobileAppShell>
       ) : (
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/create" element={<CreatePage />} />
-            <Route path="/editProfile" element={<ModifyProfile />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/user/:userId" element={<UserProfilePage />} />
-            <Route path="/signup" element={<SignUpFlow />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/terms-of-service" element={<TermsOfService />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route
-              path="/shared-workout/:shareToken"
-              element={<SharedWorkoutPage />}
-            />
-            <Route
-              path="/client-claim/:shareToken"
-              element={<ClientClaimPage />}
-            />
-            <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
-            <Route
-              path="/trainer/create-shared-workout"
-              element={<CreateSharedWorkout />}
-            />
-            <Route
-              path="/trainer/client/:clientName"
-              element={<ClientWorkoutsPage />}
-            />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          </Routes>
-        </Suspense>
+        <>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/create" element={<CreatePage />} />
+              <Route path="/editProfile" element={<ModifyProfile />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/user/:userId" element={<UserProfilePage />} />
+              <Route path="/signup" element={<SignUpFlow />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route
+                path="/shared-workout/:shareToken"
+                element={<SharedWorkoutPage />}
+              />
+              <Route
+                path="/client-claim/:shareToken"
+                element={<ClientClaimPage />}
+              />
+              <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
+              <Route
+                path="/trainer/create-shared-workout"
+                element={<CreateSharedWorkout />}
+              />
+              <Route
+                path="/trainer/client/:clientName"
+                element={<ClientWorkoutsPage />}
+              />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            </Routes>
+          </Suspense>
+          {/* Mobile-web glass nav prototype — hidden at md+ and not used on native. */}
+          <GlassNavbar />
+        </>
       )}
     </Box>
   );

@@ -1,11 +1,10 @@
-import { Box, Button, Center, Container, Heading, VStack } from "@chakra-ui/react";
+import { Box, Center, Container, VStack } from "@chakra-ui/react";
 import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader"; // Import the FileUploader component
 import { ENTRY_POST_IMAGE_ASPECT } from "../constants/imageAspectRatios";
-import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import {
@@ -15,6 +14,10 @@ import {
 import { supabase } from "../supabase/supabase";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import Card11 from "../components/ui/card-11";
+import { cn } from "../lib/utils";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+
+const isCapacitorNative = getIsCapacitorNative();
 
 const CreatePage = () => {
   const draftStorageKey = useMemo(() => "gym-entry:create-post-draft:v1", []);
@@ -38,7 +41,6 @@ const CreatePage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate(); // Initialize useNavigate
-  const colors = useThemeColors();
 
   const persistDraft = (post) => {
     if (skipDraftSaveRef.current) return;
@@ -295,8 +297,12 @@ const CreatePage = () => {
       previousHabitSummary =
         useProductStore.getState().workoutHabitSummary;
       beginOptimisticWorkoutHabit({
+        _id: optimisticEntry._id,
         name: optimisticEntry.name,
+        description: optimisticEntry.description,
+        image: optimisticEntry.image,
         createdAt: optimisticEntry.createdAt,
+        uid: optimisticEntry.uid,
       });
       didOptimisticHabit = true;
       const optimisticHabitSummary =
@@ -408,20 +414,11 @@ const CreatePage = () => {
   }
 
   return (
-    <Container maxW={"container.sm"}>
+    <Container
+      maxW={"container.sm"}
+      className={cn(isCapacitorNative ? "pt-4" : "pt-[6.5rem] md:pt-28")}
+    >
       <VStack spacing={8}>
-        <Heading
-          color={colors.textPrimary}
-          p={3}
-          as={"h1"}
-          size={"2xl"}
-          textAlign={"center"}
-          mb={8}
-          mt={24}
-        >
-          Create New Post
-        </Heading>
-
         <Box w="full" maxW="md" mx="auto">
           <Card11
             profile={cardProfile}
@@ -452,24 +449,28 @@ const CreatePage = () => {
                 maxSizeMB={5}
                 showSelectedPreview={false}
                 cropAspect={ENTRY_POST_IMAGE_ASPECT}
+                variant="subtle"
               />
             }
             previewSubtitle="Draft saves automatically while you type."
           />
-          <Button
-            mt={5}
-            colorScheme="blue"
+          <button
+            type="button"
             onClick={() => {
               handleAddPost();
             }}
-            isDisabled={!canSubmit || isSubmitting}
-            isLoading={isSubmitting}
-            loadingText="Adding..."
-            spinner={<ButtonLoadingSpinner />}
-            w="full"
+            disabled={!canSubmit || isSubmitting}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background px-3 py-3.5 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-50"
           >
-            Add Post
-          </Button>
+            {isSubmitting ? (
+              <>
+                <ButtonLoadingSpinner />
+                <span>Adding…</span>
+              </>
+            ) : (
+              <span>Add post</span>
+            )}
+          </button>
         </Box>
       </VStack>
     </Container>

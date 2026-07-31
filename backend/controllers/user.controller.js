@@ -1098,23 +1098,48 @@ export const getWorkoutHabitSummary = async (req, res) => {
       uid: { $in: uniqueTargetUids },
       createdAt: { $gte: streakLookbackStart },
     })
-      .select("name createdAt")
+      .select("name description image likes comments createdAt uid")
       .sort({ createdAt: -1 })
       .lean();
 
-    const workoutDateSet = new Set(
-      entries.map((entry) =>
-        calendarDateKeyInTimeZone(entry.createdAt, calendarTz),
-      ),
-    );
+    const workoutByDate = new Map();
+    for (const entry of entries) {
+      const dateKey = calendarDateKeyInTimeZone(entry.createdAt, calendarTz);
+      // entries are newest-first; keep the first (most recent) workout per day
+      if (!workoutByDate.has(dateKey)) {
+        workoutByDate.set(dateKey, {
+          entryId: entry._id ? String(entry._id) : null,
+          workoutName: entry.name || "Workout",
+          workoutDescription:
+            typeof entry.description === "string" ? entry.description : "",
+          image: entry.image || null,
+          likes: Array.isArray(entry.likes) ? entry.likes : [],
+          comments: Array.isArray(entry.comments) ? entry.comments : [],
+          createdAt: entry.createdAt?.toISOString?.() || null,
+          uid: entry.uid || null,
+        });
+      }
+    }
+
+    const workoutDateSet = new Set(workoutByDate.keys());
 
     const windowStartKey = addGregorianDaysToDateKey(todayKey, -29);
     const workoutDays = [];
     for (let i = 0; i < 30; i += 1) {
       const date = addGregorianDaysToDateKey(windowStartKey, i);
+      const workedOut = workoutDateSet.has(date);
+      const workout = workedOut ? workoutByDate.get(date) : null;
       workoutDays.push({
         date,
-        workedOut: workoutDateSet.has(date),
+        workedOut,
+        entryId: workout?.entryId || null,
+        workoutName: workout?.workoutName || null,
+        workoutDescription: workout?.workoutDescription || null,
+        image: workout?.image || null,
+        likes: workout?.likes || [],
+        comments: workout?.comments || [],
+        createdAt: workout?.createdAt || null,
+        uid: workout?.uid || null,
       });
     }
 

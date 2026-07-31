@@ -62,6 +62,14 @@ export function buildEmptyWorkoutHabitSummary() {
   const workoutDays = Array.from({ length: 30 }, (_, index) => ({
     date: addGregorianDaysToDateKey(windowStartKey, index),
     workedOut: false,
+    entryId: null,
+    workoutName: null,
+    workoutDescription: null,
+    image: null,
+    likes: [],
+    comments: [],
+    createdAt: null,
+    uid: null,
   }));
 
   return {
@@ -94,7 +102,25 @@ export function applyOptimisticWorkoutToSummary(summary, workout) {
   );
 
   const workoutDays = (base.workoutDays || []).map((day) =>
-    day.date === workoutDayKey ? { ...day, workedOut: true } : day,
+    day.date === workoutDayKey
+      ? {
+          ...day,
+          workedOut: true,
+          entryId: workout?._id ? String(workout._id) : day.entryId || null,
+          workoutName: workout?.name || day.workoutName || "Workout",
+          workoutDescription:
+            typeof workout?.description === "string"
+              ? workout.description
+              : day.workoutDescription || null,
+          image: workout?.image ?? day.image ?? null,
+          likes: Array.isArray(workout?.likes) ? workout.likes : day.likes || [],
+          comments: Array.isArray(workout?.comments)
+            ? workout.comments
+            : day.comments || [],
+          createdAt: workout?.createdAt || day.createdAt || null,
+          uid: workout?.uid || workout?.ownerId || day.uid || null,
+        }
+      : day,
   );
 
   let currentStreak = base.currentStreak ?? 0;

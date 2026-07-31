@@ -69,6 +69,11 @@ import { getCroppedImgAsFile } from "../utils/getCroppedImg";
 import "../index.css";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { Camera as CameraIcon, ImagePlus } from "lucide-react";
+import { cn } from "../lib/utils";
+
+const subtleTriggerClassName =
+  "inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background px-3 py-3 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-50";
 
 export const FileUploader = ({
   handleFile,
@@ -79,6 +84,8 @@ export const FileUploader = ({
   cropAspect = undefined,
   /** Smaller layout for dense modals (e.g. edit workout post). */
   compact = false,
+  /** `subtle` = dashed dropzone style (create post). */
+  variant = "default",
 }) => {
   const hiddenFileInput = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -309,59 +316,111 @@ export const FileUploader = ({
     }
   };
 
+  const isSubtle = variant === "subtle";
+
+  const onTakePhotoNative = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await takePhotoNative();
+    } catch (err) {
+      // User cancel is common; avoid noisy errors.
+      const msg = err?.message || "";
+      if (!/cancel/i.test(msg)) {
+        toast.error("Camera Error", "Could not open the camera.");
+      }
+    }
+  };
+
+  const onChoosePhotoNative = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await choosePhotoNative();
+    } catch (err) {
+      const msg = err?.message || "";
+      if (!/cancel/i.test(msg)) {
+        toast.error("Photos Error", "Could not open your photo library.");
+      }
+    }
+  };
+
   return (
     <VStack spacing={compact ? 2 : 3} align="stretch">
       {isCapacitorNative && enableNativeCamera ? (
-        <HStack
-          spacing={compact ? 2 : 3}
-          flexWrap={compact ? "wrap" : undefined}
-        >
-          <Button
-            className="button-upload"
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              try {
-                await takePhotoNative();
-              } catch (err) {
-                // User cancel is common; avoid noisy errors.
-                const msg = err?.message || "";
-                if (!/cancel/i.test(msg)) {
-                  toast.error("Camera Error", "Could not open the camera.");
-                }
-              }
-            }}
-            type="button"
-            size={compact ? "sm" : "md"}
-            isDisabled={isProcessing}
-            colorScheme="blue"
-            variant="solid"
+        isSubtle ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className={subtleTriggerClassName}
+              onClick={onTakePhotoNative}
+              disabled={isProcessing}
+            >
+              <CameraIcon className="size-4 shrink-0" strokeWidth={1.75} />
+              <span>Camera</span>
+            </button>
+            <button
+              type="button"
+              className={subtleTriggerClassName}
+              onClick={onChoosePhotoNative}
+              disabled={isProcessing}
+            >
+              <ImagePlus className="size-4 shrink-0" strokeWidth={1.75} />
+              <span>Library</span>
+            </button>
+          </div>
+        ) : (
+          <HStack
+            spacing={compact ? 2 : 3}
+            flexWrap={compact ? "wrap" : undefined}
           >
-            Take Photo
-          </Button>
+            <Button
+              className="button-upload"
+              onClick={onTakePhotoNative}
+              type="button"
+              size={compact ? "sm" : "md"}
+              isDisabled={isProcessing}
+              colorScheme="blue"
+              variant="solid"
+            >
+              Take Photo
+            </Button>
 
-          <Button
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              try {
-                await choosePhotoNative();
-              } catch (err) {
-                const msg = err?.message || "";
-                if (!/cancel/i.test(msg)) {
-                  toast.error("Photos Error", "Could not open your photo library.");
-                }
-              }
-            }}
-            type="button"
-            size={compact ? "sm" : "md"}
-            isDisabled={isProcessing}
-            colorScheme="blue"
-            variant="outline"
-          >
-            Choose Photo
-          </Button>
-        </HStack>
+            <Button
+              onClick={onChoosePhotoNative}
+              type="button"
+              size={compact ? "sm" : "md"}
+              isDisabled={isProcessing}
+              colorScheme="blue"
+              variant="outline"
+            >
+              Choose Photo
+            </Button>
+          </HStack>
+        )
+      ) : isSubtle ? (
+        <button
+          type="button"
+          className={cn(subtleTriggerClassName, compact ? "py-2.5" : "py-3.5")}
+          onClick={handleClick}
+          disabled={isProcessing}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
+          {isProcessing ? (
+            <>
+              <ButtonLoadingSpinner />
+              <span>Processing…</span>
+            </>
+          ) : (
+            <>
+              <ImagePlus className="size-4 shrink-0" strokeWidth={1.75} />
+              <span>Add a photo</span>
+            </>
+          )}
+        </button>
       ) : (
         <Button
           className="button-upload"

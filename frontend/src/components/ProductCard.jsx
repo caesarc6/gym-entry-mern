@@ -224,6 +224,8 @@ const ProductCard = memo(function ProductCard({
   onDelete,
   profileCache,
   priority = false,
+  detailOpen,
+  onDetailOpenChange,
 }) {
   const globalCurrentUser = useProductStore((state) => state.currentUser);
   const [currentUser, setCurrentUser] = useState(globalCurrentUser);
@@ -405,6 +407,19 @@ const ProductCard = memo(function ProductCard({
     onOpen: onDetailOpen,
     onClose: onDetailClose,
   } = useDisclosure();
+
+  useEffect(() => {
+    if (detailOpen === true && !isDetailOpen) {
+      onDetailOpen();
+    } else if (detailOpen === false && isDetailOpen) {
+      onDetailClose();
+    }
+  }, [detailOpen, isDetailOpen, onDetailOpen, onDetailClose]);
+
+  const handleDetailClose = useCallback(() => {
+    onDetailClose();
+    onDetailOpenChange?.(false);
+  }, [onDetailClose, onDetailOpenChange]);
   const {
     isOpen: isShareOpen,
     onOpen: onShareOpen,
@@ -1706,11 +1721,20 @@ const ProductCard = memo(function ProductCard({
 
   const formatDateHour = (dateString) => {
     const date = new Date(dateString);
-    const datePart = date.toLocaleDateString("en-US", {
-      month: "2-digit",
-      day: "2-digit",
-      year: "numeric",
-    });
+    const day = date.getDate();
+    const ordinal =
+      day % 10 === 1 && day !== 11
+        ? "st"
+        : day % 10 === 2 && day !== 12
+          ? "nd"
+          : day % 10 === 3 && day !== 13
+            ? "rd"
+            : "th";
+    const monthName = date.toLocaleString("en-US", { month: "long" });
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    const datePart = sameYear
+      ? `${monthName} ${day}${ordinal}`
+      : `${monthName} ${day}${ordinal}, ${date.getFullYear()}`;
     const timePart = date.toLocaleString("en-US", {
       hour: "numeric",
       minute: "numeric",
@@ -1979,7 +2003,7 @@ const ProductCard = memo(function ProductCard({
       {/* Detail Modal */}
       <Modal
         isOpen={isDetailOpen}
-        onClose={onDetailClose}
+        onClose={handleDetailClose}
         size="xl"
         isCentered
         scrollBehavior="inside"
@@ -2008,16 +2032,6 @@ const ProductCard = memo(function ProductCard({
           px={{ base: 1, md: 2 }}
           py={{ base: 2, md: 3 }}
         >
-          <ModalCloseButton
-            size="md"
-            borderRadius="full"
-            zIndex={10}
-            bg={colors.bgMuted}
-            color={colors.textPrimary}
-            borderWidth="1px"
-            borderColor={colors.borderColor}
-            _hover={{ bg: colors.bgHover }}
-          />
           <FeedEntryCard
             clipCardShell={false}
             className={cn("mx-auto w-full max-w-[448px]")}
@@ -2809,6 +2823,8 @@ ProductCard.propTypes = {
   onDelete: PropTypes.func,
   profileCache: PropTypes.instanceOf(Map),
   priority: PropTypes.bool,
+  detailOpen: PropTypes.bool,
+  onDetailOpenChange: PropTypes.func,
 };
 
 export default ProductCard;

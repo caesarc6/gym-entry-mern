@@ -9,7 +9,7 @@ import {
   HStack,
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { supabase } from "../supabase/supabase";
@@ -61,6 +61,7 @@ const HomePage = () => {
     limit: HOME_FEED_PAGE_SIZE,
   });
   const [profileCache, setProfileCache] = useState(new Map());
+  const [habitDetailEntry, setHabitDetailEntry] = useState(null);
   const toast = useCustomToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
   const { currentTheme } = useTheme();
@@ -71,6 +72,34 @@ const HomePage = () => {
       setCurrentPage(newPage);
     }
   };
+
+  const handleHabitDayDoubleClick = useCallback(
+    (day) => {
+      if (!day?.workedOut || !day.entryId) return;
+      if (String(day.entryId).startsWith("optimistic-")) return;
+
+      const fromFeed = entries.find(
+        (entry) => String(entry._id) === String(day.entryId),
+      );
+      if (fromFeed) {
+        setHabitDetailEntry(fromFeed);
+        return;
+      }
+
+      setHabitDetailEntry({
+        _id: day.entryId,
+        name: day.workoutName || "Workout",
+        description: day.workoutDescription || "",
+        image: day.image || "",
+        likes: Array.isArray(day.likes) ? day.likes : [],
+        comments: Array.isArray(day.comments) ? day.comments : [],
+        createdAt: day.createdAt || new Date().toISOString(),
+        uid: day.uid || uid,
+        ownerId: day.uid || uid,
+      });
+    },
+    [entries, uid],
+  );
 
   // Reset to page 1 when signed-in user changes (before feed fetch effect runs)
   useLayoutEffect(() => {
@@ -444,7 +473,39 @@ const HomePage = () => {
             >
               <WorkoutHabitWidgetPreview
                 refreshKey={`${uid}-${pagination.totalPosts}-${entries[0]?._id || "none"}`}
+                onDayDoubleClick={handleHabitDayDoubleClick}
               />
+
+              {habitDetailEntry ? (
+                <Box
+                  position="fixed"
+                  w={0}
+                  h={0}
+                  overflow="hidden"
+                  opacity={0}
+                  pointerEvents="none"
+                  aria-hidden
+                >
+                  <ProductCard
+                    key={`habit-detail-${habitDetailEntry._id}`}
+                    entry={habitDetailEntry}
+                    isOwner={
+                      uid ===
+                      (habitDetailEntry.ownerId || habitDetailEntry.uid)
+                    }
+                    onUpdate={handleUpdateEntry}
+                    onDelete={(pid) => {
+                      handleDeleteEntry(pid);
+                      setHabitDetailEntry(null);
+                    }}
+                    profileCache={profileCache}
+                    detailOpen
+                    onDetailOpenChange={(open) => {
+                      if (!open) setHabitDetailEntry(null);
+                    }}
+                  />
+                </Box>
+              ) : null}
 
               {uid && isLoading ? (
                 <Box
