@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Search, LogIn, UserPlus, UserRound, Users, LogOut } from "lucide-react";
+import { Menu, X, Search, LogIn, UserPlus, Users, LogOut } from "lucide-react";
 import { Button } from "./ui/button";
 import { HeroDesktopUserDropdown } from "./ui/dropdown-menu-1";
 import React, { useCallback, useEffect, useRef } from "react";
@@ -414,7 +414,7 @@ export const HeroHeader = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Mobile Search and Create */}
+              {/* Mobile Search */}
               {isSignedIn && (
                 <div className="flex items-center gap-2 md:hidden">
                   {!isSearchOpen ? (
@@ -571,20 +571,6 @@ export const HeroHeader = () => {
                       )}
                     </div>
                   )}
-                  <ChakraButton
-                    variant="ghost"
-                    size="sm"
-                    color={colors.textSecondary}
-                    _hover={{
-                      bg: colors.bgHover,
-                      color: colors.textPrimary,
-                    }}
-                    onClick={closeMenu}
-                    as={Link}
-                    to="/create"
-                  >
-                    <PlusSquareIcon className="h-4 w-4" />
-                  </ChakraButton>
                 </div>
               )}
 
@@ -902,44 +888,6 @@ export const HeroHeader = () => {
                         </Button>
                       ) : isSignedIn ? (
                         <>
-                          <Button
-                            asChild
-                            variant="ghost"
-                            size="sm"
-                            className={cn("justify-start", mobileDrawerItemClassName)}
-                            onClick={closeMenu}
-                          >
-                            <Link
-                              to="/profile"
-                              className="flex items-center gap-2"
-                            >
-                              <UserRound
-                                strokeWidth={HEADER_ICON_STROKE}
-                                className="size-5 shrink-0"
-                                aria-hidden
-                              />
-                              <span>Profile</span>
-                            </Link>
-                          </Button>
-                          <Button
-                            asChild
-                            variant="ghost"
-                            size="sm"
-                            className={cn("justify-start", mobileDrawerItemClassName)}
-                            onClick={closeMenu}
-                          >
-                            <Link
-                              to="/analytics"
-                              className="flex items-center gap-2"
-                            >
-                              <Search
-                                strokeWidth={HEADER_ICON_STROKE}
-                                className="size-5 shrink-0"
-                                aria-hidden
-                              />
-                              <span>Analytics</span>
-                            </Link>
-                          </Button>
                           {hasTrainerDashboardAccess && (
                             <Button
                               asChild

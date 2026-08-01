@@ -286,7 +286,24 @@ const HomePage = () => {
 
         if (cancelled) return;
 
-        setEntries(normalized);
+        // Keep in-flight optimistic creates that the server response may not include yet.
+        const prevCache = useProductStore.getState().homeFeedCache;
+        const pendingOptimistic =
+          currentPage === 1 && prevCache?.uid === uid
+            ? (prevCache.entries || []).filter(
+                (entry) =>
+                  entry?.isOptimistic &&
+                  !normalized.some(
+                    (post) => String(post._id) === String(entry._id),
+                  ),
+              )
+            : [];
+        const mergedEntries =
+          pendingOptimistic.length > 0
+            ? [...pendingOptimistic, ...normalized].slice(0, limit)
+            : normalized;
+
+        setEntries(mergedEntries);
 
         const p = data.pagination;
         if (p) {
@@ -302,7 +319,7 @@ const HomePage = () => {
           uid,
           page: currentPage,
           limit,
-          entries: normalized,
+          entries: mergedEntries,
           pagination: p
             ? {
                 currentPage: p.currentPage ?? currentPage,

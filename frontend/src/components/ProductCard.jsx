@@ -163,6 +163,10 @@ const EntryPostDefaultThemeArtwork = memo(function EntryPostDefaultThemeArtwork(
   fetchPriority,
   loading,
 }) {
+  const lightRef = useRef(null);
+  const nightRef = useRef(null);
+  const notifiedRef = useRef(false);
+
   /** Inline so `html.theme-chrome-transition *` cannot drop `opacity` from `transition-property`. */
   const placeholderOpacityTransition = prefersReducedMotion
     ? "none"
@@ -170,6 +174,21 @@ const EntryPostDefaultThemeArtwork = memo(function EntryPostDefaultThemeArtwork(
 
   const lightOpacity = reveal ? (showLight ? 1 : 0) : 0;
   const nightOpacity = reveal ? (showLight ? 0 : 1) : 0;
+
+  const notifyLoaded = useCallback(() => {
+    if (notifiedRef.current) return;
+    notifiedRef.current = true;
+    onLoaded?.();
+  }, [onLoaded]);
+
+  // Cached theme assets often skip `onLoad` after remount (e.g. optimistic → real post id).
+  useEffect(() => {
+    notifiedRef.current = false;
+    const active = showLight ? lightRef.current : nightRef.current;
+    if (active?.complete) {
+      notifyLoaded();
+    }
+  }, [showLight, notifyLoaded]);
 
   const imgShared = {
     position: "absolute",
@@ -184,14 +203,15 @@ const EntryPostDefaultThemeArtwork = memo(function EntryPostDefaultThemeArtwork(
   return (
     <Box role="img" aria-label={alt} {...boxProps}>
       <Image
+        ref={lightRef}
         src={defaultBgUrl}
         alt=""
         aria-hidden
         decoding={decoding}
         fetchpriority={fetchPriority}
         loading={loading}
-        onLoad={onLoaded}
-        onError={onLoaded}
+        onLoad={notifyLoaded}
+        onError={notifyLoaded}
         sx={{
           ...imgShared,
           opacity: lightOpacity,
@@ -199,14 +219,15 @@ const EntryPostDefaultThemeArtwork = memo(function EntryPostDefaultThemeArtwork(
         style={{ transition: placeholderOpacityTransition }}
       />
       <Image
+        ref={nightRef}
         src={defaultBgNightUrl}
         alt=""
         aria-hidden
         decoding={decoding}
         fetchpriority={fetchPriority}
         loading={loading}
-        onLoad={onLoaded}
-        onError={onLoaded}
+        onLoad={notifyLoaded}
+        onError={notifyLoaded}
         sx={{
           ...imgShared,
           opacity: nightOpacity,
@@ -410,7 +431,15 @@ const ProductCard = memo(function ProductCard({
 
   useEffect(() => {
     if (detailOpen === true && !isDetailOpen) {
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
       onDetailOpen();
+      const restore = () => window.scrollTo(scrollX, scrollY);
+      restore();
+      requestAnimationFrame(() => {
+        restore();
+        requestAnimationFrame(restore);
+      });
     } else if (detailOpen === false && isDetailOpen) {
       onDetailClose();
     }
@@ -420,6 +449,19 @@ const ProductCard = memo(function ProductCard({
     onDetailClose();
     onDetailOpenChange?.(false);
   }, [onDetailClose, onDetailOpenChange]);
+
+  // Open detail without letting focus management scroll the feed behind the modal.
+  const handleDetailOpen = useCallback(() => {
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    onDetailOpen();
+    const restore = () => window.scrollTo(scrollX, scrollY);
+    restore();
+    requestAnimationFrame(() => {
+      restore();
+      requestAnimationFrame(restore);
+    });
+  }, [onDetailOpen]);
   const {
     isOpen: isShareOpen,
     onOpen: onShareOpen,
@@ -657,23 +699,39 @@ const ProductCard = memo(function ProductCard({
     [profileImageFallback]
   );
 
+  // Helper function to check if image is a generated/default placeholder.
+  const isPlaceholderImage = useCallback((imageUrl) => {
+    if (!imageUrl) return true;
+    if (imageUrl === LEGACY_DEFAULT_POST_IMAGE) {
+      return true;
+    }
+    // Check if it's the "No Image" placeholder SVG
+    if (imageUrl.includes("data:image/svg+xml") && imageUrl.includes("No Image")) {
+      return true;
+    }
+    // Check if it's a data URL that's not a real image (just the placeholder)
+    if (imageUrl.startsWith("data:image/svg+xml") && imageUrl.includes("%3ENo Image%3C")) {
+      return true;
+    }
+    return false;
+  }, []);
+
   // Reset image loading states when entry changes
   useEffect(() => {
     setImageLoaded(false);
     setProfileImageLoaded(false);
   }, [entry._id, entry.image, entry.uid]);
 
-  // Check if image is already loaded (for cached images)
+  // Reveal media after mount. Empty/placeholder posts use theme default artwork —
+  // previously we only auto-revealed when `updatedEntry.image` was truthy, so
+  // create-without-photo cards stayed blank after the optimistic → server id swap.
   useEffect(() => {
-    if (updatedEntry.image) {
-      // Use a simple timeout approach instead of Image constructor
-      const timeout = setTimeout(() => {
-        setImageLoaded(true);
-      }, 100); // Short timeout for cached images
+    const timeout = setTimeout(() => {
+      setImageLoaded(true);
+    }, updatedEntry.image && !isPlaceholderImage(updatedEntry.image) ? 100 : 0);
 
-      return () => clearTimeout(timeout);
-    }
-  }, [updatedEntry.image]);
+    return () => clearTimeout(timeout);
+  }, [updatedEntry.image, isPlaceholderImage]);
 
   // Reset profile image loading state when profile image URL changes
   useEffect(() => {
@@ -695,23 +753,6 @@ const ProductCard = memo(function ProductCard({
       return () => clearTimeout(timeout);
     }
   }, [profileImage]);
-
-  // Helper function to check if image is a generated/default placeholder.
-  const isPlaceholderImage = useCallback((imageUrl) => {
-    if (!imageUrl) return true;
-    if (imageUrl === LEGACY_DEFAULT_POST_IMAGE) {
-      return true;
-    }
-    // Check if it's the "No Image" placeholder SVG
-    if (imageUrl.includes("data:image/svg+xml") && imageUrl.includes("No Image")) {
-      return true;
-    }
-    // Check if it's a data URL that's not a real image (just the placeholder)
-    if (imageUrl.startsWith("data:image/svg+xml") && imageUrl.includes("%3ENo Image%3C")) {
-      return true;
-    }
-    return false;
-  }, []);
 
   const [editAutosaveMeta, setEditAutosaveMeta] = useState({
     status: "idle", // idle | saving | saved | error
@@ -1918,7 +1959,7 @@ const ProductCard = memo(function ProductCard({
           image={getSquareEntryMedia(priority)}
           liked={isLiked}
           onToggleLike={() => handleLikeEntry(entry._id)}
-          onCommentClick={onDetailOpen}
+          onCommentClick={handleDetailOpen}
           likesCount={
             Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
           }
@@ -1951,7 +1992,7 @@ const ProductCard = memo(function ProductCard({
               />
             ) : undefined
           }
-          onCardClick={onDetailOpen}
+          onCardClick={handleDetailOpen}
           footer={
             <VStack spacing={2} w="full">
               <Box w="full" px={0}>
@@ -2007,6 +2048,9 @@ const ProductCard = memo(function ProductCard({
         size="xl"
         isCentered
         scrollBehavior="inside"
+        blockScrollOnMount
+        autoFocus={false}
+        returnFocusOnClose={false}
       >
         <ModalOverlay
           bg="transparent"
@@ -2034,6 +2078,7 @@ const ProductCard = memo(function ProductCard({
         >
           <FeedEntryCard
             clipCardShell={false}
+            clampDescription={false}
             className={cn("mx-auto w-full max-w-[448px]")}
             profile={{
               displayName: captionHandle,
@@ -2046,9 +2091,16 @@ const ProductCard = memo(function ProductCard({
             liked={isLiked}
             onToggleLike={() => handleLikeEntry(entry._id)}
             onCommentClick={() => {
-              document
-                .getElementById(commentsAnchorId)
-                ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              const anchor = document.getElementById(commentsAnchorId);
+              const scroller = anchor?.closest(".chakra-modal__content");
+              if (anchor && scroller instanceof HTMLElement) {
+                const top =
+                  anchor.getBoundingClientRect().top -
+                  scroller.getBoundingClientRect().top +
+                  scroller.scrollTop -
+                  12;
+                scroller.scrollTo({ top, behavior: "smooth" });
+              }
             }}
             likesCount={
               Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0

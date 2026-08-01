@@ -50,7 +50,8 @@ const upsertEntryInCache = (cache, entry, ownerUid) => {
     entries: nextEntries,
     pagination: nextPagination,
     postsLoaded: cache.postsLoaded ?? true,
-    cachedAt: Date.now(),
+    // Keep optimistic UI, but force a background refresh when returning to the feed.
+    cachedAt: 0,
   };
 };
 
@@ -124,7 +125,9 @@ const seedHomeFeedCache = (entry, viewerUid) => ({
     totalPosts: 1,
     limit: 6,
   },
-  cachedAt: Date.now(),
+  // Stale on purpose: show the optimistic post immediately, then HomePage must refetch
+  // the full page-1 feed (otherwise a 1-item seed blocks network for the TTL window).
+  cachedAt: 0,
 });
 
 const seedProfileTabCache = (state, entry, ownerUid) => ({
@@ -141,7 +144,8 @@ const seedProfileTabCache = (state, entry, ownerUid) => ({
   userProfile: buildOptimisticProfile(state, entry, ownerUid),
   profileLoaded: true,
   postsLoaded: true,
-  cachedAt: Date.now(),
+  // Same as home: don't treat a 1-item optimistic seed as a fresh full page.
+  cachedAt: 0,
 });
 
 const bumpProfilePostCount = (cache) => {

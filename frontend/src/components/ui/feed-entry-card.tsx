@@ -52,6 +52,8 @@ export type FeedEntryCardProps = {
   clipCardShell?: boolean;
   /** When false, hides like/comment/share/toolbar-extra row (e.g. edit modal). */
   showSocialToolbar?: boolean;
+  /** When false, description is not height-clamped (detail modal shows full workout). */
+  clampDescription?: boolean;
   /** When set, replaces likes line + caption text (editable fields, etc.). */
   captionReplacement?: ReactNode;
 };
@@ -73,6 +75,7 @@ export function FeedEntryCard({
   onCardClick,
   clipCardShell = true,
   showSocialToolbar = true,
+  clampDescription = true,
   captionReplacement,
 }: FeedEntryCardProps) {
   const likesLabel =
@@ -96,6 +99,14 @@ export function FeedEntryCard({
         !onCardClick && "shadow-lg",
         className,
       )}
+      onMouseDown={
+        onCardClick
+          ? (e) => {
+              // Avoid focusing the card (browser scroll-into-view jump) before the modal opens.
+              e.preventDefault();
+            }
+          : undefined
+      }
       onClick={onCardClick}
       onKeyDown={(e) => {
         if (!onCardClick) return;
@@ -217,7 +228,13 @@ export function FeedEntryCard({
             ) : likesLabel || descriptionTrimmed ? (
               <div className="w-full space-y-2 text-left">
                 {descriptionTrimmed ? (
-                  <div className="mx-auto max-h-56 min-h-0 w-fit max-w-full overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
+                  <div
+                    className={cn(
+                      "mx-auto min-h-0 w-fit max-w-full pr-0.5",
+                      clampDescription &&
+                        "max-h-56 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]",
+                    )}
+                  >
                     <p className="text-foreground whitespace-pre-wrap break-words text-left text-[15px] leading-relaxed">
                       {description}
                     </p>

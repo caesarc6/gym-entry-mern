@@ -33,20 +33,11 @@ export default function MobileNavMenu({ className, iconClassName, onNavigate }) 
         className={className}
       />
       <MenuList bg={bg} borderColor={borderColor} zIndex={50} minW="12rem">
-        <MenuItem _hover={{ bg: itemHoverBg }} onClick={() => go("/create")}>
-          Create
-        </MenuItem>
         <MenuItem
           _hover={{ bg: itemHoverBg }}
           onClick={() => go("/notifications")}
         >
           Notifications
-        </MenuItem>
-        <MenuItem _hover={{ bg: itemHoverBg }} onClick={() => go("/analytics")}>
-          Analytics
-        </MenuItem>
-        <MenuItem _hover={{ bg: itemHoverBg }} onClick={() => go("/profile")}>
-          Profile
         </MenuItem>
         <MenuItem _hover={{ bg: itemHoverBg }} onClick={() => go("/settings")}>
           Settings

@@ -36,31 +36,45 @@ const PaginationComponent = ({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Reduce maxVisiblePages based on screen size
-  const responsiveMaxVisiblePages =
-    screenSize === "small-mobile"
-      ? 2
-      : screenSize === "mobile"
-      ? 3
-      : maxVisiblePages;
   // Don't render pagination if there's only one page or no pages
   if (totalPages <= 1) {
     return null;
   }
 
+  const isMobile = screenSize !== "desktop";
+
   const getVisiblePages = () => {
+    // Mobile: current, next, and last (plus prev/next arrows outside).
+    if (isMobile) {
+      const pages = [currentPage];
+      const nextPage = currentPage + 1;
+
+      if (nextPage < totalPages) {
+        pages.push(nextPage);
+      }
+
+      if (currentPage !== totalPages && !pages.includes(totalPages)) {
+        if (nextPage < totalPages - 1) {
+          pages.push("ellipsis-end");
+        }
+        pages.push(totalPages);
+      }
+
+      return pages;
+    }
+
     const pages = [];
-    const halfVisible = Math.floor(responsiveMaxVisiblePages / 2);
+    const halfVisible = Math.floor(maxVisiblePages / 2);
 
     let startPage = Math.max(1, currentPage - halfVisible);
     let endPage = Math.min(
       totalPages,
-      startPage + responsiveMaxVisiblePages - 1
+      startPage + maxVisiblePages - 1
     );
 
     // Adjust start page if we're near the end
-    if (endPage - startPage < responsiveMaxVisiblePages - 1) {
-      startPage = Math.max(1, endPage - responsiveMaxVisiblePages + 1);
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
 
     // Always show first page
