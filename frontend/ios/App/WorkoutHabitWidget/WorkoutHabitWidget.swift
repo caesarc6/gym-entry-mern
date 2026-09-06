@@ -285,14 +285,18 @@ struct WorkoutHabitWidgetView: View {
     }
 
     private var dayGrid: some View {
+        // Overlay + fixedSize keep grid lines sized to the square cells (GeometryReader
+        // as a ZStack sibling was stretching taller and misaligning marks).
         ZStack(alignment: .topLeading) {
             calendarCells(blurredOverlay: false)
             blurLayer(smallRadius: 3, mediumRadius: 5, smallOffset: 1, mediumOffset: 2, opacity: 1.0)
-    
             blurLayer(smallRadius: 7, mediumRadius: 10, smallOffset: 2.5, mediumOffset: 4, opacity: 1.0)
             blurLayer(smallRadius: 14, mediumRadius: 20, smallOffset: 4, mediumOffset: 7, opacity: 0.95)
+        }
+        .overlay {
             gridLineOverlay
         }
+        .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -335,20 +339,20 @@ struct WorkoutHabitWidgetView: View {
         let rows = Int(ceil(Double(entry.summary.workoutDays.suffix(30).count) / Double(columns)))
 
         return GeometryReader { proxy in
-            let cellWidth = proxy.size.width / CGFloat(columns)
-            let cellHeight = proxy.size.height / CGFloat(rows)
+            let cellSize = proxy.size.width / CGFloat(columns)
+            let gridHeight = cellSize * CGFloat(rows)
 
             ZStack(alignment: .topLeading) {
                 ForEach(0...rows, id: \.self) { row in
                     horizontalGridLine
                         .frame(width: proxy.size.width, height: lineWidth)
-                        .position(x: proxy.size.width / 2, y: CGFloat(row) * cellHeight)
+                        .position(x: proxy.size.width / 2, y: CGFloat(row) * cellSize)
                 }
 
                 ForEach(0...columns, id: \.self) { column in
                     verticalGridLine
-                        .frame(width: lineWidth, height: proxy.size.height)
-                        .position(x: CGFloat(column) * cellWidth, y: proxy.size.height / 2)
+                        .frame(width: lineWidth, height: gridHeight)
+                        .position(x: CGFloat(column) * cellSize, y: gridHeight / 2)
                 }
             }
         }
@@ -376,7 +380,7 @@ struct WorkoutHabitWidgetView: View {
             return workedOut ? palette.activeDayGlow : .clear
         }
 
-        return workedOut ? palette.activeDay.opacity(0.14) : palette.inactiveDay
+        return workedOut ? palette.activeDayFill : palette.inactiveDay
     }
 }
 
@@ -385,7 +389,7 @@ private struct WorkoutWidgetPalette {
     let primaryText: Color
     let secondaryText: Color
     let subtleText: Color
-    let activeDay: Color
+    let activeDayFill: Color
     let activeDayGlow: Color
     let inactiveDay: Color
     let gridLine: Color
@@ -400,8 +404,9 @@ private struct WorkoutWidgetPalette {
             primaryText = .white
             secondaryText = .white.opacity(0.72)
             subtleText = .white.opacity(0.62)
-            activeDay = Color(red: 0.15, green: 0.21, blue: 0.30)
-            activeDayGlow = Color(red: 0.08, green: 0.13, blue: 0.20).opacity(0.9)
+            // Lifted slate so marked days read against the near-black gradient.
+            activeDayFill = Color(red: 0.26, green: 0.32, blue: 0.42)
+            activeDayGlow = Color(red: 0.38, green: 0.46, blue: 0.58).opacity(0.85)
             inactiveDay = .white.opacity(0.94)
             gridLine = Color.black.opacity(0.22)
         } else {
@@ -413,7 +418,7 @@ private struct WorkoutWidgetPalette {
             primaryText = Color(red: 0.12, green: 0.16, blue: 0.22)
             secondaryText = Color(red: 0.29, green: 0.33, blue: 0.39)
             subtleText = Color(red: 0.42, green: 0.45, blue: 0.50)
-            activeDay = Color(red: 0.15, green: 0.21, blue: 0.30)
+            activeDayFill = Color(red: 0.15, green: 0.21, blue: 0.30).opacity(0.14)
             activeDayGlow = Color(red: 0.08, green: 0.13, blue: 0.20).opacity(0.8)
             inactiveDay = .white
             gridLine = Color.black.opacity(0.18)

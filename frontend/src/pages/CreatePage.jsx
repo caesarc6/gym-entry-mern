@@ -401,8 +401,14 @@ const CreatePage = () => {
 
   if (!sessionResolved) {
     return (
-      <Container maxW="container.sm">
-        <Center minH="50vh">
+      <Container
+        maxW="container.sm"
+        className={cn(
+          isCapacitorNative &&
+            "flex min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))] flex-col justify-center",
+        )}
+      >
+        <Center minH={isCapacitorNative ? undefined : "50vh"}>
           <LoadingIndicator variant="hero" chakraColor="blue.400" />
         </Center>
       </Container>
@@ -416,9 +422,13 @@ const CreatePage = () => {
   return (
     <Container
       maxW={"container.sm"}
-      className={cn(isCapacitorNative ? "pt-4" : "pt-[6.5rem] md:pt-28")}
+      className={cn(
+        isCapacitorNative
+          ? "flex min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))] flex-col justify-center py-6 pt-[max(1.5rem,env(safe-area-inset-top,0px))]"
+          : "pt-[6.5rem] md:pt-28",
+      )}
     >
-      <VStack spacing={8}>
+      <VStack spacing={8} w="full">
         <Box w="full" maxW="md" mx="auto">
           <Card11
             profile={cardProfile}

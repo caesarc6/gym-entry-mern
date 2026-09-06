@@ -1,6 +1,6 @@
 import { Box, Center } from "@chakra-ui/react";
 import { LoadingIndicator } from "./components/loading";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import "./index.css";
 import HomePage from "./pages/HomePage";
@@ -57,6 +57,8 @@ function NativeTabsLayout() {
   const location = useLocation();
   const pathname = location.pathname;
   const currentUser = useProductStore((s) => s.currentUser);
+  const scrollPositionsRef = useRef(Object.create(null));
+  const prevPathRef = useRef(pathname);
 
   const [visitedTabs, setVisitedTabs] = useState(() =>
     getNativeTabVisitSet(location.pathname)
@@ -70,6 +72,17 @@ function NativeTabsLayout() {
       if (pathname === "/profile") next.add("profile");
       return next;
     });
+  }, [pathname]);
+
+  // Kept-alive tabs share window scroll; remember/restore per route on switch.
+  useLayoutEffect(() => {
+    const prev = prevPathRef.current;
+    if (prev !== pathname) {
+      scrollPositionsRef.current[prev] = window.scrollY;
+      prevPathRef.current = pathname;
+    }
+    const y = scrollPositionsRef.current[pathname] ?? 0;
+    window.scrollTo(0, y);
   }, [pathname]);
 
   const isFeedTab = pathname === "/";
@@ -283,7 +296,7 @@ function App() {
               </Routes>
             </Suspense>
           </div>
-          {/* Mobile-web glass nav prototype — hidden at md+ and not used on native. */}
+          {/* Mobile-web glass dock — hidden at md+. Native uses the same via MobileAppShell. */}
           <GlassNavbar />
         </>
       )}

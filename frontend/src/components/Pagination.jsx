@@ -1,14 +1,67 @@
 import React, { useState, useEffect } from "react";
+import { MoreHorizontal } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "./ui/pagination";
 import { useThemeColors } from "../hooks/useThemeColors";
+
+/**
+ * Build a compact page list that always keeps first + last reachable.
+ * Mobile: 1 … (current-1) current (current+1) … N
+ * Desktop: wider window around current, still anchored by 1 and N.
+ */
+function getVisiblePages(currentPage, totalPages, maxVisiblePages, isMobile) {
+  if (totalPages <= 1) return [];
+
+  const neighborCount = isMobile ? 1 : Math.max(1, Math.floor(maxVisiblePages / 2));
+  const pageSet = new Set([1, totalPages, currentPage]);
+
+  for (let i = 1; i <= neighborCount; i++) {
+    pageSet.add(currentPage - i);
+    pageSet.add(currentPage + i);
+  }
+
+  // On desktop, keep a denser window so maxVisiblePages still feels generous.
+  if (!isMobile) {
+    const half = Math.floor(maxVisiblePages / 2);
+    let start = Math.max(1, currentPage - half);
+    let end = Math.min(totalPages, start + maxVisiblePages - 1);
+    start = Math.max(1, end - maxVisiblePages + 1);
+    for (let i = start; i <= end; i++) pageSet.add(i);
+  }
+
+  const sorted = [...pageSet]
+    .filter((p) => p >= 1 && p <= totalPages)
+    .sort((a, b) => a - b);
+
+  const pages = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const page = sorted[i];
+    if (i > 0 && page - sorted[i - 1] > 1) {
+      pages.push(page <= currentPage ? "ellipsis-start" : "ellipsis-end");
+    }
+    pages.push(page);
+  }
+  return pages;
+}
+
+function jumpFromEllipsis(kind, currentPage, totalPages) {
+  if (kind === "ellipsis-start") {
+    // Jump toward the start without overshooting page 1.
+    return Math.max(1, currentPage - Math.max(2, Math.ceil(currentPage / 2)));
+  }
+  // Jump toward the end.
+  const remaining = totalPages - currentPage;
+  return Math.min(
+    totalPages,
+    currentPage + Math.max(2, Math.ceil(remaining / 2)),
+  );
+}
 
 const PaginationComponent = ({
   currentPage,
@@ -36,72 +89,17 @@ const PaginationComponent = ({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Don't render pagination if there's only one page or no pages
   if (totalPages <= 1) {
     return null;
   }
 
   const isMobile = screenSize !== "desktop";
-
-  const getVisiblePages = () => {
-    // Mobile: current, next, and last (plus prev/next arrows outside).
-    if (isMobile) {
-      const pages = [currentPage];
-      const nextPage = currentPage + 1;
-
-      if (nextPage < totalPages) {
-        pages.push(nextPage);
-      }
-
-      if (currentPage !== totalPages && !pages.includes(totalPages)) {
-        if (nextPage < totalPages - 1) {
-          pages.push("ellipsis-end");
-        }
-        pages.push(totalPages);
-      }
-
-      return pages;
-    }
-
-    const pages = [];
-    const halfVisible = Math.floor(maxVisiblePages / 2);
-
-    let startPage = Math.max(1, currentPage - halfVisible);
-    let endPage = Math.min(
-      totalPages,
-      startPage + maxVisiblePages - 1
-    );
-
-    // Adjust start page if we're near the end
-    if (endPage - startPage < maxVisiblePages - 1) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-
-    // Always show first page
-    if (startPage > 1) {
-      pages.push(1);
-      if (startPage > 2) {
-        pages.push("ellipsis-start");
-      }
-    }
-
-    // Add visible pages
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-
-    // Always show last page
-    if (endPage < totalPages) {
-      if (endPage < totalPages - 1) {
-        pages.push("ellipsis-end");
-      }
-      pages.push(totalPages);
-    }
-
-    return pages;
-  };
-
-  const visiblePages = getVisiblePages();
+  const visiblePages = getVisiblePages(
+    currentPage,
+    totalPages,
+    maxVisiblePages,
+    isMobile,
+  );
 
   return (
     <div className="w-full overflow-hidden">
@@ -142,17 +140,35 @@ const PaginationComponent = ({
               }
               style={{ color: colors.textSecondary }}
               size="icon"
+              aria-label="Go to previous page"
             >
               ←
             </PaginationLink>
           </PaginationItem>
 
-          {/* Page numbers */}
           {visiblePages.map((page, index) => {
             if (page === "ellipsis-start" || page === "ellipsis-end") {
+              const target = jumpFromEllipsis(page, currentPage, totalPages);
               return (
-                <PaginationItem key={`ellipsis-${index}`}>
-                  <PaginationEllipsis />
+                <PaginationItem key={`${page}-${index}`}>
+                  <PaginationLink
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onPageChange(target);
+                    }}
+                    className="cursor-pointer"
+                    style={{ color: colors.textSecondary }}
+                    size={isMobile ? "sm" : "icon"}
+                    aria-label={
+                      page === "ellipsis-start"
+                        ? `Jump back to page ${target}`
+                        : `Jump forward to page ${target}`
+                    }
+                    title={`Go to page ${target}`}
+                  >
+                    <MoreHorizontal className="h-4 w-4" aria-hidden />
+                  </PaginationLink>
                 </PaginationItem>
               );
             }
@@ -171,7 +187,7 @@ const PaginationComponent = ({
                     color:
                       page === currentPage ? undefined : colors.textSecondary,
                   }}
-                  size={screenSize !== "desktop" ? "sm" : "default"}
+                  size={isMobile ? "sm" : "default"}
                 >
                   {page}
                 </PaginationLink>
@@ -214,6 +230,7 @@ const PaginationComponent = ({
               }
               style={{ color: colors.textSecondary }}
               size="icon"
+              aria-label="Go to next page"
             >
               →
             </PaginationLink>

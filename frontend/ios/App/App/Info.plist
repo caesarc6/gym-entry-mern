@@ -64,5 +64,7 @@
 	<string>We use your photo library so you can choose a photo to upload.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We only save photos to your library if you choose to.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

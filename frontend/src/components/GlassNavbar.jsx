@@ -6,9 +6,22 @@ import {
   useSpring,
   useTransform,
 } from "framer-motion";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { cn } from "../lib/utils";
 import { hexAlpha, useCanvasShell } from "../contexts/CanvasShellContext.jsx";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { Home, PlusSquare, BarChart3, User } from "lucide-react";
+
+const isNative = getIsCapacitorNative();
+
+async function nativeTick(style = ImpactStyle.Light) {
+  if (!isNative) return;
+  try {
+    await Haptics.impact({ style });
+  } catch {
+    // Web / unsupported — ignore
+  }
+}
 
 const tabs = [
   { key: "feed", label: "Feed", to: "/", Icon: Home },
@@ -149,10 +162,14 @@ function isHoverPointer(event) {
 }
 
 /**
- * Mobile-web-only glass bottom navbar (hidden from md+).
+ * Floating glass bottom dock.
  * Magnetic size on hover (mouse) and hold/drag (touch); release/click to navigate.
+ * On Capacitor iOS, uses UIKit-backed Haptics and a transparent WKWebView for blur.
+ *
+ * @param {{ alwaysVisible?: boolean }} props
+ *   alwaysVisible — show on all breakpoints (native shell). Web keeps md:hidden.
  */
-export default function GlassNavbar() {
+export default function GlassNavbar({ alwaysVisible = false }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { paintHex, prefersReducedMotion, transition } = useCanvasShell();
@@ -207,8 +224,12 @@ export default function GlassNavbar() {
       if (next !== hoverIndexRef.current) {
         hoverIndexRef.current = next;
         setHoverIndex(next);
-        if (vibrate && typeof navigator !== "undefined" && navigator.vibrate) {
-          navigator.vibrate(6);
+        if (vibrate) {
+          if (isNative) {
+            void nativeTick(ImpactStyle.Light);
+          } else if (typeof navigator !== "undefined" && navigator.vibrate) {
+            navigator.vibrate(6);
+          }
         }
       } else if (hoverIndexRef.current == null) {
         hoverIndexRef.current = next;
@@ -224,7 +245,9 @@ export default function GlassNavbar() {
       scrubbingRef.current = true;
       setScrubbing(true);
       syncHover(clientX, { vibrate: false });
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
+      if (isNative) {
+        void nativeTick(ImpactStyle.Medium);
+      } else if (typeof navigator !== "undefined" && navigator.vibrate) {
         navigator.vibrate(10);
       }
     },
@@ -247,7 +270,10 @@ export default function GlassNavbar() {
 
       if (shouldNavigate && wasScrubbing && index != null) {
         const tab = tabs[index];
-        if (tab) navigate(tab.to);
+        if (tab) {
+          void nativeTick(ImpactStyle.Light);
+          navigate(tab.to);
+        }
       }
 
       pointerIdRef.current = null;
@@ -360,7 +386,10 @@ export default function GlassNavbar() {
     }
     const index = indexFromClientX(event.clientX);
     const tab = tabs[index];
-    if (tab) navigate(tab.to);
+    if (tab) {
+      void nativeTick(ImpactStyle.Light);
+      navigate(tab.to);
+    }
   };
 
   useEffect(() => () => clearHoldTimer(), [clearHoldTimer]);
@@ -381,7 +410,8 @@ export default function GlassNavbar() {
       role="navigation"
       aria-label="Glass mobile navigation"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 flex justify-center md:hidden",
+        "fixed inset-x-0 bottom-0 z-50 flex justify-center",
+        !alwaysVisible && "md:hidden",
         "pointer-events-none px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
       )}
     >

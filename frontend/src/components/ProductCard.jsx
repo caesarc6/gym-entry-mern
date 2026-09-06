@@ -31,7 +31,7 @@ import {
   Divider,
   Stack,
 } from "@chakra-ui/react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { ButtonLoadingSpinner } from "./loading";
 import { FileUploader } from "./FileUploader";
@@ -248,10 +248,21 @@ const ProductCard = memo(function ProductCard({
   detailOpen,
   onDetailOpenChange,
 }) {
+  const navigate = useNavigate();
   const globalCurrentUser = useProductStore((state) => state.currentUser);
   const [currentUser, setCurrentUser] = useState(globalCurrentUser);
   const isOwner = propIsOwner ?? currentUser?.uid === entry.uid;
   const colors = useThemeColors();
+
+  const handleAuthorProfileClick = useCallback(() => {
+    const ownerUid = entry.uid;
+    if (!ownerUid) return;
+    if (currentUser?.uid && ownerUid === currentUser.uid) {
+      navigate("/profile");
+      return;
+    }
+    navigate(`/user/${ownerUid}`);
+  }, [currentUser?.uid, entry.uid, navigate]);
   const { prefersReducedMotion } = useCanvasShell();
   const profileImageFallback =
     colors.currentTheme === "light" ? lightUrl : nightUrl;
@@ -1960,6 +1971,7 @@ const ProductCard = memo(function ProductCard({
           liked={isLiked}
           onToggleLike={() => handleLikeEntry(entry._id)}
           onCommentClick={handleDetailOpen}
+          onProfileClick={handleAuthorProfileClick}
           likesCount={
             Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
           }
@@ -2090,6 +2102,7 @@ const ProductCard = memo(function ProductCard({
             image={getSquareEntryMedia(false)}
             liked={isLiked}
             onToggleLike={() => handleLikeEntry(entry._id)}
+            onProfileClick={handleAuthorProfileClick}
             onCommentClick={() => {
               const anchor = document.getElementById(commentsAnchorId);
               const scroller = anchor?.closest(".chakra-modal__content");
@@ -2676,6 +2689,7 @@ const ProductCard = memo(function ProductCard({
             image={getSquareEntryMedia(false, { compact: true })}
             liked={isLiked}
             onToggleLike={() => {}}
+            onProfileClick={handleAuthorProfileClick}
             likesCount={
               Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
             }

@@ -5,7 +5,14 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useProductStore } from "../store/product";
 import {
@@ -19,6 +26,7 @@ import {
 const CELL_BORDER_WIDTH = "1.99px";
 /** Darker than logo blue-300 so the highlight reads on dark surfaces. */
 const HIGHLIGHT_BLUE = "var(--chakra-colors-blue-500)";
+const SCRUB_MOVE_THRESHOLD_PX = 6;
 
 const formatDayLabel = (ymdKey) => {
   if (!ymdKey) return "";
@@ -66,11 +74,93 @@ export default function WorkoutHabitWidgetPreview({
   const [popupLeftPx, setPopupLeftPx] = useState(null);
   const gridRef = useRef(null);
   const popupRef = useRef(null);
+  const daysRef = useRef([]);
+  const pointerIdRef = useRef(null);
+  const didScrubRef = useRef(false);
+  const startPointRef = useRef({ x: 0, y: 0 });
+  const scrollLockCleanupRef = useRef(null);
+  const touchScrollLockRef = useRef({ active: false, y: 0 });
   const canSyncIosWidget = canSyncWorkoutHabitWidget();
   const colors = useThemeColors();
   const cellEmpty = "hsl(var(--card) / 0.92)";
   const cellActive = "hsl(var(--primary) / 0.11)";
   const activeCellBlur = "hsl(var(--primary) / 0.52)";
+
+  const bindGridScrollLock = useCallback((node) => {
+    scrollLockCleanupRef.current?.();
+    scrollLockCleanupRef.current = null;
+    gridRef.current = node;
+    if (!node) return;
+
+    const lock = touchScrollLockRef.current;
+    const html = document.documentElement;
+    const { body } = document;
+    let previousHtmlOverflow = "";
+    let previousBodyOverflow = "";
+    let previousBodyOverscroll = "";
+
+    const onTouchStart = () => {
+      lock.active = true;
+      lock.y = window.scrollY || window.pageYOffset || 0;
+      previousHtmlOverflow = html.style.overflow;
+      previousBodyOverflow = body.style.overflow;
+      previousBodyOverscroll = body.style.overscrollBehavior;
+      html.style.overflow = "hidden";
+      body.style.overflow = "hidden";
+      body.style.overscrollBehavior = "none";
+    };
+
+    const unlock = () => {
+      if (!lock.active) return;
+      lock.active = false;
+      html.style.overflow = previousHtmlOverflow;
+      body.style.overflow = previousBodyOverflow;
+      body.style.overscrollBehavior = previousBodyOverscroll;
+    };
+
+    const onTouchMove = (event) => {
+      if (!lock.active) return;
+      // Must be non-passive; stops WKWebView page pan while scrubbing the grid.
+      event.preventDefault();
+      if ((window.scrollY || 0) !== lock.y) {
+        window.scrollTo(0, lock.y);
+      }
+    };
+
+    const onScroll = () => {
+      if (!lock.active) return;
+      window.scrollTo(0, lock.y);
+    };
+
+    node.addEventListener("touchstart", onTouchStart, { passive: true });
+    node.addEventListener("touchmove", onTouchMove, { passive: false });
+    node.addEventListener("touchend", unlock);
+    node.addEventListener("touchcancel", unlock);
+    // Capture on document so the gesture can't escape to the page scroller.
+    document.addEventListener("touchmove", onTouchMove, {
+      passive: false,
+      capture: true,
+    });
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    scrollLockCleanupRef.current = () => {
+      unlock();
+      node.removeEventListener("touchstart", onTouchStart);
+      node.removeEventListener("touchmove", onTouchMove);
+      node.removeEventListener("touchend", unlock);
+      node.removeEventListener("touchcancel", unlock);
+      document.removeEventListener("touchmove", onTouchMove, { capture: true });
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
+  useEffect(
+    () => () => {
+      scrollLockCleanupRef.current?.();
+      scrollLockCleanupRef.current = null;
+    },
+    [],
+  );
 
   useEffect(() => {
     let ignore = false;
@@ -138,6 +228,116 @@ export default function WorkoutHabitWidgetPreview({
   const days = useMemo(
     () => summary?.workoutDays?.slice(-30) || buildEmptyDays(),
     [summary],
+  );
+  daysRef.current = days;
+
+  const dayFromClientPoint = useCallback((clientX, clientY) => {
+    const gridEl = gridRef.current?.querySelector("[data-habit-grid]");
+    if (!gridEl) return null;
+
+    const rect = gridEl.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return null;
+
+    const list = daysRef.current;
+    const cols = 10;
+    const rows = Math.max(1, Math.ceil(list.length / cols));
+    const col = Math.min(cols - 1, Math.max(0, Math.floor((x / rect.width) * cols)));
+    const row = Math.min(rows - 1, Math.max(0, Math.floor((y / rect.height) * rows)));
+    const index = row * cols + col;
+    if (index < 0 || index >= list.length) return null;
+    return list[index];
+  }, []);
+
+  const endScrub = useCallback(
+    (event, { pin } = { pin: false }) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+      pointerIdRef.current = null;
+
+      const day = dayFromClientPoint(event.clientX, event.clientY);
+      if (pin && day) {
+        if (didScrubRef.current) {
+          setPinnedDay(day);
+          setHoveredDay(day);
+        } else {
+          setPinnedDay((prev) => (prev?.date === day.date ? null : day));
+          setHoveredDay(day);
+        }
+      }
+
+      didScrubRef.current = false;
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch {
+        // ignore
+      }
+    },
+    [dayFromClientPoint],
+  );
+
+  const onGridPointerDown = useCallback(
+    (event) => {
+      if (event.button != null && event.button !== 0) return;
+
+      pointerIdRef.current = event.pointerId;
+      didScrubRef.current = false;
+      startPointRef.current = { x: event.clientX, y: event.clientY };
+
+      const day = dayFromClientPoint(event.clientX, event.clientY);
+      if (day) setHoveredDay(day);
+
+      // Capture immediately so vertical scrub doesn't scroll the page underneath.
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+    },
+    [dayFromClientPoint],
+  );
+
+  const onGridPointerMove = useCallback(
+    (event) => {
+      // Idle mouse: highlight under cursor without pressing.
+      if (pointerIdRef.current !== event.pointerId) {
+        if (event.pointerType === "mouse" && pointerIdRef.current == null) {
+          setHoveredDay(dayFromClientPoint(event.clientX, event.clientY));
+        }
+        return;
+      }
+
+      const dx = event.clientX - startPointRef.current.x;
+      const dy = event.clientY - startPointRef.current.y;
+      if (
+        !didScrubRef.current &&
+        Math.hypot(dx, dy) > SCRUB_MOVE_THRESHOLD_PX
+      ) {
+        didScrubRef.current = true;
+      }
+
+      const day = dayFromClientPoint(event.clientX, event.clientY);
+      if (day) setHoveredDay(day);
+
+      // Block page scroll while dragging across cells (including vertically).
+      if (didScrubRef.current) {
+        event.preventDefault();
+      }
+    },
+    [dayFromClientPoint],
+  );
+
+  const onGridDoubleClick = useCallback(
+    (event) => {
+      const day = dayFromClientPoint(event.clientX, event.clientY);
+      if (!day?.workedOut || !day.entryId) return;
+      if (String(day.entryId).startsWith("optimistic-")) return;
+      event.preventDefault();
+      setPinnedDay(null);
+      setHoveredDay(null);
+      onDayDoubleClick?.(day);
+    },
+    [dayFromClientPoint, onDayDoubleClick],
   );
 
   const workoutCount = summary?.workoutCount30d ?? 0;
@@ -225,11 +425,30 @@ export default function WorkoutHabitWidgetPreview({
 
         <Skeleton isLoaded={!isLoading || Boolean(summary)} rounded="0">
           <Box
-            ref={gridRef}
+            ref={bindGridScrollLock}
             position="relative"
             aria-label="Last 30 days workout chart"
+            style={{
+              touchAction: "none",
+              WebkitUserSelect: "none",
+              userSelect: "none",
+              WebkitTouchCallout: "none",
+            }}
+            onPointerDown={onGridPointerDown}
+            onPointerMove={onGridPointerMove}
+            onPointerUp={(event) => endScrub(event, { pin: true })}
+            onPointerCancel={(event) => endScrub(event, { pin: false })}
+            onDoubleClick={onGridDoubleClick}
+            onPointerLeave={(event) => {
+              // Keep scrubbing while captured; only clear idle mouse hover.
+              if (pointerIdRef.current != null) return;
+              if (event.pointerType === "mouse") {
+                setHoveredDay(null);
+              }
+            }}
           >
             <Box
+              data-habit-grid
               display="grid"
               gridTemplateColumns="repeat(10, minmax(0, 1fr))"
               gap="3px"
@@ -242,6 +461,7 @@ export default function WorkoutHabitWidgetPreview({
                     key={day.date}
                     as="button"
                     type="button"
+                    data-habit-day={day.date}
                     title={
                       day.workedOut
                         ? `${formatDayLabel(day.date)}: ${day.workoutName || "Workout"}`
@@ -261,32 +481,9 @@ export default function WorkoutHabitWidgetPreview({
                     cursor="pointer"
                     outline="none"
                     transition="border-color 120ms ease"
-                    _hover={{
-                      borderColor: HIGHLIGHT_BLUE,
-                    }}
+                    tabIndex={-1}
                     _focusVisible={{
                       boxShadow: `0 0 0 2px ${HIGHLIGHT_BLUE}`,
-                    }}
-                    onMouseEnter={() => setHoveredDay(day)}
-                    onMouseLeave={() =>
-                      setHoveredDay((prev) =>
-                        prev?.date === day.date ? null : prev,
-                      )
-                    }
-                    onClick={() =>
-                      setPinnedDay((prev) =>
-                        prev?.date === day.date ? null : day,
-                      )
-                    }
-                    onDoubleClick={(event) => {
-                      event.preventDefault();
-                      if (!day.workedOut || !day.entryId) return;
-                      if (String(day.entryId).startsWith("optimistic-")) {
-                        return;
-                      }
-                      setPinnedDay(null);
-                      setHoveredDay(null);
-                      onDayDoubleClick?.(day);
                     }}
                   />
                 );

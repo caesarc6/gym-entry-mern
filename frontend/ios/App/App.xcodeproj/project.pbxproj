@@ -19,6 +19,8 @@
 		7A0100002DB9B00000A10001 /* WorkoutWidgetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0100022DB9B00000A10001 /* WorkoutWidgetPlugin.swift */; };
 		7A0100072DB9B00000A10001 /* WorkoutHabitWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0100032DB9B00000A10001 /* WorkoutHabitWidget.swift */; };
 		7A0100082DB9B00000A10001 /* WorkoutHabitWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7A0100062DB9B00000A10001 /* WorkoutHabitWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		7A0100162DB9B00000A10001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A0100172DB9B00000A10001 /* PrivacyInfo.xcprivacy */; };
+		7A0100182DB9B00000A10001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A0100192DB9B00000A10001 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,6 +65,8 @@
 		7A0100042DB9B00000A10001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7A0100052DB9B00000A10001 /* WorkoutHabitWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WorkoutHabitWidget.entitlements; sourceTree = "<group>"; };
 		7A0100062DB9B00000A10001 /* WorkoutHabitWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WorkoutHabitWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7A0100172DB9B00000A10001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7A0100192DB9B00000A10001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -114,6 +118,7 @@
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
 				504EC3131FED79650016851F /* Info.plist */,
+				7A0100172DB9B00000A10001 /* PrivacyInfo.xcprivacy */,
 				7A0100012DB9B00000A10001 /* App.entitlements */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
@@ -126,6 +131,7 @@
 			children = (
 				7A0100032DB9B00000A10001 /* WorkoutHabitWidget.swift */,
 				7A0100042DB9B00000A10001 /* Info.plist */,
+				7A0100192DB9B00000A10001 /* PrivacyInfo.xcprivacy */,
 				7A0100052DB9B00000A10001 /* WorkoutHabitWidget.entitlements */,
 			);
 			path = WorkoutHabitWidget;
@@ -228,6 +234,7 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
+				7A0100162DB9B00000A10001 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -235,6 +242,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7A0100182DB9B00000A10001 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -450,11 +458,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = WorkoutHabitWidget/WorkoutHabitWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 34M67XKNV4;
+				ENABLE_DEBUG_DYLIB = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WorkoutHabitWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -477,11 +485,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = WorkoutHabitWidget/WorkoutHabitWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 34M67XKNV4;
+				ENABLE_DEBUG_DYLIB = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WorkoutHabitWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;

@@ -38,6 +38,8 @@ export type FeedEntryCardProps = {
   liked: boolean;
   onToggleLike: () => void;
   onCommentClick?: () => void;
+  /** Avatar + display name — open author profile (stop card click). */
+  onProfileClick?: () => void;
   likesCount: number;
   commentsCount: number;
   description: string;
@@ -66,6 +68,7 @@ export function FeedEntryCard({
   liked,
   onToggleLike,
   onCommentClick,
+  onProfileClick,
   likesCount,
   commentsCount,
   description,
@@ -121,22 +124,59 @@ export function FeedEntryCard({
           {image}
           <CardHeader className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-row items-center justify-between gap-3 space-y-0 border-0 bg-transparent px-4 py-3">
             <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-3">
-              <Avatar className="size-9 shrink-0 ring-2 ring-white/25">
-                {profile.imageSrc ? (
-                  <AvatarImage src={profile.imageSrc} alt={profile.imageAlt} />
-                ) : null}
-                <AvatarFallback className="text-xs">
-                  {profile.fallback}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <CardTitle className="truncate text-sm leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
-                  {profile.displayName}
-                </CardTitle>
-                <span className="truncate text-xs leading-snug text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
-                  {subtitle}
-                </span>
-              </div>
+              {onProfileClick ? (
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onProfileClick();
+                  }}
+                  aria-label={`View ${profile.displayName}'s profile`}
+                >
+                  <Avatar className="size-9 shrink-0 ring-2 ring-white/25">
+                    {profile.imageSrc ? (
+                      <AvatarImage
+                        src={profile.imageSrc}
+                        alt={profile.imageAlt}
+                      />
+                    ) : null}
+                    <AvatarFallback className="text-xs">
+                      {profile.fallback}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <CardTitle className="truncate text-sm leading-tight text-white underline-offset-2 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] hover:underline">
+                      {profile.displayName}
+                    </CardTitle>
+                    <span className="truncate text-xs leading-snug text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                      {subtitle}
+                    </span>
+                  </div>
+                </button>
+              ) : (
+                <>
+                  <Avatar className="size-9 shrink-0 ring-2 ring-white/25">
+                    {profile.imageSrc ? (
+                      <AvatarImage
+                        src={profile.imageSrc}
+                        alt={profile.imageAlt}
+                      />
+                    ) : null}
+                    <AvatarFallback className="text-xs">
+                      {profile.fallback}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <CardTitle className="truncate text-sm leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                      {profile.displayName}
+                    </CardTitle>
+                    <span className="truncate text-xs leading-snug text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                      {subtitle}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
             {headerTrailing ? (
               <div
