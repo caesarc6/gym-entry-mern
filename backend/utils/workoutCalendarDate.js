@@ -23,6 +23,9 @@ export function normalizeWorkoutCalendarTimeZone(headerValue) {
 
 /** @param {Date | string | number} value */
 export function calendarDateKeyInTimeZone(value, timeZone = "UTC") {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return value.trim();
+  }
   try {
     return new Intl.DateTimeFormat("en-CA", {
       timeZone,

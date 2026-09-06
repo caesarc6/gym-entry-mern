@@ -18,6 +18,10 @@ export function canSyncWorkoutHabitWidget() {
 }
 
 export function getCalendarDateKey(date = new Date()) {
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+    return date.trim();
+  }
+
   let calendarTz = "UTC";
   try {
     calendarTz =
@@ -26,8 +30,13 @@ export function getCalendarDateKey(date = new Date()) {
     calendarTz = "UTC";
   }
 
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
   if (calendarTz === "UTC") {
-    return date.toISOString().slice(0, 10);
+    return d.toISOString().slice(0, 10);
   }
 
   try {
@@ -36,9 +45,9 @@ export function getCalendarDateKey(date = new Date()) {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    }).format(date);
+    }).format(d);
   } catch {
-    return date.toISOString().slice(0, 10);
+    return d.toISOString().slice(0, 10);
   }
 }
 
@@ -85,6 +94,7 @@ export function buildEmptyWorkoutHabitSummary() {
 }
 
 export function applyOptimisticWorkoutToSummary(summary, workout) {
+  const currentTodayKey = getCalendarDateKey();
   const base =
     summary?.workoutDays && Array.isArray(summary.workoutDays)
       ? summary
@@ -94,14 +104,37 @@ export function applyOptimisticWorkoutToSummary(summary, workout) {
     ? new Date(workout.createdAt)
     : new Date();
   const workoutDayKey = Number.isNaN(workoutAt.getTime())
-    ? getCalendarDateKey()
+    ? currentTodayKey
     : getCalendarDateKey(workoutAt);
-  const todayKey = base.today || getCalendarDateKey();
-  const alreadyWorked = (base.workoutDays || []).some(
+
+  // Realign existing workoutDays if base.today is behind current calendar day
+  const existingDaysMap = new Map(
+    (base.workoutDays || []).map((day) => [day.date, day]),
+  );
+  const windowStartKey = addGregorianDaysToDateKey(currentTodayKey, -29);
+  const alignedDays = Array.from({ length: 30 }, (_, index) => {
+    const date = addGregorianDaysToDateKey(windowStartKey, index);
+    return (
+      existingDaysMap.get(date) || {
+        date,
+        workedOut: false,
+        entryId: null,
+        workoutName: null,
+        workoutDescription: null,
+        image: null,
+        likes: [],
+        comments: [],
+        createdAt: null,
+        uid: null,
+      }
+    );
+  });
+
+  const alreadyWorked = alignedDays.some(
     (day) => day.date === workoutDayKey && day.workedOut,
   );
 
-  const workoutDays = (base.workoutDays || []).map((day) =>
+  const workoutDays = alignedDays.map((day) =>
     day.date === workoutDayKey
       ? {
           ...day,
@@ -124,12 +157,12 @@ export function applyOptimisticWorkoutToSummary(summary, workout) {
   );
 
   let currentStreak = base.currentStreak ?? 0;
-  if (!alreadyWorked && workoutDayKey === todayKey) {
+  if (!alreadyWorked && workoutDayKey === currentTodayKey) {
     const workedSet = new Set(
       workoutDays.filter((day) => day.workedOut).map((day) => day.date),
     );
     currentStreak = 0;
-    let probe = todayKey;
+    let probe = currentTodayKey;
     while (workedSet.has(probe)) {
       currentStreak += 1;
       probe = addGregorianDaysToDateKey(probe, -1);
@@ -139,7 +172,7 @@ export function applyOptimisticWorkoutToSummary(summary, workout) {
   return {
     ...base,
     generatedAt: new Date().toISOString(),
-    today: todayKey,
+    today: currentTodayKey,
     lastWorkoutName: workout?.name || base.lastWorkoutName || null,
     lastWorkoutAt:
       workout?.createdAt ||

@@ -48,15 +48,16 @@ struct WorkoutHabitSummary: Codable {
         currentStreak: 0
     )
 
-    private static func emptyDays() -> [WorkoutDay] {
+    static func emptyDays() -> [WorkoutDay] {
         let calendar = Calendar(identifier: .gregorian)
         let today = calendar.startOfDay(for: Date())
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = calendar.timeZone
+        formatter.formatOptions = [.withFullDate]
         return (0..<30).compactMap { offset in
             guard let day = calendar.date(byAdding: .day, value: offset - 29, to: today) else {
                 return nil
             }
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withFullDate]
             return WorkoutDay(date: formatter.string(from: day), workedOut: false)
         }
     }
@@ -117,7 +118,8 @@ struct WorkoutHabitWidgetView: View {
     }
 
     private var activeDaysText: String {
-        "\(entry.summary.workoutCount30d) of 30 days"
+        let count = displayedDays.filter { $0.workedOut }.count
+        return "\(count) of 30 days"
     }
 
     private var widgetBackground: some View {
@@ -226,54 +228,69 @@ struct WorkoutHabitWidgetView: View {
     }
 
     private var streakHighlightValue: String {
-        if entry.summary.currentStreak > 0 {
-            return "\(entry.summary.currentStreak)"
+        let streak = currentStreakValue
+        if streak > 0 {
+            return "\(streak)"
         }
-        if let days = daysSinceLastWorkoutUTC {
+        if let days = daysSinceLastWorkout {
             return "\(days)"
         }
         return "—"
     }
 
     private var streakHighlightCaption: String {
-        if entry.summary.currentStreak > 0 {
+        let streak = currentStreakValue
+        if streak > 0 {
             return "streak"
         }
-        if let days = daysSinceLastWorkoutUTC {
+        if let days = daysSinceLastWorkout {
             return days == 1 ? "day since last workout" : "days since last workout"
         }
         return "no workouts"
     }
 
-    /// Calendar days from last workout day to API `today` (UTC), when streak is broken (no workout today).
-    private var daysSinceLastWorkoutUTC: Int? {
-        guard entry.summary.currentStreak == 0,
-              let todayKey = entry.summary.today,
-              let lastAt = entry.summary.lastWorkoutAt else {
+    private var currentStreakValue: Int {
+        let days = displayedDays
+        var streak = 0
+        for day in days.reversed() {
+            if day.workedOut {
+                streak += 1
+            } else {
+                break
+            }
+        }
+        if streak == 0 && days.count >= 2 && !days[days.count - 1].workedOut {
+            for day in days.dropLast().reversed() {
+                if day.workedOut {
+                    streak += 1
+                } else {
+                    break
+                }
+            }
+        }
+        return max(streak, entry.summary.currentStreak)
+    }
+
+    private var daysSinceLastWorkout: Int? {
+        guard currentStreakValue == 0 else {
             return nil
         }
-        let lastKey = String(lastAt.prefix(10))
-        guard lastKey.count == 10,
-              let lastDay = Self.parseUTCDateKey(lastKey),
-              let todayDay = Self.parseUTCDateKey(todayKey) else {
+        guard let mostRecentActive = displayedDays.last(where: { $0.workedOut }) else {
             return nil
         }
-        let cal = Self.utcCalendar
+        guard let lastDay = Self.parseLocalDateKey(mostRecentActive.date) else {
+            return nil
+        }
+        let cal = Calendar.current
         let startLast = cal.startOfDay(for: lastDay)
-        let startToday = cal.startOfDay(for: todayDay)
+        let startToday = cal.startOfDay(for: Date())
         guard let days = cal.dateComponents([.day], from: startLast, to: startToday).day else {
             return nil
         }
         return max(0, days)
     }
 
-    private static let utcCalendar: Calendar = {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone.current
-        return cal
-    }()
-
-    private static func parseUTCDateKey(_ key: String) -> Date? {
+    private static func parseLocalDateKey(_ key: String) -> Date? {
         let parts = key.split(separator: "-")
         guard parts.count == 3,
               let y = Int(parts[0]),
@@ -281,7 +298,38 @@ struct WorkoutHabitWidgetView: View {
               let d = Int(parts[2]) else {
             return nil
         }
-        return Self.utcCalendar.date(from: DateComponents(year: y, month: m, day: d))
+        let cal = Calendar.current
+        return cal.date(from: DateComponents(year: y, month: m, day: d))
+    }
+
+    private var displayedDays: [WorkoutDay] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = cal.timeZone
+        formatter.formatOptions = [.withFullDate]
+        let todayKey = formatter.string(from: today)
+
+        let days = entry.summary.workoutDays
+        guard !days.isEmpty else {
+            return WorkoutHabitSummary.emptyDays()
+        }
+
+        if entry.summary.today == todayKey {
+            return Array(days.suffix(30))
+        }
+
+        let existingMap = Dictionary(days.map { ($0.date, $0) }, uniquingKeysWith: { first, _ in first })
+        return (0..<30).compactMap { offset in
+            guard let day = cal.date(byAdding: .day, value: offset - 29, to: today) else {
+                return nil
+            }
+            let dateKey = formatter.string(from: day)
+            if let existing = existingMap[dateKey] {
+                return existing
+            }
+            return WorkoutDay(date: dateKey, workedOut: false)
+        }
     }
 
     private var dayGrid: some View {
@@ -316,15 +364,14 @@ struct WorkoutHabitWidgetView: View {
 
     private func calendarCells(blurredOverlay: Bool) -> some View {
         LazyVGrid(columns: columns, spacing: 0) {
-            ForEach(entry.summary.workoutDays.suffix(30), id: \.self) { day in
+            ForEach(displayedDays, id: \.self) { day in
                 dayCell(workedOut: day.workedOut, blurredOverlay: blurredOverlay)
             }
         }
     }
 
     private var columnCount: Int {
-        // Medium: 8×4 grid for 30 days (taller cells, one fewer row than 6×5).
-        family == .systemMedium ? 8 : 10
+        10
     }
 
     private func dayCell(workedOut: Bool, blurredOverlay: Bool) -> some View {
@@ -336,7 +383,7 @@ struct WorkoutHabitWidgetView: View {
     private var gridLineOverlay: some View {
         let lineWidth: CGFloat = 0.35
         let columns = columnCount
-        let rows = Int(ceil(Double(entry.summary.workoutDays.suffix(30).count) / Double(columns)))
+        let rows = Int(ceil(Double(displayedDays.count) / Double(columns)))
 
         return GeometryReader { proxy in
             let cellSize = proxy.size.width / CGFloat(columns)

@@ -36,6 +36,7 @@ const formatDayLabel = (ymdKey) => {
   }
   const [y, m, d] = parts;
   return new Intl.DateTimeFormat(undefined, {
+    timeZone: "UTC",
     month: "short",
     day: "numeric",
   }).format(new Date(Date.UTC(y, m - 1, d)));
