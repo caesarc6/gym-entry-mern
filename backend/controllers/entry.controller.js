@@ -1038,29 +1038,37 @@ export const cleanupMalformedComments = async (req, res) => {
 
 // Delete a comment
 export const deleteComment = async (req, res) => {
-  const { entryId, commentId } = req.params;
-  const { uid } = req.user;
-  const authUser = await findUserByAuth(req.user);
-  const uidSet = getUserUidSet(authUser, uid);
-
-  if (
-    !mongoose.Types.ObjectId.isValid(entryId) ||
-    !mongoose.Types.ObjectId.isValid(commentId)
-  ) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid Entry or Comment Id" });
-  }
-
   try {
-    const entry = await Entry.findById(entryId);
+    if (!(await ensureMongoReadyForRequest(res))) return;
+
+    const { entryId, commentId } = req.params;
+    const uid = req.user?.uid;
+
+    if (
+      !mongoose.Types.ObjectId.isValid(entryId) ||
+      !mongoose.Types.ObjectId.isValid(commentId)
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid Entry or Comment Id" });
+    }
+
+    const authUser = await findUserByAuth(req.user);
+    const uidSet = getUserUidSet(authUser, uid);
+    const commentObjectId = new mongoose.Types.ObjectId(commentId);
+
+    const entry = await Entry.findById(entryId).select(
+      "uid comments._id comments.uid"
+    );
     if (!entry) {
       return res
         .status(404)
         .json({ success: false, message: "Entry not found" });
     }
 
-    const comment = entry.comments.id(commentId);
+    const comment = (entry.comments || []).find(
+      (c) => c?._id && c._id.equals(commentObjectId)
+    );
     if (!comment) {
       return res
         .status(404)
@@ -1075,12 +1083,27 @@ export const deleteComment = async (req, res) => {
       });
     }
 
-    comment.remove();
-    await entry.save();
+    // $pull avoids document.save() validation, which 500s when sibling
+    // comments/likes contain legacy malformed data.
+    const updated = await Entry.findOneAndUpdate(
+      { _id: entry._id },
+      { $pull: { comments: { _id: commentObjectId } } },
+      { new: true, runValidators: false }
+    );
 
-    res.status(200).json({ success: true, data: entry });
+    return res.status(200).json({
+      success: true,
+      data: updated,
+      comments: updated?.comments ?? [],
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server Error" });
+    console.error("[deleteComment]", error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: error.message || "Server Error",
+      });
+    }
   }
 };
 
