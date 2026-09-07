@@ -202,26 +202,13 @@ export function FeedEntryCard({
                 </>
               )}
             </div>
-            {commentsCount > 0 || headerTrailing ? (
-              <div className="pointer-events-auto flex shrink-0 items-center gap-1.5">
-                {commentsCount > 0 ? (
-                  <span
-                    className="text-lg leading-none drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]"
-                    title={commentsLabel}
-                    aria-label={commentsLabel}
-                  >
-                    💬
-                  </span>
-                ) : null}
-                {headerTrailing ? (
-                  <div
-                    className="flex shrink-0 items-center"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    {headerTrailing}
-                  </div>
-                ) : null}
+            {headerTrailing ? (
+              <div
+                className="pointer-events-auto flex shrink-0 items-center"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                {headerTrailing}
               </div>
             ) : null}
           </CardHeader>

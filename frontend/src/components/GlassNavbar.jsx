@@ -26,7 +26,7 @@ async function nativeTick(style = ImpactStyle.Light) {
 const tabs = [
   { key: "feed", label: "Feed", to: "/", Icon: Home },
   { key: "create", label: "Create", to: "/create", Icon: PlusSquare },
-  { key: "analytics", label: "Analytics", to: "/analytics", Icon: BarChart3 },
+  { key: "analytics", label: "Progress", to: "/analytics", Icon: BarChart3 },
   { key: "profile", label: "Profile", to: "/profile", Icon: User },
 ];
 
@@ -40,16 +40,6 @@ const SPRING = { damping: 20, stiffness: 300, mass: 0.5 };
 function isActivePath(pathname, to) {
   if (to === "/") return pathname === "/" || pathname === "";
   return pathname === to || pathname.startsWith(`${to}/`);
-}
-
-function scrollHomeToTop() {
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  const behavior = reduceMotion ? "auto" : "smooth";
-  window.scrollTo({ top: 0, left: 0, behavior });
-  document.scrollingElement?.scrollTo?.({ top: 0, behavior });
-  window.dispatchEvent(new CustomEvent("eg:scroll-home-top"));
 }
 
 function DockItem({
@@ -278,7 +268,7 @@ export default function GlassNavbar({ alwaysVisible = false }) {
       void nativeTick(ImpactStyle.Light);
       if (isActivePath(location.pathname, tab.to)) {
         if (tab.to === "/") {
-          scrollHomeToTop();
+          window.dispatchEvent(new CustomEvent("eg:home-retap"));
         }
         return;
       }

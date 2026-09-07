@@ -9,7 +9,7 @@ import {
   HStack,
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { supabase } from "../supabase/supabase";
@@ -29,10 +29,25 @@ import { FiPlus } from "react-icons/fi";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
 import ProductCard from "../components/ProductCard";
+import FeedPullToRefresh from "../components/FeedPullToRefresh";
 
 const isCapacitorNative = getIsCapacitorNative();
 /** Smaller pages on native reduce feed DOM + ProductCard instances per request. */
 const HOME_FEED_PAGE_SIZE = isCapacitorNative ? 4 : 6;
+const HOME_NEAR_TOP_PX = 56;
+
+const scrollFeedToTop = () => {
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const behavior = reduceMotion ? "auto" : "smooth";
+  window.scrollTo({ top: 0, left: 0, behavior });
+  document.scrollingElement?.scrollTo?.({ top: 0, behavior });
+  window.dispatchEvent(new CustomEvent("eg:scroll-home-top"));
+};
+
+const isFeedNearTop = () =>
+  (window.scrollY || document.documentElement.scrollTop || 0) <= HOME_NEAR_TOP_PX;
 
 const isRequestAbortError = (err) =>
   axios.isCancel?.(err) ||
@@ -53,6 +68,11 @@ const HomePage = () => {
   const [uid, setUid] = useState(null);
   const [entries, setEntries] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [feedEpoch, setFeedEpoch] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const skipCacheRef = useRef(false);
+  const currentPageRef = useRef(1);
+  const isSignedInRef = useRef(false);
   const [limit] = useState(HOME_FEED_PAGE_SIZE);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -72,6 +92,36 @@ const HomePage = () => {
       setCurrentPage(newPage);
     }
   };
+
+  currentPageRef.current = currentPage;
+  isSignedInRef.current = isSignedIn;
+
+  const refreshHomeFeed = useCallback(() => {
+    skipCacheRef.current = true;
+    setIsRefreshing(true);
+    clearHomeFeedCache();
+    setCurrentPage(1);
+    setFeedEpoch((epoch) => epoch + 1);
+    scrollFeedToTop();
+  }, [clearHomeFeedCache]);
+
+  useEffect(() => {
+    const onHomeRetap = () => {
+      if (!isSignedInRef.current) {
+        scrollFeedToTop();
+        return;
+      }
+      if (currentPageRef.current !== 1 || !isFeedNearTop()) {
+        setCurrentPage(1);
+        scrollFeedToTop();
+        return;
+      }
+      refreshHomeFeed();
+    };
+
+    window.addEventListener("eg:home-retap", onHomeRetap);
+    return () => window.removeEventListener("eg:home-retap", onHomeRetap);
+  }, [refreshHomeFeed]);
 
   const handleHabitDayDoubleClick = useCallback(
     (day) => {
@@ -216,10 +266,13 @@ const HomePage = () => {
           limit,
         });
         setIsLoading(false);
+        setIsRefreshing(false);
         return;
       }
 
       try {
+        const bypassCache = skipCacheRef.current;
+        skipCacheRef.current = false;
         // Read cache imperatively — listing `homeFeedCache` as an effect dependency
         // re-ran this effect whenever we wrote the cache, aborted the in-flight request,
         // and skipped applying results so the grid stayed empty until pagination changed.
@@ -227,6 +280,7 @@ const HomePage = () => {
 
         // Restore cached pages instantly; stale pages can refresh in the background.
         const cachedForPage =
+          !bypassCache &&
           cacheSnapshot &&
           cacheSnapshot.uid === uid &&
           cacheSnapshot.page === currentPage &&
@@ -244,12 +298,13 @@ const HomePage = () => {
             }
           );
           setIsLoading(false);
+          setIsRefreshing(false);
           if (Date.now() - cacheSnapshot.cachedAt < feedCacheTtlMs) {
             return;
           }
         }
 
-        if (!cachedForPage) {
+        if (!cachedForPage && !bypassCache) {
           setIsLoading(true);
         }
         // Count total posts only on page 1; repeats are expensive and this flag used to
@@ -336,7 +391,7 @@ const HomePage = () => {
           cachedAt: Date.now(),
         });
 
-        if (currentPage === 1 && normalized.length === 0) {
+        if (currentPage === 1 && normalized.length === 0 && !bypassCache) {
           toast.info(
             "Empty feed",
             "No posts available. Create or follow users to see more."
@@ -351,6 +406,7 @@ const HomePage = () => {
       } finally {
         if (!cancelled) {
           setIsLoading(false);
+          setIsRefreshing(false);
         }
       }
     };
@@ -362,7 +418,7 @@ const HomePage = () => {
       ac.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- toast from useCustomToast is not referentially stable
-  }, [uid, currentPage, limit, feedCacheTtlMs, setHomeFeedCache]);
+  }, [uid, currentPage, limit, feedEpoch, feedCacheTtlMs, setHomeFeedCache]);
 
   // Apply optimistic home-feed cache writes while this page stays mounted (native tabs).
   useEffect(() => {
@@ -488,6 +544,11 @@ const HomePage = () => {
                 isCapacitorNative ? "pt-4" : "pt-[6.5rem] md:pt-28",
               )}
             >
+              <FeedPullToRefresh
+                onRefresh={refreshHomeFeed}
+                isRefreshing={isRefreshing}
+                disabled={!uid}
+              >
               <WorkoutHabitWidgetPreview
                 refreshKey={`${uid}-${pagination.totalPosts}-${entries[0]?._id || "none"}`}
                 onDayDoubleClick={handleHabitDayDoubleClick}
@@ -524,7 +585,7 @@ const HomePage = () => {
                 </Box>
               ) : null}
 
-              {uid && isLoading ? (
+              {uid && isLoading && !isRefreshing ? (
                 <Box
                   display="flex"
                   justifyContent="center"
@@ -597,6 +658,7 @@ const HomePage = () => {
                   )}
                 </>
               )}
+              </FeedPullToRefresh>
             </VStack>
           </Container>
         </>

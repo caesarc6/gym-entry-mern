@@ -64,13 +64,6 @@ const GYM_MAPPINGS = {
   "vital climbing gym": "VITAL Climbing Gym",
   "@vital": "VITAL Climbing Gym",
   "@vcg": "VITAL Climbing Gym",
-
-  // Common abbreviations
-  gym: "Gym",
-  fitness: "Fitness",
-  club: "Club",
-  center: "Center",
-  centre: "Center",
 };
 
 // List of all recognized gym names
@@ -94,40 +87,27 @@ export const RECOGNIZED_GYMS = [
 export const normalizeGymName = (gymName) => {
   if (!gymName) return null;
 
-  // Convert to lowercase and trim for comparison
-  const normalized = gymName.toLowerCase().trim();
+  const normalized = gymName.toLowerCase().trim().replace(/^@+/, "");
 
-  // Check if we have a direct mapping
   if (GYM_MAPPINGS[normalized]) {
     return GYM_MAPPINGS[normalized];
   }
+  if (GYM_MAPPINGS[`@${normalized}`]) {
+    return GYM_MAPPINGS[`@${normalized}`];
+  }
 
-  // Handle @ symbol variations
-  if (normalized.startsWith("@")) {
-    const withoutAt = normalized.substring(1);
-    if (GYM_MAPPINGS[withoutAt]) {
-      return GYM_MAPPINGS[withoutAt];
+  // Partial matches only for distinctive names — skip short tags like "pg".
+  if (normalized.length >= 4) {
+    for (const [abbreviation, fullName] of Object.entries(GYM_MAPPINGS)) {
+      const key = abbreviation.replace(/^@/, "");
+      if (key.length < 4) continue;
+      if (normalized === key) return fullName;
+      if (normalized.includes(key) || key.includes(normalized)) {
+        return fullName;
+      }
     }
   }
 
-  // Handle common patterns
-  // Remove @ symbol and check
-  const withoutAt = normalized.replace(/^@/, "");
-  if (GYM_MAPPINGS[withoutAt]) {
-    return GYM_MAPPINGS[withoutAt];
-  }
-
-  // Try partial matches for common typos
-  for (const [abbreviation, fullName] of Object.entries(GYM_MAPPINGS)) {
-    if (
-      normalized.includes(abbreviation) ||
-      abbreviation.includes(normalized)
-    ) {
-      return fullName;
-    }
-  }
-
-  // If no match found, return the original (capitalized)
   return gymName.charAt(0).toUpperCase() + gymName.slice(1).toLowerCase();
 };
 

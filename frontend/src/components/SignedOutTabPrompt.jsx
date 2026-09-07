@@ -11,8 +11,8 @@ const COPY = {
     Icon: PlusSquare,
   },
   analytics: {
-    title: "Sign in for analytics",
-    body: "Track volume, personal records, and trends once you’re signed in.",
+    title: "Sign in to see your progress",
+    body: "A simple look at how your training is going, once you’re signed in.",
     Icon: BarChart3,
   },
   profile: {

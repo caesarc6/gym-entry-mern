@@ -419,14 +419,7 @@ export const HeroHeader = () => {
                   closeMenu();
                   if (location.pathname === "/" || location.pathname === "") {
                     event.preventDefault();
-                    const reduceMotion = window.matchMedia?.(
-                      "(prefers-reduced-motion: reduce)",
-                    )?.matches;
-                    window.scrollTo({
-                      top: 0,
-                      behavior: reduceMotion ? "auto" : "smooth",
-                    });
-                    window.dispatchEvent(new CustomEvent("eg:scroll-home-top"));
+                    window.dispatchEvent(new CustomEvent("eg:home-retap"));
                   }
                 }}
               >

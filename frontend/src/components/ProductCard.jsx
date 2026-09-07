@@ -1,6 +1,4 @@
-import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
-import { HamburgerIcon } from "@chakra-ui/icons";
-import { FiShare2 } from "react-icons/fi";
+import { EditIcon } from "@chakra-ui/icons";
 import {
   Box,
   Button,
@@ -22,10 +20,6 @@ import {
   useBreakpointValue,
   useDisclosure,
   VStack,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   Skeleton,
   Badge,
   Divider,
@@ -33,6 +27,18 @@ import {
 } from "@chakra-ui/react";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
+import { HEADER_ICON_STROKE } from "../constants/headerIconStroke.js";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import {
+  MENU_ROW_TEXT,
+  heroNavMenuChrome,
+} from "./ui/dropdown-menu-1";
+import { MoreHorizontal, Pencil, Share2, Sparkles, Trash2 } from "lucide-react";
 import { ButtonLoadingSpinner } from "./loading";
 import { FileUploader } from "./FileUploader";
 import {
@@ -1870,61 +1876,70 @@ const ProductCard = memo(function ProductCard({
       ? `${trainerDisplayLabel} · ${updatedEntry.name}`
       : `${updatedEntry.name} · ${formatDateHour(updatedEntry.createdAt)}`;
 
+  const {
+    surface: menuSurfaceClassName,
+    item: menuItemInteractiveClassName,
+  } = heroNavMenuChrome(colors.currentTheme);
+  const postMenuItemClassName = cn(
+    MENU_ROW_TEXT,
+    "cursor-pointer rounded-md px-2 py-1.5 outline-none [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0",
+    menuItemInteractiveClassName,
+  );
+
   const ownerPostMenu = (
-    <Menu>
-      <MenuButton
-        as={IconButton}
-        icon={<HamburgerIcon />}
-        aria-label="Post actions"
-        variant="ghost"
-        size="sm"
-        borderRadius="full"
-        color="white"
-        bg="blackAlpha.500"
-        _hover={{ bg: "blackAlpha.600" }}
-      />
-      <MenuList>
-        <MenuItem
-          icon={<EditIcon />}
-          onClick={onEnhancedEditOpen}
-          color="green.500"
-          _hover={{
-            bg: colors.editBg,
-          }}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Post actions"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md ring-1 ring-white/20 hover:bg-black/50"
+          onClick={(e) => e.stopPropagation()}
         >
-          Enhanced Edit
-        </MenuItem>
-        <MenuItem
-          onClick={handleProcessWorkout}
-          color="blue.500"
-          _hover={{
-            bg: colors.processBg,
-          }}
+          <MoreHorizontal
+            className="h-4 w-4"
+            strokeWidth={HEADER_ICON_STROKE}
+          />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={6}
+        className={cn("w-52 p-2", menuSurfaceClassName)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DropdownMenuItem
+          className={postMenuItemClassName}
+          onSelect={onEnhancedEditOpen}
         >
-          Process Workout Data
-        </MenuItem>
-        <MenuItem
-          icon={<FiShare2 />}
-          onClick={onShareOpen}
-          color="green.500"
-          _hover={{
-            bg: colors.editBg,
-          }}
+          <Pencil strokeWidth={HEADER_ICON_STROKE} aria-hidden />
+          Edit workout
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={postMenuItemClassName}
+          onSelect={handleProcessWorkout}
         >
-          Share Workout
-        </MenuItem>
-        <MenuItem
-          icon={<DeleteIcon />}
-          onClick={onDeleteOpen}
-          color="red.500"
-          _hover={{
-            bg: colors.deleteBg,
-          }}
+          <Sparkles strokeWidth={HEADER_ICON_STROKE} aria-hidden />
+          Process workout
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={postMenuItemClassName}
+          onSelect={onShareOpen}
         >
-          Delete Post
-        </MenuItem>
-      </MenuList>
-    </Menu>
+          <Share2 strokeWidth={HEADER_ICON_STROKE} aria-hidden />
+          Share
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={cn(
+            postMenuItemClassName,
+            "text-red-500 hover:bg-red-500/10 hover:text-red-500 data-[highlighted]:bg-red-500/10 data-[highlighted]:text-red-500 focus:bg-red-500/10 focus:text-red-500",
+          )}
+          onSelect={onDeleteOpen}
+        >
+          <Trash2 strokeWidth={HEADER_ICON_STROKE} aria-hidden />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 
   const getSquareEntryMedia = (preferHighPriority, { compact = false } = {}) => (
@@ -2378,36 +2393,61 @@ const ProductCard = memo(function ProductCard({
                                   </HStack>
                                   {commentIdStr &&
                                   canEditComment(cmt) ? (
-                                    <Menu>
-                                      <MenuButton
-                                        as={IconButton}
-                                        aria-label="Comment actions"
-                                        icon={<HamburgerIcon />}
-                                        variant="ghost"
-                                        size="xs"
-                                        borderRadius="full"
-                                        color={colors.textMuted}
-                                      />
-                                      <MenuList fontSize="sm">
-                                        <MenuItem
-                                          icon={<EditIcon />}
-                                          onClick={() =>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button
+                                          type="button"
+                                          aria-label="Comment actions"
+                                          className={cn(
+                                            "inline-flex h-7 w-7 items-center justify-center rounded-full",
+                                            colors.currentTheme === "light"
+                                              ? "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                                              : "text-zinc-400 hover:bg-white/10 hover:text-zinc-100",
+                                          )}
+                                        >
+                                          <MoreHorizontal
+                                            className="h-4 w-4"
+                                            strokeWidth={HEADER_ICON_STROKE}
+                                          />
+                                        </button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent
+                                        align="end"
+                                        sideOffset={4}
+                                        className={cn(
+                                          "w-40 p-2",
+                                          menuSurfaceClassName,
+                                        )}
+                                      >
+                                        <DropdownMenuItem
+                                          className={postMenuItemClassName}
+                                          onSelect={() =>
                                             setEditingComment(commentIdStr)
                                           }
                                         >
+                                          <Pencil
+                                            strokeWidth={HEADER_ICON_STROKE}
+                                            aria-hidden
+                                          />
                                           Edit
-                                        </MenuItem>
-                                        <MenuItem
-                                          icon={<DeleteIcon />}
-                                          color="red.500"
-                                          onClick={() =>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          className={cn(
+                                            postMenuItemClassName,
+                                            "text-red-500 hover:bg-red-500/10 hover:text-red-500 data-[highlighted]:bg-red-500/10 data-[highlighted]:text-red-500 focus:bg-red-500/10 focus:text-red-500",
+                                          )}
+                                          onSelect={() =>
                                             handleCommentDelete(commentIdStr)
                                           }
                                         >
+                                          <Trash2
+                                            strokeWidth={HEADER_ICON_STROKE}
+                                            aria-hidden
+                                          />
                                           Delete
-                                        </MenuItem>
-                                      </MenuList>
-                                    </Menu>
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                   ) : null}
                                 </Flex>
 

@@ -37,9 +37,8 @@ const getCssHsl = (variableName, fallback, alpha) => {
   return alpha === undefined ? `hsl(${value})` : `hsl(${value} / ${alpha})`;
 };
 
-const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
+const ExerciseProgressChart = ({ exerciseProgress }) => {
   const colors = useThemeColors();
-  const textColor = getCssHsl("workout-text-primary", "#f8fafc");
   const mutedTextColor = getCssHsl("workout-text-muted", "#94a3b8");
   const popoverTextColor = getCssHsl("popover-foreground", "#f8fafc");
   const gridColor = getCssHsl("border", "rgba(148, 163, 184, 0.22)", 0.45);
@@ -75,14 +74,14 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
         data: sortedDataPoints.map(point => point.weight),
         borderColor: borderColor,
         backgroundColor: backgroundColor,
-        borderWidth: 3,
+        borderWidth: 2,
         fill: true,
         tension: 0.4,
         pointBackgroundColor: borderColor,
         pointBorderColor: 'white',
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
+        pointBorderWidth: 1,
+        pointRadius: 4,
+        pointHoverRadius: 6,
       },
     ],
   };
@@ -92,24 +91,10 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: true,
-        position: 'top',
-        labels: {
-          color: textColor,
-          font: {
-            size: 14,
-            weight: 'bold',
-          },
-        },
+        display: false,
       },
       title: {
-        display: true,
-        text: `${exerciseName} Progress Over Time`,
-        color: textColor,
-        font: {
-          size: 18,
-          weight: 'bold',
-        },
+        display: false,
       },
       tooltip: {
         backgroundColor: getCssHsl("popover", "rgba(15, 23, 42, 0.95)", 0.95),
@@ -118,15 +103,16 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
         borderColor: borderColor,
         borderWidth: 1,
         cornerRadius: 8,
-        displayColors: true,
+        displayColors: false,
+        padding: 8,
+        caretSize: 4,
         callbacks: {
           label: function(context) {
             const dataPoint = sortedDataPoints[context.dataIndex];
             return [
-              `Weight: ${dataPoint.weight} lbs`,
-              `Reps: ${dataPoint.reps}`,
-              `Volume: ${dataPoint.volume.toLocaleString()}`,
-              `Sets: ${dataPoint.sets}`,
+              `${dataPoint.weight} lbs`,
+              `${dataPoint.reps} reps`,
+              `${dataPoint.sets} sets`,
             ];
           },
         },
@@ -135,31 +121,22 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
     scales: {
       x: {
         title: {
-          display: true,
-          text: 'Date',
-          color: textColor,
-          font: {
-            size: 14,
-            weight: 'bold',
-          },
+          display: false,
         },
         grid: {
-          color: gridColor,
+          display: false,
         },
         ticks: {
           color: mutedTextColor,
-          maxRotation: 45,
+          maxRotation: 0,
+        },
+        border: {
+          display: false,
         },
       },
       y: {
         title: {
-          display: true,
-          text: 'Weight (lbs)',
-          color: textColor,
-          font: {
-            size: 14,
-            weight: 'bold',
-          },
+          display: false,
         },
         grid: {
           color: gridColor,
@@ -174,8 +151,8 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
       },
     },
     interaction: {
-      intersect: false,
-      mode: 'index',
+      intersect: true,
+      mode: 'nearest',
     },
     elements: {
       point: {
@@ -185,16 +162,7 @@ const ExerciseProgressChart = ({ exerciseProgress, exerciseName }) => {
   };
 
   return (
-    <Box 
-      w="full" 
-      h="400px" 
-      p={4} 
-      bg={colors.card}
-      border="1px solid"
-      borderColor={colors.borderColorLight}
-      borderRadius="lg"
-      boxShadow="sm"
-    >
+    <Box w="full" h="280px">
       <Line data={chartData} options={options} />
     </Box>
   );

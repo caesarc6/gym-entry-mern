@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Container,
   Box,
@@ -8,31 +9,16 @@ import {
   HStack,
   Select,
   Button,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  SimpleGrid,
-  Card,
-  CardBody,
-  Badge,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
   Center,
-  Alert,
-  AlertIcon,
-  Icon,
+  Collapse,
 } from "@chakra-ui/react";
 import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
-import { FiExternalLink } from "react-icons/fi";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
 import GymNameHelper from "../components/GymNameHelper";
 import ProgressInsights from "../components/ProgressInsights";
+import { stripGymOrLocationTagsFromLine } from "../utils/workoutParser.js";
 
 const ExerciseProgressChart = lazy(
   () => import("../components/ExerciseProgressChart")
@@ -45,6 +31,38 @@ import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import { useThemeColors } from "../hooks/useThemeColors";
+
+const TIMEFRAMES = [
+  { value: "7d", label: "This week", phrase: "this week" },
+  { value: "30d", label: "This month", phrase: "this month" },
+  { value: "90d", label: "3 months", phrase: "in the last 3 months" },
+  { value: "1y", label: "This year", phrase: "this year" },
+];
+
+const BEST_LIFTS_PREVIEW = 5;
+
+const isSameSession = (a, b) =>
+  Boolean(
+    a &&
+      b &&
+      a.date === b.date &&
+      a.weight === b.weight &&
+      a.reps === b.reps &&
+      a.sets === b.sets,
+  );
+
+const SectionEyebrow = ({ children, color }) => (
+  <Text
+    fontSize="xs"
+    letterSpacing="0.16em"
+    textTransform="uppercase"
+    color={color}
+    fontWeight="medium"
+    mb={6}
+  >
+    {children}
+  </Text>
+);
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -63,18 +81,16 @@ const AnalyticsPage = () => {
   const [hasAutoProcessed, setHasAutoProcessed] = useState(false); // New flag to prevent multiple auto-processing
   const [chartType, setChartType] = useState("simple"); // 'simple' or 'multi'
   const [selectedWorkout, setSelectedWorkout] = useState(null);
-  const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showPendingDetails, setShowPendingDetails] = useState(false);
+  const [showAllBests, setShowAllBests] = useState(false);
 
   const { showToast } = useCustomToast();
   const colors = useThemeColors();
   const pageBg = colors.background;
-  const cardBg = colors.bgCard;
   const cardText = colors.textPrimary;
   const mutedText = colors.textMuted;
-  const rowBg = colors.muted;
-  const rowHoverBg = colors.bgHover;
-  const borderColor = colors.borderColor;
   const softBorderColor = colors.borderColorLight;
   const inputBg = colors.background;
   const inputBorderColor = colors.borderColorInput;
@@ -99,29 +115,6 @@ const AnalyticsPage = () => {
       bg: colors.primary,
       filter: "brightness(0.96)",
     },
-  };
-  const primaryOutlineButtonProps = {
-    borderColor: colors.primary,
-    color: colors.primary,
-    bg: "transparent",
-    _hover: {
-      bg: colors.muted,
-      borderColor: colors.primary,
-      color: colors.primary,
-    },
-  };
-  const cardProps = {
-    bg: cardBg,
-    color: cardText,
-    border: "1px solid",
-    borderColor: softBorderColor,
-    boxShadow: "sm",
-  };
-  const rowProps = {
-    bg: rowBg,
-    color: cardText,
-    border: "1px solid",
-    borderColor,
   };
   const { analyticsTabCache, setAnalyticsTabCache, clearAnalyticsTabCache } =
     useProductStore();
@@ -221,7 +214,7 @@ const AnalyticsPage = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchAnalytics = async (authedUser = null) => {
+  const fetchAnalytics = async (authedUser = null, timeframeOverride) => {
     try {
       // Check if user is authenticated
       const user = authedUser || (await getCurrentAuthUser());
@@ -229,14 +222,13 @@ const AnalyticsPage = () => {
         return;
       }
 
-      const response = await apiClient.get(
-        API_ENDPOINTS.WORKOUT_ANALYTICS(timeframe, selectedExercise)
-      );
+      const tf = timeframeOverride ?? timeframe;
+      const response = await apiClient.get(API_ENDPOINTS.WORKOUT_ANALYTICS(tf));
       setAnalytics(response.data.data);
       if (user) {
         setMergedAnalyticsCache({
           uid: user.uid,
-          timeframe,
+          timeframe: tf,
           selectedExercise,
           analytics: response.data.data,
         });
@@ -244,14 +236,14 @@ const AnalyticsPage = () => {
     } catch (error) {
       if (error.response?.status === 403) {
         showToast({
-          title: "Authentication Required",
-          description: "Please log in to view analytics",
+          title: "Please sign in",
+          description: "Sign in to see how your training is going.",
           status: "warning",
         });
       } else {
         showToast({
-          title: "Error",
-          description: "Failed to load analytics",
+          title: "Couldn't load progress",
+          description: "Please try again in a moment.",
           status: "error",
         });
       }
@@ -279,28 +271,29 @@ const AnalyticsPage = () => {
     }
   };
 
-  const fetchExerciseProgress = async (exercise) => {
+  const fetchExerciseProgress = async (exercise, timeframeOverride) => {
     if (!exercise) return;
 
     try {
       setProgressLoading(true);
+      const tf = timeframeOverride ?? timeframe;
       const response = await apiClient.get(
-        API_ENDPOINTS.EXERCISE_PROGRESS(exercise, timeframe)
+        API_ENDPOINTS.EXERCISE_PROGRESS(exercise, tf)
       );
       setExerciseProgress(response.data.data);
       const user = await getCurrentAuthUser();
       if (user) {
         setMergedAnalyticsCache({
           uid: user.uid,
-          timeframe,
+          timeframe: tf,
           selectedExercise: exercise,
           exerciseProgress: response.data.data,
         });
       }
     } catch {
       showToast({
-        title: "Error",
-        description: "Failed to load exercise progress",
+        title: "Couldn't load that exercise",
+        description: "Please try again in a moment.",
         status: "error",
       });
     } finally {
@@ -310,7 +303,17 @@ const AnalyticsPage = () => {
 
   const handleExerciseSelect = (exercise) => {
     setSelectedExercise(exercise);
+    setSelectedWorkout(null);
     fetchExerciseProgress(exercise);
+  };
+
+  const changeTimeframe = (next) => {
+    setTimeframe(next);
+    setSelectedWorkout(null);
+    fetchAnalytics(null, next);
+    if (selectedExercise) {
+      fetchExerciseProgress(selectedExercise, next);
+    }
   };
 
   const fetchUserEntries = async (authedUser = null) => {
@@ -646,874 +649,579 @@ const AnalyticsPage = () => {
     }
   };
 
+
+  const periodPhrase =
+    TIMEFRAMES.find((item) => item.value === timeframe)?.phrase ?? "lately";
+  const unprocessedEntries = userEntries.filter(
+    (entry) => !processedEntryIds.has(entry._id)
+  );
+  const exercisesByName = analytics
+    ? Object.entries(analytics.exercises).reduce((acc, [name, stats]) => {
+        const cleanName = stripGymOrLocationTagsFromLine(name) || name;
+        const current = acc[cleanName];
+        if (!current) {
+          acc[cleanName] = { ...stats };
+          return acc;
+        }
+        current.totalWorkouts += stats.totalWorkouts || 0;
+        current.totalVolume += stats.totalVolume || 0;
+        current.maxWeight = Math.max(current.maxWeight || 0, stats.maxWeight || 0);
+        current.maxReps = Math.max(current.maxReps || 0, stats.maxReps || 0);
+        current.maxVolume = Math.max(current.maxVolume || 0, stats.maxVolume || 0);
+        return acc;
+      }, {})
+    : {};
+  const exerciseNames = Object.keys(exercisesByName).sort((a, b) =>
+    a.localeCompare(b)
+  );
+  const bestLifts = Object.entries(exercisesByName)
+    .filter(([, stats]) => Number(stats?.maxWeight) > 0)
+    .sort((a, b) => (b[1].maxWeight || 0) - (a[1].maxWeight || 0));
+  const visibleBests = showAllBests
+    ? bestLifts
+    : bestLifts.slice(0, BEST_LIFTS_PREVIEW);
+  const workoutCount = analytics?.totalWorkouts ?? 0;
+  const pageShellProps = {
+    maxW: "2xl",
+    pt: "calc(env(safe-area-inset-top, 0px) + 3.5rem)",
+    pb: 24,
+    px: { base: 6, md: 8 },
+    minH: "100dvh",
+    bg: pageBg,
+    color: cardText,
+  };
+
+  const timeframeChips = (
+    <HStack spacing={0} flexWrap="wrap" mt={10} ml={-2}>
+      {TIMEFRAMES.map((item) => {
+        const selected = timeframe === item.value;
+        return (
+          <Button
+            key={item.value}
+            variant="ghost"
+            size="sm"
+            h="auto"
+            py={2}
+            px={3}
+            fontWeight={selected ? "semibold" : "normal"}
+            color={selected ? cardText : mutedText}
+            bg="transparent"
+            borderRadius="md"
+            _hover={{ bg: "transparent", color: cardText }}
+            _active={{ bg: "transparent" }}
+            onClick={() => changeTimeframe(item.value)}
+          >
+            {item.label}
+          </Button>
+        );
+      })}
+    </HStack>
+  );
+
+  const pendingWorkouts = unprocessedEntries.length > 0 && (
+    <Box>
+      <SectionEyebrow color={mutedText}>Waiting to be added</SectionEyebrow>
+      <Text
+        fontSize="lg"
+        lineHeight="tall"
+        color={cardText}
+        maxW="md"
+        mb={6}
+      >
+        {unprocessedEntries.length === 1
+          ? "One workout is not in your stats yet."
+          : `${unprocessedEntries.length} workouts are not in your stats yet.`}
+      </Text>
+      <HStack spacing={4} flexWrap="wrap">
+        <Button
+          {...primarySolidButtonProps}
+          size="md"
+          borderRadius="full"
+          px={6}
+          onClick={autoProcessAll}
+          isLoading={autoProcessing}
+          spinner={<ButtonLoadingSpinner />}
+          loadingText="Adding"
+        >
+          Add them
+        </Button>
+        <Button
+          variant="ghost"
+          size="md"
+          color={mutedText}
+          _hover={{ bg: "transparent", color: cardText }}
+          onClick={() => setShowPendingDetails((open) => !open)}
+        >
+          {showPendingDetails ? "Hide list" : "See which ones"}
+        </Button>
+      </HStack>
+      <Collapse in={showPendingDetails} animateOpacity>
+        <VStack spacing={5} align="stretch" mt={8}>
+          {unprocessedEntries.slice(0, 6).map((entry) => (
+            <HStack key={entry._id} justify="space-between" align="flex-start" spacing={4}>
+              <Box flex={1} minW={0}>
+                <Text fontWeight="medium" color={cardText} noOfLines={1}>
+                  {entry.name}
+                </Text>
+                <Text fontSize="sm" color={mutedText} noOfLines={2} mt={1}>
+                  {entry.description}
+                </Text>
+              </Box>
+              <Button
+                size="sm"
+                variant="ghost"
+                color={colors.primary}
+                _hover={{ bg: "transparent", color: cardText }}
+                onClick={() => processEntry(entry._id)}
+                isLoading={processingEntry === entry._id}
+                spinner={<ButtonLoadingSpinner />}
+                loadingText="Adding"
+              >
+                Add
+              </Button>
+            </HStack>
+          ))}
+        </VStack>
+      </Collapse>
+    </Box>
+  );
+
+  const moreOptions = (
+    <Box>
+      <Button
+        variant="ghost"
+        size="sm"
+        px={0}
+        color={mutedText}
+        fontWeight="normal"
+        _hover={{ bg: "transparent", color: cardText }}
+        onClick={() => setShowMoreOptions((open) => !open)}
+      >
+        {showMoreOptions ? "Hide extra tools" : "More options"}
+      </Button>
+      <Collapse in={showMoreOptions} animateOpacity>
+        <VStack spacing={5} align="stretch" mt={6}>
+          <Text fontSize="sm" color={mutedText} lineHeight="tall" maxW="md">
+            These are only needed if something looks off, or you want workouts
+            added on their own.
+          </Text>
+          <HStack spacing={4} flexWrap="wrap">
+            <Button
+              size="sm"
+              variant="ghost"
+              px={0}
+              color={cardText}
+              fontWeight="normal"
+              _hover={{ bg: "transparent", color: colors.primary }}
+              onClick={() => setAutoProcessEnabled(!autoProcessEnabled)}
+            >
+              Auto-add new workouts: {autoProcessEnabled ? "on" : "off"}
+            </Button>
+            {hasAutoProcessed && (
+              <Button
+                size="sm"
+                variant="ghost"
+                px={0}
+                color={mutedText}
+                fontWeight="normal"
+                _hover={{ bg: "transparent", color: cardText }}
+                onClick={resetAutoProcessedFlag}
+              >
+                Reset auto-add
+              </Button>
+            )}
+          </HStack>
+          <Button
+            size="sm"
+            variant="ghost"
+            px={0}
+            alignSelf="flex-start"
+            color={cardText}
+            fontWeight="normal"
+            _hover={{ bg: "transparent", color: colors.primary }}
+            onClick={reprocessAllWorkoutsWithNormalization}
+            isLoading={autoProcessing}
+            spinner={<ButtonLoadingSpinner />}
+            loadingText="Cleaning up"
+          >
+            Clean up exercise names
+          </Button>
+          <GymNameHelper />
+          {skippedEntries.length > 0 && (
+            <Box>
+              <Text fontSize="sm" color={mutedText} mb={3}>
+                {skippedEntries.length === 1
+                  ? "One note could not be added."
+                  : `${skippedEntries.length} notes could not be added.`}
+              </Text>
+              <VStack spacing={3} align="stretch">
+                {skippedEntries.map((entry) => (
+                  <Box key={entry.id}>
+                    <Text fontSize="sm" fontWeight="medium" color={cardText}>
+                      {entry.name}
+                    </Text>
+                    <Text fontSize="xs" color={mutedText} mt={1}>
+                      {entry.reason}
+                    </Text>
+                  </Box>
+                ))}
+              </VStack>
+              <Button
+                size="sm"
+                variant="ghost"
+                px={0}
+                mt={3}
+                color={mutedText}
+                fontWeight="normal"
+                _hover={{ bg: "transparent", color: cardText }}
+                onClick={() => setSkippedEntries([])}
+              >
+                Dismiss
+              </Button>
+            </Box>
+          )}
+        </VStack>
+      </Collapse>
+    </Box>
+  );
+
   if (loading) {
     return (
-      <Container
-        maxW="container.xl"
-        pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
-        pb={8}
-        minH="100dvh"
-        bg={pageBg}
-        color={cardText}
-      >
-        <Center>
-          <VStack spacing={4}>
+      <Container {...pageShellProps}>
+        <Center minH="50vh">
+          <VStack spacing={8}>
             <Box color={cardText}>
               <LoadingIndicator variant="page" />
             </Box>
-            <Text color={mutedText}>Loading analytics...</Text>
+            <Text color={mutedText} fontSize="sm">
+              Getting your progress ready…
+            </Text>
           </VStack>
         </Center>
       </Container>
     );
   }
 
-  // Check if user is not authenticated
   if (isAuthenticated === false) {
     return <SignedOutTabPrompt variant="analytics" />;
   }
 
-  if (!analytics) {
+  if (!analytics || workoutCount === 0) {
     return (
-      <Container
-        maxW="container.xl"
-        pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
-        pb={8}
-        minH="100dvh"
-        bg={pageBg}
-        color={cardText}
-      >
-        <VStack spacing={8} align="stretch">
-          <Box>
-            <Heading size="lg" mb={4} color={cardText}>
-              Workout Analytics
-            </Heading>
-            <Text mb={4} color={mutedText}>
-              No workout analytics found. You need to process your workout
-              entries first.
-            </Text>
-            <GymNameHelper />
-          </Box>
+      <Container {...pageShellProps}>
+        <Box>
+          <Heading
+            as="h1"
+            fontSize={{ base: "3xl", md: "4xl" }}
+            fontWeight="medium"
+            letterSpacing="-0.03em"
+            lineHeight="1.15"
+            mb={4}
+          >
+            Your progress
+          </Heading>
+          <Text
+            fontSize="lg"
+            color={mutedText}
+            lineHeight="tall"
+            maxW="md"
+          >
+            {unprocessedEntries.length > 0
+              ? "Add the workouts you already logged, and this page will fill in with a simple picture of how training is going."
+              : analytics
+                ? `No workouts ${periodPhrase} yet. Try a longer stretch above, or log a session.`
+                : "Log a few sessions and this page will stay quiet and clear — just the numbers that matter."}
+          </Text>
+          {timeframeChips}
+        </Box>
 
-          {/* Show unprocessed entries */}
-          {userEntries.length > 0 && (
-            <Card {...cardProps}>
-              <CardBody>
-                <HStack justify="space-between" mb={4}>
-                  <Box>
-                    <Heading size="md" color={cardText}>
-                      Workout Entries
-                    </Heading>
-                    <Text fontSize="sm" color={mutedText} mt={1}>
-                      {autoProcessEnabled
-                        ? hasAutoProcessed
-                          ? "Auto-processing has run. Use 'Reset' to run it again, or manually process remaining entries below."
-                          : "New workouts will be automatically processed when the page loads."
-                        : "Click 'Process' on any entry below to convert it to workout data for analytics."}
+        <VStack spacing={16} align="stretch" mt={16}>
+          {unprocessedEntries.length === 0 && (
+            <Box>
+              <Button
+                as={RouterLink}
+                to="/create"
+                {...primarySolidButtonProps}
+                size="md"
+                borderRadius="full"
+                px={6}
+              >
+                Log a workout
+              </Button>
+            </Box>
+          )}
+          {pendingWorkouts}
+          {bestLifts.length > 0 && (
+            <Box>
+              <SectionEyebrow color={mutedText}>Best lifts</SectionEyebrow>
+              <VStack spacing={6} align="stretch">
+                {visibleBests.map(([exerciseName, stats]) => (
+                  <HStack key={exerciseName} justify="space-between" align="baseline">
+                    <Text color={cardText} pr={4}>
+                      {exerciseName}
                     </Text>
-                  </Box>
-                  <VStack spacing={2} align="end">
-                    <HStack spacing={2}>
-                      <Text fontSize="sm" color={mutedText}>
-                        Auto-process:
-                      </Text>
-                      <Button
-                        size="xs"
-                        variant={autoProcessEnabled ? "solid" : "outline"}
-                        colorScheme={autoProcessEnabled ? "green" : "gray"}
-                        onClick={() =>
-                          setAutoProcessEnabled(!autoProcessEnabled)
-                        }
-                      >
-                        {autoProcessEnabled ? "ON" : "OFF"}
-                      </Button>
-                      {hasAutoProcessed && (
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          colorScheme="orange"
-                          onClick={resetAutoProcessedFlag}
-                        >
-                          Reset
-                        </Button>
-                      )}
-                    </HStack>
-                    <Button
-                      {...primarySolidButtonProps}
-                      onClick={autoProcessAll}
-                      isLoading={autoProcessing}
-                      spinner={<ButtonLoadingSpinner />}
-                      loadingText="Processing All"
-                      size="sm"
-                    >
-                      Process All Remaining (
-                      {
-                        userEntries.filter((e) => !processedEntryIds.has(e._id))
-                          .length
-                      }
-                      )
-                    </Button>
-                    <Button
-                      colorScheme="purple"
-                      onClick={reprocessAllWorkoutsWithNormalization}
-                      isLoading={autoProcessing}
-                      spinner={<ButtonLoadingSpinner />}
-                      loadingText="Reprocessing"
-                      size="sm"
-                      variant="outline"
-                    >
-                      Fix Exercise Names
-                    </Button>
-                  </VStack>
-                </HStack>
-                <VStack spacing={3} align="stretch">
-                  {userEntries.slice(0, 5).map((entry) => {
-                    const isProcessed = processedEntryIds.has(entry._id);
-                    return (
-                      <HStack
-                        key={entry._id}
-                        justify="space-between"
-                        p={3}
-                        {...rowProps}
-                        borderRadius="md"
-                        opacity={isProcessed ? 0.6 : 1}
-                      >
-                        <VStack align="start" flex={1}>
-                          <HStack>
-                            <Text fontWeight="bold" color={cardText}>
-                              {entry.name}
-                            </Text>
-                            {isProcessed && (
-                              <Badge colorScheme="green" size="sm">
-                                Processed
-                              </Badge>
-                            )}
-                          </HStack>
-                          <Text fontSize="sm" color={mutedText} noOfLines={2}>
-                            {entry.description}
-                          </Text>
-                        </VStack>
-                        <Button
-                          size="sm"
-                          {...(isProcessed
-                            ? { colorScheme: "gray" }
-                            : primarySolidButtonProps)}
-                          onClick={() => processEntry(entry._id)}
-                          isLoading={processingEntry === entry._id}
-                          spinner={<ButtonLoadingSpinner />}
-                          loadingText="Processing"
-                          isDisabled={isProcessed}
-                        >
-                          {isProcessed ? "Processed" : "Process"}
-                        </Button>
-                      </HStack>
-                    );
-                  })}
-                </VStack>
-              </CardBody>
-            </Card>
-          )}
-
-          {userEntries.length === 0 && (
-            <Alert status="info">
-              <AlertIcon />
-              No workout entries found. Start logging your workouts to see
-              analytics!
-            </Alert>
-          )}
-
-          {/* Skipped Entries Section */}
-          {skippedEntries.length > 0 && (
-            <Card {...cardProps}>
-              <CardBody>
-                <HStack justify="space-between" mb={4}>
-                  <Box>
-                    <Heading size="md" color={cardText}>
-                      Skipped Entries ({skippedEntries.length})
-                    </Heading>
-                    <Text fontSize="sm" color={mutedText} mt={1}>
-                      These entries were skipped because they don&apos;t contain
-                      valid workout data or couldn&apos;t be processed.
+                    <Text color={mutedText} whiteSpace="nowrap">
+                      {stats.maxWeight} lbs
                     </Text>
-                  </Box>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setSkippedEntries([])}
-                  >
-                    Clear
-                  </Button>
-                </HStack>
-                <VStack spacing={3} align="stretch">
-                  {skippedEntries.map((entry) => (
-                    <HStack
-                      key={entry.id}
-                      justify="space-between"
-                      p={3}
-                      bg="hsl(var(--destructive) / 0.08)"
-                      borderRadius="md"
-                      border="1px solid"
-                      borderColor="hsl(var(--destructive) / 0.28)"
-                    >
-                      <VStack align="start" flex={1}>
-                        <HStack>
-                          <Text fontWeight="bold" color={cardText}>
-                            {entry.name}
-                          </Text>
-                          <Badge colorScheme="red" size="sm">
-                            Skipped
-                          </Badge>
-                        </HStack>
-                        <Text fontSize="sm" color={mutedText} noOfLines={2}>
-                          {entry.description}
-                        </Text>
-                        <Text
-                          fontSize="xs"
-                          color="hsl(var(--destructive))"
-                        >
-                          Reason: {entry.reason}
-                        </Text>
-                      </VStack>
-                    </HStack>
-                  ))}
-                </VStack>
-              </CardBody>
-            </Card>
+                  </HStack>
+                ))}
+              </VStack>
+              {bestLifts.length > BEST_LIFTS_PREVIEW && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  mt={6}
+                  px={0}
+                  color={mutedText}
+                  fontWeight="normal"
+                  _hover={{ bg: "transparent", color: cardText }}
+                  onClick={() => setShowAllBests((open) => !open)}
+                >
+                  {showAllBests ? "Show fewer" : "See all lifts"}
+                </Button>
+              )}
+            </Box>
           )}
+          {moreOptions}
         </VStack>
       </Container>
     );
   }
 
   return (
-    <Container
-      maxW="container.xl"
-      pt="calc(env(safe-area-inset-top, 0px) + 2rem)"
-      pb={8}
-      minH="100dvh"
-      bg={pageBg}
-      color={cardText}
-    >
-      <VStack spacing={8} align="stretch">
-        <Box>
-          <Heading size="lg" mb={4} color={cardText}>
-            Workout Analytics
-          </Heading>
-          <HStack spacing={4} mb={6}>
-            <Select
-              value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value)}
-              w="200px"
-              {...controlProps}
-            >
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-              <option value="1y">Last year</option>
-            </Select>
+    <Container {...pageShellProps}>
+      <Box>
+        <Heading
+          as="h1"
+          fontSize={{ base: "3xl", md: "4xl" }}
+          fontWeight="medium"
+          letterSpacing="-0.03em"
+          lineHeight="1.15"
+          mb={4}
+        >
+          Your progress
+        </Heading>
+        <Text fontSize="lg" color={mutedText} lineHeight="tall" maxW="md">
+          A simple look at how your training is going.
+        </Text>
+        {timeframeChips}
+      </Box>
+
+      <Box mt={{ base: 16, md: 20 }}>
+        <Text
+          fontSize={{ base: "6xl", md: "7xl" }}
+          fontWeight="medium"
+          letterSpacing="-0.05em"
+          lineHeight="0.95"
+          color={cardText}
+        >
+          {workoutCount}
+        </Text>
+        <Text fontSize="lg" color={mutedText} mt={4}>
+          {workoutCount === 1 ? "workout" : "workouts"} {periodPhrase}
+        </Text>
+        <VStack align="start" spacing={2} mt={10}>
+          <Text color={cardText}>
+            {Math.round(analytics.totalVolume).toLocaleString()} lbs lifted
+          </Text>
+          <Text color={mutedText} fontSize="sm">
+            {exerciseNames.length === 1
+              ? "1 different exercise"
+              : `${exerciseNames.length} different exercises`}
+          </Text>
+        </VStack>
+      </Box>
+
+      {bestLifts.length > 0 && (
+        <Box mt={{ base: 20, md: 24 }}>
+          <SectionEyebrow color={mutedText}>Best lifts</SectionEyebrow>
+          <VStack spacing={6} align="stretch">
+            {visibleBests.map(([exerciseName, stats]) => (
+              <HStack key={exerciseName} justify="space-between" align="baseline">
+                <Text color={cardText} pr={6}>
+                  {exerciseName}
+                </Text>
+                <Text color={mutedText} whiteSpace="nowrap">
+                  {stats.maxWeight} lbs
+                </Text>
+              </HStack>
+            ))}
+          </VStack>
+          {bestLifts.length > BEST_LIFTS_PREVIEW && (
             <Button
-              onClick={fetchAnalytics}
+              variant="ghost"
               size="sm"
-              variant="outline"
-              {...controlProps}
+              mt={6}
+              px={0}
+              color={mutedText}
+              fontWeight="normal"
+              _hover={{ bg: "transparent", color: cardText }}
+              onClick={() => setShowAllBests((open) => !open)}
             >
-              Refresh
+              {showAllBests ? "Show fewer" : "See all lifts"}
             </Button>
-          </HStack>
-          <GymNameHelper />
+          )}
         </Box>
+      )}
 
-        <Tabs variant="enclosed" color={cardText}>
-          <TabList borderColor={borderColor} overflowX="auto" overflowY="hidden">
-            <Tab
-              color={mutedText}
-              borderColor={borderColor}
-              _selected={{ color: cardText, bg: cardBg, borderColor }}
-            >
-              Overview
-            </Tab>
-            <Tab
-              color={mutedText}
-              borderColor={borderColor}
-              _selected={{ color: cardText, bg: cardBg, borderColor }}
-            >
-              Exercises
-            </Tab>
-            <Tab
-              color={mutedText}
-              borderColor={borderColor}
-              _selected={{ color: cardText, bg: cardBg, borderColor }}
-            >
-              Personal Records
-            </Tab>
-            <Tab
-              color={mutedText}
-              borderColor={borderColor}
-              _selected={{ color: cardText, bg: cardBg, borderColor }}
-            >
-              Progress
-            </Tab>
-          </TabList>
+      {exerciseNames.length > 0 && (
+        <Box mt={{ base: 20, md: 24 }}>
+          <SectionEyebrow color={mutedText}>One exercise</SectionEyebrow>
+          <Text color={mutedText} lineHeight="tall" maxW="md" mb={8}>
+            Pick a movement to see how it has been going.
+          </Text>
+          <Select
+            placeholder="Choose an exercise"
+            value={selectedExercise}
+            onChange={(e) => handleExerciseSelect(e.target.value)}
+            variant="flushed"
+            maxW="sm"
+            {...controlProps}
+            bg="transparent"
+            borderColor={softBorderColor}
+          >
+            {exerciseNames.map((exercise) => (
+              <option key={exercise} value={exercise}>
+                {exercise}
+              </option>
+            ))}
+          </Select>
 
-          <TabPanels>
-            {/* Overview Tab */}
-            <TabPanel>
-              <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
-                <Card {...cardProps}>
-                  <CardBody>
-                    <Stat>
-                      <StatLabel>Total Workouts</StatLabel>
-                      <StatNumber>{analytics.totalWorkouts}</StatNumber>
-                      <StatHelpText>In selected timeframe</StatHelpText>
-                    </Stat>
-                  </CardBody>
-                </Card>
+          {progressLoading && (
+            <Center py={16}>
+              <Box color={cardText}>
+                <LoadingIndicator variant="inline" />
+              </Box>
+            </Center>
+          )}
 
-                <Card {...cardProps}>
-                  <CardBody>
-                    <Stat>
-                      <StatLabel>Total Volume</StatLabel>
-                      <StatNumber>
-                        {analytics.totalVolume.toLocaleString()}
-                      </StatNumber>
-                      <StatHelpText>lbs lifted</StatHelpText>
-                    </Stat>
-                  </CardBody>
-                </Card>
-
-                <Card {...cardProps}>
-                  <CardBody>
-                    <Stat>
-                      <StatLabel>Avg Volume/Workout</StatLabel>
-                      <StatNumber>
-                        {Math.round(
-                          analytics.averageVolumePerWorkout
-                        ).toLocaleString()}
-                      </StatNumber>
-                      <StatHelpText>lbs per session</StatHelpText>
-                    </Stat>
-                  </CardBody>
-                </Card>
-
-                <Card {...cardProps}>
-                  <CardBody>
-                    <Stat>
-                      <StatLabel>Unique Exercises</StatLabel>
-                      <StatNumber>
-                        {Object.keys(analytics.exercises).length}
-                      </StatNumber>
-                      <StatHelpText>Different exercises</StatHelpText>
-                    </Stat>
-                  </CardBody>
-                </Card>
-              </SimpleGrid>
-
-              {/* Splits and Gyms */}
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={8}>
-                <Card {...cardProps}>
-                  <CardBody>
-                    <Heading size="md" mb={4} color={cardText}>
-                      Workout Splits
-                    </Heading>
-                    <VStack align="start" spacing={2}>
-                      {Object.entries(analytics.splits).map(
-                        ([split, count]) => (
-                          <HStack key={split} justify="space-between" w="full">
-                            <Text fontWeight="medium" color={cardText}>
-                              {split}
-                            </Text>
-                            <Badge colorScheme="blue">{count}</Badge>
-                          </HStack>
-                        )
-                      )}
-                    </VStack>
-                  </CardBody>
-                </Card>
-
-                <Card {...cardProps}>
-                  <CardBody>
-                    <Heading size="md" mb={4} color={cardText}>
-                      Gyms Visited
-                    </Heading>
-                    <VStack align="start" spacing={2}>
-                      {Object.entries(analytics.gyms).map(([gym, count]) => (
-                        <HStack key={gym} justify="space-between" w="full">
-                          <Text fontWeight="medium" color={cardText}>{gym}</Text>
-                          <Badge colorScheme="green">{count}</Badge>
-                        </HStack>
-                      ))}
-                    </VStack>
-                  </CardBody>
-                </Card>
-              </SimpleGrid>
-
-              {/* Unprocessed Entries Section */}
-              {userEntries.length > 0 && (
-                <Card {...cardProps} mt={8}>
-                  <CardBody>
-                    <HStack justify="space-between" mb={4}>
-                      <Box>
-                        <Heading size="md" color={cardText}>
-                          Unprocessed Workout Entries (
-                          {
-                            userEntries.filter(
-                              (entry) => !processedEntryIds.has(entry._id)
-                            ).length
-                          }
-                          )
-                        </Heading>
-                        <Text fontSize="sm" color={mutedText} mt={1}>
-                          {autoProcessEnabled
-                            ? hasAutoProcessed
-                              ? "Auto-processing has run. Use 'Reset' to run it again, or manually process remaining entries below."
-                              : "New workouts will be automatically processed when the page loads."
-                            : "Process these entries to add them to your analytics."}
-                        </Text>
+          {!progressLoading &&
+            exerciseProgress &&
+            exerciseProgress.dataPoints.length > 0 && (
+              <Box mt={12}>
+                <Suspense
+                  fallback={
+                    <Center py={16}>
+                      <Box color={cardText}>
+                        <LoadingIndicator variant="inline" />
                       </Box>
-                      <VStack spacing={2} align="end">
-                        <HStack spacing={2}>
-                          <Text fontSize="sm" color={mutedText}>
-                            Auto-process:
-                          </Text>
-                          <Button
-                            size="xs"
-                            variant={autoProcessEnabled ? "solid" : "outline"}
-                            colorScheme={autoProcessEnabled ? "green" : "gray"}
-                            onClick={() =>
-                              setAutoProcessEnabled(!autoProcessEnabled)
-                            }
-                          >
-                            {autoProcessEnabled ? "ON" : "OFF"}
-                          </Button>
-                          {hasAutoProcessed && (
-                            <Button
-                              size="xs"
-                              variant="ghost"
-                              colorScheme="orange"
-                              onClick={resetAutoProcessedFlag}
-                            >
-                              Reset
-                            </Button>
-                          )}
-                        </HStack>
-                        <Button
-                          {...primarySolidButtonProps}
-                          onClick={autoProcessAll}
-                          isLoading={autoProcessing}
-                          spinner={<ButtonLoadingSpinner />}
-                          loadingText="Processing All"
-                          size="sm"
-                        >
-                          Process All Remaining (
-                          {
-                            userEntries.filter(
-                              (e) => !processedEntryIds.has(e._id)
-                            ).length
-                          }
-                          )
-                        </Button>
-                        <Button
-                          colorScheme="purple"
-                          onClick={reprocessAllWorkoutsWithNormalization}
-                          isLoading={autoProcessing}
-                          spinner={<ButtonLoadingSpinner />}
-                          loadingText="Reprocessing"
-                          size="sm"
-                          variant="outline"
-                        >
-                          Fix Exercise Names
-                        </Button>
-                      </VStack>
-                    </HStack>
-                    <VStack spacing={3} align="stretch">
-                      {userEntries
-                        .filter((entry) => !processedEntryIds.has(entry._id))
-                        .slice(0, 5)
-                        .map((entry) => (
-                          <HStack
-                            key={entry._id}
-                            justify="space-between"
-                            p={3}
-                            {...rowProps}
-                            borderRadius="md"
-                          >
-                            <VStack align="start" flex={1}>
-                              <HStack>
-                                <Text
-                                  fontWeight="bold"
-                                  fontSize="sm"
-                                  color={cardText}
-                                >
-                                  {entry.name}
+                    </Center>
+                  }
+                >
+                  {chartType === "simple" ? (
+                    <ExerciseProgressChart
+                      exerciseProgress={exerciseProgress}
+                      exerciseName={exerciseProgress.exercise}
+                    />
+                  ) : (
+                    <MultiMetricProgressChart
+                      exerciseProgress={exerciseProgress}
+                      exerciseName={exerciseProgress.exercise}
+                    />
+                  )}
+                </Suspense>
+
+                <Box mt={8}>
+                  <ProgressInsights exerciseProgress={exerciseProgress} />
+                </Box>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  mt={4}
+                  px={0}
+                  color={mutedText}
+                  fontWeight="normal"
+                  _hover={{ bg: "transparent", color: cardText }}
+                  onClick={() =>
+                    setChartType((current) =>
+                      current === "simple" ? "multi" : "simple"
+                    )
+                  }
+                >
+                  {chartType === "simple"
+                    ? "Compare more numbers"
+                    : "Just show weight"}
+                </Button>
+
+                {exerciseProgress.dataPoints.length > 0 && (
+                  <Box mt={14}>
+                    <Text fontSize="sm" color={mutedText} mb={6}>
+                      Recent sessions
+                    </Text>
+                    <VStack spacing={5} align="stretch">
+                      {exerciseProgress.dataPoints
+                        .slice(-3)
+                        .reverse()
+                        .map((point, index) => {
+                          const selected = isSameSession(
+                            selectedWorkout,
+                            point,
+                          );
+                          return (
+                            <Box key={`${point.date}-${index}`}>
+                              <HStack
+                                as="button"
+                                type="button"
+                                w="full"
+                                justify="space-between"
+                                align="baseline"
+                                cursor="pointer"
+                                textAlign="left"
+                                bg="transparent"
+                                border="none"
+                                p={0}
+                                _hover={{ color: colors.primary }}
+                                aria-expanded={selected}
+                                onClick={() =>
+                                  setSelectedWorkout(selected ? null : point)
+                                }
+                              >
+                                <Text color={cardText}>
+                                  {new Date(point.date).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                    },
+                                  )}
+                                </Text>
+                                <Text color={mutedText}>
+                                  {point.weight} lbs × {point.reps}
                                 </Text>
                               </HStack>
-                              <Text
-                                fontSize="xs"
-                                color={mutedText}
-                                noOfLines={2}
-                              >
-                                {entry.description}
-                              </Text>
-                            </VStack>
-                            <Button
-                              size="xs"
-                              {...primarySolidButtonProps}
-                              onClick={() => processEntry(entry._id)}
-                              isLoading={processingEntry === entry._id}
-                              spinner={<ButtonLoadingSpinner />}
-                              loadingText="Processing"
-                            >
-                              Process
-                            </Button>
-                          </HStack>
-                        ))}
-                      {userEntries.filter(
-                        (entry) => !processedEntryIds.has(entry._id)
-                      ).length === 0 && (
-                        <Alert status="success">
-                          <AlertIcon />
-                          All workout entries have been processed! 🎉
-                        </Alert>
-                      )}
+                              <Collapse in={selected} animateOpacity>
+                                <WorkoutDetailsModal
+                                  workoutData={point}
+                                  exerciseName={
+                                    exerciseProgress?.exercise || ""
+                                  }
+                                />
+                              </Collapse>
+                            </Box>
+                          );
+                        })}
                     </VStack>
-                  </CardBody>
-                </Card>
-              )}
-            </TabPanel>
-
-            {/* Exercises Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                {Object.entries(analytics.exercises).map(
-                  ([exerciseName, stats]) => (
-                    <Card key={exerciseName} {...cardProps}>
-                      <CardBody>
-                        <HStack justify="space-between" mb={4}>
-                          <Heading size="md" color={cardText}>
-                            {exerciseName}
-                          </Heading>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            {...controlProps}
-                            onClick={() => handleExerciseSelect(exerciseName)}
-                          >
-                            View Progress
-                          </Button>
-                        </HStack>
-                        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-                          <Stat>
-                            <StatLabel>Workouts</StatLabel>
-                            <StatNumber>{stats.totalWorkouts}</StatNumber>
-                          </Stat>
-                          <Stat>
-                            <StatLabel>Max Weight</StatLabel>
-                            <StatNumber>{stats.maxWeight} lbs</StatNumber>
-                          </Stat>
-                          <Stat>
-                            <StatLabel>Total Volume</StatLabel>
-                            <StatNumber>
-                              {stats.totalVolume.toLocaleString()}
-                            </StatNumber>
-                          </Stat>
-                        </SimpleGrid>
-                      </CardBody>
-                    </Card>
-                  )
+                  </Box>
                 )}
-              </VStack>
-            </TabPanel>
+              </Box>
+            )}
 
-            {/* Personal Records Tab */}
-            <TabPanel>
-              {personalRecords && (
-                <VStack spacing={4} align="stretch">
-                  {Object.entries(personalRecords).map(
-                    ([exerciseName, prs]) => (
-                      <Card key={exerciseName} {...cardProps}>
-                        <CardBody>
-                          <Heading size="md" mb={4} color={cardText}>
-                            {exerciseName}
-                          </Heading>
-                          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-                            <Stat>
-                              <StatLabel>Max Weight</StatLabel>
-                              <StatNumber>{prs.maxWeight.value} lbs</StatNumber>
-                              <StatHelpText>
-                                {prs.maxWeight.date
-                                  ? new Date(
-                                      prs.maxWeight.date
-                                    ).toLocaleDateString()
-                                  : "No data"}
-                              </StatHelpText>
-                            </Stat>
-                            <Stat>
-                              <StatLabel>Max Volume</StatLabel>
-                              <StatNumber>
-                                {prs.maxVolume.value.toLocaleString()}
-                              </StatNumber>
-                              <StatHelpText>
-                                {prs.maxVolume.date
-                                  ? new Date(
-                                      prs.maxVolume.date
-                                    ).toLocaleDateString()
-                                  : "No data"}
-                              </StatHelpText>
-                            </Stat>
-                            <Stat>
-                              <StatLabel>Max Reps</StatLabel>
-                              <StatNumber>{prs.maxReps.value}</StatNumber>
-                              <StatHelpText>
-                                {prs.maxReps.date
-                                  ? new Date(
-                                      prs.maxReps.date
-                                    ).toLocaleDateString()
-                                  : "No data"}
-                              </StatHelpText>
-                            </Stat>
-                          </SimpleGrid>
-                        </CardBody>
-                      </Card>
-                    )
-                  )}
-                </VStack>
-              )}
-            </TabPanel>
+          {!progressLoading &&
+            selectedExercise &&
+            exerciseProgress &&
+            exerciseProgress.dataPoints.length === 0 && (
+              <Text color={mutedText} mt={10} lineHeight="tall" maxW="md">
+                No sessions for this exercise {periodPhrase} yet.
+              </Text>
+            )}
+        </Box>
+      )}
 
-            {/* Progress Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <HStack spacing={4} wrap="wrap">
-                  <Select
-                    placeholder="Select exercise"
-                    value={selectedExercise}
-                    onChange={(e) => handleExerciseSelect(e.target.value)}
-                    w="300px"
-                    {...controlProps}
-                  >
-                    {Object.keys(analytics.exercises).map((exercise) => (
-                      <option key={exercise} value={exercise}>
-                        {exercise}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    value={timeframe}
-                    onChange={(e) => {
-                      setTimeframe(e.target.value);
-                      if (selectedExercise) {
-                        fetchExerciseProgress(selectedExercise);
-                      }
-                    }}
-                    w="150px"
-                    {...controlProps}
-                  >
-                    <option value="7d">Last 7 days</option>
-                    <option value="30d">Last 30 days</option>
-                    <option value="90d">Last 90 days</option>
-                    <option value="1y">Last year</option>
-                  </Select>
-                </HStack>
-
-                {progressLoading && (
-                  <Center>
-                    <Box color={cardText}>
-                      <LoadingIndicator variant="inline" />
-                    </Box>
-                  </Center>
-                )}
-
-                {exerciseProgress && exerciseProgress.dataPoints.length > 0 && (
-                  <>
-                    {/* Chart Type Toggle */}
-                    <HStack justify="center" spacing={4}>
-                      <Button
-                        size="sm"
-                        variant={chartType === "simple" ? "solid" : "outline"}
-                        {...(chartType === "simple"
-                          ? primarySolidButtonProps
-                          : primaryOutlineButtonProps)}
-                        onClick={() => setChartType("simple")}
-                      >
-                        Simple Chart
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={chartType === "multi" ? "solid" : "outline"}
-                        colorScheme="green"
-                        onClick={() => setChartType("multi")}
-                      >
-                        Multi-Metric Chart
-                      </Button>
-                    </HStack>
-
-                    {/* Progress Chart (chart.js loaded only when this card mounts) */}
-                    <Card {...cardProps}>
-                      <CardBody>
-                        <Suspense
-                          fallback={
-                            <Center py={10}>
-                              <Box color={cardText}>
-                                <LoadingIndicator variant="inline" />
-                              </Box>
-                            </Center>
-                          }
-                        >
-                          {chartType === "simple" ? (
-                            <ExerciseProgressChart
-                              exerciseProgress={exerciseProgress}
-                              exerciseName={exerciseProgress.exercise}
-                            />
-                          ) : (
-                            <MultiMetricProgressChart
-                              exerciseProgress={exerciseProgress}
-                              exerciseName={exerciseProgress.exercise}
-                            />
-                          )}
-                        </Suspense>
-                      </CardBody>
-                    </Card>
-
-                    {/* Progress Insights */}
-                    <Card {...cardProps}>
-                      <CardBody>
-                        <ProgressInsights exerciseProgress={exerciseProgress} />
-                      </CardBody>
-                    </Card>
-
-                    {/* Progress Stats */}
-                    <Card {...cardProps}>
-                      <CardBody>
-                        <Heading size="md" mb={4} color={cardText}>
-                          {exerciseProgress.exercise} Progress Summary
-                        </Heading>
-                        <VStack spacing={4} align="stretch">
-                          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-                            <Stat>
-                              <StatLabel>Max Weight</StatLabel>
-                              <StatNumber>
-                                {exerciseProgress.maxWeight} lbs
-                              </StatNumber>
-                            </Stat>
-                            <Stat>
-                              <StatLabel>Max Volume</StatLabel>
-                              <StatNumber>
-                                {exerciseProgress.maxVolume.toLocaleString()}
-                              </StatNumber>
-                            </Stat>
-                            <Stat>
-                              <StatLabel>Max Reps</StatLabel>
-                              <StatNumber>
-                                {exerciseProgress.maxReps}
-                              </StatNumber>
-                            </Stat>
-                          </SimpleGrid>
-
-                          <Box>
-                            <HStack justify="space-between" mb={2}>
-                              <Text fontWeight="medium">
-                                Recent Workouts:
-                              </Text>
-                              <Text
-                                fontSize="xs"
-                                color={mutedText}
-                                fontStyle="italic"
-                              >
-                                Click any workout for details
-                              </Text>
-                            </HStack>
-                            <VStack align="start" spacing={2}>
-                              {exerciseProgress.dataPoints
-                                .slice(-5)
-                                .reverse()
-                                .map((point, index) => (
-                                  <HStack
-                                    key={index}
-                                    justify="space-between"
-                                    w="full"
-                                    p={3}
-                                    {...rowProps}
-                                    borderRadius="md"
-                                    cursor="pointer"
-                                    _hover={{
-                                      bg: rowHoverBg,
-                                      transform: "translateY(-1px)",
-                                      boxShadow: "md",
-                                    }}
-                                    transition="all 0.2s"
-                                    onClick={() => {
-                                      setSelectedWorkout(point);
-                                      setIsWorkoutModalOpen(true);
-                                    }}
-                                  >
-                                    <VStack align="start" spacing={1}>
-                                      <HStack spacing={2}>
-                                        <Text fontWeight="medium" color={cardText}>
-                                          {new Date(
-                                            point.date
-                                          ).toLocaleDateString()}
-                                        </Text>
-                                        <Icon
-                                          as={FiExternalLink}
-                                          color={mutedText}
-                                          boxSize={3}
-                                        />
-                                      </HStack>
-                                      <Text fontSize="xs" color={mutedText}>
-                                        {new Date(point.date).toLocaleTimeString([], { 
-                                          hour: "2-digit", 
-                                          minute: "2-digit" 
-                                        })}
-                                      </Text>
-                                    </VStack>
-                                    <HStack spacing={3}>
-                                      <Badge colorScheme="blue" variant="solid">
-                                        {point.weight} lbs
-                                      </Badge>
-                                      <Badge colorScheme="green" variant="solid">
-                                        {point.reps} reps
-                                      </Badge>
-                                      <Badge colorScheme="purple" variant="solid">
-                                        {point.sets} sets
-                                      </Badge>
-                                      <Badge colorScheme="orange" variant="outline">
-                                        {point.volume.toLocaleString()} vol
-                                      </Badge>
-                                    </HStack>
-                                  </HStack>
-                                ))}
-                            </VStack>
-                          </Box>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  </>
-                )}
-
-                {exerciseProgress &&
-                  exerciseProgress.dataPoints.length === 0 && (
-                    <Alert status="info">
-                      <AlertIcon />
-                      No progress data found for this exercise in the selected
-                      timeframe.
-                    </Alert>
-                  )}
-              </VStack>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
+      <VStack spacing={16} align="stretch" mt={{ base: 20, md: 24 }}>
+        {pendingWorkouts}
+        {moreOptions}
       </VStack>
-
-      {/* Workout Details Modal */}
-      <WorkoutDetailsModal
-        isOpen={isWorkoutModalOpen}
-        onClose={() => {
-          setIsWorkoutModalOpen(false);
-          setSelectedWorkout(null);
-        }}
-        workoutData={selectedWorkout}
-        exerciseName={exerciseProgress?.exercise || ""}
-      />
     </Container>
   );
 };

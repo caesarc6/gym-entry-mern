@@ -44,11 +44,10 @@ const getCssHsl = (variableName, fallback, alpha) => {
   return alpha === undefined ? `hsl(${value})` : `hsl(${value} / ${alpha})`;
 };
 
-const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
+const MultiMetricProgressChart = ({ exerciseProgress }) => {
   const [selectedMetrics, setSelectedMetrics] = useState(["weight", "volume"]);
   const colors = useThemeColors();
 
-  const textColor = getCssHsl("workout-text-primary", "#f8fafc");
   const mutedTextColor = getCssHsl("workout-text-muted", "#94a3b8");
   const popoverTextColor = getCssHsl("popover-foreground", "#f8fafc");
   const gridColor = getCssHsl("border", "rgba(148, 163, 184, 0.22)", 0.45);
@@ -159,29 +158,15 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
-      mode: "index",
-      intersect: false,
+      mode: "nearest",
+      intersect: true,
     },
     plugins: {
       legend: {
-        display: true,
-        position: "top",
-        labels: {
-          color: textColor,
-          font: {
-            size: 14,
-            weight: "bold",
-          },
-        },
+        display: false,
       },
       title: {
-        display: true,
-        text: `${exerciseName} Progress Over Time`,
-        color: textColor,
-        font: {
-          size: 18,
-          weight: "bold",
-        },
+        display: false,
       },
       tooltip: {
         backgroundColor: getCssHsl("popover", "rgba(15, 23, 42, 0.95)", 0.95),
@@ -190,20 +175,22 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
         borderColor: metricColors.weight.border,
         borderWidth: 1,
         cornerRadius: 8,
-        displayColors: true,
+        displayColors: false,
+        padding: 8,
+        caretSize: 4,
         callbacks: {
           label: function (context) {
             const dataPoint = sortedDataPoints[context.dataIndex];
             const labels = [];
 
             if (selectedMetrics.includes("weight")) {
-              labels.push(`Weight: ${dataPoint.weight} lbs`);
+              labels.push(`${dataPoint.weight} lbs`);
             }
             if (selectedMetrics.includes("volume")) {
-              labels.push(`Volume: ${dataPoint.volume.toLocaleString()}`);
+              labels.push(`${dataPoint.volume.toLocaleString()} lbs lifted`);
             }
             if (selectedMetrics.includes("reps")) {
-              labels.push(`Reps: ${dataPoint.reps}`);
+              labels.push(`${dataPoint.reps} reps`);
             }
 
             return labels;
@@ -214,20 +201,17 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
     scales: {
       x: {
         title: {
-          display: true,
-          text: "Date",
-          color: textColor,
-          font: {
-            size: 14,
-            weight: "bold",
-          },
+          display: false,
         },
         grid: {
-          color: gridColor,
+          display: false,
         },
         ticks: {
           color: mutedTextColor,
-          maxRotation: 45,
+          maxRotation: 0,
+        },
+        border: {
+          display: false,
         },
       },
       y: {
@@ -235,13 +219,7 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
         display: selectedMetrics.includes("weight"),
         position: "left",
         title: {
-          display: true,
-          text: "Weight (lbs)",
-          color: textColor,
-          font: {
-            size: 14,
-            weight: "bold",
-          },
+          display: false,
         },
         grid: {
           color: gridColor,
@@ -259,13 +237,7 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
         display: selectedMetrics.includes("volume"),
         position: "right",
         title: {
-          display: true,
-          text: "Volume (lbs)",
-          color: textColor,
-          font: {
-            size: 14,
-            weight: "bold",
-          },
+          display: false,
         },
         grid: {
           drawOnChartArea: false,
@@ -283,13 +255,7 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
         display: selectedMetrics.includes("reps"),
         position: "right",
         title: {
-          display: true,
-          text: "Reps",
-          color: textColor,
-          font: {
-            size: 14,
-            weight: "bold",
-          },
+          display: false,
         },
         grid: {
           drawOnChartArea: false,
@@ -312,45 +278,31 @@ const MultiMetricProgressChart = ({ exerciseProgress, exerciseName }) => {
 
   return (
     <VStack spacing={4} align="stretch">
-      {/* Metric Toggle Buttons */}
-      <HStack spacing={2} justify="center">
-        <Button
-          size="sm"
-          variant={selectedMetrics.includes("weight") ? "solid" : "outline"}
-          colorScheme="blue"
-          onClick={() => toggleMetric("weight")}
-        >
-          Weight
-        </Button>
-        <Button
-          size="sm"
-          variant={selectedMetrics.includes("volume") ? "solid" : "outline"}
-          colorScheme="green"
-          onClick={() => toggleMetric("volume")}
-        >
-          Volume
-        </Button>
-        <Button
-          size="sm"
-          variant={selectedMetrics.includes("reps") ? "solid" : "outline"}
-          colorScheme="orange"
-          onClick={() => toggleMetric("reps")}
-        >
-          Reps
-        </Button>
+      <HStack spacing={1} justify="flex-start" ml={-2}>
+        {[
+          { key: "weight", label: "Weight" },
+          { key: "volume", label: "Total lifted" },
+          { key: "reps", label: "Reps" },
+        ].map((metric) => {
+          const selected = selectedMetrics.includes(metric.key);
+          return (
+            <Button
+              key={metric.key}
+              size="sm"
+              variant="ghost"
+              fontWeight={selected ? "semibold" : "normal"}
+              color={selected ? colors.textPrimary : colors.textMuted}
+              bg="transparent"
+              _hover={{ bg: "transparent", color: colors.textPrimary }}
+              onClick={() => toggleMetric(metric.key)}
+            >
+              {metric.label}
+            </Button>
+          );
+        })}
       </HStack>
 
-      {/* Chart */}
-      <Box
-        w="full"
-        h="400px"
-        p={4}
-        bg={colors.card}
-        border="1px solid"
-        borderColor={colors.borderColorLight}
-        borderRadius="lg"
-        boxShadow="sm"
-      >
+      <Box w="full" h="280px">
         <Line data={chartData} options={options} />
       </Box>
     </VStack>

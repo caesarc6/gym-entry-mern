@@ -1,6 +1,32 @@
 import { normalizeGymName } from "./gymNormalizer.js";
 
 /**
+ * "@pg", "@blink", and anything after "@" is a gym or location tag,
+ * not part of the workout or exercise name.
+ */
+export const stripGymOrLocationTag = (text) => {
+  if (!text || typeof text !== "string") {
+    return { name: "", tag: null };
+  }
+  const atIndex = text.indexOf("@");
+  if (atIndex === -1) {
+    return { name: text.trim(), tag: null };
+  }
+  return {
+    name: text.slice(0, atIndex).replace(/\s+/g, " ").trim(),
+    tag: text.slice(atIndex + 1).replace(/\s+/g, " ").trim() || null,
+  };
+};
+
+export const stripGymOrLocationTagsFromLine = (text) => {
+  if (!text || typeof text !== "string") return "";
+  return text
+    .replace(/@[^\s,;]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+/**
  * Workout Parser Utility
  * Parses workout descriptions like "DumbBell Curls 35lbs - 12 12 10 8"
  * and extracts structured data for analytics
@@ -81,8 +107,12 @@ const EXERCISE_NORMALIZATION = {
   // Bench Press variations
   "elevated bp": "Bench Press",
   "elated bp": "Bench Press",
-  "db chest press": "Bench Press",
-  "db bp": "Bench Press",
+  "db chest press": "Dumbbell Bench Press",
+  "db bp": "Dumbbell Bench Press",
+  "db bench": "Dumbbell Bench Press",
+  "db bench press": "Dumbbell Bench Press",
+  "dumbbell bench": "Dumbbell Bench Press",
+  "dumbbell bench press": "Dumbbell Bench Press",
   "sublime press": "Bench Press",
   "supline press": "Bench Press",
 
@@ -98,6 +128,23 @@ const EXERCISE_NORMALIZATION = {
   // Incline Bench Press
   "incline press": "Incline Bench Press",
   "incline bp": "Incline Bench Press",
+  "incline bench": "Incline Bench Press",
+  "incline bench press": "Incline Bench Press",
+
+  // Incline Dumbbell Press — bench and press are the same movement
+  "db incline press": "Incline Dumbbell Press",
+  "db incline bench": "Incline Dumbbell Press",
+  "db incline bench press": "Incline Dumbbell Press",
+  "db incline bench incline": "Incline Dumbbell Press",
+  "db incline bench inline": "Incline Dumbbell Press",
+  "incline db press": "Incline Dumbbell Press",
+  "incline db bench": "Incline Dumbbell Press",
+  "incline db bench press": "Incline Dumbbell Press",
+  "incline dumbbell press": "Incline Dumbbell Press",
+  "incline dumbbell bench": "Incline Dumbbell Press",
+  "incline dumbbell bench press": "Incline Dumbbell Press",
+  "dumbbell incline press": "Incline Dumbbell Press",
+  "dumbbell incline bench": "Incline Dumbbell Press",
 
   // Pec Fly
   "unilateral pec cable": "Pec Fly",
@@ -111,16 +158,21 @@ const EXERCISE_NORMALIZATION = {
   "rev pec fly": "Rear Delt Fly",
 
   // Overhead Press (dumbbell variations)
+  "overhead press": "Overhead Press",
   "overhead db press": "Overhead Press",
   "over head press": "Overhead Press",
+  "db overhead press": "Overhead Press",
+  "db shoulder press": "Overhead Press",
+  "dumbbell shoulder press": "Overhead Press",
+  "dumbbell overhead press": "Overhead Press",
 
   // Barbell Shoulder Press
   "bb should press": "Barbell Shoulder Press",
   "barbell shoulder press": "Barbell Shoulder Press",
 
-  // Dumbbell Shoulder Press
-  "shoulder press": "Dumbbell Shoulder Press",
-  "db should press": "Dumbbell Shoulder Press",
+  // Dumbbell Shoulder Press — same movement as overhead press
+  "shoulder press": "Overhead Press",
+  "db should press": "Overhead Press",
 
   // Machine Shoulder Press
   "shoulder pres machine": "Machine Shoulder Press",
@@ -231,6 +283,21 @@ const EXERCISE_NORMALIZATION = {
   "leg raises": "Leg Raises",
   "cable side raise": "Cable Side Raise",
   "cable hammer curl": "Cable Hammer Curl",
+  "db hammer curl": "Dumbbell Hammer Curl",
+  "db hammer curls": "Dumbbell Hammer Curl",
+  "dumbbell hammer curl": "Dumbbell Hammer Curl",
+  "hammer curl": "Dumbbell Hammer Curl",
+  "hammer curls": "Dumbbell Hammer Curl",
+  "cable curl": "Cable Curl",
+  "cable curls": "Cable Curl",
+  "cable bicep curl": "Cable Curl",
+  "cable bicep curls": "Cable Curl",
+  "lat pulldown": "Lat Pulldown",
+  "wide grip lat pulldown": "Wide Grip Lat Pulldown",
+  "wide lat pulldown": "Wide Grip Lat Pulldown",
+  "bench press": "Bench Press",
+  "bb bench press": "Bench Press",
+  "barbell bench press": "Bench Press",
   "db pullover": "Dumbbell Pullover",
   "db single arm pullovers": "Dumbbell Pullover",
   "seated tri ext": "Seated Tricep Extension",
@@ -240,11 +307,171 @@ const EXERCISE_NORMALIZATION = {
   "seat cp cable": "Cable Chest Press",
   "seatd cble chst prss": "Cable Chest Press",
   "calf raises": "Calf Raises",
-  // General fallback mappings for splits
-  push: "Push",
-  pull: "Pull",
-  legs: "Legs",
 };
+
+const NAME_ABBREVIATIONS = {
+  db: "dumbbell",
+  bb: "barbell",
+  cble: "cable",
+  chst: "chest",
+  prss: "press",
+  ext: "extension",
+  extn: "extension",
+  tri: "tricep",
+  bi: "bicep",
+  mch: "machine",
+  mchn: "machine",
+  mchne: "machine",
+  rev: "reverse",
+  revrse: "reverse",
+  inline: "incline",
+  inlne: "incline",
+  inclne: "incline",
+  elated: "elevated",
+  elav: "elevated",
+  sublime: "supine",
+  supline: "supine",
+  bp: "bench",
+  ohp: "overhead",
+};
+
+const NAME_FILLER = new Set([
+  "the",
+  "a",
+  "an",
+  "of",
+  "and",
+  "seated",
+  "seat",
+  "seatd",
+]);
+
+const stemNameToken = (token) => {
+  if (token === "press" || token === "plus") return token;
+  if (token.endsWith("ies") && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith("s") && !token.endsWith("ss") && token.length > 3) {
+    return token.slice(0, -1);
+  }
+  return token;
+};
+
+const mergeCompoundTokens = (tokens) => {
+  const merged = [];
+  for (let i = 0; i < tokens.length; i += 1) {
+    const current = tokens[i];
+    const next = tokens[i + 1];
+    if (current === "pull" && next === "down") {
+      merged.push("pulldown");
+      i += 1;
+      continue;
+    }
+    if (current === "push" && next === "down") {
+      merged.push("pushdown");
+      i += 1;
+      continue;
+    }
+    if (current === "over" && next === "head") {
+      merged.push("overhead");
+      i += 1;
+      continue;
+    }
+    if (current === "bent" && next === "over") {
+      merged.push("bent");
+      i += 1;
+      continue;
+    }
+    merged.push(current);
+  }
+  return merged;
+};
+
+const canonicalizeNameTokens = (tokens) => {
+  const has = (word) => tokens.includes(word);
+  const isTricep = has("tricep") || has("extension") || has("pushdown");
+  const isShoulderPress =
+    !isTricep &&
+    (has("overhead") ||
+      has("military") ||
+      (has("shoulder") && has("press")));
+
+  if (isShoulderPress) {
+    if (has("machine")) return ["machine", "shoulder", "press"];
+    if (has("barbell")) return ["barbell", "shoulder", "press"];
+    return ["overhead", "press"];
+  }
+
+  const angle = has("decline")
+    ? "decline"
+    : has("incline") || has("elevated")
+      ? "incline"
+      : null;
+  const chestCue = has("bench") || has("chest") || (Boolean(angle) && has("press"));
+  if (
+    angle &&
+    chestCue &&
+    !has("shoulder") &&
+    !has("tricep") &&
+    !has("fly")
+  ) {
+    const equipment = has("dumbbell")
+      ? "dumbbell"
+      : has("barbell")
+        ? "barbell"
+        : has("machine")
+          ? "machine"
+          : has("cable")
+            ? "cable"
+            : has("smith")
+              ? "smith"
+              : null;
+    return equipment ? [angle, equipment, "press"] : [angle, "press"];
+  }
+
+  if (
+    !angle &&
+    has("dumbbell") &&
+    (has("bench") || (has("chest") && has("press"))) &&
+    !has("fly")
+  ) {
+    return ["dumbbell", "bench", "press"];
+  }
+
+  return tokens;
+};
+
+const nameTokens = (value) => {
+  const raw = value
+    .split(/\s+/)
+    .filter(Boolean)
+    .flatMap((token) => {
+      if (token === "wg") return ["wide", "grip"];
+      return [NAME_ABBREVIATIONS[token] || token];
+    })
+    .map(stemNameToken)
+    .filter((token) => !NAME_FILLER.has(token));
+
+  return canonicalizeNameTokens(mergeCompoundTokens(raw));
+};
+
+const tokenSetKey = (value) => [...new Set(nameTokens(value))].sort().join(" ");
+
+const titleCaseExerciseName = (value) =>
+  nameTokens(value)
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(" ");
+
+const applyDipWeightRule = (normalizedName, weight) => {
+  if (normalizedName === "Bodyweight Dips" && weight > 0) return "Weighted Dips";
+  if (normalizedName === "Weighted Dips" && weight === 0) return "Bodyweight Dips";
+  return normalizedName;
+};
+
+const CANONICAL_BY_TOKEN_KEY = Object.fromEntries(
+  Object.entries(EXERCISE_NORMALIZATION).map(([pattern, canonical]) => [
+    tokenSetKey(pattern),
+    canonical,
+  ])
+);
 
 /**
  * Clean and normalize exercise name by removing common extra text and standardizing names
@@ -253,94 +480,30 @@ const EXERCISE_NORMALIZATION = {
  * @returns {string} Cleaned and normalized exercise name
  */
 export const cleanExerciseName = (name, weight = 0) => {
-  let cleaned = name
+  const withoutLocation = stripGymOrLocationTagsFromLine(name);
+  const cleaned = withoutLocation
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ") // Replace multiple spaces with single space
-    .replace(/\d+(?:st|nd|rd|th)\s+(?:tile|floor|level)/gi, "") // Remove "6th tile", "1st floor", etc.
-    .replace(/\s+-\s*$/, "") // Remove trailing dash
-    .replace(/^(machine|mchne|seat)\s+/i, "") // Remove common prefixes
-    .replace(/\s+(machine|mchne|seat)$/i, "") // Remove common suffixes
+    .replace(/\s+/g, " ")
+    .replace(/\d+(?:st|nd|rd|th)\s+(?:tile|floor|level)/gi, "")
+    .replace(/\s+-\s*$/, "")
+    .replace(/^(machine|mchne|mch|mchn|seat)\s+/i, "")
+    .replace(/\s+(machine|mchne|mch|mchn|seat)$/i, "")
     .trim();
 
-  // Apply normalization mapping - exact match first
-  if (EXERCISE_NORMALIZATION[cleaned]) {
-    let normalizedName = EXERCISE_NORMALIZATION[cleaned];
-    
-    // Special handling for dips based on weight
-    if (normalizedName === "Bodyweight Dips" && weight > 0) {
-      return "Weighted Dips";
-    } else if (normalizedName === "Weighted Dips" && weight === 0) {
-      return "Bodyweight Dips";
-    }
-    
-    return normalizedName;
+  const exact = EXERCISE_NORMALIZATION[cleaned];
+  if (exact) return applyDipWeightRule(exact, weight);
+
+  const expandedKey = nameTokens(cleaned).join(" ");
+  if (EXERCISE_NORMALIZATION[expandedKey]) {
+    return applyDipWeightRule(EXERCISE_NORMALIZATION[expandedKey], weight);
   }
 
-  // Enhanced partial matching with word-based matching
-  const words = cleaned.split(/\s+/);
-  const specificMatches = [];
+  const tokenMatch = CANONICAL_BY_TOKEN_KEY[tokenSetKey(cleaned)];
+  if (tokenMatch) return applyDipWeightRule(tokenMatch, weight);
 
-  for (const [pattern, normalized] of Object.entries(EXERCISE_NORMALIZATION)) {
-    const patternWords = pattern.split(/\s+/);
-
-    // Check if any word in the cleaned name matches any word in the pattern
-    let matchScore = 0;
-    let totalWords = Math.max(words.length, patternWords.length);
-
-    for (const word of words) {
-      for (const patternWord of patternWords) {
-        // Exact word match
-        if (word === patternWord) {
-          matchScore += 2;
-        }
-        // Partial word match (one contains the other)
-        else if (word.includes(patternWord) || patternWord.includes(word)) {
-          matchScore += 1;
-        }
-      }
-    }
-
-    // Calculate match percentage
-    const matchPercentage = matchScore / totalWords;
-
-    // If we have a good match (at least 50% of words match)
-    if (matchPercentage >= 0.5) {
-      specificMatches.push({
-        pattern,
-        normalized,
-        length: pattern.length,
-        score: matchScore,
-        percentage: matchPercentage,
-      });
-    }
-  }
-
-  // Sort by match percentage first, then by pattern length for tie-breaking
-  if (specificMatches.length > 0) {
-    specificMatches.sort((a, b) => {
-      if (Math.abs(a.percentage - b.percentage) < 0.1) {
-        // If percentages are close, prefer longer patterns (more specific)
-        return b.length - a.length;
-      }
-      return b.percentage - a.percentage;
-    });
-
-    
-    let normalizedName = specificMatches[0].normalized;
-    
-    // Special handling for dips based on weight
-    if (normalizedName === "Bodyweight Dips" && weight > 0) {
-      return "Weighted Dips";
-    } else if (normalizedName === "Weighted Dips" && weight === 0) {
-      return "Bodyweight Dips";
-    }
-    
-    return normalizedName;
-  }
-
-  // If no normalization found, return the original name with proper capitalization
-  return name.trim().replace(/\s+/g, " ");
+  // Keep the logged name rather than guessing a nearby exercise.
+  return titleCaseExerciseName(cleaned) || withoutLocation.trim().replace(/\s+/g, " ");
 };
 
 /**
@@ -385,7 +548,7 @@ const parseReps = (repsStr) => {
  * @returns {Object|null} Parsed exercise data or null if can't parse
  */
 export const parseExerciseLine = (line) => {
-  const trimmedLine = line.trim();
+  const trimmedLine = stripGymOrLocationTagsFromLine(line);
 
   for (const pattern of EXERCISE_PATTERNS) {
     const match = trimmedLine.match(pattern);
@@ -502,17 +665,8 @@ export const parseWorkoutDescription = (description) => {
 export const parseWorkoutTitle = (title) => {
   if (!title) return { split: null, gym: null };
 
-  // Pattern: "Split @gym" or "Split"
-  const match = title.match(/^([A-Za-z\s]+)(?:\s*@\s*([A-Za-z\s@]+))?$/);
-
-  let split = null;
-  let rawGym = null;
-  if (match) {
-    split = match[1].trim();
-    rawGym = match[2] ? match[2].trim() : null;
-  } else {
-    split = title.trim();
-  }
+  const { name, tag } = stripGymOrLocationTag(title);
+  let split = name || title.replace(/@[\s\S]*$/, "").trim();
 
   // Normalize split
   const splitLower = split.toLowerCase();
@@ -523,12 +677,14 @@ export const parseWorkoutTitle = (title) => {
     normalizedSplit = "Pull";
   } else if (splitLower.includes("legs")) {
     normalizedSplit = "Legs";
-  } else {
-    // Capitalize first letter
+  } else if (split) {
     normalizedSplit = split.charAt(0).toUpperCase() + split.slice(1);
+  } else {
+    normalizedSplit = null;
   }
 
-  const normalizedGym = rawGym ? normalizeGymName(rawGym) : null;
+  const gymToken = tag ? tag.split(/[\s,;/]+/).filter(Boolean)[0] : null;
+  const normalizedGym = gymToken ? normalizeGymName(gymToken) : null;
 
   return {
     split: normalizedSplit,

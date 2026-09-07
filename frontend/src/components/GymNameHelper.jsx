@@ -19,15 +19,15 @@ const GymNameHelper = () => {
     <Box>
       <Button
         size="sm"
-        variant="outline"
+        variant="ghost"
         onClick={onToggle}
         mb={2}
-        bg={colors.background}
+        px={0}
         color={colors.textPrimary}
-        borderColor={colors.borderColorInput}
-        _hover={{ bg: colors.bgHover, borderColor: colors.ring }}
+        fontWeight="normal"
+        _hover={{ bg: "transparent", color: colors.primary }}
       >
-        {isOpen ? "Hide" : "Show"} Gym Name Help
+        {isOpen ? "Hide gym shortcuts" : "Gym name shortcuts"}
       </Button>
 
       <Collapse in={isOpen} animateOpacity>
@@ -75,8 +75,9 @@ const GymNameHelper = () => {
           </VStack>
 
           <Text fontSize="xs" color={colors.textMuted} mt={3}>
-            💡 Tip: Use @ symbol before gym names (e.g., &quot;Push @blink&quot;
-            or &quot;Legs @pf&quot;)
+            💡 Tip: Anything after @ is the gym or place (e.g. &quot;Push
+            @pg&quot; or &quot;Legs @blink&quot;) and is left out of the
+            workout name.
           </Text>
         </Box>
       </Collapse>

@@ -6,7 +6,7 @@ import { Home, PlusSquare, BarChart3, User } from "lucide-react";
 const tabs = [
   { key: "feed", label: "Feed", to: "/", Icon: Home },
   { key: "create", label: "Create", to: "/create", Icon: PlusSquare },
-  { key: "analytics", label: "Analytics", to: "/analytics", Icon: BarChart3 },
+  { key: "analytics", label: "Progress", to: "/analytics", Icon: BarChart3 },
   { key: "profile", label: "Profile", to: "/profile", Icon: User },
 ];
 

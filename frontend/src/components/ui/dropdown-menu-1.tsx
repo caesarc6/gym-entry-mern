@@ -20,14 +20,14 @@ import { HEADER_ICON_STROKE } from "@/constants/headerIconStroke.js";
 import { cn } from "@/lib/utils";
 
 /** Row typography aligned with hero9-header mobile drawer lists. */
-const MENU_ROW_TEXT =
+export const MENU_ROW_TEXT =
   "font-sans text-xs font-medium leading-snug antialiased tracking-normal";
 
 /**
  * Mirrors `mobileDrawerSurfaceClassName` + `mobileDrawerItemClassName` in hero9-header
  * so the md+ dropdown reads like the slide-out drawer.
  */
-function heroNavMenuChrome(appTheme: string) {
+export function heroNavMenuChrome(appTheme: string) {
   const surface =
     appTheme === "light"
       ? "border-zinc-200 bg-white/90 text-zinc-900 shadow-zinc-900/25 backdrop-blur-xl"
@@ -176,7 +176,7 @@ export function HeroDesktopUserDropdown({
                 className="size-5 shrink-0"
                 aria-hidden
               />
-              <span>Analytics</span>
+              <span>Progress</span>
             </Link>
           </DropdownMenuItem>
 
