@@ -640,7 +640,7 @@ const SettingsPage = () => {
                 overflow="hidden"
                 cursor={themeDragX === null ? "grab" : "grabbing"}
                 userSelect="none"
-                touchAction="pan-y"
+                sx={{ touchAction: "pan-y" }}
                 onPointerDown={handleThemePointerDown}
                 onPointerMove={handleThemePointerMove}
                 onPointerUp={handleThemePointerEnd}

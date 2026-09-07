@@ -1,5 +1,15 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Search, LogIn, UserPlus, Users, LogOut } from "lucide-react";
+import {
+  Menu,
+  X,
+  Search,
+  LogIn,
+  UserPlus,
+  Users,
+  LogOut,
+  Settings,
+  UserRound,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { HeroDesktopUserDropdown } from "./ui/dropdown-menu-1";
 import React, { useCallback, useEffect, useRef } from "react";
@@ -405,7 +415,20 @@ export const HeroHeader = () => {
                 href="/"
                 aria-label="home"
                 className="flex items-center space-x-2"
-                onClick={closeMenu}
+                onClick={(event) => {
+                  closeMenu();
+                  if (location.pathname === "/" || location.pathname === "") {
+                    event.preventDefault();
+                    const reduceMotion = window.matchMedia?.(
+                      "(prefers-reduced-motion: reduce)",
+                    )?.matches;
+                    window.scrollTo({
+                      top: 0,
+                      behavior: reduceMotion ? "auto" : "smooth",
+                    });
+                    window.dispatchEvent(new CustomEvent("eg:scroll-home-top"));
+                  }
+                }}
               >
                 <span className="text-xl md:text-2xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
                   Ethereal Gains
@@ -888,6 +911,50 @@ export const HeroHeader = () => {
                         </Button>
                       ) : isSignedIn ? (
                         <>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "justify-start",
+                              mobileDrawerItemClassName,
+                            )}
+                            onClick={closeMenu}
+                          >
+                            <Link
+                              to="/profile"
+                              className="flex items-center gap-2"
+                            >
+                              <UserRound
+                                strokeWidth={HEADER_ICON_STROKE}
+                                className="size-5 shrink-0"
+                                aria-hidden
+                              />
+                              <span>Profile</span>
+                            </Link>
+                          </Button>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "justify-start",
+                              mobileDrawerItemClassName,
+                            )}
+                            onClick={closeMenu}
+                          >
+                            <Link
+                              to="/settings"
+                              className="flex items-center gap-2"
+                            >
+                              <Settings
+                                strokeWidth={HEADER_ICON_STROKE}
+                                className="size-5 shrink-0"
+                                aria-hidden
+                              />
+                              <span>Settings</span>
+                            </Link>
+                          </Button>
                           {hasTrainerDashboardAccess && (
                             <Button
                               asChild

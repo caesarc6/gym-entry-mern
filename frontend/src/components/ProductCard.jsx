@@ -457,6 +457,7 @@ const ProductCard = memo(function ProductCard({
   }, [detailOpen, isDetailOpen, onDetailOpen, onDetailClose]);
 
   const handleDetailClose = useCallback(() => {
+    setFocusCommentOnOpen(false);
     onDetailClose();
     onDetailOpenChange?.(false);
   }, [onDetailClose, onDetailOpenChange]);
@@ -485,6 +486,35 @@ const ProductCard = memo(function ProductCard({
   } = useDisclosure();
 
   const commentsAnchorId = `post-detail-comments-${entry._id}`;
+  const feedCommentInputRef = useRef(null);
+  const detailCommentInputRef = useRef(null);
+  const [focusCommentOnOpen, setFocusCommentOnOpen] = useState(false);
+
+  const focusCommentInput = useCallback((input) => {
+    if (!input) return;
+    try {
+      input.focus({ preventScroll: false });
+    } catch {
+      input.focus();
+    }
+  }, []);
+
+  const handleCommentCompose = useCallback(() => {
+    setFocusCommentOnOpen(true);
+    handleDetailOpen();
+  }, [handleDetailOpen]);
+
+  useEffect(() => {
+    if (!isDetailOpen || !focusCommentOnOpen) return;
+    const focus = () => focusCommentInput(detailCommentInputRef.current);
+    focus();
+    const frame = requestAnimationFrame(focus);
+    const timer = window.setTimeout(focus, 80);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [isDetailOpen, focusCommentOnOpen, focusCommentInput]);
 
   /** Scroll container for Edit workout modal (viewport + keyboard). */
   const editModalScrollRef = useRef(null);
@@ -1681,12 +1711,16 @@ const ProductCard = memo(function ProductCard({
       );
 
       if (response.data.success) {
+        const nextComments = Array.isArray(response.data.comments)
+          ? response.data.comments
+          : (updatedEntry.comments || []).filter(
+              (c) => normalizeCommentMongoId(c) !== cid,
+            );
         setUpdatedEntry((prevEntry) => ({
           ...prevEntry,
-          comments: prevEntry.comments.filter(
-            (c) => normalizeCommentMongoId(c) !== cid,
-          ),
+          comments: nextComments,
         }));
+        onUpdate?.(entry._id, { comments: nextComments });
 
         showToast({
           title: "Success",
@@ -1695,9 +1729,19 @@ const ProductCard = memo(function ProductCard({
           duration: 3000,
           isClosable: true,
         });
+      } else {
+        toastError(
+          "Error",
+          response.data.message || "Failed to delete comment"
+        );
       }
     } catch (error) {
-      toastError("Error", "Failed to delete comment");
+      toastError(
+        "Error",
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to delete comment"
+      );
     }
   };
 
@@ -1970,7 +2014,7 @@ const ProductCard = memo(function ProductCard({
           image={getSquareEntryMedia(priority)}
           liked={isLiked}
           onToggleLike={() => handleLikeEntry(entry._id)}
-          onCommentClick={handleDetailOpen}
+          onCommentClick={handleCommentCompose}
           onProfileClick={handleAuthorProfileClick}
           likesCount={
             Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
@@ -2010,9 +2054,26 @@ const ProductCard = memo(function ProductCard({
               <Box w="full" px={0}>
                 <HStack spacing={2} w="full">
                   <Input
+                    ref={feedCommentInputRef}
+                    aria-label="Add a comment"
                     placeholder="Add a comment..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      focusCommentInput(e.currentTarget);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && comment.trim()) {
+                        e.preventDefault();
+                        handleCommentEntry(entry._id, comment);
+                      }
+                    }}
+                    enterKeyHint="send"
+                    inputMode="text"
+                    autoComplete="off"
                     size="sm"
                     fontSize="11px"
                     borderRadius="4px"
@@ -2061,7 +2122,8 @@ const ProductCard = memo(function ProductCard({
         isCentered
         scrollBehavior="inside"
         blockScrollOnMount
-        autoFocus={false}
+        autoFocus={focusCommentOnOpen}
+        initialFocusRef={focusCommentOnOpen ? detailCommentInputRef : undefined}
         returnFocusOnClose={false}
       >
         <ModalOverlay
@@ -2104,6 +2166,7 @@ const ProductCard = memo(function ProductCard({
             onToggleLike={() => handleLikeEntry(entry._id)}
             onProfileClick={handleAuthorProfileClick}
             onCommentClick={() => {
+              const input = detailCommentInputRef.current;
               const anchor = document.getElementById(commentsAnchorId);
               const scroller = anchor?.closest(".chakra-modal__content");
               if (anchor && scroller instanceof HTMLElement) {
@@ -2114,6 +2177,7 @@ const ProductCard = memo(function ProductCard({
                   12;
                 scroller.scrollTo({ top, behavior: "smooth" });
               }
+              focusCommentInput(input);
             }}
             likesCount={
               Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
@@ -2190,10 +2254,26 @@ const ProductCard = memo(function ProductCard({
                 <Box w="full" id={commentsAnchorId}>
                   <HStack spacing={2} w="full">
                     <Input
+                      ref={detailCommentInputRef}
                       aria-label="Add a comment"
                       placeholder="Add a comment..."
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        focusCommentInput(e.currentTarget);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && comment.trim()) {
+                          e.preventDefault();
+                          handleCommentEntry(entry._id, comment);
+                        }
+                      }}
+                      enterKeyHint="send"
+                      inputMode="text"
+                      autoComplete="off"
                       size="sm"
                       fontSize="11px"
                       borderRadius="4px"

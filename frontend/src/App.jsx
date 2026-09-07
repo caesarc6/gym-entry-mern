@@ -85,6 +85,15 @@ function NativeTabsLayout() {
     window.scrollTo(0, y);
   }, [pathname]);
 
+  useEffect(() => {
+    const onHomeTop = () => {
+      scrollPositionsRef.current["/"] = 0;
+      scrollPositionsRef.current[""] = 0;
+    };
+    window.addEventListener("eg:scroll-home-top", onHomeTop);
+    return () => window.removeEventListener("eg:scroll-home-top", onHomeTop);
+  }, []);
+
   const isFeedTab = pathname === "/";
   const isAnalyticsTab = pathname === "/analytics";
   const isProfileTab = pathname === "/profile";
@@ -228,6 +237,7 @@ function App() {
 
   const isHomePath =
     location.pathname === "/" || location.pathname === "";
+  const isProfilePath = location.pathname === "/profile";
   const shellBgStyle =
     prefersReducedMotion || isHomePath
       ? { backgroundColor: paintHex }
@@ -235,7 +245,7 @@ function App() {
 
   return (
     <Box minH="100dvh" w="100%" style={shellBgStyle}>
-      {!isCapacitorNative && (
+      {!isCapacitorNative && !isProfilePath && (
         <Suspense fallback={<HeaderFallback />}>
           <HeroHeader />
         </Suspense>
@@ -255,8 +265,15 @@ function App() {
         </MobileAppShell>
       ) : (
         <>
-          {/* Clearance for fixed GlassNavbar + pagination on mobile web only. */}
-          <div className="pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:pb-0">
+          {/* Clearance for fixed GlassNavbar. Desktop keeps it on /profile
+              where the top header is replaced by profile settings. */}
+          <div
+            className={
+              isProfilePath
+                ? "pb-[calc(7.5rem+env(safe-area-inset-bottom))]"
+                : "pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:pb-0"
+            }
+          >
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<HomePage />} />
@@ -296,8 +313,8 @@ function App() {
               </Routes>
             </Suspense>
           </div>
-          {/* Mobile-web glass dock — hidden at md+. Native uses the same via MobileAppShell. */}
-          <GlassNavbar />
+          {/* Mobile-web glass dock — hidden at md+ except on /profile. */}
+          <GlassNavbar alwaysVisible={isProfilePath} />
         </>
       )}
     </Box>

@@ -38,8 +38,18 @@ const MAGNETIC_DISTANCE = 120;
 const SPRING = { damping: 20, stiffness: 300, mass: 0.5 };
 
 function isActivePath(pathname, to) {
-  if (to === "/") return pathname === "/";
+  if (to === "/") return pathname === "/" || pathname === "";
   return pathname === to || pathname.startsWith(`${to}/`);
+}
+
+function scrollHomeToTop() {
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const behavior = reduceMotion ? "auto" : "smooth";
+  window.scrollTo({ top: 0, left: 0, behavior });
+  document.scrollingElement?.scrollTo?.({ top: 0, behavior });
+  window.dispatchEvent(new CustomEvent("eg:scroll-home-top"));
 }
 
 function DockItem({
@@ -262,6 +272,21 @@ export default function GlassNavbar({ alwaysVisible = false }) {
     mouseX.set(Infinity);
   }, [mouseX]);
 
+  const activateTab = useCallback(
+    (tab) => {
+      if (!tab) return;
+      void nativeTick(ImpactStyle.Light);
+      if (isActivePath(location.pathname, tab.to)) {
+        if (tab.to === "/") {
+          scrollHomeToTop();
+        }
+        return;
+      }
+      navigate(tab.to);
+    },
+    [location.pathname, navigate],
+  );
+
   const endInteraction = useCallback(
     (shouldNavigate, event) => {
       clearHoldTimer();
@@ -271,8 +296,7 @@ export default function GlassNavbar({ alwaysVisible = false }) {
       if (shouldNavigate && wasScrubbing && index != null) {
         const tab = tabs[index];
         if (tab) {
-          void nativeTick(ImpactStyle.Light);
-          navigate(tab.to);
+          activateTab(tab);
         }
       }
 
@@ -292,7 +316,7 @@ export default function GlassNavbar({ alwaysVisible = false }) {
         suppressClickRef.current = false;
       }, 0);
     },
-    [clearHoldTimer, clearMagnify, navigate, syncHover],
+    [activateTab, clearHoldTimer, clearMagnify, syncHover],
   );
 
   const onPointerDown = (event) => {
@@ -387,8 +411,7 @@ export default function GlassNavbar({ alwaysVisible = false }) {
     const index = indexFromClientX(event.clientX);
     const tab = tabs[index];
     if (tab) {
-      void nativeTick(ImpactStyle.Light);
-      navigate(tab.to);
+      activateTab(tab);
     }
   };
 

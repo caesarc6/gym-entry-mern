@@ -3,7 +3,12 @@ import {
   HeartIcon,
   MessageCircleIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type {
+  KeyboardEvent,
+  MouseEvent,
+  PointerEvent,
+  ReactNode,
+} from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
 import { Button } from "./button";
@@ -88,13 +93,32 @@ export function FeedEntryCard({
         ? "1 like"
         : `${likesCount.toLocaleString()} likes`;
 
+  const commentsLabel =
+    commentsCount === 0
+      ? ""
+      : commentsCount === 1
+        ? "1 comment"
+        : `${commentsCount.toLocaleString()} comments`;
+
   const descriptionTrimmed =
     typeof description === "string" ? description.trim() : "";
 
+  const stopCardActivation = (
+    e: MouseEvent | PointerEvent | KeyboardEvent,
+  ) => {
+    e.stopPropagation();
+  };
+
+  const isComposerTarget = (target: EventTarget | null) =>
+    target instanceof Element &&
+    Boolean(
+      target.closest(
+        "input, textarea, button, a, select, [contenteditable='true'], [role='menuitem']",
+      ),
+    );
+
   return (
     <Card
-      role={onCardClick ? "button" : undefined}
-      tabIndex={onCardClick ? 0 : undefined}
       className={cn(
         "border-border/70 bg-background max-w-[min(448px,100%)] w-full min-w-0 rounded-xl border text-left shadow-sm transition-shadow",
         clipCardShell ? "overflow-hidden" : "overflow-visible",
@@ -105,19 +129,19 @@ export function FeedEntryCard({
       onMouseDown={
         onCardClick
           ? (e) => {
-              // Avoid focusing the card (browser scroll-into-view jump) before the modal opens.
-              e.preventDefault();
+              // Never preventDefault on the composer — that blocks focus + the mobile keyboard.
+              if (isComposerTarget(e.target)) return;
             }
           : undefined
       }
-      onClick={onCardClick}
-      onKeyDown={(e) => {
-        if (!onCardClick) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onCardClick();
-        }
-      }}
+      onClick={
+        onCardClick
+          ? (e) => {
+              if (isComposerTarget(e.target)) return;
+              onCardClick();
+            }
+          : undefined
+      }
     >
       <CardContent className="space-y-2 px-0 pb-3 pt-0 text-sm">
         <div className="relative w-full overflow-hidden">
@@ -178,13 +202,26 @@ export function FeedEntryCard({
                 </>
               )}
             </div>
-            {headerTrailing ? (
-              <div
-                className="pointer-events-auto flex shrink-0 items-center"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                {headerTrailing}
+            {commentsCount > 0 || headerTrailing ? (
+              <div className="pointer-events-auto flex shrink-0 items-center gap-1.5">
+                {commentsCount > 0 ? (
+                  <span
+                    className="text-lg leading-none drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]"
+                    title={commentsLabel}
+                    aria-label={commentsLabel}
+                  >
+                    💬
+                  </span>
+                ) : null}
+                {headerTrailing ? (
+                  <div
+                    className="flex shrink-0 items-center"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    {headerTrailing}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </CardHeader>
@@ -210,7 +247,9 @@ export function FeedEntryCard({
               />
               <div
                 className="pointer-events-auto relative flex items-center gap-2 px-3 pb-2.5 pt-1"
-                onClick={(e) => e.stopPropagation()}
+                onMouseDown={stopCardActivation}
+                onPointerDown={stopCardActivation}
+                onClick={stopCardActivation}
               >
                 <div className="flex flex-wrap items-center gap-0.5">
                   {toolbarStats.map((stat) => {
@@ -226,10 +265,15 @@ export function FeedEntryCard({
                           type="button"
                           title={
                             isComment && commentsCount > 0
-                              ? `${commentsCount} comments`
+                              ? commentsLabel
                               : stat.label
                           }
-                          className="size-9 rounded-full text-foreground hover:bg-black/10 hover:text-foreground dark:text-white dark:hover:bg-white/15 dark:hover:text-white"
+                          className={cn(
+                            "rounded-full text-foreground hover:bg-black/10 hover:text-foreground dark:text-white dark:hover:bg-white/15 dark:hover:text-white",
+                            isComment && commentsCount > 0
+                              ? "h-9 min-w-9 px-2"
+                              : "size-9",
+                          )}
                           onClick={
                             isLike
                               ? onToggleLike
@@ -244,9 +288,18 @@ export function FeedEntryCard({
                               isLike &&
                                 liked &&
                                 "fill-destructive stroke-destructive",
+                              isComment &&
+                                commentsCount > 0 &&
+                                "fill-foreground/25 dark:fill-white/30",
                             )}
                           />
-                          <span className="sr-only">{stat.label}</span>
+                          {isComment && commentsCount > 0 ? (
+                            <span className="text-xs font-semibold tabular-nums">
+                              {commentsCount}
+                            </span>
+                          ) : (
+                            <span className="sr-only">{stat.label}</span>
+                          )}
                         </Button>
                       );
                     })}
@@ -261,11 +314,15 @@ export function FeedEntryCard({
           ) : null}
         </div>
 
-        {captionReplacement || likesLabel || descriptionTrimmed || footer ? (
+        {captionReplacement ||
+        likesLabel ||
+        commentsLabel ||
+        descriptionTrimmed ||
+        footer ? (
           <div className="space-y-2.5 px-4">
             {captionReplacement ? (
               captionReplacement
-            ) : likesLabel || descriptionTrimmed ? (
+            ) : likesLabel || commentsLabel || descriptionTrimmed ? (
               <div className="w-full space-y-2 text-left">
                 {descriptionTrimmed ? (
                   <div
@@ -280,9 +337,11 @@ export function FeedEntryCard({
                     </p>
                   </div>
                 ) : null}
-                {likesLabel ? (
+                {likesLabel || commentsLabel ? (
                   <p className="text-muted-foreground shrink-0 text-xs font-medium">
-                    {likesLabel}
+                    {[likesLabel, commentsLabel ? `💬 ${commentsLabel}` : ""]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 ) : null}
               </div>
@@ -291,7 +350,9 @@ export function FeedEntryCard({
             {footer ? (
               <div
                 className="border-border/60 border-t pt-3"
-                onClick={(e) => e.stopPropagation()}
+                onMouseDown={stopCardActivation}
+                onPointerDown={stopCardActivation}
+                onClick={stopCardActivation}
               >
                 {footer}
               </div>

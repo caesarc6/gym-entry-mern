@@ -463,7 +463,7 @@ const UserProfilePage = () => {
           <Stack direction={"row"} spacing={4} mt={6}>
             {currentUser?.uid === userId ? (
               <Button
-                onClick={() => navigate("/edit-profile")}
+                onClick={() => navigate("/settings")}
                 colorScheme="blue"
                 variant="outline"
                 w={"full"}
