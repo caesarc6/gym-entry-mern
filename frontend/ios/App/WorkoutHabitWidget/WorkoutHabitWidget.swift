@@ -451,11 +451,10 @@ private struct WorkoutWidgetPalette {
             primaryText = .white
             secondaryText = .white.opacity(0.72)
             subtleText = .white.opacity(0.62)
-            // Lifted slate so marked days read against the near-black gradient.
-            activeDayFill = Color(red: 0.26, green: 0.32, blue: 0.42)
-            activeDayGlow = Color(red: 0.38, green: 0.46, blue: 0.58).opacity(0.85)
-            inactiveDay = .white.opacity(0.94)
-            gridLine = Color.black.opacity(0.22)
+            activeDayFill = Color(red: 0.14, green: 0.28, blue: 0.48)
+            activeDayGlow = Color(red: 0.18, green: 0.36, blue: 0.62).opacity(0.9)
+            inactiveDay = Color(red: 0.22, green: 0.23, blue: 0.26)
+            gridLine = Color.white.opacity(0.12)
         } else {
             backgroundColors = [
                 Color(red: 0.96, green: 0.97, blue: 0.98),
@@ -465,10 +464,10 @@ private struct WorkoutWidgetPalette {
             primaryText = Color(red: 0.12, green: 0.16, blue: 0.22)
             secondaryText = Color(red: 0.29, green: 0.33, blue: 0.39)
             subtleText = Color(red: 0.42, green: 0.45, blue: 0.50)
-            activeDayFill = Color(red: 0.15, green: 0.21, blue: 0.30).opacity(0.14)
-            activeDayGlow = Color(red: 0.08, green: 0.13, blue: 0.20).opacity(0.8)
-            inactiveDay = .white
-            gridLine = Color.black.opacity(0.18)
+            activeDayFill = Color(red: 0.62, green: 0.80, blue: 0.98)
+            activeDayGlow = Color(red: 0.45, green: 0.70, blue: 0.96).opacity(0.85)
+            inactiveDay = Color(red: 0.88, green: 0.89, blue: 0.91)
+            gridLine = Color.black.opacity(0.14)
         }
     }
 }
