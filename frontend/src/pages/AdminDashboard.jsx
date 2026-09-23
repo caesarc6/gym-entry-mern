@@ -134,11 +134,7 @@ const AdminDashboard = () => {
       );
 
       if (response.data.success) {
-        toast.success(
-          "Success",
-          `Trainer dashboard access approved for ${response.data.data.name}`
-        );
-        fetchRequests(); // Refresh the list
+        fetchRequests();
       }
     } catch (error) {
       toast.error(
@@ -165,11 +161,7 @@ const AdminDashboard = () => {
       );
 
       if (response.data.success) {
-        toast.success(
-          "Success",
-          `Trainer dashboard access rejected for ${response.data.data.name}`
-        );
-        fetchRequests(); // Refresh the list
+        fetchRequests();
         setRejectModalOpen(false);
         setUserToReject(null);
       }

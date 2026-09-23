@@ -4,7 +4,6 @@ import {
   Box,
   Progress,
 } from "@chakra-ui/react";
-import { useCustomToast } from "../hooks/useCustomToast";
 import { useState } from "react";
 import { handleImageUploadWithCompression } from "../utils/imageCompression";
 import { apiClient, API_ENDPOINTS } from "../config/api";
@@ -16,7 +15,6 @@ function ProfilePictureUpload() {
   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const toast = useCustomToast();
 
   const handleFileUpload = async (file) => {
     setIsProcessing(true);
@@ -50,14 +48,6 @@ function ProfilePictureUpload() {
             // Update state with new image URL
             setProfilePictureUrl(data.url);
             setError(null);
-
-            // Show compression info if image was compressed
-            if (result.wasCompressed) {
-              toast.success(
-                "Image Compressed",
-                `Image compressed from ${result.originalSize} to ${result.compressedSize}`
-              );
-            }
           } catch (uploadError) {
             setError(uploadError.message || "Upload failed");
           } finally {

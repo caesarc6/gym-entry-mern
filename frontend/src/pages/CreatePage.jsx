@@ -357,7 +357,6 @@ const CreatePage = () => {
         } catch {
           // ignore
         }
-        toast.success("Success", message);
       }
     } catch (error) {
       if (optimisticPostId) {

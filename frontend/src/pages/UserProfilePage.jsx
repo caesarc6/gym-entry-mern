@@ -315,7 +315,6 @@ const UserProfilePage = () => {
             followersCount: prev.followersCount - 1,
             allowsPostView: !prev.isPrivate,
           }));
-          toast.success("Success", `You have unfollowed ${userProfile.name}`);
         }
       } else if (hasFollowRequest) {
         // Cancel follow request
@@ -326,10 +325,6 @@ const UserProfilePage = () => {
 
         if (data.success) {
           setHasFollowRequest(false);
-          toast.info(
-            "Follow Request Cancelled",
-            `Follow request to ${userProfile.name} has been cancelled`
-          );
         }
       } else {
         // Send follow request
@@ -347,14 +342,9 @@ const UserProfilePage = () => {
             followersCount: prev.followersCount + 1,
             allowsPostView: true,
           }));
-          toast.success("Success", `You are now following ${userProfile.name}`);
         } else if (data.hasRequest) {
           // Follow request sent (private profile)
           setHasFollowRequest(true);
-          toast.info(
-            "Follow Request Sent",
-            `Follow request sent to ${userProfile.name}`
-          );
         }
       }
     } catch (error) {
@@ -404,8 +394,8 @@ const UserProfilePage = () => {
         maxW={"580px"}
         w={"full"}
         bg={colors.bgCard}
-        boxShadow={"2xl"}
-        rounded={"md"}
+        boxShadow="sm"
+        rounded="2xl"
         overflow={"hidden"}
       >
         <Image
@@ -415,15 +405,17 @@ const UserProfilePage = () => {
           objectFit={"cover"}
         />
         <Flex justify={"center"} mt={-12}>
-          <Avatar
-            size={"xl"}
-            src={userProfile.profileImage || profileColorMode}
-            css={{ border: "2px solid white" }}
-          />
+          <Box className="ig-story-ring" p="2px" rounded="full">
+            <Avatar
+              size={"xl"}
+              src={userProfile.profileImage || profileColorMode}
+              css={{ border: "3px solid", borderColor: colors.bgCard }}
+            />
+          </Box>
         </Flex>
         <Box p={6}>
           <Stack spacing={0} align={"center"} mb={3}>
-            <Heading fontSize={"2xl"} fontWeight={500}>
+            <Heading fontSize={"xl"} fontWeight={600} letterSpacing="-0.03em">
               {userProfile.name}
             </Heading>
           </Stack>
@@ -567,8 +559,8 @@ const UserProfilePage = () => {
             maxW={"580px"}
             w={"full"}
             bg={colors.bgCard}
-            boxShadow={"2xl"}
-            rounded={"md"}
+            boxShadow="sm"
+            rounded="2xl"
             p={6}
             textAlign="center"
           >
@@ -598,8 +590,8 @@ const UserProfilePage = () => {
             maxW={"580px"}
             w={"full"}
             bg={colors.bgCard}
-            boxShadow={"2xl"}
-            rounded={"md"}
+            boxShadow="sm"
+            rounded="2xl"
             p={6}
             textAlign="center"
           >

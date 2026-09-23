@@ -166,7 +166,6 @@ const TrainerDashboard = () => {
               `${API_ENDPOINTS.DELETE_SHARED_WORKOUT(workout._id)}`
             );
           }
-          toast.success("Success", "General workouts deleted successfully");
           fetchData(); // Refresh the data
         } catch (error) {
           toast.error("Error", "Failed to delete some general workouts");
@@ -332,7 +331,6 @@ const TrainerDashboard = () => {
         workout._id === updatedWorkout._id ? updatedWorkout : workout
       )
     );
-    toast.success("Success", "Workout updated successfully!");
   };
 
   // Close edit modal
@@ -353,8 +351,6 @@ const TrainerDashboard = () => {
       await apiClient.delete(API_ENDPOINTS.DELETE_SHARED_WORKOUT(workout._id));
 
       setSharedWorkouts((prev) => prev.filter((w) => w._id !== workout._id));
-
-      toast.success("Success", "Workout deleted successfully!");
     } catch (error) {
       toast.error(
         "Error",
@@ -402,12 +398,6 @@ const TrainerDashboard = () => {
 
   const handleCreateSuccess = () => {
     fetchData();
-    toast.success(
-      "Success",
-      `Workout created for ${capitalizeName(
-        clientDisplayName || clientForQuickCreate
-      )}`
-    );
     handleCloseCreateModal();
   };
 

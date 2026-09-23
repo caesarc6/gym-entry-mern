@@ -57,10 +57,7 @@ import {
 import PropTypes from "prop-types";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api"; // Import API configuration
-import {
-  parseWorkoutDescription,
-  parseWorkoutTitle,
-} from "../utils/workoutParser.js";
+import { parseWorkoutDescription } from "../utils/workoutParser.js";
 import ShareWorkoutModal from "./ShareWorkoutModal";
 import { FeedEntryCard } from "./ui/feed-entry-card";
 import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
@@ -433,7 +430,7 @@ const ProductCard = memo(function ProductCard({
     return currentUserInfo.picture || profileImageFallback;
   };
 
-  const { showToast, success: toastSuccess, error: toastError } = useCustomToast();
+  const { showToast, error: toastError } = useCustomToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isDeleteOpen,
@@ -1037,15 +1034,6 @@ const ProductCard = memo(function ProductCard({
               ? mergedImageName
               : prev.imageName,
         }));
-
-        const fromServer =
-          serverDraft && (!localDraft || serverTs >= localTs);
-        toastSuccess(
-          "Edits recovered",
-          fromServer
-            ? "Unsaved text was restored from your account; images, when present, came from this device."
-            : "Unsaved changes from your last edit session on this device were restored."
-        );
       } catch (e) {
         // ignore
       }
@@ -1332,14 +1320,6 @@ const ProductCard = memo(function ProductCard({
             });
           };
           reader.readAsDataURL(result.file);
-
-          // Show compression info if image was compressed
-          if (result.wasCompressed) {
-            toastSuccess(
-              "Image Compressed",
-              `Image compressed from ${result.originalSize} to ${result.compressedSize}`
-            );
-          }
         },
         (error) => {
           // Error callback
@@ -1357,7 +1337,6 @@ const ProductCard = memo(function ProductCard({
     if (!success) {
       toastError("Error", message);
     } else {
-      toastSuccess("Success", message);
       onDelete?.(pid);
       onDeleteClose();
       try {
@@ -1433,7 +1412,6 @@ const ProductCard = memo(function ProductCard({
           });
           onUpdate(pid, data);
         }
-        toastSuccess("Success", "Entry updated successfully");
         (async () => {
           try {
             const user = await getCurrentAuthUser();
@@ -1536,13 +1514,6 @@ const ProductCard = memo(function ProductCard({
         }));
       }
       setComment("");
-      showToast({
-        title: "Success",
-        description: "Comment added successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
     } catch (error) {
       showToast({
         title: "Error",
@@ -1647,13 +1618,6 @@ const ProductCard = memo(function ProductCard({
 
         setReplyText("");
         setReplyToComment(null);
-        showToast({
-          title: "Success",
-          description: "Reply added successfully",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
       } else {
         toastError(
           "Error",
@@ -1693,13 +1657,6 @@ const ProductCard = memo(function ProductCard({
         }));
 
         setEditingComment(null);
-        showToast({
-          title: "Success",
-          description: "Comment updated successfully",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
       }
     } catch (error) {
       toastError("Error", "Failed to edit comment");
@@ -1727,14 +1684,6 @@ const ProductCard = memo(function ProductCard({
           comments: nextComments,
         }));
         onUpdate?.(entry._id, { comments: nextComments });
-
-        showToast({
-          title: "Success",
-          description: "Comment deleted successfully",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
       } else {
         toastError(
           "Error",
@@ -1767,7 +1716,6 @@ const ProductCard = memo(function ProductCard({
     try {
       // Check if this looks like a workout post
       const exercises = parseWorkoutDescription(updatedEntry.description);
-      const { split } = parseWorkoutTitle(updatedEntry.name);
 
       if (exercises.length === 0) {
         showToast({
@@ -1779,16 +1727,7 @@ const ProductCard = memo(function ProductCard({
         return;
       }
 
-      const response = await apiClient.post(
-        API_ENDPOINTS.PROCESS_WORKOUT(entry._id)
-      );
-
-      if (response.data.success) {
-        toastSuccess(
-          "Success",
-          `Workout data processed! Found ${exercises.length} exercises.`
-        );
-      }
+      await apiClient.post(API_ENDPOINTS.PROCESS_WORKOUT(entry._id));
     } catch (error) {
       showToast({
         title: "Error",
@@ -2969,9 +2908,7 @@ const ProductCard = memo(function ProductCard({
         onClose={onEnhancedEditClose}
         entry={entry}
         onUpdate={handleUpdateEntry}
-        onSuccess={() => {
-          toastSuccess("Success", "Workout updated successfully");
-        }}
+      />
       />
     </>
   );

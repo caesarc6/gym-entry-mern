@@ -57,17 +57,19 @@ const Card11 = ({
   previewSubtitle,
 }: Card11Props) => {
   return (
-    <Card className="mx-auto max-w-md overflow-hidden rounded-xl border-border/70 bg-background shadow-sm">
+    <Card className="mx-auto max-w-md overflow-hidden rounded-2xl border-border/40 bg-background shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b border-border/60 px-4 py-4">
-        <Avatar className="size-9 shrink-0">
-          {profile.imageSrc ? (
-            <AvatarImage src={profile.imageSrc} alt={profile.imageAlt} />
-          ) : null}
-          <AvatarFallback className="text-xs">{profile.fallback}</AvatarFallback>
-        </Avatar>
+        <span className="ig-story-ring shrink-0">
+          <Avatar className="size-9 shrink-0 ring-2 ring-background">
+            {profile.imageSrc ? (
+              <AvatarImage src={profile.imageSrc} alt={profile.imageAlt} />
+            ) : null}
+            <AvatarFallback className="text-xs">{profile.fallback}</AvatarFallback>
+          </Avatar>
+        </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <CardTitle className="truncate text-sm">{profile.name}</CardTitle>
-          <p className="truncate text-xs text-muted-foreground">{profile.handle}</p>
+          <CardTitle className="truncate text-[13px] font-semibold tracking-tight">{profile.name}</CardTitle>
+          <p className="truncate text-[12px] text-muted-foreground">{profile.handle}</p>
         </div>
       </CardHeader>
       <CardContent className="space-y-3 px-0 pb-4 text-sm">

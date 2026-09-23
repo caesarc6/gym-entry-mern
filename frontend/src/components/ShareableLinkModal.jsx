@@ -54,18 +54,11 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
           // Auto-copy to clipboard on desktop devices
           const isDesktop = window.innerWidth >= 768; // Desktop breakpoint
           if (isDesktop) {
-            // Use a small delay to ensure the clipboard hook is updated
             setTimeout(() => {
               onCopy();
+              toast.success("Copied", "Link copied to clipboard");
             }, 100);
           }
-
-          toast.success(
-            "Client shareable link generated!",
-            isDesktop
-              ? `Your client link (${response.data.data.workoutCount} workouts) has been copied to clipboard and is ready to share.`
-              : `Your client link (${response.data.data.workoutCount} workouts) is ready to share.`
-          );
         } else {
           throw new Error(response.data.message || "Failed to generate link");
         }
@@ -78,21 +71,13 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
         if (response.data.success) {
           setShareData(response.data.data);
 
-          // Auto-copy to clipboard on desktop devices
-          const isDesktop = window.innerWidth >= 768; // Desktop breakpoint
+          const isDesktop = window.innerWidth >= 768;
           if (isDesktop) {
-            // Use a small delay to ensure the clipboard hook is updated
             setTimeout(() => {
               onCopy();
+              toast.success("Copied", "Link copied to clipboard");
             }, 100);
           }
-
-          toast.success(
-            "Shareable link generated!",
-            isDesktop
-              ? "Your workout link has been copied to clipboard and is ready to share."
-              : "Your workout link is ready to share."
-          );
         } else {
           throw new Error(response.data.message || "Failed to generate link");
         }
@@ -109,10 +94,7 @@ const ShareableLinkModal = ({ isOpen, onClose, workout }) => {
 
   const handleCopyLink = () => {
     onCopy();
-    toast.success(
-      "Link copied!",
-      "The shareable link has been copied to your clipboard."
-    );
+    toast.success("Copied", "Link copied to clipboard");
   };
 
   const handleClose = () => {

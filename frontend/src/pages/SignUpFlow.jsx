@@ -93,10 +93,9 @@ const SignUpFlow = () => {
       if (data?.session?.access_token) {
         const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
         await maybeMigrateAccount(response?.data?.data);
-        toast.success("Success", "Account created successfully.");
         navigate(redirectPath, { replace: true });
       } else {
-        toast.success(
+        toast.info(
           "Check your email",
           "Please verify your email address to complete signup.",
         );
@@ -125,9 +124,9 @@ const SignUpFlow = () => {
           >
             <Card
               variant="mixed"
-              className="w-full max-w-md mx-auto p-8 text-left shadow-sm"
+              className="w-full max-w-md mx-auto p-8 text-left shadow-sm rounded-2xl"
             >
-              <h2 className="text-2xl font-semibold text-foreground mb-2 text-center">
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-2 text-center">
                 Welcome to Ethereal Gains
               </h2>
               <p className="text-center text-muted-foreground mb-6">
@@ -136,7 +135,7 @@ const SignUpFlow = () => {
 
               <button
                 onClick={handleGoogleSignIn}
-                className="w-full flex items-center justify-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 dark:bg-white dark:text-slate-900 dark:border-slate-300 dark:hover:bg-slate-50"
+                className="w-full flex items-center justify-center gap-3 rounded-xl min-h-11 px-4 py-3 font-semibold tracking-tight transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 dark:bg-white dark:text-slate-900 dark:border-slate-300 dark:hover:bg-slate-50"
               >
                 <svg className="w-6 h-6" viewBox="0 0 24 24">
                   <path
@@ -169,14 +168,14 @@ const SignUpFlow = () => {
                   placeholder="Full name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
+                  className="w-full rounded-xl border border-slate-300 min-h-11 px-3 py-2.5 bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
                 />
                 <input
                   type="email"
                   placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
+                  className="w-full rounded-xl border border-slate-300 min-h-11 px-3 py-2.5 bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
                   required
                 />
                 <input
@@ -184,13 +183,13 @@ const SignUpFlow = () => {
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
+                  className="w-full rounded-xl border border-slate-300 min-h-11 px-3 py-2.5 bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
                   required
                 />
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-2 font-medium hover:bg-primary/90 disabled:opacity-60"
+                  className="w-full rounded-xl bg-primary text-primary-foreground min-h-11 px-4 py-2.5 font-semibold tracking-tight hover:bg-primary/90 disabled:opacity-60"
                 >
                   {isSubmitting ? "Creating account..." : "Sign up"}
                 </button>

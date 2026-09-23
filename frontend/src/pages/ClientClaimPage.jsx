@@ -157,13 +157,6 @@ const ClientClaimPage = () => {
       );
 
       if (response.data.success) {
-        toast.success(
-          "Workouts claimed!",
-          `Successfully claimed ${response.data.data.claimedCount} workout${
-            response.data.data.claimedCount > 1 ? "s" : ""
-          } to your account.`
-        );
-        // Redirect to user's profile or home page
         navigate("/profile");
       } else {
         throw new Error(response.data.message || "Failed to claim workouts");

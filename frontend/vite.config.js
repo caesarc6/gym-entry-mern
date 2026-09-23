@@ -51,6 +51,22 @@ export default defineConfig({
       ), // Map '@' to the 'src' directory
     },
   },
-  // Note: Proxy configuration removed since we're now using environment variables
-  // for API URLs. The proxy was only needed for development with localhost URLs.
+  server: {
+    proxy: {
+      "/api": {
+        target:
+          process.env.VITE_API_BASE_URL || "https://gym-entry-mern.vercel.app",
+        changeOrigin: true,
+        secure: true,
+        configure: (proxy) => {
+          // The phone's Origin is a LAN Vite URL. Forwarding it makes Vercel
+          // CORS-reject the proxied request; native/server calls have no origin.
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.removeHeader("origin");
+            proxyReq.removeHeader("referer");
+          });
+        },
+      },
+    },
+  },
 });

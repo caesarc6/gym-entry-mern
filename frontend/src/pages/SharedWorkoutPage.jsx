@@ -147,11 +147,6 @@ const SharedWorkoutPage = () => {
       );
 
       if (response.data.success) {
-        toast.success(
-          "Workout saved!",
-          "This workout has been saved to your account."
-        );
-        // Redirect to user's profile or home page
         navigate("/profile");
       } else {
         throw new Error(response.data.message || "Failed to save workout");

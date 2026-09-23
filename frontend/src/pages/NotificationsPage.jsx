@@ -81,10 +81,6 @@ export default function NotificationsPage() {
         }
         return next;
       });
-      toast.success(
-        "Updated",
-        action === "accept" ? "Follow request accepted." : "Follow request rejected.",
-      );
     } catch (error) {
       toast.error("Error", error?.message || "Failed to update request.");
     } finally {

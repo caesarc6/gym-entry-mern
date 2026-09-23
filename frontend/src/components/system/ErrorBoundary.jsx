@@ -33,7 +33,7 @@ export default class ErrorBoundary extends React.Component {
         style={{
           padding: 16,
           fontFamily:
-            'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"',
+            'var(--font-sans, "Instagram Sans", "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif)',
           color: "#111827",
           background: "#f9fafb",
           minHeight: "100vh",

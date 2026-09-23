@@ -4,7 +4,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { landingDarkRaised } from "@/lib/homeLandingDarkTheme";
 import { cn } from "@/lib/utils";
 
-const cardVariants = cva("rounded-xl border text-card-foreground shadow-sm", {
+const cardVariants = cva(
+  "rounded-2xl border text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+  {
   variants: {
     variant: {
       default: "bg-card",

@@ -429,7 +429,6 @@ const AnalyticsPage = () => {
     if (entries.length === 0) return;
 
     let processedCount = 0;
-    let skippedCount = 0;
 
     for (const entry of entries) {
       try {
@@ -447,12 +446,10 @@ const AnalyticsPage = () => {
         // Handle different types of errors
         if (error.response?.data?.message?.includes("already processed")) {
           setProcessedEntryIds((prev) => new Set([...prev, entry._id]));
-          skippedCount++;
         } else if (
           error.response?.data?.message?.includes("No valid exercises found")
         ) {
           // Skip entries that don't contain valid workout data
-          skippedCount++;
           setSkippedEntries((prev) => [
             ...prev,
             {
@@ -477,25 +474,10 @@ const AnalyticsPage = () => {
       }
     }
 
-    // Show appropriate message based on results
+    // Refresh analytics after auto-processing
     if (processedCount > 0) {
-      showToast({
-        title: "Auto-Processed Workouts",
-        description: `Successfully processed ${processedCount} workout entries${
-          skippedCount > 0 ? `, skipped ${skippedCount} invalid entries` : ""
-        }`,
-        status: "success",
-      });
-
-      // Refresh analytics after auto-processing
       fetchAnalytics();
       fetchPersonalRecords();
-    } else if (skippedCount > 0) {
-      showToast({
-        title: "No Valid Workouts Found",
-        description: `Skipped ${skippedCount} entries that don't contain valid workout data`,
-        status: "info",
-      });
     }
   };
 
@@ -503,11 +485,6 @@ const AnalyticsPage = () => {
     try {
       setProcessingEntry(entryId);
       await apiClient.post(API_ENDPOINTS.PROCESS_WORKOUT(entryId));
-      showToast({
-        title: "Success",
-        description: "Workout data processed successfully",
-        status: "success",
-      });
 
       // Mark this entry as processed
       setProcessedEntryIds((prev) => new Set([...prev, entryId]));
@@ -518,11 +495,6 @@ const AnalyticsPage = () => {
       fetchUserEntries(); // Refresh the entries list
     } catch (error) {
       if (error.response?.data?.message?.includes("already processed")) {
-        showToast({
-          title: "Already Processed",
-          description: "This workout has already been processed",
-          status: "info",
-        });
         // Mark as processed and remove from list
         setProcessedEntryIds((prev) => new Set([...prev, entryId]));
         setUserEntries((prev) => prev.filter((entry) => entry._id !== entryId));
@@ -541,11 +513,6 @@ const AnalyticsPage = () => {
 
   const autoProcessAll = async () => {
     if (userEntries.length === 0) {
-      showToast({
-        title: "No Entries",
-        description: "No workout entries to process",
-        status: "info",
-      });
       return;
     }
 
@@ -555,58 +522,24 @@ const AnalyticsPage = () => {
     );
 
     if (unprocessedEntries.length === 0) {
-      showToast({
-        title: "All Processed",
-        description: "All workout entries have already been processed",
-        status: "info",
-      });
       return;
     }
 
     setAutoProcessing(true);
-    let processedCount = 0;
-    let errorCount = 0;
-    let skippedCount = 0;
 
     for (const entry of unprocessedEntries) {
       try {
         await apiClient.post(API_ENDPOINTS.PROCESS_WORKOUT(entry._id));
-        processedCount++;
-        // Mark as processed immediately
         setProcessedEntryIds((prev) => new Set([...prev, entry._id]));
-
-        showToast({
-          title: "Processing...",
-          description: `Processed ${processedCount} of ${unprocessedEntries.length} entries`,
-          status: "info",
-        });
       } catch (error) {
-        errorCount++;
-
-        // If already processed, mark it as such
         if (error.response?.data?.message?.includes("already processed")) {
           setProcessedEntryIds((prev) => new Set([...prev, entry._id]));
-          skippedCount++;
         }
       }
     }
 
     setAutoProcessing(false);
 
-    const message = `Successfully processed ${processedCount} entries`;
-    const details = [];
-    if (skippedCount > 0) details.push(`${skippedCount} already processed`);
-    if (errorCount > 0) details.push(`${errorCount} failed`);
-
-    showToast({
-      title: "Auto Processing Complete",
-      description: `${message}${
-        details.length > 0 ? ` (${details.join(", ")})` : ""
-      }`,
-      status: processedCount > 0 ? "success" : "info",
-    });
-
-    // Refresh everything
     fetchAnalytics();
     fetchPersonalRecords();
     fetchUserEntries();
@@ -614,28 +547,13 @@ const AnalyticsPage = () => {
 
   const resetAutoProcessedFlag = () => {
     setHasAutoProcessed(false);
-    showToast({
-      title: "Auto-Processing Reset",
-      description:
-        "Auto-processing has been reset and will run again when enabled",
-      status: "info",
-    });
   };
 
   const reprocessAllWorkoutsWithNormalization = async () => {
     try {
       setAutoProcessing(true);
-      const response = await apiClient.post(
-        API_ENDPOINTS.COMPLETELY_REPROCESS_ALL_WORKOUTS
-      );
+      await apiClient.post(API_ENDPOINTS.COMPLETELY_REPROCESS_ALL_WORKOUTS);
 
-      showToast({
-        title: "Reprocessing Complete",
-        description: response.data.data.message,
-        status: "success",
-      });
-
-      // Refresh analytics to show updated gym names and exercise names
       fetchAnalytics();
       fetchPersonalRecords();
     } catch {

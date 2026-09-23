@@ -132,30 +132,14 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
       if (!response.data) throw new Error("Failed to update privacy settings");
       const result = response.data;
 
-      // Check if any follow requests were auto-approved
       if (result.autoApprovedRequests > 0) {
-        toast.success(
-          "Profile Updated & Follow Requests Approved",
-          `Your profile is now public and ${
-            result.autoApprovedRequests
-          } pending follow request${
-            result.autoApprovedRequests > 1 ? "s" : ""
-          } ${
-            result.autoApprovedRequests > 1 ? "have" : "has"
-          } been automatically approved!`
-        );
-
-        // Notify other components that privacy settings were updated
         localStorage.setItem("privacySettingsUpdated", "true");
-        // Trigger storage event for current window
         window.dispatchEvent(
           new StorageEvent("storage", {
             key: "privacySettingsUpdated",
             newValue: "true",
           })
         );
-      } else {
-        toast.success("Success", result.message);
       }
 
       // Close modal if it's a modal
@@ -181,12 +165,6 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
           status: response.data.accessStatus,
           hasAccess: response.data.accessStatus === "approved",
         });
-        toast.success(
-          "Success",
-          response.data.accessStatus === "approved"
-            ? "You already have trainer dashboard access!"
-            : "Trainer dashboard access requested successfully. We'll review your request soon."
-        );
       }
     } catch (error) {
       toast.error(

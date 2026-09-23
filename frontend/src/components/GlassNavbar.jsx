@@ -431,9 +431,9 @@ export default function GlassNavbar({ alwaysVisible = false }) {
       <div
         className={cn(
           "pointer-events-auto relative inline-flex w-fit items-end justify-center gap-2",
-          "touch-none select-none rounded-3xl border border-white/20 px-5",
-          "bg-white/10 backdrop-blur-xl supports-[backdrop-filter]:bg-white/5",
-          "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]",
+          "touch-none select-none rounded-[22px] border border-white/25 px-5",
+          "bg-white/12 backdrop-blur-2xl supports-[backdrop-filter]:bg-white/8",
+          "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.32)]",
           expanded ? "pb-2 pt-3" : "py-2.5",
         )}
         style={barStyle}

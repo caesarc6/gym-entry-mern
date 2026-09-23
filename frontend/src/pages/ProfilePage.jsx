@@ -390,11 +390,6 @@ const ProfilePage = () => {
         prev.filter((request) => request._id !== requestId)
       );
 
-      toast.success(
-        "Success",
-        `Request ${action === "accept" ? "accepted" : "rejected"} successfully`
-      );
-
       // Refresh user profile to update follower count
       if (uid) {
         const currentUser = await getCurrentAuthUser();
@@ -643,10 +638,6 @@ const ProfilePage = () => {
           prev.profileImage,
       }));
 
-      toast.success(
-        "Profile updated",
-        "Your profile has been successfully updated."
-      );
       setProfileImage(null);
       onProfileClose();
 
@@ -705,10 +696,6 @@ const ProfilePage = () => {
         backgroundPicture: backgroundData.data.backgroundPicture,
       }));
 
-      toast.success(
-        "Background updated",
-        "Your background image has been successfully updated."
-      );
       setBackgroundImage(null);
       onBackgroundClose();
     } catch (error) {
@@ -800,9 +787,7 @@ const ProfilePage = () => {
               <div className="h-10 w-10" aria-hidden />
 
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-                <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
-                  Profile
-                </span>
+                <span className="nav-wordmark text-foreground">Profile</span>
               </div>
 
               <HStack spacing={1}>
@@ -832,8 +817,8 @@ const ProfilePage = () => {
           maxW={"580px"}
           w={"full"}
           bg={colors.bgCard}
-          boxShadow={"2xl"}
-          rounded={"md"}
+          boxShadow="sm"
+          rounded="2xl"
           overflow={"hidden"}
         >
           <Box position="relative">
@@ -848,15 +833,17 @@ const ProfilePage = () => {
           </Box>
 
           <Flex justify={"center"} mt={-12}>
-            <Avatar
-              size={"xl"}
-              src={userProfile.profileImage || profileColorMode}
-              css={{ border: "2px solid white" }}
-            />
+            <Box className="ig-story-ring" p="2px" rounded="full">
+              <Avatar
+                size={"xl"}
+                src={userProfile.profileImage || profileColorMode}
+                css={{ border: "3px solid", borderColor: colors.bgCard }}
+              />
+            </Box>
           </Flex>
           <Box p={6}>
             <Stack spacing={0} align={"center"} mb={3}>
-              <Heading fontSize={"2xl"} fontWeight={500}>
+              <Heading fontSize={"xl"} fontWeight={600} letterSpacing="-0.03em">
                 {userProfile.username && `@${userProfile.username}`}
               </Heading>
               <Text fontSize={"lg"} color={colors.textSecondary}>

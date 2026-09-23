@@ -385,7 +385,6 @@ const SettingsPage = () => {
         profileImage: next.picture || next.profileImage || prev.profileImage,
       }));
       setProfileImage(null);
-      toast.success("Profile updated", "Your profile has been successfully updated.");
       onProfileClose();
     } catch (error) {
       toast.error("Update failed", error?.message || "Unable to update profile.");
@@ -417,7 +416,6 @@ const SettingsPage = () => {
         throw new Error(resp.data.message);
       }
 
-      toast.success("Background updated", "Your background image was updated.");
       setBackgroundImage(null);
       onBackgroundClose();
     } catch (error) {
@@ -432,7 +430,6 @@ const SettingsPage = () => {
     try {
       await signOutAll();
       setCurrentUser(null);
-      toast.success("Signed out", "You’ve been signed out.");
       navigate("/", { replace: true });
     } catch (error) {
       toast.error("Error", error?.message || "Failed to sign out.");
@@ -473,9 +470,7 @@ const SettingsPage = () => {
               </button>
 
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-                <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
-                  Settings
-                </span>
+                <span className="nav-wordmark text-foreground">Settings</span>
               </div>
 
               <Box w={10} />

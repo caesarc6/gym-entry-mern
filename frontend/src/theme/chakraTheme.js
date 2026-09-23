@@ -1,6 +1,19 @@
 import { extendTheme } from "@chakra-ui/react";
 
+const sansFont =
+  'var(--font-sans, "Instagram Sans", "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif)';
+
 const theme = extendTheme({
+  fonts: {
+    heading: sansFont,
+    body: sansFont,
+  },
+  radii: {
+    md: "0.75rem",
+    lg: "0.875rem",
+    xl: "1.125rem",
+    "2xl": "1.375rem",
+  },
   colors: {
     silver: {
       50: "#f8f9fa",
@@ -70,7 +83,7 @@ const theme = extendTheme({
         container: {
           bg: "white",
           color: "silver.800",
-          borderRadius: "xl",
+          borderRadius: "2xl",
           boxShadow:
             "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
           border: "1px solid",
@@ -179,7 +192,7 @@ const theme = extendTheme({
     Modal: {
       baseStyle: {
         dialog: {
-          borderRadius: "xl",
+          borderRadius: "2xl",
           // Keep modals compact on mobile (iOS) and avoid tall empty space.
           maxH: { base: "80vh", md: "85vh" },
           my: { base: 4, md: 10 },
@@ -214,6 +227,7 @@ const theme = extendTheme({
   styles: {
     global: (props) => ({
       body: {
+        fontFamily: sansFont,
         bg: "silver.50",
         color: "silver.900",
         _dark: {

@@ -34,7 +34,8 @@ import FeedPullToRefresh from "../components/FeedPullToRefresh";
 const isCapacitorNative = getIsCapacitorNative();
 /** Smaller pages on native reduce feed DOM + ProductCard instances per request. */
 const HOME_FEED_PAGE_SIZE = isCapacitorNative ? 4 : 6;
-const HOME_NEAR_TOP_PX = 56;
+/** Second home tap within this window reloads the feed. */
+const HOME_DOUBLE_TAP_MS = 350;
 
 const scrollFeedToTop = () => {
   const reduceMotion =
@@ -45,9 +46,6 @@ const scrollFeedToTop = () => {
   document.scrollingElement?.scrollTo?.({ top: 0, behavior });
   window.dispatchEvent(new CustomEvent("eg:scroll-home-top"));
 };
-
-const isFeedNearTop = () =>
-  (window.scrollY || document.documentElement.scrollTop || 0) <= HOME_NEAR_TOP_PX;
 
 const isRequestAbortError = (err) =>
   axios.isCancel?.(err) ||
@@ -71,8 +69,8 @@ const HomePage = () => {
   const [feedEpoch, setFeedEpoch] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const skipCacheRef = useRef(false);
-  const currentPageRef = useRef(1);
   const isSignedInRef = useRef(false);
+  const lastHomeTapAtRef = useRef(0);
   const [limit] = useState(HOME_FEED_PAGE_SIZE);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -93,7 +91,6 @@ const HomePage = () => {
     }
   };
 
-  currentPageRef.current = currentPage;
   isSignedInRef.current = isSignedIn;
 
   const refreshHomeFeed = useCallback(() => {
@@ -106,21 +103,35 @@ const HomePage = () => {
   }, [clearHomeFeedCache]);
 
   useEffect(() => {
-    const onHomeRetap = () => {
+    const reloadHome = () => {
       if (!isSignedInRef.current) {
-        scrollFeedToTop();
-        return;
-      }
-      if (currentPageRef.current !== 1 || !isFeedNearTop()) {
-        setCurrentPage(1);
         scrollFeedToTop();
         return;
       }
       refreshHomeFeed();
     };
 
+    const onHomeRetap = () => {
+      const now = Date.now();
+      const isDoubleTap = now - lastHomeTapAtRef.current <= HOME_DOUBLE_TAP_MS;
+      lastHomeTapAtRef.current = isDoubleTap ? 0 : now;
+      if (isDoubleTap) {
+        reloadHome();
+        return;
+      }
+      scrollFeedToTop();
+    };
+    const onHomeRefresh = () => {
+      lastHomeTapAtRef.current = 0;
+      reloadHome();
+    };
+
     window.addEventListener("eg:home-retap", onHomeRetap);
-    return () => window.removeEventListener("eg:home-retap", onHomeRetap);
+    window.addEventListener("eg:home-refresh", onHomeRefresh);
+    return () => {
+      window.removeEventListener("eg:home-retap", onHomeRetap);
+      window.removeEventListener("eg:home-refresh", onHomeRefresh);
+    };
   }, [refreshHomeFeed]);
 
   const handleHabitDayDoubleClick = useCallback(
@@ -390,13 +401,6 @@ const HomePage = () => {
               },
           cachedAt: Date.now(),
         });
-
-        if (currentPage === 1 && normalized.length === 0 && !bypassCache) {
-          toast.info(
-            "Empty feed",
-            "No posts available. Create or follow users to see more."
-          );
-        }
       } catch (error) {
         if (cancelled || isRequestAbortError(error)) {
           return;
@@ -525,7 +529,7 @@ const HomePage = () => {
                     </button>
 
                     <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-                      <span className="text-xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
+                      <span className="nav-wordmark text-foreground">
                         Ethereal Gains
                       </span>
                     </div>
@@ -602,7 +606,7 @@ const HomePage = () => {
                       md: 2,
                       lg: 3,
                     }}
-                    spacing={10}
+                    spacing={{ base: 6, md: 8 }}
                     w={"full"}
                     alignItems="stretch"
                     justifyItems="stretch"

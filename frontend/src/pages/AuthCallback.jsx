@@ -365,7 +365,13 @@ const AuthCallback = () => {
           rawParams,
           parsedParams,
         });
-        console.error("[AuthCallback] error", error);
+        console.error("[AuthCallback] error", {
+          message: error?.message,
+          name: error?.name,
+          code: error?.code,
+          status: error?.response?.status,
+          apiMessage: error?.response?.data?.message,
+        });
         const apiBody = error?.response?.data;
         const apiHint =
           (apiBody && typeof apiBody.message === "string" && apiBody.message) ||

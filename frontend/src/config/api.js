@@ -6,8 +6,17 @@ const getApiBaseUrl = () => {
     typeof window.Capacitor.isNativePlatform === "function" &&
     window.Capacitor.isNativePlatform();
 
-  // In Capacitor native builds, ALWAYS prefer an explicit API base URL (or a known
-  // deployed URL). In DEV (live reload), defaulting to localhost will break on iOS.
+  // Capacitor + Vite live reload runs in a WebView at http://LAN:5173. Calling
+  // the deployed API from that origin is blocked by CORS (Axios ERR_NETWORK).
+  // Keep requests same-origin so Vite can proxy /api.
+  if (isCapacitorNative && import.meta.env.DEV) {
+    if (typeof window !== "undefined" && window.location?.origin) {
+      return window.location.origin;
+    }
+  }
+
+  // In Capacitor native production builds, ALWAYS prefer an explicit API base URL
+  // (or a known deployed URL). Defaulting to localhost will break on iOS.
   if (isCapacitorNative) {
     return (
       import.meta.env.VITE_API_BASE_URL ||

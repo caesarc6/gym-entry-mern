@@ -23,7 +23,7 @@ import {
   syncWorkoutHabitWidget,
 } from "../utils/workoutHabitWidget";
 
-const CELL_BORDER_WIDTH = "1.99px";
+const CELL_BORDER_WIDTH = "2px";
 /** Darker than logo blue-300 so the highlight reads on dark surfaces. */
 const HIGHLIGHT_BLUE = "var(--chakra-colors-blue-500)";
 const SCRUB_MOVE_THRESHOLD_PX = 6;
@@ -69,7 +69,6 @@ export default function WorkoutHabitWidgetPreview({
   );
   const [isLoading, setIsLoading] = useState(!summary);
   const [error, setError] = useState(null);
-  const [syncStatus, setSyncStatus] = useState(null);
   const [hoveredDay, setHoveredDay] = useState(null);
   const [pinnedDay, setPinnedDay] = useState(null);
   const [popupLeftPx, setPopupLeftPx] = useState(null);
@@ -182,11 +181,9 @@ export default function WorkoutHabitWidgetPreview({
         try {
           const summaryToSync =
             useProductStore.getState().workoutHabitSummary || nextSummary;
-          const result = await syncWorkoutHabitWidget(summaryToSync);
-          if (!ignore) setSyncStatus(result);
+          await syncWorkoutHabitWidget(summaryToSync);
         } catch (syncError) {
           if (!ignore) {
-            setSyncStatus(null);
             setError(syncError?.message || "Unable to sync iOS widget");
           }
         }
@@ -205,26 +202,29 @@ export default function WorkoutHabitWidgetPreview({
     };
   }, [canSyncIosWidget, refreshKey, setWorkoutHabitSummary]);
 
+  const dismissPopup = useCallback(() => {
+    setPinnedDay(null);
+    setHoveredDay(null);
+  }, []);
+
   useEffect(() => {
-    if (!pinnedDay) return undefined;
+    if (!pinnedDay && !hoveredDay) return undefined;
 
     const onPointerDown = (event) => {
       if (gridRef.current?.contains(event.target)) return;
-      setPinnedDay(null);
+      dismissPopup();
     };
     const onKeyDown = (event) => {
-      if (event.key === "Escape") setPinnedDay(null);
+      if (event.key === "Escape") dismissPopup();
     };
 
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("touchstart", onPointerDown);
+    document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [pinnedDay]);
+  }, [dismissPopup, hoveredDay, pinnedDay]);
 
   const days = useMemo(
     () => summary?.workoutDays?.slice(-30) || buildEmptyDays(),
@@ -257,14 +257,16 @@ export default function WorkoutHabitWidgetPreview({
       pointerIdRef.current = null;
 
       const day = dayFromClientPoint(event.clientX, event.clientY);
+      const isMouse = event.pointerType === "mouse";
       if (pin && day) {
         if (didScrubRef.current) {
           setPinnedDay(day);
-          setHoveredDay(day);
         } else {
           setPinnedDay((prev) => (prev?.date === day.date ? null : day));
-          setHoveredDay(day);
         }
+        setHoveredDay(isMouse ? day : null);
+      } else if (!isMouse) {
+        setHoveredDay(null);
       }
 
       didScrubRef.current = false;
@@ -343,21 +345,6 @@ export default function WorkoutHabitWidgetPreview({
 
   const workoutCount = summary?.workoutCount30d ?? 0;
   const currentStreak = summary?.currentStreak ?? 0;
-  const widgetSyncLabel = (() => {
-    if (!canSyncIosWidget) {
-      return null;
-    }
-    if (syncStatus?.saved) {
-      return `Synced ${syncStatus.activeDaysCount ?? workoutCount} active days to iOS widget`;
-    }
-    if (syncStatus?.skipped) {
-      return `Widget sync skipped: ${syncStatus.reason}`;
-    }
-    if (syncStatus == null && !isLoading && summary) {
-      return "Widget sync did not return a native result";
-    }
-    return "Syncing iOS widget...";
-  })();
 
   const activeDay = hoveredDay || pinnedDay;
   const activeDayIndex = activeDay
@@ -408,20 +395,27 @@ export default function WorkoutHabitWidgetPreview({
       p={{ base: 4, md: 5 }}
       textAlign="left"
       shadow="xl"
+      overflow="hidden"
     >
       <VStack align="stretch" spacing={4}>
-        <Flex justify="space-between" align="flex-start" gap={4}>
-          <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
-            Workout widget
-          </Text>
-          <Box textAlign="right">
-            <Text fontSize="2xl" fontWeight="black" lineHeight="1">
+        <Flex justify="space-between" align="baseline" gap={4}>
+          <Flex align="baseline" gap={2}>
+            <Text
+              fontSize={{ base: "3xl", md: "4xl" }}
+              fontWeight="semibold"
+              lineHeight="1"
+              letterSpacing="-0.04em"
+              fontFamily="ui-rounded, system-ui, sans-serif"
+            >
               {currentStreak}
             </Text>
-            <Text color={colors.textMuted} fontSize="xs" textTransform="uppercase">
+            <Text color={colors.textMuted} fontSize="md" fontWeight="medium">
               streak
             </Text>
-          </Box>
+          </Flex>
+          <Text color={colors.textMuted} fontSize="md" fontWeight="medium">
+            {workoutCount}/30
+          </Text>
         </Flex>
 
         <Skeleton isLoaded={!isLoading || Boolean(summary)} rounded="0">
@@ -452,7 +446,7 @@ export default function WorkoutHabitWidgetPreview({
               data-habit-grid
               display="grid"
               gridTemplateColumns="repeat(10, minmax(0, 1fr))"
-              gap="3px"
+              gap="4px"
             >
               {days.map((day) => {
                 const isHighlighted =
@@ -495,7 +489,7 @@ export default function WorkoutHabitWidgetPreview({
               inset={0}
               display="grid"
               gridTemplateColumns="repeat(10, minmax(0, 1fr))"
-              gap="3px"
+              gap="4px"
               filter="blur(9px)"
               transform="translateX(4px)"
               opacity={0.85}
@@ -515,7 +509,7 @@ export default function WorkoutHabitWidgetPreview({
               inset={0}
               display="grid"
               gridTemplateColumns="repeat(10, minmax(0, 1fr))"
-              gap="3px"
+              gap="4px"
               filter="blur(18px)"
               transform="translateX(8px)"
               opacity={0.8}
@@ -535,7 +529,7 @@ export default function WorkoutHabitWidgetPreview({
               inset={0}
               display="grid"
               gridTemplateColumns="repeat(10, minmax(0, 1fr))"
-              gap="3px"
+              gap="4px"
               filter="blur(52px)"
               transform="translateX(22px)"
               opacity={0.65}
@@ -550,7 +544,6 @@ export default function WorkoutHabitWidgetPreview({
                 />
               ))}
             </Box>
-
             {activeDay && activeDayIndex >= 0 ? (
               <Box
                 ref={popupRef}
@@ -586,16 +579,11 @@ export default function WorkoutHabitWidgetPreview({
           </Box>
         </Skeleton>
 
-        <Flex justify="space-between" align="center" gap={3} flexWrap="wrap">
-          <Text color={colors.textMuted} fontSize="sm">
-            {workoutCount} of 30 days
+        {error && (
+          <Text color="red.400" fontSize="sm">
+            {error}
           </Text>
-          {(error || widgetSyncLabel) && (
-            <Text color={error ? "red.400" : colors.textMuted} fontSize="sm">
-              {error || widgetSyncLabel}
-            </Text>
-          )}
-        </Flex>
+        )}
       </VStack>
     </Box>
   );

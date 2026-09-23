@@ -181,13 +181,6 @@ const CreateSharedWorkout = () => {
       );
 
       if (response.data.success) {
-        const successMessage =
-          sharedWorkout.clientName && sharedWorkout.clientName.trim()
-            ? `Workout created and assigned to ${capitalizeName(
-                sharedWorkout.clientName
-              )}!`
-            : "Workout created successfully!";
-        toast.success("Success", successMessage);
         navigate("/trainer/dashboard");
       } else {
         throw new Error(

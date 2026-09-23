@@ -208,8 +208,6 @@ const EnhancedWorkoutEditor = ({
 
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-
-      toast.success("Auto-saved", "Workout changes saved automatically");
     } catch (error) {
     } finally {
       setIsLoading(false);
@@ -228,8 +226,6 @@ const EnhancedWorkoutEditor = ({
 
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-
-      toast.success("Saved", "Workout updated successfully");
 
       onSuccess?.();
       onClose();

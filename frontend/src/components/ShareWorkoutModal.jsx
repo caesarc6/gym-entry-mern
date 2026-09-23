@@ -55,13 +55,8 @@ const ShareWorkoutModal = ({ isOpen, onClose, entry, onShareGenerated }) => {
       );
 
       if (response.data.success) {
-        const { shareUrl: generatedUrl, expiryDate } = response.data.data;
+        const { shareUrl: generatedUrl } = response.data.data;
         setShareUrl(generatedUrl);
-
-        toast.success(
-          "Share link generated!",
-          `Link expires on ${new Date(expiryDate).toLocaleDateString()}`
-        );
 
         if (onShareGenerated) {
           onShareGenerated(generatedUrl);
@@ -87,13 +82,7 @@ const ShareWorkoutModal = ({ isOpen, onClose, entry, onShareGenerated }) => {
     try {
       await navigator.clipboard.writeText(shareUrl);
       setIsCopied(true);
-      toast({
-        title: "Link copied!",
-        description: "Share link has been copied to your clipboard",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
+      toast.success("Copied", "Link copied to clipboard");
 
       // Reset copied state after 2 seconds
       setTimeout(() => setIsCopied(false), 2000);

@@ -19,6 +19,7 @@
 		7A0100072DB9B00000A10001 /* WorkoutHabitWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0100032DB9B00000A10001 /* WorkoutHabitWidget.swift */; };
 		7A0100082DB9B00000A10001 /* WorkoutHabitWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7A0100062DB9B00000A10001 /* WorkoutHabitWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7A0100142DB9B00000A10001 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0100152DB9B00000A10001 /* MainViewController.swift */; };
+		7A01001A2DB9B00000A10001 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A01001B2DB9B00000A10001 /* SceneDelegate.swift */; };
 		7A0100162DB9B00000A10001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A0100172DB9B00000A10001 /* PrivacyInfo.xcprivacy */; };
 		7A0100182DB9B00000A10001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A0100192DB9B00000A10001 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
@@ -64,6 +65,7 @@
 		7A0100052DB9B00000A10001 /* WorkoutHabitWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WorkoutHabitWidget.entitlements; sourceTree = "<group>"; };
 		7A0100062DB9B00000A10001 /* WorkoutHabitWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WorkoutHabitWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7A0100152DB9B00000A10001 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
+		7A01001B2DB9B00000A10001 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		7A0100172DB9B00000A10001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7A0100192DB9B00000A10001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
@@ -112,6 +114,7 @@
 			children = (
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
+				7A01001B2DB9B00000A10001 /* SceneDelegate.swift */,
 				7A0100152DB9B00000A10001 /* MainViewController.swift */,
 				7A0100022DB9B00000A10001 /* Plugins/WorkoutWidgetPlugin.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -254,6 +257,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				7A01001A2DB9B00000A10001 /* SceneDelegate.swift in Sources */,
 				7A0100142DB9B00000A10001 /* MainViewController.swift in Sources */,
 				7A0100002DB9B00000A10001 /* Plugins/WorkoutWidgetPlugin.swift in Sources */,
 			);

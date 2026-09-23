@@ -113,140 +113,84 @@ struct WorkoutHabitWidgetView: View {
         WorkoutWidgetPalette(colorScheme: colorScheme)
     }
 
-    private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 0), count: columnCount)
+    private var isSmall: Bool {
+        family == .systemSmall
     }
 
-    private var activeDaysText: String {
-        let count = displayedDays.filter { $0.workedOut }.count
-        return "\(count) of 30 days"
-    }
-
-    private var widgetBackground: some View {
-        LinearGradient(
-            colors: palette.backgroundColors,
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    private var legacyPadding: CGFloat {
+        if #available(iOSApplicationExtension 17.0, *) {
+            return 2
+        }
+        return isSmall ? 14 : 16
     }
 
     var body: some View {
         Group {
-            if family == .systemMedium {
-                mediumLayout
-            } else {
+            if isSmall {
                 smallLayout
+            } else {
+                mediumLayout
             }
         }
-        .animation(.easeInOut(duration: 1.0), value: colorScheme)
-        .padding(.horizontal, family == .systemSmall ? 6 : 9)
-        .padding(.vertical, family == .systemSmall ? 8 : 4)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .workoutWidgetBackground(widgetBackground)
+        .padding(legacyPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .workoutWidgetBackground(palette.background)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
     }
 
     private var smallLayout: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            statsHeaderGroup
-            Spacer(minLength: 4)
-            calendarSection
-            Spacer(minLength: 4)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                streakNumber
+                Text("streak")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(palette.secondaryText)
+                Spacer(minLength: 0)
+            }
+            dayGrid
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var mediumLayout: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 0) {
-                Spacer(minLength: 0)
-                calendarSection
-                Spacer(minLength: 0)
+        HStack(alignment: .center, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                streakNumber
+                Text("streak")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(palette.secondaryText)
+                Spacer(minLength: 8)
+                Text(activeDaysText)
+                    .font(.subheadline.weight(.medium).monospacedDigit())
+                    .foregroundStyle(palette.secondaryText)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(minWidth: 88, alignment: .leading)
 
-            statsColumnMedium
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    /// Streak + “7 of 30 days” — primary read for the widget.
-    private var statsHeaderGroup: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            streakBlock(alignment: .leading)
-            activeDaysSubline
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    /// Calendar with a light section label so the grid matches the “of 30 days” copy.
-    private var calendarSection: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("Last 30 days")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(palette.subtleText)
-                .textCase(.uppercase)
-                .lineLimit(1)
             dayGrid
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .accessibilityElement(children: .combine)
     }
 
-    private var statsColumnMedium: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            streakBlock(alignment: .leading)
-            activeDaysSubline
-        }
-        .frame(width: 112, alignment: .leading)
-        .frame(maxHeight: .infinity, alignment: .center)
-        .padding(.leading, 2)
-    }
-
-    private var activeDaysSubline: some View {
-        Text(activeDaysText)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(palette.secondaryText)
+    private var streakNumber: some View {
+        Text("\(currentStreakValue)")
+            .font(.system(size: isSmall ? 22 : 44, weight: .semibold, design: .rounded))
+            .foregroundStyle(palette.primaryText)
+            .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.75)
-            .multilineTextAlignment(.leading)
     }
 
-    private func streakBlock(alignment: HorizontalAlignment) -> some View {
-        VStack(alignment: alignment, spacing: 2) {
-            Text(streakHighlightValue)
-                .font((family == .systemMedium ? Font.title : Font.title2).weight(.black))
-                .foregroundStyle(palette.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(streakHighlightCaption)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(palette.subtleText)
-                .lineLimit(2)
-                .multilineTextAlignment(alignment == .trailing ? .trailing : .leading)
-                .minimumScaleFactor(0.65)
-        }
+    private var activeDaysText: String {
+        "\(workoutCount)/30"
     }
 
-    private var streakHighlightValue: String {
-        let streak = currentStreakValue
-        if streak > 0 {
-            return "\(streak)"
-        }
-        if let days = daysSinceLastWorkout {
-            return "\(days)"
-        }
-        return "—"
+    private var workoutCount: Int {
+        displayedDays.filter(\.workedOut).count
     }
 
-    private var streakHighlightCaption: String {
-        let streak = currentStreakValue
-        if streak > 0 {
-            return "streak"
-        }
-        if let days = daysSinceLastWorkout {
-            return days == 1 ? "day since last workout" : "days since last workout"
-        }
-        return "no workouts"
+    private var accessibilitySummary: String {
+        "\(currentStreakValue) day streak. \(workoutCount) of 30 days."
     }
 
     private var currentStreakValue: Int {
@@ -269,37 +213,6 @@ struct WorkoutHabitWidgetView: View {
             }
         }
         return max(streak, entry.summary.currentStreak)
-    }
-
-    private var daysSinceLastWorkout: Int? {
-        guard currentStreakValue == 0 else {
-            return nil
-        }
-        guard let mostRecentActive = displayedDays.last(where: { $0.workedOut }) else {
-            return nil
-        }
-        guard let lastDay = Self.parseLocalDateKey(mostRecentActive.date) else {
-            return nil
-        }
-        let cal = Calendar.current
-        let startLast = cal.startOfDay(for: lastDay)
-        let startToday = cal.startOfDay(for: Date())
-        guard let days = cal.dateComponents([.day], from: startLast, to: startToday).day else {
-            return nil
-        }
-        return max(0, days)
-    }
-
-    private static func parseLocalDateKey(_ key: String) -> Date? {
-        let parts = key.split(separator: "-")
-        guard parts.count == 3,
-              let y = Int(parts[0]),
-              let m = Int(parts[1]),
-              let d = Int(parts[2]) else {
-            return nil
-        }
-        let cal = Calendar.current
-        return cal.date(from: DateComponents(year: y, month: m, day: d))
     }
 
     private var displayedDays: [WorkoutDay] {
@@ -332,142 +245,135 @@ struct WorkoutHabitWidgetView: View {
         }
     }
 
-    private var dayGrid: some View {
-        // Overlay + fixedSize keep grid lines sized to the square cells (GeometryReader
-        // as a ZStack sibling was stretching taller and misaligning marks).
-        ZStack(alignment: .topLeading) {
-            calendarCells(blurredOverlay: false)
-            blurLayer(smallRadius: 3, mediumRadius: 5, smallOffset: 1, mediumOffset: 2, opacity: 1.0)
-            blurLayer(smallRadius: 7, mediumRadius: 10, smallOffset: 2.5, mediumOffset: 4, opacity: 1.0)
-            blurLayer(smallRadius: 14, mediumRadius: 20, smallOffset: 4, mediumOffset: 7, opacity: 0.95)
-        }
-        .overlay {
-            gridLineOverlay
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private var gridColumns: Int {
+        isSmall ? 6 : 10
     }
 
-    private func blurLayer(
-        smallRadius: CGFloat,
-        mediumRadius: CGFloat,
-        smallOffset: CGFloat,
-        mediumOffset: CGFloat,
+    private var gridRows: Int {
+        isSmall ? 5 : 3
+    }
+
+    private var dayGrid: some View {
+        let spacing: CGFloat = isSmall ? 3 : 4
+        let columns = gridColumns
+        let rows = gridRows
+
+        return ZStack(alignment: .topLeading) {
+            calendarCells(
+                rows: rows,
+                columns: columns,
+                spacing: spacing,
+                glow: false
+            )
+            glowLayer(
+                rows: rows,
+                columns: columns,
+                spacing: spacing,
+                radius: isSmall ? 5 : 9,
+                offset: isSmall ? 1 : 4,
+                opacity: 0.85
+            )
+            glowLayer(
+                rows: rows,
+                columns: columns,
+                spacing: spacing,
+                radius: isSmall ? 10 : 18,
+                offset: isSmall ? 2 : 8,
+                opacity: 0.8
+            )
+            glowLayer(
+                rows: rows,
+                columns: columns,
+                spacing: spacing,
+                radius: isSmall ? 18 : 40,
+                offset: isSmall ? 4 : 16,
+                opacity: 0.65
+            )
+        }
+    }
+
+    private func glowLayer(
+        rows: Int,
+        columns: Int,
+        spacing: CGFloat,
+        radius: CGFloat,
+        offset: CGFloat,
         opacity: Double
     ) -> some View {
-        calendarCells(blurredOverlay: true)
-            .blur(radius: family == .systemSmall ? smallRadius : mediumRadius)
-            .offset(x: family == .systemSmall ? smallOffset : mediumOffset)
+        calendarCells(rows: rows, columns: columns, spacing: spacing, glow: true)
+            .blur(radius: radius)
+            .offset(x: offset)
             .opacity(opacity)
             .allowsHitTesting(false)
     }
 
-    private func calendarCells(blurredOverlay: Bool) -> some View {
-        LazyVGrid(columns: columns, spacing: 0) {
-            ForEach(displayedDays, id: \.self) { day in
-                dayCell(workedOut: day.workedOut, blurredOverlay: blurredOverlay)
+    private func calendarCells(
+        rows: Int,
+        columns: Int,
+        spacing: CGFloat,
+        glow: Bool
+    ) -> some View {
+        VStack(spacing: spacing) {
+            ForEach(0..<rows, id: \.self) { row in
+                HStack(spacing: spacing) {
+                    ForEach(0..<columns, id: \.self) { column in
+                        dayCell(at: row * columns + column, glow: glow)
+                    }
+                }
+                .frame(maxHeight: .infinity)
             }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func dayCell(at index: Int, glow: Bool) -> some View {
+        if displayedDays.indices.contains(index) {
+            RoundedRectangle(cornerRadius: isSmall ? 3 : 4, style: .continuous)
+                .fill(cellColor(workedOut: displayedDays[index].workedOut, glow: glow))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    private var columnCount: Int {
-        10
-    }
-
-    private func dayCell(workedOut: Bool, blurredOverlay: Bool) -> some View {
-        Rectangle()
-            .fill(dayCellColor(workedOut: workedOut, blurredOverlay: blurredOverlay))
-            .aspectRatio(1, contentMode: .fit)
-    }
-
-    private var gridLineOverlay: some View {
-        let lineWidth: CGFloat = 0.35
-        let columns = columnCount
-        let rows = Int(ceil(Double(displayedDays.count) / Double(columns)))
-
-        return GeometryReader { proxy in
-            let cellSize = proxy.size.width / CGFloat(columns)
-            let gridHeight = cellSize * CGFloat(rows)
-
-            ZStack(alignment: .topLeading) {
-                ForEach(0...rows, id: \.self) { row in
-                    horizontalGridLine
-                        .frame(width: proxy.size.width, height: lineWidth)
-                        .position(x: proxy.size.width / 2, y: CGFloat(row) * cellSize)
-                }
-
-                ForEach(0...columns, id: \.self) { column in
-                    verticalGridLine
-                        .frame(width: lineWidth, height: gridHeight)
-                        .position(x: CGFloat(column) * cellSize, y: gridHeight / 2)
-                }
-            }
-        }
-        .allowsHitTesting(false)
-    }
-
-    private var horizontalGridLine: some View {
-        LinearGradient(
-            colors: [.clear, palette.gridLine, palette.gridLine, .clear],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-
-    private var verticalGridLine: some View {
-        LinearGradient(
-            colors: [.clear, palette.gridLine, palette.gridLine, .clear],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-
-    private func dayCellColor(workedOut: Bool, blurredOverlay: Bool) -> Color {
-        if blurredOverlay {
+    private func cellColor(workedOut: Bool, glow: Bool) -> Color {
+        if glow {
             return workedOut ? palette.activeDayGlow : .clear
         }
-
-        return workedOut ? palette.activeDayFill : palette.inactiveDay
+        return workedOut ? palette.activeDay : palette.inactiveDay
     }
 }
 
 private struct WorkoutWidgetPalette {
-    let backgroundColors: [Color]
+    let background: Color
     let primaryText: Color
     let secondaryText: Color
-    let subtleText: Color
-    let activeDayFill: Color
+    let activeDay: Color
     let activeDayGlow: Color
     let inactiveDay: Color
-    let gridLine: Color
 
     init(colorScheme: ColorScheme) {
+        // Exact HSL → RGB of the in-app CSS variables. Do not use SwiftUI
+        // hue/saturation/brightness here — that is HSV and turns --primary
+        // (lightness 98%) into a vivid sky blue.
         if colorScheme == .dark {
-            backgroundColors = [
-                Color(red: 0.03, green: 0.03, blue: 0.04),
-                Color(red: 0.05, green: 0.06, blue: 0.09),
-                Color(red: 0.08, green: 0.12, blue: 0.20)
-            ]
-            primaryText = .white
-            secondaryText = .white.opacity(0.72)
-            subtleText = .white.opacity(0.62)
-            activeDayFill = Color(red: 0.14, green: 0.28, blue: 0.48)
-            activeDayGlow = Color(red: 0.18, green: 0.36, blue: 0.62).opacity(0.9)
-            inactiveDay = Color(red: 0.22, green: 0.23, blue: 0.26)
-            gridLine = Color.white.opacity(0.12)
+            background = Color(red: 0.114, green: 0.118, blue: 0.126) // --workout-card
+            primaryText = .white // --workout-text-primary
+            secondaryText = Color(red: 0.569, green: 0.569, blue: 0.569) // --workout-text-muted
+            let primary = Color(red: 0.972, green: 0.980, blue: 0.988) // --primary #F8FAFC
+            activeDay = primary.opacity(0.11)
+            activeDayGlow = primary.opacity(0.52)
+            inactiveDay = Color(red: 0.008, green: 0.032, blue: 0.090).opacity(0.92) // --card
         } else {
-            backgroundColors = [
-                Color(red: 0.96, green: 0.97, blue: 0.98),
-                Color(red: 0.90, green: 0.91, blue: 0.93),
-                Color(red: 0.93, green: 0.95, blue: 0.98)
-            ]
-            primaryText = Color(red: 0.12, green: 0.16, blue: 0.22)
-            secondaryText = Color(red: 0.29, green: 0.33, blue: 0.39)
-            subtleText = Color(red: 0.42, green: 0.45, blue: 0.50)
-            activeDayFill = Color(red: 0.62, green: 0.80, blue: 0.98)
-            activeDayGlow = Color(red: 0.45, green: 0.70, blue: 0.96).opacity(0.85)
-            inactiveDay = Color(red: 0.88, green: 0.89, blue: 0.91)
-            gridLine = Color.black.opacity(0.14)
+            background = .white // --workout-card
+            primaryText = Color(red: 0.459, green: 0.541, blue: 0.623) // --workout-text-primary
+            secondaryText = Color(red: 0.648, green: 0.652, blue: 0.694) // --workout-text-muted
+            let primary = Color(red: 0.059, green: 0.090, blue: 0.165) // --primary
+            activeDay = primary.opacity(0.11)
+            activeDayGlow = primary.opacity(0.52)
+            inactiveDay = Color.white.opacity(0.92) // --card
         }
     }
 }

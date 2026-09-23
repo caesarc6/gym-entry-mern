@@ -52,28 +52,66 @@ const productionDomains = [
   "https://etherealgains.vercel.app",
 ];
 
-// Capacitor (and some webviews) may use custom schemes / localhost origins.
-// We allow capacitor://localhost explicitly, and allow common LAN dev-server patterns
-// via ALLOWED_ORIGINS.
-const capacitorOrigins = ["capacitor://localhost", "ionic://localhost"];
+// Capacitor WebViews use custom schemes; live reload uses the Vite LAN origin
+// (e.g. http://192.168.1.x:5173), which changes with the Mac's Wi-Fi IP.
+const capacitorOrigins = [
+  "capacitor://localhost",
+  "ionic://localhost",
+  "https://localhost",
+];
 
-// Combine allowed origins with production domains
 const allAllowedOrigins = [
   ...new Set([...allowedOrigins, ...productionDomains, ...capacitorOrigins]),
 ];
 
+function isPrivateLanHostname(hostname) {
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
+    return true;
+  }
+  const parts = hostname.split(".");
+  if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/.test(part))) {
+    return false;
+  }
+  const octets = parts.map(Number);
+  if (octets.some((n) => n > 255)) {
+    return false;
+  }
+  const [a, b] = octets;
+  return (
+    a === 10 ||
+    a === 127 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254)
+  );
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) {
+    return true;
+  }
+  if (allAllowedOrigins.includes(origin)) {
+    return true;
+  }
+  try {
+    const url = new URL(origin);
+    if (url.protocol === "capacitor:" || url.protocol === "ionic:") {
+      return url.hostname === "localhost";
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return false;
+    }
+    return isPrivateLanHostname(url.hostname);
+  } catch {
+    return false;
+  }
+}
 
 app.use(
   cors({
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      
-      // Check if origin is in allowed list
-      if (allAllowedOrigins.indexOf(origin) !== -1) {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
@@ -380,11 +418,16 @@ app.use((err, req, res, next) => {
 
   // Handle CORS errors specifically
   if (err.message && err.message.includes("Not allowed by CORS")) {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
     return res.status(403).json({
       success: false,
       message: "CORS Error: Origin not allowed",
-      error: process.env.NODE_ENV === "development" 
-        ? `Origin ${req.headers.origin} is not in ALLOWED_ORIGINS` 
+      error: process.env.NODE_ENV === "development"
+        ? `Origin ${origin} is not in ALLOWED_ORIGINS`
         : "Origin not allowed",
     });
   }

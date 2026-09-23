@@ -376,6 +376,13 @@ export const HeroHeader = () => {
     }
   };
 
+  const onHomeClick = (event) => {
+    closeMenu();
+    if (!isHome) return;
+    event.preventDefault();
+    window.dispatchEvent(new CustomEvent("eg:home-retap"));
+  };
+
   return (
     <header>
       <nav ref={navRef} className="fixed z-20 w-full">
@@ -415,15 +422,9 @@ export const HeroHeader = () => {
                 href="/"
                 aria-label="home"
                 className="flex items-center space-x-2"
-                onClick={(event) => {
-                  closeMenu();
-                  if (location.pathname === "/" || location.pathname === "") {
-                    event.preventDefault();
-                    window.dispatchEvent(new CustomEvent("eg:home-retap"));
-                  }
-                }}
+                onClick={onHomeClick}
               >
-                <span className="text-xl md:text-2xl uppercase bg-gradient-to-r from-blue-300 to-gray-400 bg-clip-text text-transparent">
+                <span className="nav-wordmark nav-wordmark-lg text-foreground">
                   Ethereal Gains
                 </span>
               </a>

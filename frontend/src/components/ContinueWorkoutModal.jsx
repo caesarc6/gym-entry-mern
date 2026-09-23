@@ -90,13 +90,10 @@ const ContinueWorkoutModal = ({
       );
 
       if (validExercises.length === 0) {
-        toast({
-          title: "No exercises added",
-          description:
-            "Please add at least one exercise to continue the workout.",
-          status: "warning",
-          isClosable: true,
-        });
+        toast.warning(
+          "No exercises added",
+          "Please add at least one exercise to continue the workout.",
+        );
         return;
       }
 
@@ -110,8 +107,6 @@ const ContinueWorkoutModal = ({
           instructions: workoutDescription,
         }
       );
-
-      toast.success("Success", "Workout continued successfully!");
 
       onSuccess?.();
       onClose();
@@ -143,8 +138,6 @@ const ContinueWorkoutModal = ({
           instructions: workoutDescription,
         }
       );
-
-      toast.success("Success", "Workout completed successfully!");
 
       onSuccess?.();
       onClose();

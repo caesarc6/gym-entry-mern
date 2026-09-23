@@ -286,7 +286,6 @@ const ClientWorkoutsPage = () => {
         workout._id === updatedWorkout._id ? updatedWorkout : workout
       )
     );
-    toast.success("Success", "Workout updated successfully!");
   };
 
   // Close edit modal
@@ -299,7 +298,6 @@ const ClientWorkoutsPage = () => {
   const handleCreateSuccess = (newWorkout) => {
     // Refresh the data to show the new workout
     fetchClientData();
-    toast.success("Success", "Workout created and assigned successfully!");
   };
 
   // Close create modal
@@ -335,8 +333,6 @@ const ClientWorkoutsPage = () => {
 
       // Refresh the data to remove the deleted workout
       fetchClientData();
-
-      toast.success("Success", "Workout deleted successfully!");
     } catch (error) {
       toast.error(
         "Error",

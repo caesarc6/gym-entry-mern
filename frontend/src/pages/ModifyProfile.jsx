@@ -84,8 +84,6 @@ const ModifyProfile = ({ entry }) => {
     const { success, message } = await deleteEntry(pid);
     if (!success) {
       toast.error("Error", message);
-    } else {
-      toast.success("Success", message);
     }
   };
 
@@ -145,8 +143,6 @@ const ModifyProfile = ({ entry }) => {
     onClose();
     if (!success) {
       toast.error("Error", message);
-    } else {
-      toast.success("Success", "Product updated successfully");
     }
   };
 
@@ -159,7 +155,6 @@ const ModifyProfile = ({ entry }) => {
         ...prevEntry,
         likes: prevEntry.likes + 1,
       }));
-      toast.success("Success", "Entry liked successfully");
     }
   };
 
@@ -176,7 +171,6 @@ const ModifyProfile = ({ entry }) => {
         ],
       }));
       setComment("");
-      toast.success("Success", "Comment added successfully");
     }
   };
 
