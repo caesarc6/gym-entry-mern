@@ -12,9 +12,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         // Custom CAPBridgeViewController keeps WorkoutWidgetPlugin registration.
-        window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = MainViewController()
-        window?.makeKeyAndVisible()
+        let window = UIWindow(windowScene: windowScene)
+        // Opaque system background so a not-yet-painted web view is not a black window.
+        window.backgroundColor = .systemBackground
+        window.rootViewController = MainViewController()
+        window.makeKeyAndVisible()
+        self.window = window
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
     }

@@ -62,6 +62,11 @@ const EXERCISE_NORMALIZATION = {
   "assisted pull up": "Assisted Pull-Ups",
   "assisted wg pull ups": "Assisted Wide Grip Pull-Ups",
 
+  running: "Running",
+  treadmill: "Treadmill",
+  teadmill: "Treadmill",
+  tredmill: "Treadmill",
+
   // Lat Pulldown variations
   "cable pulldown": "Lat Pulldown",
   "cable pull downs": "Lat Pulldown",
@@ -473,6 +478,76 @@ const CANONICAL_BY_TOKEN_KEY = Object.fromEntries(
   ])
 );
 
+const ALIASES_BY_CANONICAL = Object.entries(EXERCISE_NORMALIZATION).reduce(
+  (acc, [pattern, canonical]) => {
+    const aliases = acc.get(canonical) || [];
+    aliases.push(pattern);
+    acc.set(canonical, aliases);
+    return acc;
+  },
+  new Map(),
+);
+
+const EQUIPMENT_TOKENS = new Set([
+  "dumbbell",
+  "barbell",
+  "cable",
+  "machine",
+  "smith",
+  "kettlebell",
+]);
+
+// Analysis often drops these from the stored name ("db overhead ext" → "overhead ext").
+const IGNORED_SEARCH_WORDS = new Set([
+  "db",
+  "bb",
+  "kb",
+  "dumbbell",
+  "barbell",
+  "kettlebell",
+]);
+
+const searchCore = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word && !IGNORED_SEARCH_WORDS.has(word))
+    .join(" ");
+
+/**
+ * Match a search against the analyzed exercise name.
+ * "db overhead ext" matches a stored "overhead ext" because analysis drops "db".
+ */
+export const exerciseMatchesQuery = (canonicalName, query) => {
+  const name = String(canonicalName || "").trim();
+  const q = String(query || "").trim().toLowerCase();
+  if (!name || !q) return false;
+  if (name.toLowerCase().includes(q)) return true;
+
+  const queryCore = searchCore(q);
+  const nameCore = searchCore(name);
+  if (queryCore && nameCore.includes(queryCore)) return true;
+
+  if (cleanExerciseName(q).toLowerCase() === name.toLowerCase()) return true;
+
+  const needles = nameTokens(q);
+  if (needles.length === 0) return false;
+
+  const aliases = ALIASES_BY_CANONICAL.get(name) || [];
+  const nameHay = new Set(nameTokens(name.toLowerCase()));
+  const hay = new Set([...nameHay, ...nameTokens(aliases.join(" "))]);
+  if (needles.every((token) => hay.has(token))) return true;
+
+  const required = needles.filter(
+    (token) => !EQUIPMENT_TOKENS.has(token) || nameHay.has(token),
+  );
+  return (
+    required.length > 0 &&
+    required.length < needles.length &&
+    required.every((token) => nameHay.has(token))
+  );
+};
+
 /**
  * Clean and normalize exercise name by removing common extra text and standardizing names
  * @param {string} name - Raw exercise name
@@ -631,6 +706,55 @@ export const parseExerciseLine = (line) => {
   }
 
   return null;
+};
+
+const minutesFromUnit = (amount, unit) => {
+  const value = Number(amount);
+  if (!value) return 0;
+  return /^h/i.test(unit) ? value * 60 : value;
+};
+
+/**
+ * Lines like "Treadmill 20 min incline 5 lvl 8" are not weighted sets.
+ * @returns {{ name: string, minutes: number|null, incline: number|null, level: number|null }|null}
+ */
+export const parseCardioLine = (line) => {
+  const cleaned = stripGymOrLocationTagsFromLine(line);
+  if (!cleaned || /\d+(?:\.\d+)?\s*(?:lbs?|kg)\b/i.test(cleaned)) return null;
+
+  const timePattern = /(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b/gi;
+  let minutes = 0;
+  let sawTime = false;
+  for (const match of cleaned.matchAll(timePattern)) {
+    sawTime = true;
+    minutes += minutesFromUnit(match[1], match[2]);
+  }
+
+  const inclineMatch =
+    cleaned.match(/\bincline\s*(\d+(?:\.\d+)?)/i) ||
+    cleaned.match(/\b(\d+(?:\.\d+)?)\s*incline\b/i);
+  const levelMatch =
+    cleaned.match(/\b(?:lvl|level)\s*(\d+(?:\.\d+)?)/i) ||
+    cleaned.match(/\b(\d+(?:\.\d+)?)\s*(?:lvl|level)\b/i);
+  if (!sawTime && !inclineMatch && !levelMatch) return null;
+
+  const name = cleaned
+    .replace(timePattern, " ")
+    .replace(/\bincline\s*\d+(?:\.\d+)?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*incline\b/gi, " ")
+    .replace(/\b(?:lvl|level)\s*\d+(?:\.\d+)?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*(?:lvl|level)\b/gi, " ")
+    .replace(/[-–—]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!name) return null;
+
+  return {
+    name: cleanExerciseName(name, 0),
+    minutes: sawTime ? minutes : null,
+    incline: inclineMatch ? Number(inclineMatch[1] || inclineMatch[2]) : null,
+    level: levelMatch ? Number(levelMatch[1] || levelMatch[2]) : null,
+  };
 };
 
 /**

@@ -144,7 +144,7 @@ const ExerciseProgressChart = ({ exerciseProgress }) => {
         ticks: {
           color: mutedTextColor,
           callback: function(value) {
-            return value + ' lbs';
+            return value;
           },
         },
         beginAtZero: false,
@@ -162,7 +162,7 @@ const ExerciseProgressChart = ({ exerciseProgress }) => {
   };
 
   return (
-    <Box w="full" h="280px">
+    <Box w="full" h="200px">
       <Line data={chartData} options={options} />
     </Box>
   );

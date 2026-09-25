@@ -348,10 +348,19 @@ export const getPersonalRecords = async (req, res) => {
             maxWeight: { value: 0, date: null, workoutId: null },
             maxVolume: { value: 0, date: null, workoutId: null },
             maxReps: { value: 0, date: null, workoutId: null },
+            latest: null,
           };
         }
 
         const exercisePRs = prs[exerciseName];
+
+        if (!exercisePRs.latest) {
+          exercisePRs.latest = {
+            value: exercise.maxWeight,
+            date: workout.workoutDate,
+            workoutId: workout._id,
+          };
+        }
 
         if (exercise.maxWeight > exercisePRs.maxWeight.value) {
           exercisePRs.maxWeight = {

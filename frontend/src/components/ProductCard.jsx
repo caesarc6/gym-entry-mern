@@ -2909,7 +2909,6 @@ const ProductCard = memo(function ProductCard({
         entry={entry}
         onUpdate={handleUpdateEntry}
       />
-      />
     </>
   );
 });
