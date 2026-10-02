@@ -245,7 +245,7 @@ function App() {
 
   return (
     <Box minH="100dvh" w="100%" style={shellBgStyle}>
-      {!isCapacitorNative && !isProfilePath && (
+      {!isProfilePath && (
         <Suspense fallback={<HeaderFallback />}>
           <HeroHeader />
         </Suspense>

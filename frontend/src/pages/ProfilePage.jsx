@@ -53,13 +53,11 @@ import { API_ENDPOINTS, apiClient } from "../config/api";
 import PrivacySettings from "../components/PrivacySettings";
 import { useProductStore as useUiStore } from "../store/product";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
-import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import {
   THEME_SHELL_BG_BORDER_TRANSITION,
 } from "../constants/themeShellTiming.js";
 
-const isCapacitorNative = getIsCapacitorNative();
-const PROFILE_POSTS_PAGE_SIZE = isCapacitorNative ? 4 : 6;
+const PROFILE_POSTS_PAGE_SIZE = 6;
 const ProductCard = lazy(() => import("../components/ProductCard"));
 
 const ProfilePage = () => {

@@ -6,11 +6,10 @@ import {
   Box,
   useColorModeValue,
   Flex,
-  HStack,
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { supabase } from "../supabase/supabase";
 import { Hero } from "../components/Hero";
@@ -23,17 +22,14 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import { cn } from "../lib/utils";
 import { landingDarkMainCanvas } from "../lib/homeLandingDarkTheme";
-import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
-import { FiPlus } from "react-icons/fi";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
 import ProductCard from "../components/ProductCard";
 import FeedPullToRefresh from "../components/FeedPullToRefresh";
 
 const isCapacitorNative = getIsCapacitorNative();
-/** Smaller pages on native reduce feed DOM + ProductCard instances per request. */
-const HOME_FEED_PAGE_SIZE = isCapacitorNative ? 4 : 6;
+const HOME_FEED_PAGE_SIZE = 6;
 /** Second home tap within this window reloads the feed. */
 const HOME_DOUBLE_TAP_MS = 350;
 
@@ -82,8 +78,6 @@ const HomePage = () => {
   const [habitDetailEntry, setHabitDetailEntry] = useState(null);
   const toast = useCustomToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
-  const { currentTheme } = useTheme();
-  const navigate = useNavigate();
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
@@ -496,58 +490,8 @@ const HomePage = () => {
     <>
       {showSignedInFeed ? (
         <>
-          {/* Web already mounts `HeroHeader` globally (App.jsx). Only show this
-              feed header on native builds where `HeroHeader` is not mounted. */}
-          {isCapacitorNative ? (
-            <nav className="sticky top-0 z-20 w-full">
-              <div
-                className={cn(
-                  "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
-                  currentTheme === "light"
-                    ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
-                    : currentTheme === "dark-black"
-                      ? "border-neutral-800/55 bg-neutral-950/88"
-                      : currentTheme === "dark-blue"
-                        ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
-                        : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
-                )}
-              >
-                <div className="mx-auto w-full max-w-7xl">
-                  <div className="relative flex items-center justify-between py-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate("/create")}
-                      aria-label="Create post"
-                      className={cn(
-                        "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                        currentTheme === "light"
-                          ? "text-gray-700 hover:bg-gray-100"
-                          : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                      )}
-                    >
-                      <FiPlus className="h-5 w-5" />
-                    </button>
-
-                    <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-                      <span className="nav-wordmark text-foreground">
-                        Ethereal Gains
-                      </span>
-                    </div>
-
-                    <HStack spacing={1} />
-                  </div>
-                </div>
-              </div>
-            </nav>
-          ) : null}
-
           <Container maxW="container.xl" className="text-center z-0 relative">
-            <VStack
-              spacing={8}
-              className={cn(
-                isCapacitorNative ? "pt-4" : "pt-[6.5rem] md:pt-28",
-              )}
-            >
+            <VStack spacing={8} className="pt-[6.5rem] md:pt-28">
               <FeedPullToRefresh
                 onRefresh={refreshHomeFeed}
                 isRefreshing={isRefreshing}
