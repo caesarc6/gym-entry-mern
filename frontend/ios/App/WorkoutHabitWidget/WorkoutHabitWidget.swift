@@ -154,8 +154,8 @@ struct WorkoutHabitWidgetView: View {
     }
 
     private var mediumLayout: some View {
-        HStack(alignment: .center, spacing: 18) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 streakNumber
                 Text("streak")
                     .font(.subheadline.weight(.medium))
@@ -165,8 +165,6 @@ struct WorkoutHabitWidgetView: View {
                     .font(.subheadline.weight(.medium).monospacedDigit())
                     .foregroundStyle(palette.secondaryText)
             }
-            .frame(minWidth: 88, alignment: .leading)
-
             dayGrid
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -174,7 +172,7 @@ struct WorkoutHabitWidgetView: View {
 
     private var streakNumber: some View {
         Text("\(currentStreakValue)")
-            .font(.system(size: isSmall ? 22 : 44, weight: .semibold, design: .rounded))
+            .font(.system(size: isSmall ? 22 : 28, weight: .semibold, design: .rounded))
             .foregroundStyle(palette.primaryText)
             .monospacedDigit()
             .lineLimit(1)
@@ -254,87 +252,71 @@ struct WorkoutHabitWidgetView: View {
     }
 
     private var dayGrid: some View {
-        let spacing: CGFloat = isSmall ? 3 : 4
-        let columns = gridColumns
-        let rows = gridRows
-
-        return ZStack(alignment: .topLeading) {
-            calendarCells(
-                rows: rows,
-                columns: columns,
-                spacing: spacing,
-                glow: false
-            )
-            glowLayer(
-                rows: rows,
-                columns: columns,
-                spacing: spacing,
-                radius: isSmall ? 5 : 9,
-                offset: isSmall ? 1 : 4,
-                opacity: 0.85
-            )
-            glowLayer(
-                rows: rows,
-                columns: columns,
-                spacing: spacing,
-                radius: isSmall ? 10 : 18,
-                offset: isSmall ? 2 : 8,
-                opacity: 0.8
-            )
-            glowLayer(
-                rows: rows,
-                columns: columns,
-                spacing: spacing,
-                radius: isSmall ? 18 : 40,
-                offset: isSmall ? 4 : 16,
-                opacity: 0.65
-            )
+        GeometryReader { geo in
+            let metrics = gridMetrics(in: geo.size)
+            ZStack(alignment: .topLeading) {
+                calendarCells(metrics: metrics, glow: false)
+                glowLayer(metrics: metrics, radius: isSmall ? 5 : 9, offset: isSmall ? 1 : 4, opacity: 0.85)
+                glowLayer(metrics: metrics, radius: isSmall ? 10 : 18, offset: isSmall ? 2 : 8, opacity: 0.8)
+                glowLayer(metrics: metrics, radius: isSmall ? 18 : 40, offset: isSmall ? 4 : 16, opacity: 0.65)
+            }
+            .frame(width: metrics.gridWidth, height: metrics.gridHeight, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 
+    private func gridMetrics(in size: CGSize) -> DayGridMetrics {
+        let spacing: CGFloat = isSmall ? 3 : 4
+        let columns = gridColumns
+        let rows = gridRows
+        let width = max(size.width, 1)
+        let height = max(size.height, 1)
+        let cellW = (width - spacing * CGFloat(columns - 1)) / CGFloat(columns)
+        let cellH = (height - spacing * CGFloat(rows - 1)) / CGFloat(rows)
+        return DayGridMetrics(
+            cell: max(1, min(cellW, cellH)),
+            spacing: spacing,
+            columns: columns,
+            rows: rows
+        )
+    }
+
     private func glowLayer(
-        rows: Int,
-        columns: Int,
-        spacing: CGFloat,
+        metrics: DayGridMetrics,
         radius: CGFloat,
         offset: CGFloat,
         opacity: Double
     ) -> some View {
-        calendarCells(rows: rows, columns: columns, spacing: spacing, glow: true)
+        calendarCells(metrics: metrics, glow: true)
             .blur(radius: radius)
             .offset(x: offset)
             .opacity(opacity)
             .allowsHitTesting(false)
     }
 
-    private func calendarCells(
-        rows: Int,
-        columns: Int,
-        spacing: CGFloat,
-        glow: Bool
-    ) -> some View {
-        VStack(spacing: spacing) {
-            ForEach(0..<rows, id: \.self) { row in
-                HStack(spacing: spacing) {
-                    ForEach(0..<columns, id: \.self) { column in
-                        dayCell(at: row * columns + column, glow: glow)
+    private func calendarCells(metrics: DayGridMetrics, glow: Bool) -> some View {
+        VStack(spacing: metrics.spacing) {
+            ForEach(0..<metrics.rows, id: \.self) { row in
+                HStack(spacing: metrics.spacing) {
+                    ForEach(0..<metrics.columns, id: \.self) { column in
+                        dayCell(at: row * metrics.columns + column, size: metrics.cell, glow: glow)
                     }
                 }
-                .frame(maxHeight: .infinity)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: metrics.gridWidth, height: metrics.gridHeight, alignment: .topLeading)
     }
 
     @ViewBuilder
-    private func dayCell(at index: Int, glow: Bool) -> some View {
+    private func dayCell(at index: Int, size: CGFloat, glow: Bool) -> some View {
+        let corner = isSmall ? min(3, size * 0.2) : min(4, size * 0.18)
         if displayedDays.indices.contains(index) {
-            RoundedRectangle(cornerRadius: isSmall ? 3 : 4, style: .continuous)
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
                 .fill(cellColor(workedOut: displayedDays[index].workedOut, glow: glow))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: size, height: size)
         } else {
             Color.clear
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: size, height: size)
         }
     }
 
@@ -343,6 +325,21 @@ struct WorkoutHabitWidgetView: View {
             return workedOut ? palette.activeDayGlow : .clear
         }
         return workedOut ? palette.activeDay : palette.inactiveDay
+    }
+}
+
+private struct DayGridMetrics {
+    let cell: CGFloat
+    let spacing: CGFloat
+    let columns: Int
+    let rows: Int
+
+    var gridWidth: CGFloat {
+        cell * CGFloat(columns) + spacing * CGFloat(max(columns - 1, 0))
+    }
+
+    var gridHeight: CGFloat {
+        cell * CGFloat(rows) + spacing * CGFloat(max(rows - 1, 0))
     }
 }
 

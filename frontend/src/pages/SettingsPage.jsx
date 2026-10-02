@@ -41,6 +41,9 @@ import { getCurrentAuthUser, signOutAll } from "../utils/auth";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { cn } from "../lib/utils";
 import { useProductStore } from "../store/product";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+
+const isNative = getIsCapacitorNative();
 
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
 const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
@@ -440,6 +443,7 @@ const SettingsPage = () => {
 
   return (
     <>
+      {isNative ? (
       <nav className="sticky top-0 z-20 w-full">
         <div
           className={cn(
@@ -478,9 +482,30 @@ const SettingsPage = () => {
           </div>
         </div>
       </nav>
+      ) : null}
 
-      <Container maxW="800px" py={{ base: 10, md: 16 }} px={{ base: 8, md: 14 }}>
+      <Container
+        maxW="800px"
+        pt={isNative ? { base: 10, md: 16 } : { base: "6.5rem", md: 28 }}
+        pb={{ base: 10, md: 16 }}
+        px={{ base: 8, md: 14 }}
+      >
         <VStack align="stretch" spacing={{ base: 10, md: 12 }}>
+          {!isNative ? (
+            <Button
+              variant="ghost"
+              alignSelf="flex-start"
+              leftIcon={<FiArrowLeft />}
+              onClick={() => navigate("/profile")}
+              color={colors.textPrimary}
+              fontWeight="500"
+              px={0}
+              h="40px"
+              _hover={{ bg: "transparent", color: colors.textMuted }}
+            >
+              Profile
+            </Button>
+          ) : null}
           <Box textAlign="center">
             <Text
               fontSize="xs"
@@ -766,7 +791,7 @@ const SettingsPage = () => {
                   w="full"
                   h="200px"
                   objectFit="cover"
-                  borderRadius="md"
+                  borderRadius="2xl"
                   fallbackSrc={bgColorMode}
                 />
                 <FileUploader
@@ -775,20 +800,27 @@ const SettingsPage = () => {
                 />
               </VStack>
             </ModalBody>
-            <ModalFooter bg={colors.bgCard}>
+            <ModalFooter bg={colors.bgCard} gap={3}>
               <Button
                 type="submit"
-                colorScheme="blue"
-                mr={3}
+                variant="outline"
+                borderRadius="full"
+                fontWeight="500"
+                color={colors.textPrimary}
+                borderColor={colors.borderColor}
+                _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
                 isLoading={isSavingBackground}
                 spinner={<ButtonLoadingSpinner />}
                 loadingText="Saving…"
               >
-                Save Changes
+                Save changes
               </Button>
               <Button
                 onClick={onBackgroundClose}
-                color={colors.textPrimary}
+                variant="ghost"
+                borderRadius="full"
+                fontWeight="500"
+                color={colors.textMuted}
                 _hover={{ bg: colors.bgHover }}
               >
                 Cancel
@@ -831,6 +863,7 @@ const SettingsPage = () => {
                   placeholder="Name"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="full"
                   _placeholder={{ color: colors.textMuted }}
                 />
                 <Input
@@ -846,6 +879,7 @@ const SettingsPage = () => {
                   placeholder="Username"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="full"
                   _placeholder={{ color: colors.textMuted }}
                 />
                 <Text fontSize="xs" color={colors.textMuted} textAlign="center">
@@ -861,6 +895,7 @@ const SettingsPage = () => {
                   placeholder="Fitness Goal"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="full"
                   _placeholder={{ color: colors.textMuted }}
                 />
                 <Textarea
@@ -872,6 +907,7 @@ const SettingsPage = () => {
                   placeholder="Bio"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="2xl"
                   _placeholder={{ color: colors.textMuted }}
                 />
                 <Input
@@ -887,24 +923,32 @@ const SettingsPage = () => {
                   placeholder="Gym Name"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="full"
                   _placeholder={{ color: colors.textMuted }}
                 />
               </VStack>
             </ModalBody>
-            <ModalFooter bg={colors.bgCard}>
+            <ModalFooter bg={colors.bgCard} gap={3}>
               <Button
                 type="submit"
-                colorScheme="blue"
-                mr={3}
+                variant="outline"
+                borderRadius="full"
+                fontWeight="500"
+                color={colors.textPrimary}
+                borderColor={colors.borderColor}
+                _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
                 isLoading={isSavingProfile}
                 spinner={<ButtonLoadingSpinner />}
                 loadingText="Saving…"
               >
-                Save Changes
+                Save changes
               </Button>
               <Button
                 onClick={onProfileClose}
-                color={colors.textPrimary}
+                variant="ghost"
+                borderRadius="full"
+                fontWeight="500"
+                color={colors.textMuted}
                 _hover={{ bg: colors.bgHover }}
               >
                 Cancel

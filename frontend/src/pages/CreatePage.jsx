@@ -1,4 +1,4 @@
-import { Box, Center, Container, VStack } from "@chakra-ui/react";
+import { Box, Button, Center, Container, Heading, Text, VStack } from "@chakra-ui/react";
 import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +6,7 @@ import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader"; // Import the FileUploader component
 import { ENTRY_POST_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import { useCustomToast } from "../hooks/useCustomToast";
+import { useThemeColors } from "../hooks/useThemeColors";
 import { getCurrentAuthUser } from "../utils/auth";
 import {
   fetchWorkoutHabitSummary,
@@ -16,6 +17,7 @@ import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import Card11 from "../components/ui/card-11";
 import { cn } from "../lib/utils";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+import { recognizeWorkoutLines } from "../utils/workoutParser";
 
 const isCapacitorNative = getIsCapacitorNative();
 
@@ -238,6 +240,7 @@ const CreatePage = () => {
   }, [isPostImageActive, newPost?.postImage]);
 
   const toast = useCustomToast();
+  const colors = useThemeColors();
 
   const {
     createPost,
@@ -262,7 +265,7 @@ const CreatePage = () => {
     try {
       const currentUser = authUser || (await getCurrentAuthUser());
       if (!currentUser) {
-        toast.error("Error", "You must be signed in to create a post.");
+        toast.error("Error", "You must be signed in to log a workout.");
         return;
       }
       const currUser = currentUser.uid;
@@ -367,7 +370,7 @@ const CreatePage = () => {
         void syncWorkoutHabitWidget(previousHabitSummary).catch(() => {});
       }
       skipDraftSaveRef.current = false;
-      toast.error("Error", error?.message || "Failed to create post.");
+      toast.error("Error", error?.message || "Failed to log workout.");
     } finally {
       setIsSubmitting(false);
     }
@@ -376,27 +379,10 @@ const CreatePage = () => {
   const canSubmit =
     String(newPost?.name || "").trim().length > 0 &&
     String(newPost?.description || "").trim().length > 0;
-
-  const cardProfile = useMemo(() => {
-    const displayName =
-      currentUserInfo?.username ||
-      currentUserInfo?.name ||
-      authUser?.name ||
-      "You";
-    const handleStem =
-      currentUserInfo?.username ||
-      authUser?.email?.split("@")[0] ||
-      "you";
-    const picture = currentUserInfo?.picture || authUser?.picture || "";
-    const initials = displayName.trim().slice(0, 2).toUpperCase() || "YO";
-    return {
-      name: displayName,
-      handle: `@${handleStem}`,
-      imageSrc: picture,
-      imageAlt: displayName,
-      fallback: initials,
-    };
-  }, [authUser, currentUserInfo]);
+  const recognizedLifts = useMemo(
+    () => recognizeWorkoutLines(newPost.description),
+    [newPost.description],
+  );
 
   if (!sessionResolved) {
     return (
@@ -419,18 +405,43 @@ const CreatePage = () => {
   }
 
   return (
-    <Container
-      maxW={"container.sm"}
-      className={cn(
-        isCapacitorNative
-          ? "flex min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))] flex-col justify-center py-6 pt-[max(1.5rem,env(safe-area-inset-top,0px))]"
-          : "pt-[6.5rem] md:pt-28",
-      )}
-    >
-      <VStack spacing={8} w="full">
-        <Box w="full" maxW="md" mx="auto">
+    <>
+      <Container
+        maxW="800px"
+        pt={isCapacitorNative ? 4 : { base: "6.5rem", md: 28 }}
+        pb={{ base: 10, md: 16 }}
+        px={{ base: 8, md: 14 }}
+      >
+        <VStack align="stretch" spacing={{ base: 10, md: 12 }}>
+          <Box textAlign="center">
+            <Text
+              fontSize="xs"
+              letterSpacing="0.22em"
+              textTransform="uppercase"
+              color={colors.textMuted}
+              mb={3}
+            >
+              Log
+            </Text>
+            <Heading
+              size={{ base: "lg", md: "xl" }}
+              color={colors.textPrimary}
+              fontWeight="500"
+            >
+              Write the session.
+            </Heading>
+            <Text
+              maxW="460px"
+              mx="auto"
+              mt={4}
+              fontSize="sm"
+              color={colors.textMuted}
+              lineHeight="1.8"
+            >
+              Drafts save while you type. Progress tracks the lifts it recognizes.
+            </Text>
+          </Box>
           <Card11
-            profile={cardProfile}
             sessionTitle={newPost.name}
             onSessionTitleChange={(value) =>
               setNewPost((prev) => ({ ...prev, name: value }))
@@ -461,28 +472,34 @@ const CreatePage = () => {
                 variant="subtle"
               />
             }
-            previewSubtitle="Draft saves automatically while you type."
+            previewSubtitle="A photo is optional."
+            recognized={recognizedLifts}
           />
-          <button
+          <Button
             type="button"
             onClick={() => {
               handleAddPost();
             }}
-            disabled={!canSubmit || isSubmitting}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background px-3 py-3.5 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-50"
+            isDisabled={!canSubmit}
+            isLoading={isSubmitting}
+            spinner={<ButtonLoadingSpinner />}
+            loadingText="Logging…"
+            variant="outline"
+            alignSelf="center"
+            w="full"
+            maxW="md"
+            h="48px"
+            borderRadius="full"
+            fontWeight="500"
+            color={colors.textPrimary}
+            borderColor={colors.borderColor}
+            _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
           >
-            {isSubmitting ? (
-              <>
-                <ButtonLoadingSpinner />
-                <span>Adding…</span>
-              </>
-            ) : (
-              <span>Add post</span>
-            )}
-          </button>
-        </Box>
-      </VStack>
-    </Container>
+            Log a workout
+          </Button>
+        </VStack>
+      </Container>
+    </>
   );
 };
 export default CreatePage;

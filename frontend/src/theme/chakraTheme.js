@@ -191,23 +191,42 @@ const theme = extendTheme({
     },
     Modal: {
       baseStyle: {
+        overlay: {
+          bg: "blackAlpha.700",
+          backdropFilter: "blur(10px)",
+        },
         dialog: {
           borderRadius: "2xl",
-          // Keep modals compact on mobile (iOS) and avoid tall empty space.
+          border: "1px solid hsl(var(--border))",
+          bg: "hsl(var(--workout-card))",
+          boxShadow: "none",
           maxH: { base: "80vh", md: "85vh" },
           my: { base: 4, md: 10 },
           mx: { base: 4, md: 0 },
         },
-        body: {
-          // Let content scroll instead of stretching the dialog.
-          overflowY: "auto",
-          py: { base: 3, md: 4 },
-        },
         header: {
-          py: { base: 3, md: 4 },
+          fontWeight: "500",
+          fontSize: "lg",
+          letterSpacing: "-0.02em",
+          color: "hsl(var(--workout-text-primary))",
+          py: { base: 4, md: 5 },
+          px: { base: 5, md: 6 },
+        },
+        closeButton: {
+          borderRadius: "full",
+          top: "14px",
+          right: "14px",
+          color: "hsl(var(--workout-text-muted))",
+        },
+        body: {
+          overflowY: "auto",
+          px: { base: 5, md: 6 },
+          py: { base: 2, md: 3 },
         },
         footer: {
-          py: { base: 3, md: 4 },
+          px: { base: 5, md: 6 },
+          py: { base: 4, md: 5 },
+          gap: 3,
         },
       },
       sizes: {

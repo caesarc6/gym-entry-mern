@@ -788,6 +788,7 @@ export const HeroHeader = () => {
                   onClick={closeMenu}
                   as={Link}
                   to="/create"
+                  aria-label="Log a workout"
                 >
                   <PlusSquareIcon className="h-4 w-4" />
                 </ChakraButton>

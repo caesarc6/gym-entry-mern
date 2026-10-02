@@ -4,6 +4,7 @@ import {
   Container,
   Box,
   Text,
+  Heading,
   VStack,
   HStack,
   Button,
@@ -14,6 +15,8 @@ import {
   InputRightElement,
 } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { isCapacitorNative } from "../utils/isNativePlatform";
 import { LoadingIndicator } from "../components/loading";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
@@ -33,8 +36,7 @@ import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import { useThemeColors } from "../hooks/useThemeColors";
-import { useTheme } from "../contexts/ThemeContext";
-import { cn } from "../lib/utils";
+import { gainsForBuckets } from "../utils/liftProgress.js";
 
 const TIMEFRAMES = [
   { value: "7d", label: "Week", phrase: "this week" },
@@ -44,6 +46,11 @@ const TIMEFRAMES = [
 ];
 
 const BEST_LIFTS_PREVIEW = 3;
+
+const lightTick = () => {
+  if (!isCapacitorNative()) return;
+  Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+};
 
 const startOfDay = (date) => {
   const next = new Date(date);
@@ -332,22 +339,8 @@ const AnalyticsPage = () => {
 
   const { showToast } = useCustomToast();
   const colors = useThemeColors();
-  const { currentTheme } = useTheme();
-  const pageBg = colors.background;
   const cardText = colors.textPrimary;
   const mutedText = colors.textMuted;
-  const primarySolidButtonProps = {
-    bg: colors.primary,
-    color: colors.primaryForeground,
-    _hover: {
-      bg: colors.primary,
-      filter: "brightness(1.08)",
-    },
-    _active: {
-      bg: colors.primary,
-      filter: "brightness(0.96)",
-    },
-  };
   const { setAnalyticsTabCache, clearAnalyticsTabCache } = useProductStore();
 
   const setMergedAnalyticsCache = (patch) => {
@@ -583,6 +576,7 @@ const AnalyticsPage = () => {
   };
 
   const changeTimeframe = (next) => {
+    if (next !== timeframe) lightTick();
     setTimeframe(next);
     fetchAnalytics(null, next);
     if (selectedExercise) {
@@ -743,22 +737,11 @@ const AnalyticsPage = () => {
     ? bestLifts
     : bestLifts.slice(0, BEST_LIFTS_PREVIEW);
   const workoutCount = analytics?.totalWorkouts ?? 0;
-  const cardShadow =
-    colors.currentTheme === "light"
-      ? "0 10px 28px rgba(15, 23, 42, 0.06)"
-      : "0 10px 28px rgba(0, 0, 0, 0.35)";
-  const cardProps = {
-    bg: colors.bgCard,
-    borderRadius: "2xl",
-    boxShadow: cardShadow,
-  };
   const pageShellProps = {
-    maxW: "lg",
-    pt: 4,
-    pb: 28,
-    px: 4,
-    minH: "100dvh",
-    bg: pageBg,
+    maxW: "800px",
+    pt: isCapacitorNative() ? 4 : { base: "6.5rem", md: 28 },
+    pb: { base: 10, md: 16 },
+    px: { base: 8, md: 14 },
     color: cardText,
   };
   const liftLookup = buildLiftLookup(
@@ -777,6 +760,20 @@ const AnalyticsPage = () => {
     : [];
   const sessions = collectSessions(analytics?.exercises);
   const sessionBuckets = buildSessionBuckets(timeframe, sessions);
+  const bucketGains = gainsForBuckets(
+    searchExercises || analytics?.exercises,
+    loggedEntries,
+    sessionBuckets,
+  );
+  const improvedLifts = [];
+  const seenGains = new Set();
+  for (let index = bucketGains.length - 1; index >= 0; index -= 1) {
+    bucketGains[index].forEach((gain) => {
+      if (seenGains.has(gain.name)) return;
+      seenGains.add(gain.name);
+      improvedLifts.push(gain);
+    });
+  }
   const busiest = Math.max(
     1,
     ...sessionBuckets.map((bucket) => bucket.count),
@@ -784,10 +781,11 @@ const AnalyticsPage = () => {
 
   const timeframeChips = (
     <HStack
-      spacing={1}
-      mt={5}
-      p="1"
+      spacing={0}
+      p="4px"
       bg={colors.bgMuted}
+      border="1px solid"
+      borderColor={colors.borderColor}
       borderRadius="full"
     >
       {TIMEFRAMES.map((item) => {
@@ -800,11 +798,13 @@ const AnalyticsPage = () => {
             h="36px"
             px={1}
             fontSize="xs"
-            fontWeight={selected ? "semibold" : "medium"}
+            fontWeight="500"
             color={selected ? cardText : mutedText}
             bg={selected ? colors.bgCard : "transparent"}
+            border="1px solid"
+            borderColor={selected ? colors.borderColorInput : "transparent"}
             borderRadius="full"
-            boxShadow={selected ? cardShadow : "none"}
+            transition="background 0.2s ease, color 0.2s ease"
             _hover={{ bg: selected ? colors.bgCard : "transparent" }}
             _active={{ bg: selected ? colors.bgCard : "transparent" }}
             onClick={() => changeTimeframe(item.value)}
@@ -844,45 +844,15 @@ const AnalyticsPage = () => {
       </Box>
     );
 
-  const progressNav = (
-    <nav className="sticky top-0 z-20 w-full">
-      <div
-        className={cn(
-          "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] backdrop-blur-xl",
-          currentTheme === "light"
-            ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
-            : currentTheme === "dark-black"
-              ? "border-neutral-800/55 bg-neutral-950/88"
-              : currentTheme === "dark-blue"
-                ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
-                : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
-        )}
-      >
-        <div className="mx-auto w-full max-w-7xl">
-          <div className="relative flex items-center justify-between py-2">
-            <div className="h-10 w-10" aria-hidden />
-            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-              <span className="nav-wordmark text-foreground">Progress</span>
-            </div>
-            <div className="h-10 w-10" aria-hidden />
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
-
   if (loading) {
     return (
-      <>
-        {progressNav}
-        <Container {...pageShellProps}>
-          <Center minH="50vh">
-            <Box color={cardText}>
-              <LoadingIndicator variant="page" />
-            </Box>
-          </Center>
-        </Container>
-      </>
+      <Container {...pageShellProps}>
+        <Center minH="50vh">
+          <Box color={cardText}>
+            <LoadingIndicator variant="page" />
+          </Box>
+        </Center>
+      </Container>
     );
   }
 
@@ -903,11 +873,85 @@ const AnalyticsPage = () => {
         : `${shownCount} workouts ${periodPhrase}`;
 
   return (
-    <>
-    {progressNav}
     <Container {...pageShellProps}>
+      <VStack align="stretch" spacing={{ base: 10, md: 12 }}>
+      <Box textAlign="center">
+        <Text
+          fontSize="xs"
+          letterSpacing="0.22em"
+          textTransform="uppercase"
+          color={colors.textMuted}
+          mb={3}
+        >
+          Progress
+        </Text>
+        <Heading
+          size={{ base: "lg", md: "xl" }}
+          color={colors.textPrimary}
+          fontWeight="500"
+        >
+          {analytics ? sessionTitle : "Nothing here yet"}
+        </Heading>
+        <Text
+          maxW="460px"
+          mx="auto"
+          mt={4}
+          fontSize="sm"
+          color={colors.textMuted}
+          lineHeight="1.8"
+        >
+          The sessions you logged, and the lifts that moved.
+        </Text>
+      </Box>
+
+      {!liftSearch ? (
+        <Box>
+          {timeframeChips}
+          <HStack key={timeframe} align="flex-end" spacing={1} mt={8}>
+            {sessionBuckets.map((bucket, index) => {
+              const barHeight =
+                bucket.count === 0
+                  ? 6
+                  : Math.max(18, Math.round((bucket.count / busiest) * 104));
+              return (
+                <VStack
+                  key={bucket.start.toISOString()}
+                  flex="1"
+                  spacing={2}
+                  minW={0}
+                >
+                  <Box
+                    className="progress-bar"
+                    w="full"
+                    maxW="22px"
+                    h={`${barHeight}px`}
+                    borderRadius="full"
+                    bg={bucket.count > 0 ? colors.primary : colors.bgMuted}
+                    style={{ animationDelay: `${index * 35}ms` }}
+                  />
+                  <Text
+                    fontSize="10px"
+                    color={mutedText}
+                    lineHeight="1"
+                    noOfLines={1}
+                  >
+                    {bucket.label}
+                  </Text>
+                </VStack>
+              );
+            })}
+          </HStack>
+        </Box>
+      ) : null}
+
       <Box ref={searchRegionRef}>
-        <InputGroup>
+        <Heading size="sm" color={colors.textPrimary} fontWeight="500">
+          Lifts
+        </Heading>
+        <Text fontSize="sm" color={colors.textMuted} mt={2} lineHeight="1.7">
+          Search a name to open its chart.
+        </Text>
+        <InputGroup mt={5}>
           <Input
             value={liftQuery}
             onChange={(event) => setLiftQuery(event.target.value)}
@@ -948,93 +992,117 @@ const AnalyticsPage = () => {
         </Text>
       )}
       {liftSearch ? (
-        <Box {...cardProps} mt={4} px={4} py={2}>
+        <Box mt={4}>
           {liftResults.length === 0 ? (
             <Text py={4} fontSize="sm" color={mutedText}>
               No lifts named that.
             </Text>
           ) : (
-            liftResults.map((lift) => (
-              <Box key={lift.name} py={3}>
-                <Text fontWeight="semibold" noOfLines={1}>
-                  {lift.name}
-                </Text>
-                <Text mt={1} fontSize="sm" color={mutedText}>
-                  {formatLiftSummary(lift)}
-                </Text>
-              </Box>
-            ))
+            liftResults.map((lift) => {
+              const selected = selectedExercise === lift.name;
+              return (
+                <Box key={lift.name}>
+                  <Box
+                    as="button"
+                    type="button"
+                    w="full"
+                    py={3}
+                    textAlign="left"
+                    bg="transparent"
+                    border="none"
+                    cursor="pointer"
+                    transition="opacity 0.15s ease"
+                    _active={{ opacity: 0.55 }}
+                    aria-pressed={selected}
+                    onClick={() => handleExerciseSelect(lift.name)}
+                  >
+                    <Text fontWeight="500" noOfLines={1}>
+                      {lift.name}
+                    </Text>
+                    <Text mt={1} fontSize="sm" color={mutedText}>
+                      {formatLiftSummary(lift)}
+                    </Text>
+                  </Box>
+                  <Collapse in={selected} animateOpacity>
+                    {selected ? exerciseDetail : null}
+                  </Collapse>
+                </Box>
+              );
+            })
           )}
         </Box>
-      ) : (
-        <>
-      {timeframeChips}
-
-      <Box {...cardProps} mt={5} px={5} pt={5} pb={4}>
-        <Text fontSize="lg" fontWeight="semibold" letterSpacing="-0.02em">
-          {analytics ? sessionTitle : "Nothing here yet"}
-        </Text>
-        <HStack align="flex-end" spacing={1} mt={6}>
-          {sessionBuckets.map((bucket) => {
-            const barHeight =
-              bucket.count === 0
-                ? 6
-                : Math.max(18, Math.round((bucket.count / busiest) * 104));
-            return (
-              <VStack
-                key={bucket.start.toISOString()}
-                flex="1"
-                spacing={2}
-                minW={0}
-              >
-                <Box
-                  w="full"
-                  maxW="22px"
-                  h={`${barHeight}px`}
-                  borderRadius="full"
-                  bg={bucket.count > 0 ? colors.primary : colors.bgMuted}
-                  title={
-                    bucket.count === 1 ? "1 workout" : `${bucket.count} workouts`
-                  }
-                />
-                <Text
-                  fontSize="10px"
-                  color={mutedText}
-                  lineHeight="1"
-                  noOfLines={1}
-                >
-                  {bucket.label}
-                </Text>
-              </VStack>
-            );
-          })}
-        </HStack>
+      ) : null}
       </Box>
 
-      {shownCount === 0 && !autoProcessing && (
+      {!liftSearch && improvedLifts.length > 0 && (
+        <Box>
+          <Heading size="sm" color={colors.textPrimary} fontWeight="500">
+            Improved
+          </Heading>
+          <Text fontSize="sm" color={colors.textMuted} mt={2} mb={2} lineHeight="1.7">
+            Lifts that went up {periodPhrase}.
+          </Text>
+          {improvedLifts.map((gain) => {
+            const selected = selectedExercise === gain.name;
+            return (
+              <Box key={gain.name}>
+                <HStack
+                  as="button"
+                  type="button"
+                  w="full"
+                  justify="space-between"
+                  align="center"
+                  cursor="pointer"
+                  textAlign="left"
+                  bg="transparent"
+                  border="none"
+                  py={3}
+                  px={0}
+                  transition="opacity 0.15s ease"
+                  _active={{ opacity: 0.55 }}
+                  aria-pressed={selected}
+                  onClick={() => handleExerciseSelect(gain.name)}
+                >
+                  <Text fontWeight="500" noOfLines={1} pr={3}>
+                    {gain.name}
+                  </Text>
+                  <Text color={mutedText} whiteSpace="nowrap">
+                    {gain.to}
+                  </Text>
+                </HStack>
+                <Collapse in={selected} animateOpacity>
+                  {selected ? exerciseDetail : null}
+                </Collapse>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+
+      {!liftSearch && shownCount === 0 && !autoProcessing && (
         <Button
           as={RouterLink}
           to="/create"
-          {...primarySolidButtonProps}
-          mt={4}
-          w="full"
-          h="52px"
+          variant="outline"
+          color={colors.textPrimary}
+          borderColor={colors.borderColor}
           borderRadius="full"
+          fontWeight="500"
+          w="full"
+          h="48px"
+          _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
         >
           Log a workout
         </Button>
       )}
 
-      {bestLifts.length > 0 && (
-        <Box {...cardProps} mt={3} px={4} py={2}>
-          <Text
-            fontSize="sm"
-            fontWeight="semibold"
-            color={mutedText}
-            pt={3}
-            pb={1}
-          >
+      {!liftSearch && bestLifts.length > 0 && (
+        <Box>
+          <Heading size="sm" color={colors.textPrimary} fontWeight="500">
             Strongest
+          </Heading>
+          <Text fontSize="sm" color={colors.textMuted} mt={2} mb={2} lineHeight="1.7">
+            The heaviest weight on each lift.
           </Text>
           {visibleBests.map(([exerciseName, stats]) => {
             const selected = selectedExercise === exerciseName;
@@ -1052,10 +1120,12 @@ const AnalyticsPage = () => {
                   border="none"
                   py={3}
                   px={0}
+                  transition="opacity 0.15s ease"
+                  _active={{ opacity: 0.55 }}
                   aria-pressed={selected}
                   onClick={() => handleExerciseSelect(exerciseName)}
                 >
-                  <Text fontWeight="semibold" noOfLines={1} pr={3}>
+                  <Text fontWeight="500" noOfLines={1} pr={3}>
                     {exerciseName}
                   </Text>
                   <Text
@@ -1102,11 +1172,8 @@ const AnalyticsPage = () => {
           )}
         </Box>
       )}
-        </>
-      )}
-      </Box>
+      </VStack>
     </Container>
-    </>
   );
 };
 

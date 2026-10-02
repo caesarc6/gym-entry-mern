@@ -304,6 +304,26 @@ html.theme-chrome-transition .landing-no-theme-chrome-fade *::after {
   border-radius: 12px;
 }
 
+@keyframes progress-bar-rise {
+  from {
+    transform: scaleY(0.2);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.progress-bar {
+  transform-origin: bottom center;
+  animation: progress-bar-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar {
+    animation: none;
+  }
+}
+
 /* iOS nav titles + Instagram wordmark treatment */
 .nav-wordmark {
   font-size: 1.0625rem;
@@ -316,12 +336,4 @@ html.theme-chrome-transition .landing-no-theme-chrome-fade *::after {
   .nav-wordmark-lg {
     font-size: 1.375rem;
   }
-}
-
-/* Slight Instagram story ring */
-.ig-story-ring {
-  display: inline-flex;
-  padding: 1.5px;
-  border-radius: 9999px;
-  background: linear-gradient(135deg, #f9ce34 0%, #ee2a7b 50%, #6228d7 100%);
 }

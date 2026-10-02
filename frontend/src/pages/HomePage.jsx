@@ -4,28 +4,25 @@ import {
   Text,
   VStack,
   Box,
+  Button,
   useColorModeValue,
   Flex,
-  HStack,
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { supabase } from "../supabase/supabase";
 import { Hero } from "../components/Hero";
 import { HomeLandingSections } from "../components/HomeLandingSections";
 import axios from "axios";
 import { API_ENDPOINTS, apiClient } from "../config/api";
-import PaginationComponent from "../components/Pagination";
 import ClaimedWorkoutsModal from "../components/ClaimedWorkoutsModal";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import { cn } from "../lib/utils";
 import { landingDarkMainCanvas } from "../lib/homeLandingDarkTheme";
-import { useTheme } from "../contexts/ThemeContext";
 import ProductPreviewSection from "../components/ProductPreviewSection";
-import { FiPlus } from "react-icons/fi";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
 import ProductCard from "../components/ProductCard";
@@ -36,6 +33,24 @@ const isCapacitorNative = getIsCapacitorNative();
 const HOME_FEED_PAGE_SIZE = isCapacitorNative ? 4 : 6;
 /** Second home tap within this window reloads the feed. */
 const HOME_DOUBLE_TAP_MS = 350;
+
+const normalizeFeedPost = (post) => ({
+  _id: post._id,
+  name: post.name || "Untitled",
+  description: post.description || "No description",
+  image: post.image || null,
+  likes: Array.isArray(post.likes) ? post.likes : [],
+  comments: Array.isArray(post.comments) ? post.comments : [],
+  createdAt: post.createdAt || new Date().toISOString(),
+  ownerId: post.ownerId || post.uid,
+  uid: post.uid,
+  trainerUid: post.trainerUid || null,
+  trainerName: post.trainerName || null,
+  trainerUsername: post.trainerUsername || null,
+  authorProfile: post.authorProfile || null,
+  trainerProfile: post.trainerProfile || null,
+  isOptimistic: Boolean(post.isOptimistic),
+});
 
 const scrollFeedToTop = () => {
   const reduceMotion =
@@ -68,7 +83,12 @@ const HomePage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [feedEpoch, setFeedEpoch] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const skipCacheRef = useRef(false);
+  const pageRef = useRef(1);
+  const appendLockRef = useRef(false);
+  const sentinelRef = useRef(null);
   const isSignedInRef = useRef(false);
   const lastHomeTapAtRef = useRef(0);
   const [limit] = useState(HOME_FEED_PAGE_SIZE);
@@ -78,23 +98,19 @@ const HomePage = () => {
     totalPosts: 0,
     limit: HOME_FEED_PAGE_SIZE,
   });
+  const paginationRef = useRef(pagination);
+  paginationRef.current = pagination;
   const [profileCache, setProfileCache] = useState(new Map());
   const [habitDetailEntry, setHabitDetailEntry] = useState(null);
   const toast = useCustomToast();
   const spinnerColor = useColorModeValue("gray.700", "gray.400");
-  const { currentTheme } = useTheme();
-  const navigate = useNavigate();
-
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
 
   isSignedInRef.current = isSignedIn;
 
   const refreshHomeFeed = useCallback(() => {
     skipCacheRef.current = true;
+    pageRef.current = 1;
+    setHasMore(false);
     setIsRefreshing(true);
     clearHomeFeedCache();
     setCurrentPage(1);
@@ -308,6 +324,8 @@ const HomePage = () => {
               limit,
             }
           );
+          pageRef.current = 1;
+          setHasMore((cacheSnapshot.pagination?.totalPages ?? 1) > 1);
           setIsLoading(false);
           setIsRefreshing(false);
           if (Date.now() - cacheSnapshot.cachedAt < feedCacheTtlMs) {
@@ -333,22 +351,7 @@ const HomePage = () => {
 
         if (cancelled) return;
 
-        const normalized = data.data.map((post) => ({
-          _id: post._id,
-          name: post.name || "Untitled",
-          description: post.description || "No description",
-          image: post.image || null,
-          likes: Array.isArray(post.likes) ? post.likes : [],
-          comments: Array.isArray(post.comments) ? post.comments : [],
-          createdAt: post.createdAt || new Date().toISOString(),
-          ownerId: post.ownerId || post.uid,
-          uid: post.uid,
-          trainerUid: post.trainerUid || null,
-          trainerName: post.trainerName || null,
-          trainerUsername: post.trainerUsername || null,
-          authorProfile: post.authorProfile || null,
-          trainerProfile: post.trainerProfile || null,
-        }));
+        const normalized = data.data.map(normalizeFeedPost);
 
         if (cancelled) return;
 
@@ -370,6 +373,7 @@ const HomePage = () => {
             : normalized;
 
         setEntries(mergedEntries);
+        pageRef.current = 1;
 
         const p = data.pagination;
         if (p) {
@@ -379,6 +383,9 @@ const HomePage = () => {
             totalPosts: p.totalPosts ?? prev.totalPosts,
             limit: p.limit ?? limit,
           }));
+          setHasMore((p.totalPages ?? 1) > 1);
+        } else {
+          setHasMore(false);
         }
 
         setHomeFeedCache({
@@ -405,8 +412,9 @@ const HomePage = () => {
         if (cancelled || isRequestAbortError(error)) {
           return;
         }
-        setEntries([]);
-        toast.error("Error", error.message || "Failed to load feed");
+      setEntries([]);
+      setHasMore(false);
+      toast.error("Error", error.message || "Failed to load feed");
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -424,6 +432,64 @@ const HomePage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- toast from useCustomToast is not referentially stable
   }, [uid, currentPage, limit, feedEpoch, feedCacheTtlMs, setHomeFeedCache]);
 
+  const loadMore = useCallback(async () => {
+    if (!uid || appendLockRef.current || isLoading) return;
+    const totalPages = paginationRef.current.totalPages || 1;
+    if (pageRef.current >= totalPages) return;
+
+    const page = pageRef.current + 1;
+    appendLockRef.current = true;
+    setIsLoadingMore(true);
+    try {
+      const response = await apiClient.get(
+        API_ENDPOINTS.HOME_FEED(page, limit, false),
+      );
+      const data = response.data;
+      if (!data.success || !Array.isArray(data.data)) {
+        throw new Error(data.message || "Failed to load feed");
+      }
+
+      const normalized = data.data.map(normalizeFeedPost);
+      setEntries((prev) => {
+        const seen = new Set(prev.map((entry) => String(entry._id)));
+        const extra = normalized.filter((post) => !seen.has(String(post._id)));
+        return extra.length ? [...prev, ...extra] : prev;
+      });
+      pageRef.current = page;
+
+      const reportedPages = data.pagination?.totalPages ?? totalPages;
+      const reachedEnd = normalized.length < limit || page >= reportedPages;
+      setHasMore(!reachedEnd);
+      setPagination((prev) => ({
+        ...prev,
+        currentPage: page,
+        totalPages: reachedEnd ? page : reportedPages,
+      }));
+    } catch (error) {
+      if (!isRequestAbortError(error)) {
+        toast.error("Error", error.message || "Failed to load more");
+      }
+    } finally {
+      appendLockRef.current = false;
+      setIsLoadingMore(false);
+    }
+  }, [uid, limit, isLoading, toast]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore) return undefined;
+    const observer = new IntersectionObserver(
+      (observed) => {
+        if (observed.some((entry) => entry.isIntersecting)) {
+          void loadMore();
+        }
+      },
+      { rootMargin: "280px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore, entries.length]);
+
   // Apply optimistic home-feed cache writes while this page stays mounted (native tabs).
   useEffect(() => {
     if (!uid || currentPage !== 1) return undefined;
@@ -439,9 +505,16 @@ const HomePage = () => {
         return;
       }
 
-      setEntries(cache.entries || []);
-      if (cache.pagination) {
+      setEntries((current) => {
+        const firstPage = cache.entries || [];
+        if (pageRef.current <= 1) return firstPage;
+        const seen = new Set(firstPage.map((entry) => String(entry._id)));
+        const rest = current.filter((entry) => !seen.has(String(entry._id)));
+        return [...firstPage, ...rest];
+      });
+      if (cache.pagination && pageRef.current <= 1) {
         setPagination(cache.pagination);
+        setHasMore((cache.pagination.totalPages ?? 1) > 1);
       }
       setIsLoading(false);
     });
@@ -496,57 +569,12 @@ const HomePage = () => {
     <>
       {showSignedInFeed ? (
         <>
-          {/* Web already mounts `HeroHeader` globally (App.jsx). Only show this
-              feed header on native builds where `HeroHeader` is not mounted. */}
-          {isCapacitorNative ? (
-            <nav className="sticky top-0 z-20 w-full">
-              <div
-                className={cn(
-                  "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
-                  currentTheme === "light"
-                    ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
-                    : currentTheme === "dark-black"
-                      ? "border-neutral-800/55 bg-neutral-950/88"
-                      : currentTheme === "dark-blue"
-                        ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
-                        : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
-                )}
-              >
-                <div className="mx-auto w-full max-w-7xl">
-                  <div className="relative flex items-center justify-between py-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate("/create")}
-                      aria-label="Create post"
-                      className={cn(
-                        "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                        currentTheme === "light"
-                          ? "text-gray-700 hover:bg-gray-100"
-                          : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                      )}
-                    >
-                      <FiPlus className="h-5 w-5" />
-                    </button>
-
-                    <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-                      <span className="nav-wordmark text-foreground">
-                        Ethereal Gains
-                      </span>
-                    </div>
-
-                    <HStack spacing={1} />
-                  </div>
-                </div>
-              </div>
-            </nav>
-          ) : null}
-
           <Container maxW="container.xl" className="text-center z-0 relative">
             <VStack
               spacing={8}
-              className={cn(
-                isCapacitorNative ? "pt-4" : "pt-[6.5rem] md:pt-28",
-              )}
+              className={
+                isCapacitorNative ? "pt-4" : "pt-[6.5rem] md:pt-28"
+              }
             >
               <FeedPullToRefresh
                 onRefresh={refreshHomeFeed}
@@ -625,40 +653,37 @@ const HomePage = () => {
                       />
                     ))}
                   </SimpleGrid>
-                  <PaginationComponent
-                    currentPage={currentPage}
-                    totalPages={pagination.totalPages}
-                    onPageChange={handlePageChange}
-                    maxVisiblePages={5}
-                  />
+                  {hasMore ? (
+                    <Box ref={sentinelRef} w="full" py={4} aria-hidden>
+                      {isLoadingMore ? (
+                        <LoadingIndicator variant="inline" chakraColor={spinnerColor} />
+                      ) : null}
+                    </Box>
+                  ) : null}
                   {entries.length === 0 && (
-                    <Text
-                      fontSize="xl"
-                      textAlign={"center"}
-                      fontWeight="bold"
-                      color="gray.500"
-                    >
-                      No posts to show 😢{" "}
-                      <Link to={"/profile"}>
-                        <Text
-                          as="span"
-                          color="blue.400"
-                          _hover={{ textDecoration: "underline" }}
-                        >
-                          Follow some users
-                        </Text>
-                      </Link>{" "}
-                      or{" "}
-                      <Link to={"/create"}>
-                        <Text
-                          as="span"
-                          color="blue.400"
-                          _hover={{ textDecoration: "underline" }}
-                        >
-                          create a post
-                        </Text>
-                      </Link>
-                    </Text>
+                    <VStack spacing={3} py={8} px={4}>
+                      <Text fontSize="lg" fontWeight="semibold">
+                        No workouts yet
+                      </Text>
+                      <Text
+                        fontSize="sm"
+                        color="gray.500"
+                        maxW="280px"
+                        textAlign="center"
+                      >
+                        Log one and it will show up here and on Progress.
+                      </Text>
+                      <Button
+                        as={Link}
+                        to="/create"
+                        borderRadius="full"
+                        h="48px"
+                        px={6}
+                        mt={1}
+                      >
+                        Log a workout
+                      </Button>
+                    </VStack>
                   )}
                 </>
               )}

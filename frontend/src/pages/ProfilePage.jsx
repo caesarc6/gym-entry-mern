@@ -9,7 +9,6 @@ import {
   Avatar,
   Center,
   Flex,
-  Stack,
   Image,
   useDisclosure,
   Modal,
@@ -21,23 +20,16 @@ import {
   ModalFooter,
   Input,
   Textarea,
-  Badge,
   HStack,
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
-import { lazy, Suspense, useEffect, useState, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useEffect, useState, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader";
 import { PROFILE_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import { supabase } from "../supabase/supabase";
-import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
-import { FiSettings } from "react-icons/fi";
-import PaginationComponent from "../components/Pagination";
 import { useThemeColors } from "../hooks/useThemeColors";
-import { useTheme } from "../contexts/ThemeContext";
-import { useCanvasShell } from "../contexts/CanvasShellContext.jsx";
-import { cn } from "../lib/utils";
 
 // Convert Vite asset imports to actual URLs
 const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
@@ -54,9 +46,6 @@ import PrivacySettings from "../components/PrivacySettings";
 import { useProductStore as useUiStore } from "../store/product";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
-import {
-  THEME_SHELL_BG_BORDER_TRANSITION,
-} from "../constants/themeShellTiming.js";
 
 const isCapacitorNative = getIsCapacitorNative();
 const PROFILE_POSTS_PAGE_SIZE = isCapacitorNative ? 4 : 6;
@@ -75,6 +64,13 @@ const ProfilePage = () => {
     totalPosts: 0,
     limit: PROFILE_POSTS_PAGE_SIZE,
   });
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const pageRef = useRef(1);
+  const appendLockRef = useRef(false);
+  const sentinelRef = useRef(null);
+  const paginationRef = useRef(pagination);
+  paginationRef.current = pagination;
   const [userProfile, setUserProfile] = useState({
     name: "",
     username: "",
@@ -88,7 +84,6 @@ const ProfilePage = () => {
     followingCount: 0,
   });
   const [profileImage, setProfileImage] = useState(null);
-  const [backgroundImage, setBackgroundImage] = useState(null);
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
   const [followersList, setFollowersList] = useState([]);
@@ -99,8 +94,6 @@ const ProfilePage = () => {
 
   const toast = useCustomToast();
   const colors = useThemeColors();
-  const { currentTheme } = useTheme();
-  const { prefersReducedMotion } = useCanvasShell();
   const {
     setProfileTabCache,
     clearProfileTabCache,
@@ -117,17 +110,10 @@ const ProfilePage = () => {
     onClose: onProfileClose,
   } = useDisclosure();
   const {
-    isOpen: isBackgroundOpen,
-    onOpen: onBackgroundOpen,
-    onClose: onBackgroundClose,
-  } = useDisclosure();
-  const {
     isOpen: isPrivacyOpen,
     onOpen: onPrivacyOpen,
     onClose: onPrivacyClose,
   } = useDisclosure();
-
-  const navigate = useNavigate();
 
   const setMergedProfileCache = (patch) => {
     const prev = useProductStore.getState().profileTabCache;
@@ -173,15 +159,22 @@ const ProfilePage = () => {
           setIsSignedIn(true);
           setUid(user.uid);
           useProductStore.getState().setCurrentUser(user);
-          setCurrentPage(cachedTab.currentPage ?? 1);
-          setEntries(cachedTab.entries || []);
+          setCurrentPage(1);
+          pageRef.current = 1;
+          setEntries(
+            cachedTab.currentPage === 1 ? cachedTab.entries || [] : []
+          );
           setPagination(
             cachedTab.pagination || {
-              currentPage: cachedTab.currentPage ?? 1,
+              currentPage: 1,
               totalPages: 1,
               totalPosts: (cachedTab.entries || []).length,
               limit,
             }
+          );
+          setHasMore(
+            cachedTab.currentPage === 1 &&
+              (cachedTab.pagination?.totalPages ?? 1) > 1
           );
           if (cachedTab.userProfile) {
             setUserProfile(cachedTab.userProfile);
@@ -191,9 +184,8 @@ const ProfilePage = () => {
           setIsLoading(false);
 
           // If posts cache is partial/empty, force-load posts for the current page.
-          const restoredPage = cachedTab.currentPage ?? 1;
-          if (!hasUsablePostsCache(cachedTab, restoredPage)) {
-            fetchUserPosts(user.uid, restoredPage);
+          if (!hasUsablePostsCache(cachedTab, 1)) {
+            fetchUserPosts(user.uid, 1);
           }
           // If we only cached posts but never cached profile, fetch profile now.
           if (!hasUsableProfileCache(cachedTab)) {
@@ -260,15 +252,22 @@ const ProfilePage = () => {
             (cachedTab.profileLoaded || cachedTab.postsLoaded) &&
             Date.now() - cachedTab.cachedAt < feedCacheTtlMs
           ) {
-            setCurrentPage(cachedTab.currentPage ?? 1);
-            setEntries(cachedTab.entries || []);
+            setCurrentPage(1);
+            pageRef.current = 1;
+            setEntries(
+              cachedTab.currentPage === 1 ? cachedTab.entries || [] : []
+            );
             setPagination(
               cachedTab.pagination || {
-                currentPage: cachedTab.currentPage ?? 1,
+                currentPage: 1,
                 totalPages: 1,
                 totalPosts: (cachedTab.entries || []).length,
                 limit,
               }
+            );
+            setHasMore(
+              cachedTab.currentPage === 1 &&
+                (cachedTab.pagination?.totalPages ?? 1) > 1
             );
             if (cachedTab.userProfile) {
               setUserProfile(cachedTab.userProfile);
@@ -276,6 +275,9 @@ const ProfilePage = () => {
             setFollowRequests(cachedTab.followRequests || []);
             if (!hasUsableProfileCache(cachedTab)) {
               fetchUserProfile(user);
+            }
+            if (!hasUsablePostsCache(cachedTab, 1)) {
+              fetchUserPosts(user.uid, 1);
             }
           } else {
             setIsLoading(true);
@@ -492,6 +494,8 @@ const ProfilePage = () => {
         }));
         setEntries(normalizedPosts);
         setPagination(data.pagination);
+        pageRef.current = page;
+        setHasMore((data.pagination?.totalPages ?? 1) > page);
 
         setMergedProfileCache({
           uid: userId,
@@ -526,11 +530,70 @@ const ProfilePage = () => {
     }
   };
 
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setCurrentPage(newPage);
+  const loadMorePosts = useCallback(async () => {
+    if (!uid || appendLockRef.current) return;
+    const totalPages = paginationRef.current.totalPages || 1;
+    if (pageRef.current >= totalPages) return;
+
+    const page = pageRef.current + 1;
+    appendLockRef.current = true;
+    setIsLoadingMore(true);
+    try {
+      const response = await apiClient.get(
+        API_ENDPOINTS.POSTS(uid, page, limit)
+      );
+      const data = response.data;
+      if (!data.success) {
+        throw new Error(data.message || "Failed to fetch posts");
+      }
+
+      const normalizedPosts = (data.data || []).map((post) => ({
+        ...post,
+        trainerUid: post.trainerUid || null,
+        trainerName: post.trainerName || null,
+        trainerUsername: post.trainerUsername || null,
+      }));
+      setEntries((prev) => {
+        const seen = new Set(prev.map((entry) => String(entry._id)));
+        const extra = normalizedPosts.filter(
+          (post) => !seen.has(String(post._id))
+        );
+        return extra.length ? [...prev, ...extra] : prev;
+      });
+      pageRef.current = page;
+
+      const reportedPages = data.pagination?.totalPages ?? totalPages;
+      const reachedEnd =
+        normalizedPosts.length < limit || page >= reportedPages;
+      setHasMore(!reachedEnd);
+      setPagination((prev) => ({
+        ...prev,
+        ...(data.pagination || {}),
+        currentPage: page,
+        totalPages: reachedEnd ? page : reportedPages,
+      }));
+    } catch (error) {
+      toast.error("Error", error.message || "Failed to load more workouts");
+    } finally {
+      appendLockRef.current = false;
+      setIsLoadingMore(false);
     }
-  };
+  }, [uid, limit, toast]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore) return undefined;
+    const observer = new IntersectionObserver(
+      (observed) => {
+        if (observed.some((entry) => entry.isIntersecting)) {
+          void loadMorePosts();
+        }
+      },
+      { rootMargin: "280px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadMorePosts, entries.length]);
 
   const handlePostUpdate = (pid, updatedEntry) => {
     setEntries((prevEntries) => {
@@ -538,7 +601,15 @@ const ProfilePage = () => {
         entry._id === pid ? { ...entry, ...updatedEntry } : entry
       );
       if (uid) {
-        setMergedProfileCache({ uid, entries: next });
+        const cache = useProductStore.getState().profileTabCache;
+        if (cache?.uid === uid && Array.isArray(cache.entries)) {
+          setMergedProfileCache({
+            uid,
+            entries: cache.entries.map((entry) =>
+              entry._id === pid ? { ...entry, ...updatedEntry } : entry
+            ),
+          });
+        }
       }
       return next;
     });
@@ -558,12 +629,6 @@ const ProfilePage = () => {
     });
   }, []);
 
-  useEffect(() => {
-    if (currentPage > pagination.totalPages && pagination.totalPages >= 1) {
-      setCurrentPage(pagination.totalPages);
-    }
-  }, [currentPage, pagination.totalPages]);
-
   const handleProfileImageUpload = (file) => {
     if (file) {
       setProfileImage(file);
@@ -572,20 +637,6 @@ const ProfilePage = () => {
         setUserProfile((prev) => ({
           ...prev,
           profileImage: reader.result,
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleBackgroundImageUpload = (file) => {
-    if (file) {
-      setBackgroundImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUserProfile((prev) => ({
-          ...prev,
-          backgroundPicture: reader.result,
         }));
       };
       reader.readAsDataURL(file);
@@ -661,51 +712,6 @@ const ProfilePage = () => {
     }
   };
 
-  const handleBackgroundSubmit = async (e) => {
-    e.preventDefault();
-    const user = await getCurrentAuthUser();
-    if (!user) {
-      toast.error("Error", "You must be signed in to update your background.");
-      return;
-    }
-
-    try {
-      if (!backgroundImage) {
-        throw new Error("No background image selected");
-      }
-
-      const backgroundFormData = new FormData();
-      backgroundFormData.append("backgroundPicture", backgroundImage);
-      backgroundFormData.append("backgroundPictureName", backgroundImage.name);
-
-      const backgroundResponse = await apiClient.post(
-        API_ENDPOINTS.UPDATE_USER_BACKGROUND,
-        backgroundFormData
-      );
-
-      if (!backgroundResponse.data?.success && backgroundResponse.data?.message) {
-        throw new Error(
-          backgroundResponse.data.message ||
-            "Failed to update background picture"
-        );
-      }
-
-      const backgroundData = backgroundResponse.data;
-      setUserProfile((prev) => ({
-        ...prev,
-        backgroundPicture: backgroundData.data.backgroundPicture,
-      }));
-
-      setBackgroundImage(null);
-      onBackgroundClose();
-    } catch (error) {
-      toast.error(
-        "Update failed",
-        error.message || "Unable to update background image."
-      );
-    }
-  };
-
   const getFollowers = async (userId) => {
     try {
       const user = await getCurrentAuthUser();
@@ -764,172 +770,142 @@ const ProfilePage = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-20 w-full">
-        <div
-          className={cn(
-            "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] backdrop-blur-xl",
-            currentTheme === "light"
-              ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
-              : currentTheme === "dark-black"
-                ? "border-neutral-800/55 bg-neutral-950/88"
-                : currentTheme === "dark-blue"
-                  ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
-                  : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
-          )}
-          style={{
-            transition: prefersReducedMotion
-              ? undefined
-              : THEME_SHELL_BG_BORDER_TRANSITION,
-          }}
-        >
-          <div className="mx-auto w-full max-w-7xl">
-            <div className="relative flex items-center justify-between py-2">
-              <div className="h-10 w-10" aria-hidden />
+      <Container
+        maxW="container.xl"
+        pt={isCapacitorNative ? 4 : { base: "6.5rem", md: 28 }}
+        pb={12}
+      >
+      <Box maxW="800px" mx="auto" w="full" pt={{ base: 2, md: 4 }}>
+        <Box borderRadius="2xl" overflow="hidden">
+          <Image
+            h={{ base: "140px", md: "168px" }}
+            w="full"
+            src={userProfile.backgroundPicture || bgColorMode}
+            fallbackSrc={bgColorMode}
+            objectFit="cover"
+            alt="Background"
+          />
+        </Box>
 
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-                <span className="nav-wordmark text-foreground">Profile</span>
-              </div>
+        <Flex justify="center" mt={-12}>
+          <Avatar
+            size="xl"
+            src={userProfile.profileImage || profileColorMode}
+            bg={colors.background}
+            css={{
+              border: "4px solid hsl(var(--background))",
+            }}
+          />
+        </Flex>
 
-              <HStack spacing={1}>
-                <button
-                  type="button"
-                  onClick={() => navigate("/settings")}
-                  aria-label="Settings"
-                  className={cn(
-                    "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                    currentTheme === "light"
-                      ? "text-gray-700 hover:bg-gray-100"
-                      : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                  )}
-                >
-                  <FiSettings className="h-5 w-5" />
-                </button>
-              </HStack>
-            </div>
-          </div>
-        </div>
-      </nav>
+        <Box textAlign="center" pt={5}>
+          <Heading
+            size={{ base: "lg", md: "xl" }}
+            color={colors.textPrimary}
+            fontWeight="500"
+          >
+            {userProfile.name}
+          </Heading>
+          {userProfile.username ? (
+            <Text mt={2} fontSize="sm" color={colors.textMuted}>
+              @{userProfile.username}
+            </Text>
+          ) : null}
+          <Text
+            maxW="460px"
+            mx="auto"
+            mt={4}
+            fontSize="sm"
+            color={colors.textMuted}
+            lineHeight="1.8"
+          >
+            {[userProfile.goal, userProfile.gymName].filter(Boolean).join(" · ")}
+          </Text>
+          {userProfile.bio ? (
+            <Text
+              maxW="460px"
+              mx="auto"
+              mt={2}
+              fontSize="sm"
+              color={colors.textMuted}
+              lineHeight="1.8"
+            >
+              {userProfile.bio}
+            </Text>
+          ) : null}
 
-      <Container maxW="container.xl" pt={4} pb={12}>
-      {/* Profile Section */}
-      <Center py={6} mt={0}>
-        <Box
-          maxW={"580px"}
-          w={"full"}
-          bg={colors.bgCard}
-          boxShadow="sm"
-          rounded="2xl"
-          overflow={"hidden"}
-        >
-          <Box position="relative">
-            <Image
-              h={"120px"}
-              w={"full"}
-              src={userProfile.backgroundPicture || bgColorMode}
-              fallbackSrc={bgColorMode}
-              objectFit="cover"
-              alt="Background"
-            />
-          </Box>
-
-          <Flex justify={"center"} mt={-12}>
-            <Box className="ig-story-ring" p="2px" rounded="full">
-              <Avatar
-                size={"xl"}
-                src={userProfile.profileImage || profileColorMode}
-                css={{ border: "3px solid", borderColor: colors.bgCard }}
-              />
+          <Flex justify="center" gap={{ base: 8, md: 12 }} mt={8}>
+            <Box
+              as="button"
+              type="button"
+              textAlign="center"
+              onClick={async () => {
+                const followers = await getFollowers(uid);
+                setFollowersList(followers);
+                setIsFollowersOpen(true);
+              }}
+            >
+              <Text fontWeight="500" color={colors.textPrimary}>
+                {userProfile.followersCount}
+              </Text>
+              <Text fontSize="sm" color={colors.textMuted} mt={1}>
+                Followers
+              </Text>
+            </Box>
+            <Box
+              as="button"
+              type="button"
+              textAlign="center"
+              onClick={async () => {
+                const following = await getFollowing(uid);
+                setFollowingList(following);
+                setIsFollowingOpen(true);
+              }}
+            >
+              <Text fontWeight="500" color={colors.textPrimary}>
+                {userProfile.followingCount}
+              </Text>
+              <Text fontSize="sm" color={colors.textMuted} mt={1}>
+                Following
+              </Text>
+            </Box>
+            <Box textAlign="center">
+              <Text fontWeight="500" color={colors.textPrimary}>
+                {userProfile.postsCount || 0}
+              </Text>
+              <Text fontSize="sm" color={colors.textMuted} mt={1}>
+                Workouts
+              </Text>
             </Box>
           </Flex>
-          <Box p={6}>
-            <Stack spacing={0} align={"center"} mb={3}>
-              <Heading fontSize={"xl"} fontWeight={600} letterSpacing="-0.03em">
-                {userProfile.username && `@${userProfile.username}`}
-              </Heading>
-              <Text fontSize={"lg"} color={colors.textSecondary}>
-                {userProfile.name}
-              </Text>
-            </Stack>
-            <Stack spacing={0} align={"center"} mb={4}>
-              <Text color={colors.textMuted}>
-                {userProfile.goal} | {userProfile.gymName}
-              </Text>
-            </Stack>
-            <Stack spacing={0} align={"center"} mt={4}>
-              <Text color={colors.textMuted} textAlign="center">
-                {userProfile.bio}
-              </Text>
-            </Stack>
-            <Stack direction={"row"} justify={"center"} spacing={6} mt={8}>
-              <Stack
-                spacing={0}
-                align={"center"}
-                onClick={async () => {
-                  const followers = await getFollowers(uid);
-                  setFollowersList(followers);
-                  setIsFollowersOpen(true);
-                }}
-                style={{ cursor: "pointer" }}
-              >
-                <Text fontWeight={600}>{userProfile.followersCount}</Text>
-                <Text fontSize={"sm"} color={colors.textMuted}>
-                  Followers
-                </Text>
-              </Stack>
-              <Stack
-                spacing={0}
-                align={"center"}
-                onClick={async () => {
-                  const following = await getFollowing(uid);
-                  setFollowingList(following);
-                  setIsFollowingOpen(true);
-                }}
-                style={{ cursor: "pointer" }}
-              >
-                <Text fontWeight={600}>{userProfile.followingCount}</Text>
-                <Text fontSize={"sm"} color={colors.textMuted}>
-                  Following
-                </Text>
-              </Stack>
-              <Stack spacing={0} align={"center"}>
-                <Text fontWeight={600}>{userProfile.postsCount || 0}</Text>
-                <Text fontSize={"sm"} color={colors.textMuted}>
-                  Posts
-                </Text>
-              </Stack>
-            </Stack>
 
-            {/* Follow Requests Badge */}
-            {followRequests.length > 0 && (
-              <Box mt={4} textAlign="center">
-                <Button
-                  onClick={() => setIsFollowersOpen(true)}
-                  colorScheme="blue"
-                  size="sm"
-                  leftIcon={
-                    <Badge colorScheme="red" borderRadius="full" px={2}>
-                      {followRequests.length}
-                    </Badge>
-                  }
-                >
-                  Follow Requests
-                </Button>
-              </Box>
-            )}
-          </Box>
+          {followRequests.length > 0 && (
+            <Button
+              mt={8}
+              onClick={() => setIsFollowersOpen(true)}
+              variant="outline"
+              color={colors.textPrimary}
+              borderColor={colors.borderColor}
+              borderRadius="full"
+              fontWeight="500"
+              _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
+            >
+              {followRequests.length} follow {followRequests.length === 1 ? "request" : "requests"}
+            </Button>
+          )}
         </Box>
-      </Center>
+      </Box>
 
       {/* Posts Section */}
       <VStack spacing={8} mt={6}>
-        <Text
-          fontSize={"22"}
-          fontWeight={"bold"}
-          bgGradient={"linear(to-r, blue.200, gray.400)"}
-          bgClip={"text"}
+        <Heading
+          size="md"
+          fontWeight="500"
+          color={colors.textPrimary}
+          letterSpacing="-0.02em"
         >
-          Workout Posts
-        </Text>
+          Workouts
+        </Heading>
         {isLoading ? (
           <Box
             display="flex"
@@ -973,15 +949,35 @@ const ProfilePage = () => {
                 ))}
               </SimpleGrid>
             </Suspense>
-            <PaginationComponent
-              currentPage={currentPage}
-              totalPages={pagination.totalPages}
-              onPageChange={handlePageChange}
-              maxVisiblePages={5}
-            />
+            {hasMore ? (
+              <Box ref={sentinelRef} w="full" py={4} aria-hidden>
+                {isLoadingMore ? (
+                  <LoadingIndicator
+                    variant="hero"
+                    chakraColor={colors.textSecondary}
+                  />
+                ) : null}
+              </Box>
+            ) : null}
           </>
         ) : (
-          <Text>No posts available.</Text>
+          <VStack spacing={3} py={6}>
+            <Text>No workouts yet</Text>
+            <Button
+              as={Link}
+              to="/create"
+              variant="outline"
+              color={colors.textPrimary}
+              borderColor={colors.borderColor}
+              borderRadius="full"
+              fontWeight="500"
+              h="48px"
+              px={6}
+              _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
+            >
+              Log a workout
+            </Button>
+          </VStack>
         )}
       </VStack>
 
@@ -989,21 +985,19 @@ const ProfilePage = () => {
       <Modal isOpen={isFollowersOpen} onClose={() => setIsFollowersOpen(false)}>
         <ModalOverlay />
         <ModalContent bg={colors.bgCard}>
-          <ModalHeader color={colors.textPrimary} bg={colors.bgCard}>
+          <ModalHeader color={colors.textPrimary} fontWeight="500">
             Followers
-            {followRequests.length > 0 && (
-              <Badge colorScheme="red" ml={2}>
-                {followRequests.length} pending requests
-              </Badge>
-            )}
           </ModalHeader>
           <ModalCloseButton color={colors.textMuted} />
           <ModalBody bg={colors.bgCard}>
             {followRequests.length > 0 && (
               <Box mb={6}>
-                <Heading size="sm" mb={3} color={colors.textPrimary}>
-                  Follow Requests
-                </Heading>
+            <Heading size="sm" mb={1} color={colors.textPrimary} fontWeight="500">
+              Requests
+            </Heading>
+            <Text fontSize="sm" color={colors.textMuted} mb={4} lineHeight="1.7">
+              People waiting to follow you.
+            </Text>
                 <VStack align="start" spacing={3}>
                   {followRequests.map((request) => (
                     <Flex
@@ -1011,11 +1005,9 @@ const ProfilePage = () => {
                       align="center"
                       justify="space-between"
                       w="full"
-                      p={3}
-                      borderWidth={1}
-                      borderRadius="md"
-                      bg={colors.bgMuted}
-                      borderColor={colors.borderColor}
+                      py={3}
+                      borderRadius="xl"
+                      _hover={{ bg: colors.bgMuted }}
                     >
                       <Flex align="center" flex={1}>
                         <Link to={`/user/${request.requester.uid}`}>
@@ -1058,7 +1050,12 @@ const ProfilePage = () => {
                       <HStack spacing={2} ml={4}>
                         <Button
                           size="sm"
-                          colorScheme="green"
+                          variant="outline"
+                          borderRadius="full"
+                          fontWeight="500"
+                          color={colors.textPrimary}
+                          borderColor={colors.borderColor}
+                          _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
                           onClick={() =>
                             handleFollowRequestAction(request._id, "accept")
                           }
@@ -1067,13 +1064,17 @@ const ProfilePage = () => {
                         </Button>
                         <Button
                           size="sm"
-                          colorScheme="red"
                           variant="outline"
+                          borderRadius="full"
+                          fontWeight="500"
+                          color={colors.textMuted}
+                          borderColor={colors.borderColor}
+                          _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
                           onClick={() =>
                             handleFollowRequestAction(request._id, "reject")
                           }
                         >
-                          Reject
+                          Decline
                         </Button>
                       </HStack>
                     </Flex>
@@ -1082,9 +1083,12 @@ const ProfilePage = () => {
               </Box>
             )}
 
-            <Heading size="sm" mb={3} color={colors.textPrimary}>
-              Current Followers
+            <Heading size="sm" mb={1} mt={followRequests.length > 0 ? 6 : 0} color={colors.textPrimary} fontWeight="500">
+              Followers
             </Heading>
+            <Text fontSize="sm" color={colors.textMuted} mb={4} lineHeight="1.7">
+              People who follow you.
+            </Text>
             {followersList.length === 0 ? (
               <Text color={colors.textMuted}>No followers yet</Text>
             ) : (
@@ -1234,6 +1238,7 @@ const ProfilePage = () => {
                   placeholder="Name"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="full"
                   _placeholder={{ color: colors.textMuted }}
                 />
                 <Input
@@ -1249,6 +1254,7 @@ const ProfilePage = () => {
                   placeholder="Username"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="full"
                   _placeholder={{ color: colors.textMuted }}
                 />
                 <Text fontSize="xs" color={colors.textMuted} textAlign="center">
@@ -1267,6 +1273,7 @@ const ProfilePage = () => {
                   placeholder="Fitness Goal"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="full"
                   _placeholder={{ color: colors.textMuted }}
                 />
                 <Textarea
@@ -1278,6 +1285,7 @@ const ProfilePage = () => {
                   placeholder="Bio"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="2xl"
                   _placeholder={{ color: colors.textMuted }}
                 />
                 <Input
@@ -1293,17 +1301,29 @@ const ProfilePage = () => {
                   placeholder="Gym Name"
                   color={colors.textPrimary}
                   borderColor={colors.borderColorInput}
+                  borderRadius="full"
                   _placeholder={{ color: colors.textMuted }}
                 />
               </VStack>
             </ModalBody>
-            <ModalFooter bg={colors.bgCard}>
-              <Button type="submit" colorScheme="blue" mr={3}>
-                Save Changes
+            <ModalFooter bg={colors.bgCard} gap={3}>
+              <Button
+                type="submit"
+                variant="outline"
+                borderRadius="full"
+                fontWeight="500"
+                color={colors.textPrimary}
+                borderColor={colors.borderColor}
+                _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
+              >
+                Save changes
               </Button>
               <Button
                 onClick={onProfileClose}
-                color={colors.textPrimary}
+                variant="ghost"
+                borderRadius="full"
+                fontWeight="500"
+                color={colors.textMuted}
                 _hover={{ bg: colors.bgHover }}
               >
                 Cancel
@@ -1314,46 +1334,6 @@ const ProfilePage = () => {
       </Modal>
 
       {/* Background Edit Modal */}
-      <Modal isOpen={isBackgroundOpen} onClose={onBackgroundClose}>
-        <form onSubmit={handleBackgroundSubmit}>
-          <ModalOverlay />
-          <ModalContent bg={colors.bgCard}>
-            <ModalHeader color={colors.textPrimary} bg={colors.bgCard}>
-              Update Background
-            </ModalHeader>
-            <ModalCloseButton color={colors.textMuted} />
-            <ModalBody bg={colors.bgCard}>
-              <VStack spacing={4}>
-                <Image
-                  src={userProfile.backgroundPicture || bgColorMode}
-                  alt="Background Picture"
-                  w="full"
-                  h="200px"
-                  objectFit="cover"
-                  borderRadius="md"
-                />
-                <FileUploader
-                  handleFile={handleBackgroundImageUpload}
-                  accept="image/jpeg,image/png,image/gif"
-                />
-              </VStack>
-            </ModalBody>
-            <ModalFooter bg={colors.bgCard}>
-              <Button type="submit" colorScheme="blue" mr={3}>
-                Save Changes
-              </Button>
-              <Button
-                onClick={onBackgroundClose}
-                color={colors.textPrimary}
-                _hover={{ bg: colors.bgHover }}
-              >
-                Cancel
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </form>
-      </Modal>
-
       {/* Privacy Settings Modal */}
       <PrivacySettings
         isOpen={isPrivacyOpen}

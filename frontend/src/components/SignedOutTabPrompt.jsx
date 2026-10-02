@@ -6,8 +6,8 @@ import { cn } from "../lib/utils";
 
 const COPY = {
   create: {
-    title: "Sign in to create",
-    body: "Log a workout, add photos, and share it with the community.",
+    title: "Sign in to log a workout",
+    body: "Write the session, add a photo if you want, and it shows up on your progress.",
     Icon: PlusSquare,
   },
   analytics: {
@@ -17,7 +17,7 @@ const COPY = {
   },
   profile: {
     title: "Sign in to view your profile",
-    body: "See your posts, followers, and settings on your profile tab.",
+    body: "See your workouts, followers, and settings on your profile tab.",
     Icon: User,
   },
 };
@@ -40,8 +40,7 @@ export default function SignedOutTabPrompt({ variant }) {
   return (
     <div
       className={cn(
-        "flex min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))] flex-col items-center justify-center px-5",
-        "py-6 pt-[max(1.5rem,env(safe-area-inset-top,0px))]",
+        "flex min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))] flex-col items-center justify-center px-5 py-6",
       )}
     >
       <Card

@@ -120,7 +120,7 @@ export function FeedEntryCard({
   return (
     <Card
       className={cn(
-        "border-border/40 bg-background max-w-[min(448px,100%)] w-full min-w-0 rounded-2xl border text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+        "max-w-[min(448px,100%)] w-full min-w-0 rounded-2xl border border-border bg-card text-left shadow-none",
         clipCardShell ? "overflow-hidden" : "overflow-visible",
         onCardClick && "cursor-pointer",
         className,
@@ -157,8 +157,7 @@ export function FeedEntryCard({
                   }}
                   aria-label={`View ${profile.displayName}'s profile`}
                 >
-                  <span className="ig-story-ring shrink-0">
-                    <Avatar className="size-9 shrink-0 ring-2 ring-white/90 dark:ring-black/70">
+                  <Avatar className="size-9 shrink-0">
                       {profile.imageSrc ? (
                         <AvatarImage
                           src={profile.imageSrc}
@@ -168,21 +167,19 @@ export function FeedEntryCard({
                       <AvatarFallback className="text-xs">
                         {profile.fallback}
                       </AvatarFallback>
-                    </Avatar>
-                  </span>
+                  </Avatar>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <CardTitle className="truncate text-[13px] font-semibold leading-tight tracking-tight text-white underline-offset-2 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] hover:underline">
+                    <CardTitle className="truncate text-sm font-medium leading-tight tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)] hover:underline">
                       {profile.displayName}
                     </CardTitle>
-                    <span className="truncate text-[12px] leading-snug text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                    <span className="truncate text-xs leading-snug text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
                       {subtitle}
                     </span>
                   </div>
                 </button>
               ) : (
                 <>
-                  <span className="ig-story-ring shrink-0">
-                    <Avatar className="size-9 shrink-0 ring-2 ring-white/90 dark:ring-black/70">
+                  <Avatar className="size-9 shrink-0">
                       {profile.imageSrc ? (
                         <AvatarImage
                           src={profile.imageSrc}
@@ -192,13 +189,12 @@ export function FeedEntryCard({
                       <AvatarFallback className="text-xs">
                         {profile.fallback}
                       </AvatarFallback>
-                    </Avatar>
-                  </span>
+                  </Avatar>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <CardTitle className="truncate text-[13px] font-semibold leading-tight tracking-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                    <CardTitle className="truncate text-sm font-medium leading-tight tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
                       {profile.displayName}
                     </CardTitle>
-                    <span className="truncate text-[12px] leading-snug text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                    <span className="truncate text-xs leading-snug text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
                       {subtitle}
                     </span>
                   </div>
@@ -277,7 +273,7 @@ export function FeedEntryCard({
                               "size-5",
                               isLike &&
                                 liked &&
-                                "fill-destructive stroke-destructive",
+                                "fill-foreground stroke-foreground",
                               isComment &&
                                 commentsCount > 0 &&
                                 "fill-foreground/25 dark:fill-white/30",
@@ -322,13 +318,13 @@ export function FeedEntryCard({
                         "max-h-56 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]",
                     )}
                   >
-                    <p className="text-foreground whitespace-pre-wrap break-words text-left text-[14px] leading-[18px] tracking-[-0.01em]">
+                    <p className="text-foreground whitespace-pre-wrap break-words text-left text-sm font-normal leading-relaxed">
                       {description}
                     </p>
                   </div>
                 ) : null}
                 {likesLabel || commentsLabel ? (
-                  <p className="text-foreground shrink-0 text-[14px] font-semibold tracking-tight">
+                  <p className="text-muted-foreground shrink-0 text-sm font-medium">
                     {[likesLabel, commentsLabel].filter(Boolean).join(" · ")}
                   </p>
                 ) : null}
@@ -337,7 +333,7 @@ export function FeedEntryCard({
 
             {footer ? (
               <div
-                className="border-border/60 border-t pt-3"
+                className="border-t border-border pt-3"
                 onMouseDown={stopCardActivation}
                 onPointerDown={stopCardActivation}
                 onClick={stopCardActivation}

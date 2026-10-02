@@ -11,8 +11,6 @@ import {
   VStack,
   Text,
   Divider,
-  Alert,
-  AlertIcon,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -39,7 +37,6 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRequestingAccess, setIsRequestingAccess] = useState(false);
   const toast = useCustomToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -153,29 +150,9 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
     }
   };
 
-  const handleRequestTrainerDashboardAccess = async () => {
-    setIsRequestingAccess(true);
-    try {
-      const response = await apiClient.post(
-        API_ENDPOINTS.REQUEST_TRAINER_DASHBOARD_ACCESS
-      );
-
-      if (response.data.success) {
-        setTrainerDashboardAccess({
-          status: response.data.accessStatus,
-          hasAccess: response.data.accessStatus === "approved",
-        });
-      }
-    } catch (error) {
-      toast.error(
-        "Error",
-        error.response?.data?.message ||
-          "Failed to request trainer dashboard access"
-      );
-    } finally {
-      setIsRequestingAccess(false);
-    }
-  };
+  const showTrainerAccess =
+    trainerDashboardAccess.status === "approved" ||
+    trainerDashboardAccess.status === "requested";
 
   const renderContent = () => (
     <VStack spacing={6} align="stretch">
@@ -199,7 +176,7 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
             </Checkbox>
             <FormLabel fontSize="sm" color={colors.textMuted} mt={1}>
               If checked, only approved followers can view your profile and
-              posts.
+              workouts.
             </FormLabel>
           </FormControl>
           <FormControl>
@@ -213,7 +190,7 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
               Show Entries
             </Checkbox>
             <FormLabel fontSize="sm" color={colors.textMuted} mt={1}>
-              If checked, your posts will be visible to others (subject to
+              If checked, your workouts will be visible to others (subject to
               profile privacy).
             </FormLabel>
           </FormControl>
@@ -229,63 +206,32 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
         </VStack>
       </form>
 
-      <Divider my={6} borderColor={colors.borderColor} />
-
-      {/* Trainer Dashboard Access Section */}
-      <VStack spacing={4} align="stretch">
-        <Heading size="md" color={colors.textPrimary}>
-          Trainer Dashboard (Beta)
-        </Heading>
-        <Text fontSize="sm" color={colors.textMuted}>
-          The trainer dashboard is currently in beta. Request access to use this
-          feature.
-        </Text>
-
-        {trainerDashboardAccess.status === "approved" ? (
-          <Alert status="success" borderRadius="md">
-            <AlertIcon />
-            <VStack align="start" spacing={1}>
-              <Text fontWeight="semibold" color={colors.textPrimary}>
-                You have trainer dashboard access!
-              </Text>
+      {showTrainerAccess ? (
+        <>
+          <Divider my={6} borderColor={colors.borderColor} />
+          <VStack spacing={4} align="stretch">
+            <Heading size="md" color={colors.textPrimary}>
+              Trainer dashboard
+            </Heading>
+            {trainerDashboardAccess.status === "approved" ? (
               <Button
                 size="sm"
-                colorScheme="blue"
+                variant="outline"
                 onClick={() => {
                   if (isModal && onClose) onClose();
                   navigate("/trainer/dashboard");
                 }}
               >
-                Go to Trainer Dashboard
+                Open trainer dashboard
               </Button>
-            </VStack>
-          </Alert>
-        ) : trainerDashboardAccess.status === "requested" ? (
-          <Alert status="info" borderRadius="md">
-            <AlertIcon />
-            <VStack align="start" spacing={1}>
-              <Text fontWeight="semibold" color={colors.textPrimary}>
-                Access request pending review
-              </Text>
+            ) : (
               <Text fontSize="sm" color={colors.textMuted}>
-                Your request for trainer dashboard access is being reviewed.
-                We'll notify you once it's approved.
+                Your trainer access request is still in review.
               </Text>
-            </VStack>
-          </Alert>
-        ) : (
-          <Button
-            colorScheme="blue"
-            variant="outline"
-            isLoading={isRequestingAccess}
-            spinner={<ButtonLoadingSpinner />}
-            onClick={handleRequestTrainerDashboardAccess}
-            width="full"
-          >
-            Request Trainer Dashboard Access
-          </Button>
-        )}
-      </VStack>
+            )}
+          </VStack>
+        </>
+      ) : null}
     </VStack>
   );
 
@@ -321,8 +267,12 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
           <ModalFooter bg={colors.bgCard}>
             <Button
               onClick={onClose}
+              variant="outline"
+              borderRadius="full"
+              fontWeight="500"
               color={colors.textPrimary}
-              _hover={{ bg: colors.bgHover }}
+              borderColor={colors.borderColor}
+              _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
             >
               Close
             </Button>

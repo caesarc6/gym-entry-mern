@@ -11,11 +11,10 @@ import {
   Box,
 } from "@chakra-ui/react";
 import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
-import { Stack, Image } from "@chakra-ui/react";
+import { Image } from "@chakra-ui/react";
 import { lazy, Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
-import { SlArrowRight, SlArrowLeft } from "react-icons/sl";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
 
@@ -28,7 +27,6 @@ const defaultBgNightUrl = new URL(
   import.meta.url
 ).href;
 import { API_ENDPOINTS, apiClient } from "../config/api";
-import PaginationComponent from "../components/Pagination";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
 
@@ -61,7 +59,6 @@ const UserProfilePage = () => {
   const [isFollowingLoadingInitial, setIsFollowingLoadingInitial] =
     useState(true);
   const [currentUser, setCurrentUser] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(6);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -69,6 +66,13 @@ const UserProfilePage = () => {
     totalPosts: 0,
     limit: 6,
   });
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const pageRef = useRef(1);
+  const appendLockRef = useRef(false);
+  const sentinelRef = useRef(null);
+  const paginationRef = useRef(pagination);
+  paginationRef.current = pagination;
 
   const profileFetchSeq = useRef(0);
   /** Avoid unstable deps (toast / currentUser identity) recreating fetch every render → effect loop. */
@@ -172,6 +176,8 @@ const UserProfilePage = () => {
     const toastNotify = toastRef.current;
     try {
       setIsLoading(true);
+      pageRef.current = 1;
+      setHasMore(false);
       if (!user) {
         throw new Error("User not authenticated");
       }
@@ -233,7 +239,7 @@ const UserProfilePage = () => {
 
       if (shouldFetchPosts) {
         const postsResponse = await apiClient.get(
-          API_ENDPOINTS.POSTS(userId, currentPage, limit)
+          API_ENDPOINTS.POSTS(userId, 1, limit)
         );
         if (seq !== profileFetchSeq.current) return;
         const postsData = postsResponse.data;
@@ -263,10 +269,13 @@ const UserProfilePage = () => {
           }));
           setEntries(normalizedEntries);
           setPagination(postsData.pagination);
+          pageRef.current = 1;
+          setHasMore((postsData.pagination?.totalPages ?? 1) > 1);
         }
       } else {
         // For private profiles that we can't see posts for, set empty entries
         setEntries([]);
+        setHasMore(false);
         setPagination({
           currentPage: 1,
           totalPages: 0,
@@ -284,7 +293,7 @@ const UserProfilePage = () => {
         setIsLoading(false);
       }
     }
-  }, [userId, currentPage, limit]);
+  }, [userId, limit]);
 
   useEffect(() => {
     if (!currentUser?.uid) {
@@ -354,11 +363,80 @@ const UserProfilePage = () => {
     }
   };
 
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setCurrentPage(newPage);
+  const loadMorePosts = useCallback(async () => {
+    if (!userId || appendLockRef.current || isLoading) return;
+    const totalPages = paginationRef.current.totalPages || 1;
+    if (pageRef.current >= totalPages) return;
+
+    const page = pageRef.current + 1;
+    appendLockRef.current = true;
+    setIsLoadingMore(true);
+    try {
+      const response = await apiClient.get(
+        API_ENDPOINTS.POSTS(userId, page, limit)
+      );
+      const data = response.data;
+      if (!data.success || !Array.isArray(data.data)) {
+        throw new Error(data.message || "Failed to load workouts");
+      }
+
+      const normalizedEntries = data.data.map((post) => ({
+        _id: post._id,
+        name: post.name || "Untitled",
+        description: post.description || "No description",
+        image: post.image || null,
+        likes: Array.isArray(post.likes) ? post.likes : [],
+        comments: Array.isArray(post.comments) ? post.comments : [],
+        createdAt: post.createdAt || new Date().toISOString(),
+        uid: post.uid || userId,
+        ownerId: post.uid || userId,
+        trainerUid: post.trainerUid || null,
+        trainerName: post.trainerName || null,
+        trainerUsername: post.trainerUsername || null,
+        authorProfile: post.authorProfile || null,
+        trainerProfile: post.trainerProfile || null,
+      }));
+      setEntries((prev) => {
+        const seen = new Set(prev.map((entry) => String(entry._id)));
+        const extra = normalizedEntries.filter(
+          (post) => !seen.has(String(post._id))
+        );
+        return extra.length ? [...prev, ...extra] : prev;
+      });
+      pageRef.current = page;
+
+      const reportedPages = data.pagination?.totalPages ?? totalPages;
+      const reachedEnd =
+        normalizedEntries.length < limit || page >= reportedPages;
+      setHasMore(!reachedEnd);
+      setPagination((prev) => ({
+        ...prev,
+        ...(data.pagination || {}),
+        currentPage: page,
+        totalPages: reachedEnd ? page : reportedPages,
+      }));
+    } catch (error) {
+      toast.error("Error", error.message || "Failed to load more workouts");
+    } finally {
+      appendLockRef.current = false;
+      setIsLoadingMore(false);
     }
-  };
+  }, [userId, limit, isLoading, toast]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore) return undefined;
+    const observer = new IntersectionObserver(
+      (observed) => {
+        if (observed.some((entry) => entry.isIntersecting)) {
+          void loadMorePosts();
+        }
+      },
+      { rootMargin: "280px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadMorePosts, entries.length]);
 
   const handlePostUpdate = (postId, updatedPost) => {
     setEntries((prevEntries) =>
@@ -382,115 +460,120 @@ const UserProfilePage = () => {
     });
   }, []);
 
-  useEffect(() => {
-    if (currentPage > pagination.totalPages && pagination.totalPages >= 1) {
-      setCurrentPage(pagination.totalPages);
-    }
-  }, [currentPage, pagination.totalPages]);
-
   const renderProfile = () => (
-    <Center py={6}>
-      <Box
-        maxW={"580px"}
-        w={"full"}
-        bg={colors.bgCard}
-        boxShadow="sm"
-        rounded="2xl"
-        overflow={"hidden"}
-      >
+    <Box maxW="800px" mx="auto" w="full">
+      <Box borderRadius="2xl" overflow="hidden">
         <Image
-          h={"120px"}
-          w={"full"}
+          h={{ base: "140px", md: "168px" }}
+          w="full"
           src={userProfile.backgroundPicture || bgColorMode}
-          objectFit={"cover"}
+          objectFit="cover"
+          alt="Background"
         />
-        <Flex justify={"center"} mt={-12}>
-          <Box className="ig-story-ring" p="2px" rounded="full">
-            <Avatar
-              size={"xl"}
-              src={userProfile.profileImage || profileColorMode}
-              css={{ border: "3px solid", borderColor: colors.bgCard }}
-            />
+      </Box>
+      <Flex justify="center" mt={-12}>
+        <Avatar
+          size="xl"
+          src={userProfile.profileImage || profileColorMode}
+          bg={colors.background}
+          css={{
+            border: "4px solid hsl(var(--background))",
+          }}
+        />
+      </Flex>
+      <Box textAlign="center" pt={5}>
+        <Heading
+          size={{ base: "lg", md: "xl" }}
+          color={colors.textPrimary}
+          fontWeight="500"
+        >
+          {userProfile.name}
+        </Heading>
+        {userProfile.username ? (
+          <Text mt={2} fontSize="sm" color={colors.textMuted}>
+            @{userProfile.username}
+          </Text>
+        ) : null}
+        <Text
+          maxW="460px"
+          mx="auto"
+          mt={4}
+          fontSize="sm"
+          color={colors.textMuted}
+          lineHeight="1.8"
+        >
+          {[userProfile.goal, userProfile.gymName].filter(Boolean).join(" · ")}
+        </Text>
+        {userProfile.bio ? (
+          <Text
+            maxW="460px"
+            mx="auto"
+            mt={2}
+            fontSize="sm"
+            color={colors.textMuted}
+            lineHeight="1.8"
+          >
+            {userProfile.bio}
+          </Text>
+        ) : null}
+        <Flex justify="center" gap={{ base: 8, md: 12 }} mt={8}>
+          <Box textAlign="center">
+            <Text fontWeight="500" color={colors.textPrimary}>
+              {userProfile.followersCount}
+            </Text>
+            <Text fontSize="sm" color={colors.textMuted} mt={1}>
+              Followers
+            </Text>
+          </Box>
+          <Box textAlign="center">
+            <Text fontWeight="500" color={colors.textPrimary}>
+              {userProfile.followingCount}
+            </Text>
+            <Text fontSize="sm" color={colors.textMuted} mt={1}>
+              Following
+            </Text>
+          </Box>
+          <Box textAlign="center">
+            <Text fontWeight="500" color={colors.textPrimary}>
+              {userProfile.postsCount || 0}
+            </Text>
+            <Text fontSize="sm" color={colors.textMuted} mt={1}>
+              Workouts
+            </Text>
           </Box>
         </Flex>
-        <Box p={6}>
-          <Stack spacing={0} align={"center"} mb={3}>
-            <Heading fontSize={"xl"} fontWeight={600} letterSpacing="-0.03em">
-              {userProfile.name}
-            </Heading>
-          </Stack>
-          <Stack spacing={0} align={"center"} mb={3}>
-            <Text color={colors.textMuted}>@{userProfile.username}</Text>
-          </Stack>
-          <Stack spacing={0} align={"center"} mb={4}>
-            <Text color={colors.textMuted}>
-              {userProfile.goal} | {userProfile.gymName}
-            </Text>
-          </Stack>
-          <Stack spacing={0} align={"center"} mt={4}>
-            <Text color={colors.textMuted} textAlign="center">
-              {userProfile.bio}
-            </Text>
-          </Stack>
-          <Stack direction={"row"} justify={"center"} spacing={6} mt={8}>
-            <Stack spacing={0} align={"center"}>
-              <Text fontWeight={600}>{userProfile.followersCount}</Text>
-              <Text fontSize={"sm"} color={colors.textMuted}>
-                Followers
-              </Text>
-            </Stack>
-            <Stack spacing={0} align={"center"}>
-              <Text fontWeight={600}>{userProfile.followingCount}</Text>
-              <Text fontSize={"sm"} color={colors.textMuted}>
-                Following
-              </Text>
-            </Stack>
-            <Stack spacing={0} align={"center"}>
-              <Text fontWeight={600}>{userProfile.postsCount || 0}</Text>
-              <Text fontSize={"sm"} color={colors.textMuted}>
-                Posts
-              </Text>
-            </Stack>
-          </Stack>
-          <Stack direction={"row"} spacing={4} mt={6}>
-            {currentUser?.uid === userId ? (
-              <Button
-                onClick={() => navigate("/settings")}
-                colorScheme="blue"
-                variant="outline"
-                w={"full"}
-              >
-                Edit Profile
-              </Button>
-            ) : (
-              <Button
-                onClick={handleFollow}
-                colorScheme={isFollowing ? "whiteAlpha" : "blue"}
-                w={"full"}
-                isLoading={isFollowingLoading}
-                isDisabled={isFollowingLoadingInitial}
-                spinner={<ButtonLoadingSpinner />}
-                loadingText={
-                  isFollowing
-                    ? "Unfollowing..."
-                    : hasFollowRequest
-                    ? "Canceling Request..."
-                    : "Following..."
-                }
-              >
-                {isFollowingLoadingInitial
-                  ? "Loading..."
-                  : isFollowing
-                  ? "Following"
-                  : hasFollowRequest
-                  ? "Cancel Request"
+        <Button
+          mt={8}
+          onClick={
+            currentUser?.uid === userId
+              ? () => navigate("/settings")
+              : handleFollow
+          }
+          variant="outline"
+          color={colors.textPrimary}
+          borderColor={colors.borderColor}
+          borderRadius="full"
+          fontWeight="500"
+          minW="180px"
+          isLoading={currentUser?.uid === userId ? false : isFollowingLoading}
+          isDisabled={
+            currentUser?.uid === userId ? false : isFollowingLoadingInitial
+          }
+          spinner={<ButtonLoadingSpinner />}
+          _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
+        >
+          {currentUser?.uid === userId
+            ? "Edit profile"
+            : isFollowingLoadingInitial
+              ? "Loading..."
+              : isFollowing
+                ? "Following"
+                : hasFollowRequest
+                  ? "Cancel request"
                   : "Follow"}
-              </Button>
-            )}
-          </Stack>
-        </Box>
+        </Button>
       </Box>
-    </Center>
+    </Box>
   );
 
   const renderPosts = () => (
@@ -505,8 +588,8 @@ const UserProfilePage = () => {
             {userProfile.isPrivate &&
             !userProfile.allowsPostView &&
             currentUser?.uid !== userId
-              ? "This profile is private. Follow to see their posts."
-              : "No posts yet"}
+              ? "This profile is private. Follow to see their workouts."
+              : "No workouts yet"}
           </Text>
         </Center>
       ) : (
@@ -536,12 +619,11 @@ const UserProfilePage = () => {
               ))}
             </SimpleGrid>
           </Suspense>
-          <PaginationComponent
-            currentPage={currentPage}
-            totalPages={pagination.totalPages}
-            onPageChange={handlePageChange}
-            maxVisiblePages={5}
-          />
+          {hasMore ? (
+            <Box ref={sentinelRef} w="full" py={4} aria-hidden>
+              {isLoadingMore ? <LoadingIndicator variant="hero" /> : null}
+            </Box>
+          ) : null}
         </>
       )}
     </Container>

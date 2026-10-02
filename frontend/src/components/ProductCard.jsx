@@ -56,7 +56,8 @@ import {
 } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../supabase/supabase";
-import { API_ENDPOINTS, apiClient } from "../config/api"; // Import API configuration
+import { API_ENDPOINTS, apiClient } from "../config/api";
+import { recognizeWorkoutLines } from "../utils/workoutParser";
 import { parseWorkoutDescription } from "../utils/workoutParser.js";
 import ShareWorkoutModal from "./ShareWorkoutModal";
 import { FeedEntryCard } from "./ui/feed-entry-card";
@@ -1954,6 +1955,11 @@ const ProductCard = memo(function ProductCard({
     </Box>
   );
 
+  const recognizedEditLifts = useMemo(
+    () => recognizeWorkoutLines(updatedEntry.description),
+    [updatedEntry.description],
+  );
+
   return (
     <>
       <Box alignSelf="center" w="full" maxW="448px" mx="auto">
@@ -2030,11 +2036,11 @@ const ProductCard = memo(function ProductCard({
                     autoComplete="off"
                     size="sm"
                     fontSize="11px"
-                    borderRadius="4px"
+                    borderRadius="full"
                     borderColor={colors.borderColor}
                     _focus={{
-                      borderColor: "blue.400",
-                      boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                      borderColor: colors.borderColorInput,
+                      boxShadow: "none",
                     }}
                     h="28px"
                     flex={1}
@@ -2045,7 +2051,7 @@ const ProductCard = memo(function ProductCard({
                     py={1}
                     size="sm"
                     fontSize="11px"
-                    borderRadius="4px"
+                    borderRadius="full"
                     fontWeight="500"
                     h="28px"
                     bg={colors.bgMuted}
@@ -2088,6 +2094,7 @@ const ProductCard = memo(function ProductCard({
         <ModalContent
           position="relative"
           bg="transparent"
+          border="none"
           boxShadow="none"
           maxW="min(440px, 92vw)"
           w="full"
@@ -2230,12 +2237,12 @@ const ProductCard = memo(function ProductCard({
                       autoComplete="off"
                       size="sm"
                       fontSize="11px"
-                      borderRadius="4px"
+                      borderRadius="full"
                       borderColor={colors.borderColor}
                       _focus={{
-                        borderColor: "blue.400",
+                        borderColor: colors.borderColorInput,
                         boxShadow:
-                          "0 0 0 1px var(--chakra-colors-blue-400)",
+                          "none",
                       }}
                       bg={colors.bgCard}
                       flex={1}
@@ -2249,7 +2256,7 @@ const ProductCard = memo(function ProductCard({
                       py={1}
                       size="sm"
                       fontSize="11px"
-                      borderRadius="4px"
+                      borderRadius="full"
                       fontWeight="500"
                       h="28px"
                       bg={colors.bgMuted}
@@ -2414,13 +2421,13 @@ const ProductCard = memo(function ProductCard({
                                       size="sm"
                                       resize="none"
                                       fontSize="11px"
-                                      borderRadius="4px"
+                                      borderRadius="full"
                                       borderColor={colors.borderColor}
                                       bg={colors.bgCard}
                                       _focus={{
-                                        borderColor: "blue.400",
+                                        borderColor: colors.borderColorInput,
                                         boxShadow:
-                                          "0 0 0 1px var(--chakra-colors-blue-400)",
+                                          "none",
                                       }}
                                     />
                                     <HStack spacing={2}>
@@ -2429,7 +2436,7 @@ const ProductCard = memo(function ProductCard({
                                         px={3}
                                         fontSize="11px"
                                         h="28px"
-                                        borderRadius="4px"
+                                        borderRadius="full"
                                         bg={colors.bgMuted}
                                         color={colors.textPrimary}
                                         borderWidth="1px"
@@ -2450,7 +2457,7 @@ const ProductCard = memo(function ProductCard({
                                         px={3}
                                         fontSize="11px"
                                         h="28px"
-                                        borderRadius="4px"
+                                        borderRadius="full"
                                         onClick={() =>
                                           setEditingComment(null)
                                         }
@@ -2542,12 +2549,12 @@ const ProductCard = memo(function ProductCard({
                                       }
                                       size="sm"
                                       fontSize="11px"
-                                      borderRadius="4px"
+                                      borderRadius="full"
                                       borderColor={colors.borderColor}
                                       _focus={{
-                                        borderColor: "blue.400",
+                                        borderColor: colors.borderColorInput,
                                         boxShadow:
-                                          "0 0 0 1px var(--chakra-colors-blue-400)",
+                                          "none",
                                       }}
                                       bg={colors.bgCard}
                                       h="28px"
@@ -2557,7 +2564,7 @@ const ProductCard = memo(function ProductCard({
                                       py={1}
                                       size="sm"
                                       fontSize="11px"
-                                      borderRadius="4px"
+                                      borderRadius="full"
                                       fontWeight="500"
                                       h="28px"
                                       bg={colors.bgMuted}
@@ -2587,7 +2594,7 @@ const ProductCard = memo(function ProductCard({
                                       py={1}
                                       size="sm"
                                       fontSize="11px"
-                                      borderRadius="4px"
+                                      borderRadius="full"
                                       h="28px"
                                       onClick={(e) => {
                                         e.preventDefault();
@@ -2687,24 +2694,13 @@ const ProductCard = memo(function ProductCard({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        size="xl"
+        size="md"
         isCentered={editModalCentered}
         scrollBehavior="inside"
       >
-        <ModalOverlay
-          bg="transparent"
-          backdropFilter="blur(1px)"
-          style={{ background: "hsl(var(--workout-modal-overlay) / 0.72)" }}
-        />
+        <ModalOverlay />
         <ModalContent
           ref={editModalScrollRef}
-          position="relative"
-          bg="transparent"
-          boxShadow="none"
-          maxW="min(440px, 92vw)"
-          w="full"
-          mx="auto"
-          my={{ base: 4, md: 6 }}
           maxH="calc(100dvh - 2rem)"
           minH={0}
           overflowY="auto"
@@ -2713,8 +2709,6 @@ const ProductCard = memo(function ProductCard({
             touchAction: "pan-y",
             overscrollBehavior: "contain",
           }}
-          px={{ base: 1, md: 2 }}
-          py={{ base: 2, md: 3 }}
           onFocusCapture={(event) => {
             const node = event.target;
             if (
@@ -2725,62 +2719,49 @@ const ProductCard = memo(function ProductCard({
             }
           }}
         >
-          <ModalCloseButton
-            size="md"
-            borderRadius="full"
-            zIndex={10}
-            bg={colors.bgMuted}
-            color={colors.textPrimary}
-            borderWidth="1px"
-            borderColor={colors.borderColor}
-            _hover={{ bg: colors.bgHover }}
-          />
-          <FeedEntryCard
-            clipCardShell={false}
-            className={cn("mx-auto w-full max-w-[448px]")}
-            profile={{
-              displayName: captionHandle,
-              imageSrc: profileImage,
-              imageAlt: "User Profile",
-              fallback: profileFallbackLetters,
-            }}
-            subtitle={`Edit · ${feedSubtitle}`}
-            image={getSquareEntryMedia(false, { compact: true })}
-            liked={isLiked}
-            onToggleLike={() => {}}
-            onProfileClick={handleAuthorProfileClick}
-            likesCount={
-              Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
-            }
-            commentsCount={
-              Array.isArray(updatedEntry.comments)
-                ? updatedEntry.comments.length
-                : 0
-            }
-            description=""
-            showSocialToolbar={false}
-            captionReplacement={
-              <VStack spacing={3} align="stretch" w="full">
+          <ModalHeader>Edit</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={5}>
+              {!usesThemeDefaultPostArt ? (
+                <Box borderRadius="2xl" overflow="hidden">
+                  {getSquareEntryMedia(false)}
+                </Box>
+              ) : null}
+              <Box>
+                <Text fontSize="sm" fontWeight="500" color={colors.textPrimary}>
+                  Title
+                </Text>
                 <Input
-                  placeholder="Entry Name"
+                  mt={2}
+                  placeholder="Push day"
                   name="name"
                   value={updatedEntry.name}
+                  borderRadius="full"
+                  h="48px"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                   onChange={(e) => {
                     const value = e.target.value;
                     setUpdatedEntry((prev) => ({ ...prev, name: value }));
                   }}
-                  fontFamily="Arial, sans-serif"
-                  bg={colors.bgMuted}
-                  color={colors.textPrimary}
-                  borderColor={colors.border}
-                  _placeholder={{ color: colors.textMuted }}
-                  _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
                 />
+              </Box>
+              <Box>
+                <Text fontSize="sm" fontWeight="500" color={colors.textPrimary}>
+                  Workout
+                </Text>
                 <Textarea
-                  placeholder="Workout Split"
-                  minH="160px"
+                  mt={2}
+                  placeholder={"Bench press 135lbs - 8 8 6\nDumbbell curls 15lbs - 10 10 10"}
+                  minH="12rem"
                   name="description"
                   value={updatedEntry.description}
+                  borderRadius="2xl"
+                  color={colors.textPrimary}
+                  borderColor={colors.borderColorInput}
+                  _placeholder={{ color: colors.textMuted }}
                   onChange={(e) => {
                     const value = e.target.value;
                     setUpdatedEntry((prev) => ({
@@ -2788,80 +2769,85 @@ const ProductCard = memo(function ProductCard({
                       description: value,
                     }));
                   }}
-                  fontFamily="Arial, sans-serif"
-                  bg={colors.bgMuted}
-                  color={colors.textPrimary}
-                  borderColor={colors.border}
-                  _placeholder={{ color: colors.textMuted }}
-                  _focus={{ borderColor: colors.border, bg: colors.bgMuted }}
                 />
-                {(editAutosaveMeta.status === "saving" ||
-                  editAutosaveMeta.status === "saved" ||
-                  editAutosaveMeta.status === "error") && (
-                  <Text
-                    fontSize="sm"
-                    color={colors.textMuted}
-                    w="full"
-                    noOfLines={2}
-                    minH="2.6em"
-                    lineHeight="1.3"
-                    display="flex"
-                    alignItems="center"
-                  >
-                    {editAutosaveMeta.status === "saving"
-                      ? "Saving to your post…"
-                      : editAutosaveMeta.status === "saved"
-                      ? `Saved to your post${editAutosaveMeta.lastSavedAt ? ` (${new Date(editAutosaveMeta.lastSavedAt).toLocaleTimeString()})` : ""}`
-                      : "Could not save to your post. Check your connection."}
+              </Box>
+              {recognizedEditLifts.length > 0 ? (
+                <Box>
+                  <Text fontSize="sm" fontWeight="500" color={colors.textPrimary}>
+                    Progress will track
                   </Text>
-                )}
-              </VStack>
-            }
-            footer={
-              <VStack spacing={2} align="stretch" w="full">
-                <FileUploader
-                  handleFile={handleFileUpload}
-                  cropAspect={ENTRY_POST_IMAGE_ASPECT}
-                  compact
-                />
-                <HStack spacing={3} justify="flex-end" flexWrap="wrap" w="full">
-                  <Button
-                    variant="outline"
-                    onClick={handleRevertEdits}
-                    isDisabled={
-                      !editBaselineSnapshot ||
-                      currentEditSnapshot === editBaselineSnapshot
-                    }
-                    fontFamily="Arial, sans-serif"
-                    color={colors.textPrimary}
-                    borderColor={colors.borderColor}
-                    _hover={{ bg: colors.bgHover }}
-                  >
-                    Revert
-                  </Button>
-                  <Button
-                    colorScheme="blue"
-                    onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
-                    isLoading={isUpdateSubmitting}
-                    spinner={<ButtonLoadingSpinner />}
-                    loadingText="Updating"
-                    fontFamily="Arial, sans-serif"
-                  >
-                    Update
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={onClose}
-                    fontFamily="Arial, sans-serif"
-                    color={colors.textSecondary}
-                    _hover={{ bg: colors.bgHover }}
-                  >
-                    Cancel
-                  </Button>
-                </HStack>
-              </VStack>
-            }
-          />
+                  <VStack align="stretch" spacing={2} mt={3}>
+                    {recognizedEditLifts.map((lift, index) => (
+                      <Flex key={`${lift.name}-${index}`} justify="space-between" gap={3}>
+                        <Text fontSize="sm" fontWeight="500" color={colors.textPrimary} noOfLines={1}>
+                          {lift.name}
+                        </Text>
+                        <Text fontSize="sm" color={colors.textMuted} flexShrink={0}>
+                          {lift.detail}
+                        </Text>
+                      </Flex>
+                    ))}
+                  </VStack>
+                </Box>
+              ) : null}
+              <FileUploader
+                handleFile={handleFileUpload}
+                cropAspect={ENTRY_POST_IMAGE_ASPECT}
+                compact
+              />
+              {(editAutosaveMeta.status === "saving" ||
+                editAutosaveMeta.status === "saved" ||
+                editAutosaveMeta.status === "error") && (
+                <Text fontSize="sm" color={colors.textMuted} lineHeight="1.7">
+                  {editAutosaveMeta.status === "saving"
+                    ? "Saving…"
+                    : editAutosaveMeta.status === "saved"
+                      ? "Saved"
+                      : "Could not save. Check your connection."}
+                </Text>
+              )}
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="outline"
+              borderRadius="full"
+              fontWeight="500"
+              color={colors.textPrimary}
+              borderColor={colors.borderColor}
+              _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
+              onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
+              isLoading={isUpdateSubmitting}
+              spinner={<ButtonLoadingSpinner />}
+              loadingText="Saving…"
+            >
+              Save changes
+            </Button>
+            <Button
+              variant="ghost"
+              borderRadius="full"
+              fontWeight="500"
+              color={colors.textMuted}
+              _hover={{ bg: colors.bgHover }}
+              onClick={handleRevertEdits}
+              isDisabled={
+                !editBaselineSnapshot ||
+                currentEditSnapshot === editBaselineSnapshot
+              }
+            >
+              Revert
+            </Button>
+            <Button
+              variant="ghost"
+              borderRadius="full"
+              fontWeight="500"
+              color={colors.textMuted}
+              _hover={{ bg: colors.bgHover }}
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
 
@@ -2869,24 +2855,33 @@ const ProductCard = memo(function ProductCard({
       <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
         <ModalOverlay />
         <ModalContent bg={colors.bgCard}>
-          <ModalHeader color={colors.textPrimary}>Confirm Delete</ModalHeader>
+          <ModalHeader color={colors.textPrimary} fontWeight="500">
+            Delete this workout?
+          </ModalHeader>
           <ModalCloseButton color={colors.textMuted} />
           <ModalBody>
-            <Text color={colors.textPrimary}>
-              Are you sure you want to delete this entry?
+            <Text fontSize="sm" color={colors.textMuted} lineHeight="1.7">
+              It will come off your profile and your progress.
             </Text>
           </ModalBody>
           <ModalFooter>
             <Button
-              colorScheme="red"
+              variant="outline"
+              borderRadius="full"
+              fontWeight="500"
+              borderColor="red.300"
+              color="red.300"
+              _hover={{ bg: colors.bgHover }}
               onClick={() => handleDeleteEntry(entry._id)}
             >
               Delete
             </Button>
             <Button
               variant="ghost"
+              borderRadius="full"
+              fontWeight="500"
               onClick={onDeleteClose}
-              color={colors.textPrimary}
+              color={colors.textMuted}
               _hover={{ bg: colors.bgHover }}
             >
               Cancel

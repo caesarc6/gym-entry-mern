@@ -781,6 +781,62 @@ export const parseWorkoutDescription = (description) => {
   return exercises;
 };
 
+const formatRecognizedMinutes = (minutes) => {
+  if (!minutes) return "";
+  const whole = Math.round(minutes);
+  return whole === 1 ? "1 min" : `${whole} min`;
+};
+
+const summarizeExercise = (exercise) => {
+  const setCount = exercise.sets?.length || 0;
+  const unit = exercise.sets?.[0]?.unit;
+  const setLabel = setCount === 1 ? "1 set" : `${setCount} sets`;
+  const detail =
+    exercise.maxWeight > 0 && unit && unit !== "bodyweight"
+      ? `${exercise.maxWeight} ${unit} · ${setLabel}`
+      : setLabel;
+  return { name: exercise.name, detail };
+};
+
+const summarizeCardio = (cardio) => {
+  const detail = [
+    formatRecognizedMinutes(cardio.minutes),
+    cardio.incline != null ? `${cardio.incline} incline` : "",
+    cardio.level != null ? `lvl ${cardio.level}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return { name: cardio.name, detail: detail || "Logged" };
+};
+
+/**
+ * Lines Progress will chart, in the order they were written.
+ * Unrecognized lines are omitted so the composer stays quiet about them.
+ * @param {string} description
+ * @returns {{ name: string, detail: string }[]}
+ */
+export const recognizeWorkoutLines = (description) => {
+  if (!description || typeof description !== "string") return [];
+
+  const lines = description
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const recognized = [];
+
+  for (const line of lines) {
+    const exercise = parseExerciseLine(line);
+    if (exercise) {
+      recognized.push(summarizeExercise(exercise));
+      continue;
+    }
+    const cardio = parseCardioLine(line);
+    if (cardio) recognized.push(summarizeCardio(cardio));
+  }
+
+  return recognized;
+};
+
 /**
  * Parse workout title to extract split and gym
  * @param {string} title - Workout title like "Push @blink"

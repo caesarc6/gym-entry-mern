@@ -47,7 +47,12 @@ export const Hero = ({ appGuestMarketing = false }) => {
 
       <main className="relative z-10 overflow-hidden">
         <section>
-          <div className="relative min-h-[76vh] pb-36 pt-32 sm:min-h-[82vh] sm:pb-44 sm:pt-36">
+          <div
+            className={cn(
+              "relative min-h-[76vh] pb-36 sm:min-h-[82vh] sm:pb-44",
+              appGuestMarketing ? "pt-12 sm:pt-16" : "pt-32 sm:pt-36",
+            )}
+          >
             <div className="relative z-10 mx-auto w-full max-w-5xl px-6">
               <div className="mx-auto mt-6 max-w-md text-center">
                 <h1 className="text-balance font-serif text-4xl font-medium text-white sm:text-5xl">
