@@ -44,7 +44,6 @@ import {
   syncWorkoutHabitWidget,
 } from "../utils/workoutHabitWidget";
 import { useCustomToast } from "../hooks/useCustomToast";
-import { cn } from "../lib/utils";
 import { useProductStore } from "../store/product";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 
@@ -60,7 +59,7 @@ const SettingsPage = () => {
   const colors = useThemeColors();
   const toast = useCustomToast();
   const navigate = useNavigate();
-  const { themeMode, setThemeMode, currentTheme } = useTheme();
+  const { themeMode, setThemeMode } = useTheme();
   const setCurrentUser = useProductStore((s) => s.setCurrentUser);
   const storeUser = useProductStore((s) => s.currentUser);
 
@@ -465,50 +464,9 @@ const SettingsPage = () => {
 
   return (
     <>
-      {isNative ? (
-      <nav className="sticky top-0 z-20 w-full">
-        <div
-          className={cn(
-            "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] transition-all duration-300 backdrop-blur-xl",
-            currentTheme === "light"
-              ? "border-zinc-200/80 bg-zinc-50/90 shadow-sm"
-              : currentTheme === "dark-black"
-                ? "border-neutral-800/55 bg-neutral-950/88"
-                : currentTheme === "dark-blue"
-                  ? "border-[rgb(39_39_42_/_6%)] bg-zinc-950/85"
-                  : "border-[rgb(39_39_42_/_6%)] bg-zinc-950/88",
-          )}
-        >
-          <div className="mx-auto w-full max-w-7xl">
-            <div className="relative flex items-center justify-between py-2">
-              <button
-                type="button"
-                onClick={() => navigate("/profile")}
-                aria-label="Back to profile"
-                className={cn(
-                  "inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                  currentTheme === "light"
-                    ? "text-gray-700 hover:bg-gray-100"
-                    : "text-zinc-200/90 hover:bg-white/10 hover:text-white",
-                )}
-              >
-                <FiArrowLeft className="h-5 w-5" />
-              </button>
-
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-                <span className="nav-wordmark text-foreground">Settings</span>
-              </div>
-
-              <Box w={10} />
-            </div>
-          </div>
-        </div>
-      </nav>
-      ) : null}
-
       <Container
         maxW="800px"
-        pt={isNative ? { base: 10, md: 16 } : { base: "6.5rem", md: 28 }}
+        pt={isNative ? 4 : { base: "6.5rem", md: 28 }}
         pb={{ base: 10, md: 16 }}
         px={{ base: 8, md: 14 }}
       >

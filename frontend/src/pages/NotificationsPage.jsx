@@ -15,6 +15,7 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useProductStore } from "../store/product";
 import { getCurrentAuthUser } from "../utils/auth";
+import { isCapacitorNative } from "../utils/isNativePlatform";
 
 export default function NotificationsPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -91,20 +92,32 @@ export default function NotificationsPage() {
   return (
     <Container
       maxW="container.xl"
-      pt="calc(env(safe-area-inset-top, 0px) + 1rem)"
+      pt={
+        isCapacitorNative()
+          ? 4
+          : "calc(env(safe-area-inset-top, 0px) + 1rem)"
+      }
       pb={4}
     >
-      <Flex align="center" justify="space-between" mb={4}>
-        <Button variant="ghost" onClick={() => navigate(-1)}>
-          Back
-        </Button>
-        <Text fontWeight={700} color={colors.textPrimary}>
-          Notifications
-        </Text>
-        <Button variant="ghost" onClick={load}>
-          Refresh
-        </Button>
-      </Flex>
+      {isCapacitorNative() ? (
+        <Flex justify="flex-end" mb={4}>
+          <Button variant="ghost" onClick={load}>
+            Refresh
+          </Button>
+        </Flex>
+      ) : (
+        <Flex align="center" justify="space-between" mb={4}>
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            Back
+          </Button>
+          <Text fontWeight={700} color={colors.textPrimary}>
+            Notifications
+          </Text>
+          <Button variant="ghost" onClick={load}>
+            Refresh
+          </Button>
+        </Flex>
+      )}
 
       {isLoading ? (
         <Flex justify="center" py={10}>
