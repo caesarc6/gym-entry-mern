@@ -24,7 +24,7 @@ import {
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
 import { lazy, Suspense, useEffect, useState, useCallback, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader";
 import { PROFILE_IMAGE_ASPECT } from "../constants/imageAspectRatios";
@@ -100,11 +100,41 @@ const ProfilePage = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
+  const location = useLocation();
+  const followersDialogRef = useRef(null);
   const [followersList, setFollowersList] = useState([]);
   const [followingList, setFollowingList] = useState([]);
   const [followRequests, setFollowRequests] = useState([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const closeFollowers = useCallback(() => {
+    setIsFollowersOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname !== "/profile") {
+      setIsFollowersOpen(false);
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isFollowersOpen) return undefined;
+    const onPointerDown = (event) => {
+      const dialog = followersDialogRef.current;
+      const target = event.target;
+      if (
+        dialog instanceof Element &&
+        target instanceof Node &&
+        dialog.contains(target)
+      ) {
+        return;
+      }
+      setIsFollowersOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [isFollowersOpen]);
 
   const toast = useCustomToast();
   const colors = useThemeColors();
@@ -995,9 +1025,14 @@ const ProfilePage = () => {
       </VStack>
 
       {/* Followers Modal */}
-      <Modal isOpen={isFollowersOpen} onClose={() => setIsFollowersOpen(false)}>
+      <Modal
+        isOpen={isFollowersOpen}
+        onClose={closeFollowers}
+        closeOnOverlayClick
+        closeOnEsc
+      >
         <ModalOverlay />
-        <ModalContent bg={colors.bgCard}>
+        <ModalContent ref={followersDialogRef} bg={colors.bgCard}>
           <ModalHeader color={colors.textPrimary} fontWeight="500">
             Followers
           </ModalHeader>
@@ -1023,14 +1058,20 @@ const ProfilePage = () => {
                       _hover={{ bg: colors.bgMuted }}
                     >
                       <Flex align="center" flex={1}>
-                        <Link to={`/user/${request.requester.uid}`}>
+                        <Link
+                          to={`/user/${request.requester.uid}`}
+                          onClick={closeFollowers}
+                        >
                           <Avatar
                             src={request.requester.picture}
                             size="sm"
                             mr={3}
                           />
                         </Link>
-                        <Link to={`/user/${request.requester.uid}`}>
+                        <Link
+                          to={`/user/${request.requester.uid}`}
+                          onClick={closeFollowers}
+                        >
                           <Box flex={1}>
                             <Text
                               fontWeight="medium"
