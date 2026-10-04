@@ -84,3 +84,45 @@ export const migrateUidStrings = async (oldUid, newUid) => {
     workoutTemplates: mod(results.workoutTemplates),
   };
 };
+
+export const countUidReferences = async (id) => {
+  const [
+    entries,
+    entryTrainer,
+    entryComments,
+    entryReplies,
+    entryCommentLikes,
+    workouts,
+    workoutAssignmentsTo,
+    workoutAssignmentsBy,
+    sharedWorkouts,
+    workoutTemplates,
+  ] = await Promise.all([
+    Entry.countDocuments({ uid: id }),
+    Entry.countDocuments({ trainerUid: id }),
+    Entry.countDocuments({ "comments.uid": id }),
+    Entry.countDocuments({ "comments.replies.uid": id }),
+    Entry.countDocuments({ "comments.likes.uid": id }),
+    Workout.countDocuments({ userId: id }),
+    WorkoutAssignment.countDocuments({ assignedToUid: id }),
+    WorkoutAssignment.countDocuments({ sharedByUid: id }),
+    SharedWorkout.countDocuments({ creatorUid: id }),
+    WorkoutTemplate.countDocuments({ creatorUid: id }),
+  ]);
+
+  return {
+    entries,
+    entryTrainer,
+    entryComments,
+    entryReplies,
+    entryCommentLikes,
+    workouts,
+    workoutAssignmentsTo,
+    workoutAssignmentsBy,
+    sharedWorkouts,
+    workoutTemplates,
+  };
+};
+
+export const referenceTotal = (counts) =>
+  Object.values(counts || {}).reduce((sum, value) => sum + (value || 0), 0);

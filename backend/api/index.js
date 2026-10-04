@@ -17,6 +17,7 @@ import sharedWorkoutRoutes from "../routes/sharedWorkout.route.js";
 import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
 import { migrateUserData } from "../controllers/migration.controller.js";
+import { legacyIdsToRewrite } from "../utils/accountIds.js";
 import Entry from "../models/entry.model.js";
 import bodyParser from "body-parser";
 // const bodyParser = require("body-parser");
@@ -284,24 +285,25 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
               "This email is associated with a different Supabase account in our records.",
           });
         }
-        if (user.uid !== uid) {
-          const oldUid = user.uid;
-          const firebaseUidToPreserve = user.firebaseUid || oldUid;
+        const legacyIds = legacyIdsToRewrite(user, uid);
+        if (user.uid !== uid || legacyIds.length > 0) {
+          const firebaseUidToPreserve = user.firebaseUid || user.uid;
+          const nextUser = {
+            uid,
+            supabaseUid: uid,
+            authProvider: "supabase",
+          };
+          if (firebaseUidToPreserve && firebaseUidToPreserve !== uid) {
+            nextUser.firebaseUid = firebaseUidToPreserve;
+          }
           try {
             user = await User.findOneAndUpdate(
               { _id: user._id },
-              {
-                $set: {
-                  uid,
-                  supabaseUid: uid,
-                  firebaseUid: firebaseUidToPreserve,
-                  authProvider: "supabase",
-                },
-              },
+              { $set: nextUser },
               { new: true }
             );
-            if (oldUid !== uid) {
-              await migrateUserData(oldUid, uid);
+            for (const legacyId of legacyIds) {
+              await migrateUserData(legacyId, uid);
             }
           } catch (migrationError) {
             console.error("Supabase UID migration error:", migrationError);
