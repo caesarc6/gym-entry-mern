@@ -17,6 +17,7 @@ import {
 } from "../utils/fileUtils.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
 import Workout from "../models/workout.model.js";
+import { syncWorkoutFromEntry } from "./workout.controller.js";
 import SharedWorkout from "../models/sharedWorkout.model.js";
 import { sanitizeTextFields, sanitizeTextInput } from "../utils/sanitizeInput.js";
 import {
@@ -24,6 +25,19 @@ import {
   calendarDateKeyInTimeZone,
   normalizeWorkoutCalendarTimeZone,
 } from "../utils/workoutCalendarDate.js";
+
+const listEntryProjection = {
+  uid: 1,
+  name: 1,
+  description: 1,
+  image: 1,
+  likes: 1,
+  createdAt: 1,
+  trainerUid: 1,
+  trainerName: 1,
+  trainerUsername: 1,
+  commentsCount: { $size: { $ifNull: ["$comments", []] } },
+};
 
 const buildUidQuery = (uid) => ({
   $or: [{ uid }, { firebaseUid: uid }, { supabaseUid: uid }],
@@ -759,6 +773,11 @@ export const createPost = async (req, res) => {
     });
 
     await post.save();
+    try {
+      await syncWorkoutFromEntry(post, canonicalUid);
+    } catch (syncError) {
+      console.error("syncWorkoutFromEntry failed", syncError);
+    }
 
     const data = post.toObject();
     res.status(201).json({
@@ -822,9 +841,7 @@ export const getPostsByUID = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .select(
-        "uid name description image likes comments createdAt trainerUid trainerName trainerUsername",
-      )
+      .select(listEntryProjection)
       .lean();
     const [posts, totalPosts] = await Promise.all([
       postsQuery,
@@ -854,7 +871,7 @@ export const getPostsByUID = async (req, res) => {
         username: user.username,
         picture: user.picture,
       })),
-      comments: post.comments || [],
+      commentsCount: post.commentsCount || 0,
       createdAt: post.createdAt || new Date().toISOString(),
       trainerUid: post.trainerUid || null,
       trainerName: post.trainerName || null,
@@ -1328,7 +1345,9 @@ export const getUserProfile = async (req, res) => {
       Boolean
     );
     if (includePosts && canViewPosts && user.privacy.showEntries) {
-      posts = await Entry.find({ uid: { $in: targetUids } }).lean();
+      posts = await Entry.find({ uid: { $in: targetUids } })
+        .select(listEntryProjection)
+        .lean();
       await attachPopulatedLikesToEntries(posts);
     }
 
@@ -1354,7 +1373,7 @@ export const getUserProfile = async (req, res) => {
         username: user.username,
         picture: user.picture,
       })),
-      comments: post.comments || [],
+      commentsCount: post.commentsCount || 0,
       createdAt: post.createdAt || new Date().toISOString(),
       trainerUid: post.trainerUid || null,
       trainerName: post.trainerName || null,
@@ -1796,9 +1815,7 @@ export const getHomeFeed = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select(
-        "uid name description image likes comments createdAt trainerUid trainerName trainerUsername"
-      )
+      .select(listEntryProjection)
       .lean();
 
     const [posts, totalPosts] = await Promise.all([
@@ -1830,7 +1847,7 @@ export const getHomeFeed = async (req, res) => {
         username: user.username,
         picture: user.picture,
       })),
-      comments: post.comments || [],
+      commentsCount: post.commentsCount || 0,
       createdAt: post.createdAt || new Date().toISOString(),
       trainerUid: post.trainerUid || null,
       trainerName: post.trainerName || null,

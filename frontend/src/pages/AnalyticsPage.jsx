@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { Link as RouterLink, useLocation } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Container,
   Box,
@@ -25,7 +25,6 @@ import {
   exerciseMatchesQuery,
   parseCardioLine,
   parseExerciseLine,
-  parseWorkoutDescription,
   stripGymOrLocationTagsFromLine,
 } from "../utils/workoutParser.js";
 
@@ -327,15 +326,10 @@ const AnalyticsPage = () => {
   const [selectedExercise, setSelectedExercise] = useState("");
   const [exerciseProgress, setExerciseProgress] = useState(null);
   const [progressLoading, setProgressLoading] = useState(false);
-  const [autoProcessing, setAutoProcessing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [showAllBests, setShowAllBests] = useState(false);
   const activeUidRef = useRef(null);
-  const attemptedByUidRef = useRef(new Map());
-  const autoProcessRunsRef = useRef(0);
-  const skipInitialVisitRef = useRef(true);
   const searchRegionRef = useRef(null);
-  const location = useLocation();
 
   const { showToast } = useCustomToast();
   const colors = useThemeColors();
@@ -359,7 +353,6 @@ const AnalyticsPage = () => {
     setExerciseProgress(null);
     setSelectedExercise("");
     setShowAllBests(false);
-    setAutoProcessing(false);
   };
 
   const hydrateProgressCache = (cache) => {
@@ -413,8 +406,6 @@ const AnalyticsPage = () => {
       if (cacheFresh) {
         hydrateProgressCache(cache);
         setLoading(false);
-        fetchUserEntries(user);
-        fetchSearchHistory(user);
         return;
       }
 
@@ -422,8 +413,6 @@ const AnalyticsPage = () => {
       await Promise.allSettled([
         fetchAnalytics(user),
         fetchPersonalRecords(user),
-        fetchUserEntries(user),
-        fetchSearchHistory(user),
       ]);
       if (!cancelled && activeUidRef.current === user.uid) {
         setLoading(false);
@@ -489,16 +478,6 @@ const AnalyticsPage = () => {
     });
   }, []);
 
-  useEffect(() => {
-    if (location.pathname !== "/analytics") return;
-    if (skipInitialVisitRef.current) {
-      skipInitialVisitRef.current = false;
-      return;
-    }
-    if (!activeUidRef.current) return;
-    fetchUserEntries();
-  }, [location.pathname]);
-
   const fetchAnalytics = async (authedUser = null, timeframeOverride) => {
     try {
       // Check if user is authenticated
@@ -554,18 +533,6 @@ const AnalyticsPage = () => {
     }
   };
 
-  const fetchSearchHistory = async (authedUser = null) => {
-    try {
-      const user = authedUser || (await getCurrentAuthUser());
-      if (!user) return;
-      const response = await apiClient.get(API_ENDPOINTS.WORKOUT_ANALYTICS("1y"));
-      if (activeUidRef.current && activeUidRef.current !== user.uid) return;
-      setSearchExercises(response.data.data?.exercises || {});
-    } catch {
-      // Search can still use the lifts already on screen.
-    }
-  };
-
   const fetchExerciseProgress = async (exercise, timeframeOverride) => {
     if (!exercise) return;
 
@@ -618,135 +585,6 @@ const AnalyticsPage = () => {
     fetchAnalytics(null, next);
     if (selectedExercise) {
       fetchExerciseProgress(selectedExercise, next);
-    }
-  };
-
-  const fetchUserEntries = async (authedUser = null) => {
-    try {
-      const user = authedUser || (await getCurrentAuthUser());
-      if (!user) {
-        return;
-      }
-
-      const entries = [];
-      let page = 1;
-      let totalPages = 1;
-      while (page <= totalPages && page <= 20) {
-        const response = await apiClient.get(
-          API_ENDPOINTS.POSTS(user.uid, page, 100)
-        );
-        if (activeUidRef.current && activeUidRef.current !== user.uid) return;
-        const batch = response.data.data || [];
-        entries.push(...batch);
-        totalPages = response.data.pagination?.totalPages || 1;
-        if (batch.length === 0) break;
-        page += 1;
-      }
-
-      const workoutEntries = entries.filter(
-        (entry) => parseWorkoutDescription(entry.description).length > 0
-      );
-
-      if (activeUidRef.current !== user.uid) return;
-
-      setLoggedEntries(
-        entries.map((entry) => ({
-          _id: entry._id,
-          createdAt: entry.createdAt,
-          description: entry.description || "",
-        })),
-      );
-      setMergedAnalyticsCache({
-        uid: user.uid,
-        userEntries: entries.slice(0, 100),
-      });
-
-      // Check which entries are already processed
-      const processedIds = await checkProcessedEntries(entries, user.uid);
-      if (activeUidRef.current !== user.uid) return;
-
-      const attempted =
-        attemptedByUidRef.current.get(user.uid) ?? new Set();
-      attemptedByUidRef.current.set(user.uid, attempted);
-
-      const trulyUnprocessed = workoutEntries.filter(
-        (entry) =>
-          !processedIds.has(String(entry._id)) && !attempted.has(entry._id)
-      );
-
-      if (trulyUnprocessed.length > 0) {
-        autoProcessNewEntries(trulyUnprocessed, user.uid, attempted);
-      }
-    } catch {
-      // Entries are supplemental; analytics can still render without them.
-    }
-  };
-
-  const checkProcessedEntries = async (entries, uid) => {
-    if (entries.length === 0) return new Set();
-
-    try {
-      const response = await apiClient.get(API_ENDPOINTS.GET_WORKOUTS);
-      if (uid && activeUidRef.current !== uid) return new Set();
-      const workouts = Array.isArray(response.data) ? response.data : [];
-      const processedIds = new Set();
-
-      workouts.forEach((workout) => {
-        const entryId = workout.entryId?._id || workout.entryId;
-        if (entryId) processedIds.add(String(entryId));
-      });
-
-      setMergedAnalyticsCache({
-        uid,
-        processedEntryIds: Array.from(processedIds),
-      });
-
-      return processedIds;
-    } catch {
-      return new Set();
-    }
-  };
-
-  const stillViewingAccount = (uid) => activeUidRef.current === uid;
-
-  const autoProcessNewEntries = async (entries, uid, attempted) => {
-    if (entries.length === 0) return;
-
-    autoProcessRunsRef.current += 1;
-    setAutoProcessing(true);
-    let processedCount = 0;
-    let stoppedEarly = false;
-
-    for (const entry of entries) {
-      if (!stillViewingAccount(uid)) {
-        stoppedEarly = true;
-        break;
-      }
-      attempted.add(entry._id);
-      try {
-        await apiClient.post(API_ENDPOINTS.PROCESS_WORKOUT(entry._id));
-        if (!stillViewingAccount(uid)) {
-          stoppedEarly = true;
-          attempted.delete(entry._id);
-          break;
-        }
-        processedCount++;
-      } catch {
-        if (!stillViewingAccount(uid)) {
-          stoppedEarly = true;
-          attempted.delete(entry._id);
-          break;
-        }
-      }
-    }
-
-    autoProcessRunsRef.current = Math.max(0, autoProcessRunsRef.current - 1);
-    if (stoppedEarly || !stillViewingAccount(uid)) return;
-    if (autoProcessRunsRef.current === 0) setAutoProcessing(false);
-
-    if (processedCount > 0) {
-      fetchAnalytics();
-      fetchPersonalRecords();
     }
   };
 
@@ -1024,11 +862,6 @@ const AnalyticsPage = () => {
             </InputRightElement>
           ) : null}
         </InputGroup>
-      {autoProcessing && (
-        <Text mt={3} fontSize="sm" color={mutedText} textAlign="center">
-          Adding workouts
-        </Text>
-      )}
       {liftSearch ? (
         <Box mt={4}>
           {liftResults.length === 0 ? (
@@ -1117,7 +950,7 @@ const AnalyticsPage = () => {
         </Box>
       )}
 
-      {!liftSearch && shownCount === 0 && !autoProcessing && (
+      {!liftSearch && shownCount === 0 && (
         <Button
           as={RouterLink}
           to="/create"

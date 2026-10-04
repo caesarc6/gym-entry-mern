@@ -82,6 +82,42 @@ export const processWorkoutEntry = async (req, res) => {
 };
 
 /**
+ * Create or replace the workout row for a saved post.
+ * Skips posts that do not parse as a workout. Failures stay in the caller.
+ */
+export async function syncWorkoutFromEntry(entry, userId) {
+  if (!entry?._id || !userId) return;
+
+  const exercises = parseWorkoutDescription(entry.description || "");
+  const existing = await Workout.findOne({ entryId: entry._id });
+  if (exercises.length === 0) {
+    if (existing) await Workout.deleteOne({ _id: existing._id });
+    return;
+  }
+
+  const { split, gym } = parseWorkoutTitle(entry.name || "");
+  const totalVolume = calculateTotalVolume(exercises);
+  const fields = {
+    userId,
+    title: entry.name || "Workout",
+    split,
+    gym,
+    exercises,
+    totalVolume,
+    workoutDate: entry.createdAt || new Date(),
+    updatedAt: new Date(),
+  };
+
+  if (existing) {
+    Object.assign(existing, fields);
+    await existing.save();
+    return;
+  }
+
+  await Workout.create({ entryId: entry._id, ...fields });
+}
+
+/**
  * Get all workouts for the current user
  */
 export const getAllWorkouts = async (req, res) => {
@@ -142,7 +178,8 @@ export const getWorkoutAnalytics = async (req, res) => {
 
     const workouts = await Workout.find(query)
       .sort({ workoutDate: -1 })
-      .populate("entryId", "name description createdAt");
+      .select("workoutDate split gym exercises totalVolume")
+      .lean();
 
     // Calculate analytics
     const analytics = {
@@ -273,7 +310,8 @@ export const getExerciseProgress = async (req, res) => {
       "exercises.name": { $regex: exercise, $options: "i" },
     })
       .sort({ workoutDate: 1 })
-      .populate("entryId", "name description createdAt");
+      .select("workoutDate exercises")
+      .lean();
 
     const progress = {
       exercise: exercise,
@@ -331,9 +369,10 @@ export const getPersonalRecords = async (req, res) => {
   try {
     const { uid } = req.user;
 
-    const workouts = await Workout.find({ userId: uid }).sort({
-      workoutDate: -1,
-    });
+    const workouts = await Workout.find({ userId: uid })
+      .select("exercises workoutDate")
+      .sort({ workoutDate: -1 })
+      .lean();
 
     const prs = {};
 

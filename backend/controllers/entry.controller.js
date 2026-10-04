@@ -15,6 +15,7 @@ import {
   removeSupabaseObjectByPublicUrl,
 } from "../utils/fileUtils.js";
 import { attachPopulatedLikesToEntries } from "../utils/entryLikes.js";
+import { syncWorkoutFromEntry } from "./workout.controller.js";
 import { ensureMongoConnected } from "../config/db.js";
 import { sanitizeTextFields, sanitizeTextInput } from "../utils/sanitizeInput.js";
 
@@ -613,6 +614,12 @@ export const updateEntryPut = async (req, res) => {
       });
     }
 
+    try {
+      await syncWorkoutFromEntry(entryData, canonicalUid);
+    } catch (syncError) {
+      console.error("syncWorkoutFromEntry failed", syncError);
+    }
+
     res.status(200).json({ success: true, data: entryData });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
@@ -725,6 +732,60 @@ export const likeEntry = async (req, res) => {
       await entry.save();
       await sendLikeResponse("Post liked successfully", true);
     }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const getEntryComments = async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid Entry Id" });
+  }
+
+  try {
+    const entry = await Entry.findById(id).select("uid comments").lean();
+    if (!entry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Entry not found" });
+    }
+
+    const viewer = await findUserByAuth(req.user);
+    if (!viewer) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const author = await User.findOne({
+      $or: [
+        { uid: entry.uid },
+        { firebaseUid: entry.uid },
+        { supabaseUid: entry.uid },
+      ],
+    })
+      .select("privacy followers")
+      .lean();
+
+    if (author?.privacy?.isPrivate) {
+      const viewerId = String(viewer._id);
+      const isOwner = getUserUidSet(viewer, req.user.uid).has(entry.uid);
+      const isFollower = (author.followers || []).some(
+        (followerId) => String(followerId) === viewerId,
+      );
+      if (!isOwner && !isFollower) {
+        return res.status(403).json({
+          success: false,
+          message: "Private profile",
+        });
+      }
+    }
+
+    const comments = Array.isArray(entry.comments) ? entry.comments : [];
+    res.status(200).json({ success: true, comments });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
   }

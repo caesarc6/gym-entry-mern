@@ -289,6 +289,15 @@ const ProductCard = memo(function ProductCard({
     trainerName: entry.trainerName || null,
     trainerUsername: entry.trainerUsername || null,
   });
+  const hasInlineComments = Array.isArray(entry.comments);
+  const listedCount = Number(entry.commentsCount);
+  const countKnown = Number.isFinite(listedCount);
+  const [commentsLoaded, setCommentsLoaded] = useState(
+    hasInlineComments || (countKnown && listedCount === 0),
+  );
+  const [commentCount, setCommentCount] = useState(
+    hasInlineComments ? entry.comments.length : countKnown ? listedCount : 0,
+  );
 
   // Use profile cache if available, otherwise use defaults
   const cachedProfile = useMemo(() => {
@@ -460,6 +469,10 @@ const ProductCard = memo(function ProductCard({
       if (fields.comments !== undefined) next.comments = fields.comments;
       return next;
     });
+    if (Array.isArray(fields.comments)) {
+      setCommentsLoaded(true);
+      setCommentCount(fields.comments.length);
+    }
   }, [postSnapshot]);
   const {
     isOpen: isDeleteOpen,
@@ -487,6 +500,38 @@ const ProductCard = memo(function ProductCard({
       onDetailClose();
     }
   }, [detailOpen, isDetailOpen, onDetailOpen, onDetailClose]);
+
+  useEffect(() => {
+    if (!isDetailOpen || commentsLoaded || !entry._id) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await apiClient.get(
+          API_ENDPOINTS.ENTRY_COMMENTS(entry._id),
+        );
+        if (cancelled) return;
+        const comments = Array.isArray(response.data?.comments)
+          ? response.data.comments
+          : [];
+        setUpdatedEntry((prev) => ({ ...prev, comments }));
+        setCommentCount(comments.length);
+        setCommentsLoaded(true);
+      } catch {
+        // The list count stays. Opening the post again tries once more.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDetailOpen, commentsLoaded, entry._id]);
+
+  const commentsIdentityRef = useRef(updatedEntry.comments);
+  useEffect(() => {
+    if (commentsIdentityRef.current === updatedEntry.comments) return;
+    commentsIdentityRef.current = updatedEntry.comments;
+    setCommentsLoaded(true);
+    setCommentCount((updatedEntry.comments || []).length);
+  }, [updatedEntry.comments]);
 
   const handleDetailClose = useCallback(() => {
     setFocusCommentOnOpen(false);
@@ -1989,6 +2034,9 @@ const ProductCard = memo(function ProductCard({
     () => recognizeWorkoutLines(updatedEntry.description),
     [updatedEntry.description],
   );
+  const shownCommentCount = commentsLoaded
+    ? (updatedEntry.comments || []).length
+    : commentCount;
 
   return (
     <>
@@ -2009,11 +2057,7 @@ const ProductCard = memo(function ProductCard({
           likesCount={
             Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
           }
-          commentsCount={
-            Array.isArray(updatedEntry.comments)
-              ? updatedEntry.comments.length
-              : 0
-          }
+          commentsCount={shownCommentCount}
           description={updatedEntry.description}
           headerTrailing={isOwner ? ownerPostMenu : undefined}
           toolbarExtra={
@@ -2173,11 +2217,7 @@ const ProductCard = memo(function ProductCard({
             likesCount={
               Array.isArray(updatedEntry.likes) ? updatedEntry.likes.length : 0
             }
-            commentsCount={
-              Array.isArray(updatedEntry.comments)
-                ? updatedEntry.comments.length
-                : 0
-            }
+            commentsCount={shownCommentCount}
             description={updatedEntry.description}
             headerTrailing={isOwner ? ownerPostMenu : undefined}
             toolbarExtra={
@@ -2304,6 +2344,11 @@ const ProductCard = memo(function ProductCard({
                     </Button>
                   </HStack>
 
+                  {!commentsLoaded && shownCommentCount > 0 ? (
+                    <Text pt={4} fontSize="sm" color={colors.textMuted}>
+                      Loading comments
+                    </Text>
+                  ) : null}
                   {Array.isArray(updatedEntry.comments) &&
                   updatedEntry.comments.length > 0 ? (
                     <Stack

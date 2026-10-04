@@ -41,7 +41,10 @@ const normalizeFeedPost = (post) => ({
   description: post.description || "No description",
   image: post.image || null,
   likes: Array.isArray(post.likes) ? post.likes : [],
-  comments: Array.isArray(post.comments) ? post.comments : [],
+  ...(Array.isArray(post.comments) ? { comments: post.comments } : {}),
+  commentsCount:
+    post.commentsCount ??
+    (Array.isArray(post.comments) ? post.comments.length : 0),
   createdAt: post.createdAt || new Date().toISOString(),
   ownerId: post.ownerId || post.uid,
   uid: post.uid,

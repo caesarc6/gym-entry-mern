@@ -134,9 +134,6 @@ function NativeTabsLayout() {
   const isProfileTab = pathname === "/profile";
   const isTabRoute = isFeedTab || isAnalyticsTab || isProfileTab;
 
-  const mountAnalyticsTab =
-    (Boolean(currentUser) || isAnalyticsTab) &&
-    visitedTabs.has("analytics");
   const mountProfileTab =
     (Boolean(currentUser) || isProfileTab) && visitedTabs.has("profile");
 
@@ -146,14 +143,12 @@ function NativeTabsLayout() {
       <div style={{ display: isFeedTab ? "block" : "none" }}>
         <HomePage />
       </div>
-      {mountAnalyticsTab ? (
-        <div style={{ display: isAnalyticsTab ? "block" : "none" }}>
-          <Suspense fallback={<RouteFallback />}>
-            <RequireAuth>
-              <AnalyticsPage />
-            </RequireAuth>
-          </Suspense>
-        </div>
+      {isAnalyticsTab ? (
+        <Suspense fallback={<RouteFallback />}>
+          <RequireAuth>
+            <AnalyticsPage />
+          </RequireAuth>
+        </Suspense>
       ) : null}
       {mountProfileTab ? (
         <div style={{ display: isProfileTab ? "block" : "none" }}>

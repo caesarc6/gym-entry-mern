@@ -615,16 +615,16 @@ const isMissingMongoUser = (error) =>
 
 const applySignedInBootstrap = async (session, generation) => {
   try {
+    let response;
     try {
-      await apiClient.get(API_ENDPOINTS.GET_CURRENT_MONGODB_USER);
-    } catch (mongoError) {
-      if (!isMissingMongoUser(mongoError)) throw mongoError;
+      response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
+    } catch (error) {
+      if (!isMissingMongoUser(error)) throw error;
       // Restored sessions never hit login, so create the Mongo user once here.
       await apiClient.post(API_ENDPOINTS.PROTECTED);
+      if (generation !== authBootstrapGeneration) return;
+      response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
     }
-    if (generation !== authBootstrapGeneration) return;
-
-    const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
     if (generation !== authBootstrapGeneration) return;
     if (response.data) {
       useProductStore.getState().setCurrentUserInfo(response.data);

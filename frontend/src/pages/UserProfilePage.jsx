@@ -260,7 +260,10 @@ const UserProfilePage = () => {
             description: post.description || "No description",
             image: post.image || null,
             likes: Array.isArray(post.likes) ? post.likes : [],
-            comments: Array.isArray(post.comments) ? post.comments : [],
+            ...(Array.isArray(post.comments) ? { comments: post.comments } : {}),
+            commentsCount:
+              post.commentsCount ??
+              (Array.isArray(post.comments) ? post.comments.length : 0),
             createdAt: post.createdAt || new Date().toISOString(),
             uid: post.uid || userId, // ProductCard expects 'uid' field
             ownerId: post.uid || userId,
@@ -394,7 +397,10 @@ const UserProfilePage = () => {
         description: post.description || "No description",
         image: post.image || null,
         likes: Array.isArray(post.likes) ? post.likes : [],
-        comments: Array.isArray(post.comments) ? post.comments : [],
+        ...(Array.isArray(post.comments) ? { comments: post.comments } : {}),
+        commentsCount:
+          post.commentsCount ??
+          (Array.isArray(post.comments) ? post.comments.length : 0),
         createdAt: post.createdAt || new Date().toISOString(),
         uid: post.uid || userId,
         ownerId: post.uid || userId,

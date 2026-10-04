@@ -76,6 +76,7 @@ export const API_ENDPOINTS = {
   ENTRY_EDIT_DRAFT: (id) => buildApiUrl(`entrys/${id}/draft`),
   LIKE_ENTRY: (id) => buildApiUrl(`entrys/${id}/like`),
   COMMENT_ENTRY: (id) => buildApiUrl(`entrys/${id}/comment`),
+  ENTRY_COMMENTS: (id) => buildApiUrl(`entrys/${id}/comments`),
   LIKE_COMMENT: (entryId, commentId) =>
     buildApiUrl(`entrys/${entryId}/comments/${commentId}/like`),
   REPLY_TO_COMMENT: (entryId, commentId) =>
