@@ -1008,52 +1008,6 @@ export const editComment = async (req, res) => {
   }
 };
 
-// Admin-only. Loads every entry and deletes top-level comments missing uid or
-// text, then save() writes the document back. Comment.uid is optional so older
-// rows still validate, which means this permanently removes those comments.
-export const cleanupMalformedComments = async (req, res) => {
-  try {
-    const authUser = await findUserByAuth(req.user);
-    if (!authUser?.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized: Admin access required",
-      });
-    }
-
-    const entries = await Entry.find({});
-    let updatedCount = 0;
-
-    for (const entry of entries) {
-      let needsUpdate = false;
-
-      if (Array.isArray(entry.comments)) {
-        const originalLength = entry.comments.length;
-        entry.comments = entry.comments.filter(
-          (comment) => comment && comment.uid && comment.text
-        );
-
-        if (entry.comments.length !== originalLength) {
-          needsUpdate = true;
-        }
-      }
-
-      if (needsUpdate) {
-        await entry.save();
-        updatedCount++;
-      }
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Cleaned up malformed comments in ${updatedCount} entries`,
-      updatedCount,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
-};
-
 // Delete a comment
 export const deleteComment = async (req, res) => {
   try {

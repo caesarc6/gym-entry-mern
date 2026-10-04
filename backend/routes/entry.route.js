@@ -15,7 +15,6 @@ import {
   replyToComment,
   editComment,
   deleteComment,
-  cleanupMalformedComments,
   generateShareLink,
   getSharedWorkout,
   saveSharedWorkout,
@@ -79,9 +78,6 @@ router.delete("/:id/draft", verifyIdToken, clearEntryDraft);
 router.delete("/:id", verifyIdToken, deleteEntry);
 router.post("/:id/like", verifyIdToken, likeEntry);
 router.post("/:id/comment", verifyIdToken, commentEntry);
-
-// Cleanup route for malformed comments (admin utility)
-router.post("/cleanup-comments", verifyIdToken, cleanupMalformedComments);
 
 // Comment interaction routes
 router.post("/:entryId/comments/:commentId/like", verifyIdToken, likeComment);
