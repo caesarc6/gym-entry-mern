@@ -47,6 +47,7 @@ import { useProductStore as useUiStore } from "../store/product";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { feedPageLimit } from "../utils/feedPageLimit";
+import { useMirrorPostList } from "../hooks/useMirrorPostList";
 
 const isCapacitorNative = getIsCapacitorNative();
 const PROFILE_POSTS_PAGE_SIZE = feedPageLimit();
@@ -83,6 +84,27 @@ const ProfilePage = () => {
     bio: "",
     followersCount: 0,
     followingCount: 0,
+  });
+  const { dropIfPresent, entriesRef } = useMirrorPostList({
+    entries,
+    setEntries,
+    ownerUid: uid,
+    countUnloadedOwner: true,
+    onRemove: () => {
+      setUserProfile((prev) => ({
+        ...prev,
+        postsCount: Math.max(0, (prev.postsCount || 0) - 1),
+      }));
+      setPagination((prev) => {
+        const totalPosts = Math.max(0, (prev.totalPosts || 0) - 1);
+        const pageSize = prev.limit || PROFILE_POSTS_PAGE_SIZE;
+        return {
+          ...prev,
+          totalPosts,
+          totalPages: Math.max(1, Math.ceil(totalPosts / pageSize)),
+        };
+      });
+    },
   });
   const [profileImage, setProfileImage] = useState(null);
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
@@ -554,13 +576,14 @@ const ProfilePage = () => {
         trainerName: post.trainerName || null,
         trainerUsername: post.trainerUsername || null,
       }));
-      setEntries((prev) => {
-        const seen = new Set(prev.map((entry) => String(entry._id)));
-        const extra = normalizedPosts.filter(
-          (post) => !seen.has(String(post._id))
-        );
-        return extra.length ? [...prev, ...extra] : prev;
-      });
+      const prev = entriesRef.current || [];
+      const seen = new Set(prev.map((entry) => String(entry._id)));
+      const extra = normalizedPosts.filter(
+        (post) => !seen.has(String(post._id))
+      );
+      const next = extra.length ? [...prev, ...extra] : prev;
+      entriesRef.current = next;
+      setEntries(next);
       pageRef.current = page;
 
       const reportedPages = data.pagination?.totalPages ?? totalPages;
@@ -579,7 +602,7 @@ const ProfilePage = () => {
       appendLockRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [uid, limit, toast]);
+  }, [uid, limit, toast, entriesRef]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -616,19 +639,12 @@ const ProfilePage = () => {
     });
   };
 
-  const handlePostDelete = useCallback((pid) => {
-    const idStr = String(pid);
-    setEntries((prev) => prev.filter((e) => String(e._id) !== idStr));
-    setUserProfile((prev) => ({
-      ...prev,
-      postsCount: Math.max(0, prev.postsCount - 1),
-    }));
-    setPagination((prev) => {
-      const totalPosts = Math.max(0, prev.totalPosts - 1);
-      const totalPages = Math.max(1, Math.ceil(totalPosts / prev.limit));
-      return { ...prev, totalPosts, totalPages };
-    });
-  }, []);
+  const handlePostDelete = useCallback(
+    (pid) => {
+      dropIfPresent(pid);
+    },
+    [dropIfPresent]
+  );
 
   const handleProfileImageUpload = (file) => {
     if (file) {

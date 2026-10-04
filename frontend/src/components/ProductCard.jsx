@@ -254,6 +254,10 @@ const ProductCard = memo(function ProductCard({
 }) {
   const navigate = useNavigate();
   const globalCurrentUser = useProductStore((state) => state.currentUser);
+  const snapKey = String(entry._id || "");
+  const postSnapshot = useProductStore((state) =>
+    snapKey ? state.postSnapshots?.[snapKey] : undefined
+  );
   const [currentUser, setCurrentUser] = useState(globalCurrentUser);
   const isOwner = propIsOwner ?? currentUser?.uid === entry.uid;
   const colors = useThemeColors();
@@ -355,6 +359,13 @@ const ProductCard = memo(function ProductCard({
   const editLocalDraftTimerRef = useRef(null);
   const updatedEntryRef = useRef(updatedEntry);
   updatedEntryRef.current = updatedEntry;
+  const seenSnapshotSeq = useRef(null);
+  const seenSnapshotKey = useRef(snapKey);
+  if (seenSnapshotKey.current !== snapKey || seenSnapshotSeq.current == null) {
+    seenSnapshotKey.current = snapKey;
+    seenSnapshotSeq.current = postSnapshot?.seq || 0;
+  }
+  const editOpenRef = useRef(false);
 
   useEffect(() => {
     if (entry.authorProfile) {
@@ -433,6 +444,23 @@ const ProductCard = memo(function ProductCard({
 
   const { showToast, error: toastError } = useCustomToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  editOpenRef.current = isOpen;
+
+  useEffect(() => {
+    if (!postSnapshot || postSnapshot.seq <= (seenSnapshotSeq.current || 0)) {
+      return;
+    }
+    seenSnapshotSeq.current = postSnapshot.seq;
+    if (postSnapshot.removed || !postSnapshot.fields) return;
+    const fields = postSnapshot.fields;
+    setUpdatedEntry((prev) => {
+      if (!editOpenRef.current) return { ...prev, ...fields };
+      const next = { ...prev };
+      if (fields.likes !== undefined) next.likes = fields.likes;
+      if (fields.comments !== undefined) next.comments = fields.comments;
+      return next;
+    });
+  }, [postSnapshot]);
   const {
     isOpen: isDeleteOpen,
     onOpen: onDeleteOpen,
@@ -1538,9 +1566,8 @@ const ProductCard = memo(function ProductCard({
       );
 
       if (response.data.success) {
-        setUpdatedEntry((prevEntry) => ({
-          ...prevEntry,
-          comments: prevEntry.comments.map((comment) => {
+        const comments = (updatedEntryRef.current.comments || []).map(
+          (comment) => {
             if (normalizeCommentMongoId(comment) === cid) {
               const isLiked = comment.likes?.some(
                 (like) => like.uid === currentUserInfo?.uid
@@ -1561,8 +1588,10 @@ const ProductCard = memo(function ProductCard({
               return { ...comment, likes: newLikes };
             }
             return comment;
-          }),
-        }));
+          }
+        );
+        setUpdatedEntry((prevEntry) => ({ ...prevEntry, comments }));
+        useProductStore.getState().patchPostEverywhere(entry._id, { comments });
       }
     } catch (error) {
       toastError("Error", "Failed to like comment");
@@ -1586,16 +1615,9 @@ const ProductCard = memo(function ProductCard({
       if (ok) {
         const nextComments = response?.data?.data?.comments;
 
-        if (Array.isArray(nextComments)) {
-          setUpdatedEntry((prevEntry) => ({
-            ...prevEntry,
-            comments: nextComments,
-          }));
-        } else {
-          // Fallback if response shape omits comments (should not happen)
-          setUpdatedEntry((prevEntry) => ({
-            ...prevEntry,
-            comments: prevEntry.comments.map((c) => {
+        const comments = Array.isArray(nextComments)
+          ? nextComments
+          : (updatedEntryRef.current.comments || []).map((c) => {
               if (normalizeCommentMongoId(c) === rawId) {
                 return {
                   ...c,
@@ -1613,9 +1635,9 @@ const ProductCard = memo(function ProductCard({
                 };
               }
               return c;
-            }),
-          }));
-        }
+            });
+        setUpdatedEntry((prevEntry) => ({ ...prevEntry, comments }));
+        useProductStore.getState().patchPostEverywhere(entry._id, { comments });
 
         setReplyText("");
         setReplyToComment(null);
@@ -1647,15 +1669,16 @@ const ProductCard = memo(function ProductCard({
       );
 
       if (response.data.success) {
-        setUpdatedEntry((prevEntry) => ({
-          ...prevEntry,
-          comments: prevEntry.comments.map((comment) => {
+        const comments = (updatedEntryRef.current.comments || []).map(
+          (comment) => {
             if (normalizeCommentMongoId(comment) === cid) {
               return { ...comment, text: newText, edited: true };
             }
             return comment;
-          }),
-        }));
+          }
+        );
+        setUpdatedEntry((prevEntry) => ({ ...prevEntry, comments }));
+        useProductStore.getState().patchPostEverywhere(entry._id, { comments });
 
         setEditingComment(null);
       }
@@ -1684,6 +1707,9 @@ const ProductCard = memo(function ProductCard({
           ...prevEntry,
           comments: nextComments,
         }));
+        useProductStore.getState().patchPostEverywhere(entry._id, {
+          comments: nextComments,
+        });
         onUpdate?.(entry._id, { comments: nextComments });
       } else {
         toastError(

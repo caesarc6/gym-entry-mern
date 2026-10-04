@@ -5,6 +5,7 @@ import { getCurrentAuthUser } from "../utils/auth";
 import { applyOptimisticWorkoutToSummary } from "../utils/workoutHabitWidget";
 import { dataUrlToFile, isDataImage } from "../utils/imageUpload";
 import { feedPageLimit } from "../utils/feedPageLimit";
+import { applyPostPatch, applyPostRemoval, pickPostFields } from "./postCopies";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
 const FEED_CACHE_TTL_MS = 15 * 60_000;
@@ -181,6 +182,17 @@ export const useProductStore = create((set) => ({
   setAuthBootstrapCompleteAt: (ts) => set({ authBootstrapCompleteAt: ts }),
   entrys: [],
   setEntrys: (entrys) => set({ entrys }),
+
+  // Latest like, edit, comment, or delete for a post. Pages and cards subscribe
+  // so a change on one tab updates the other copies.
+  postSnapshots: {},
+  patchPostEverywhere: (pid, fields) => {
+    const picked = pickPostFields(fields);
+    set((state) => applyPostPatch(state, pid, picked));
+  },
+  removePostEverywhere: (pid) => {
+    set((state) => applyPostRemoval(state, pid));
+  },
 
   posts: [],
   setPosts: (posts) => set({ posts }),
@@ -367,11 +379,7 @@ export const useProductStore = create((set) => ({
 
       if (!data.success) return { success: false, message: data.message };
 
-      set((state) => ({
-        entrys: state.entrys.filter(
-          (entry) => String(entry._id) !== String(pid)
-        ),
-      }));
+      set((state) => applyPostRemoval(state, pid));
       return { success: true, message: data.message };
     } catch (error) {
       throw new Error(error.response?.data?.error || "Failed to delete entry");
@@ -433,11 +441,7 @@ export const useProductStore = create((set) => ({
 
       if (!data.success) return { success: false, message: data.message };
 
-      set((state) => ({
-        entrys: state.entrys.map((entry) =>
-          entry._id === pid ? { ...entry, ...data.data } : entry
-        ),
-      }));
+      set((state) => applyPostPatch(state, pid, pickPostFields(data.data)));
       return { success: true, message: data.message, data: data.data };
     } catch (error) {
       const message =
@@ -511,11 +515,7 @@ export const useProductStore = create((set) => ({
 
       if (!data.success) return { success: false, message: data.message };
 
-      set((state) => ({
-        entrys: state.entrys.map((entry) =>
-          entry._id === pid ? { ...entry, likes: data.likes } : entry
-        ),
-      }));
+      set((state) => applyPostPatch(state, pid, { likes: data.likes }));
       return {
         success: true,
         message: data.message,
@@ -536,11 +536,7 @@ export const useProductStore = create((set) => ({
 
       if (!data.success) return { success: false, message: data.message };
 
-      set((state) => ({
-        entrys: state.entrys.map((entry) =>
-          entry._id === pid ? { ...entry, comments: data.comments } : entry
-        ),
-      }));
+      set((state) => applyPostPatch(state, pid, { comments: data.comments }));
       return { success: true, message: data.message, comments: data.comments };
     } catch (error) {
       const message =
@@ -579,7 +575,7 @@ export const useProductStore = create((set) => ({
     }
   },
 
-  clearEntrys: () => set({ entrys: [] }),
+  clearEntrys: () => set({ entrys: [], postSnapshots: {} }),
 
   // handle upload image
   handleFileUpload: async (file) => {

@@ -29,6 +29,7 @@ const defaultBgNightUrl = new URL(
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
+import { useMirrorPostList } from "../hooks/useMirrorPostList";
 
 const ProductCard = lazy(() => import("../components/ProductCard"));
 
@@ -73,6 +74,27 @@ const UserProfilePage = () => {
   const sentinelRef = useRef(null);
   const paginationRef = useRef(pagination);
   paginationRef.current = pagination;
+  const { dropIfPresent, entriesRef } = useMirrorPostList({
+    entries,
+    setEntries,
+    ownerUid: paramUserId,
+    countUnloadedOwner: true,
+    onRemove: () => {
+      setUserProfile((prev) => ({
+        ...prev,
+        postsCount: Math.max(0, (prev.postsCount || 0) - 1),
+      }));
+      setPagination((prev) => {
+        const totalPosts = Math.max(0, (prev.totalPosts || 0) - 1);
+        const pageSize = prev.limit || 6;
+        return {
+          ...prev,
+          totalPosts,
+          totalPages: Math.max(1, Math.ceil(totalPosts / pageSize)),
+        };
+      });
+    },
+  });
 
   const profileFetchSeq = useRef(0);
   /** Avoid unstable deps (toast / currentUser identity) recreating fetch every render → effect loop. */
@@ -396,13 +418,14 @@ const UserProfilePage = () => {
         authorProfile: post.authorProfile || null,
         trainerProfile: post.trainerProfile || null,
       }));
-      setEntries((prev) => {
-        const seen = new Set(prev.map((entry) => String(entry._id)));
-        const extra = normalizedEntries.filter(
-          (post) => !seen.has(String(post._id))
-        );
-        return extra.length ? [...prev, ...extra] : prev;
-      });
+      const prev = entriesRef.current || [];
+      const seen = new Set(prev.map((entry) => String(entry._id)));
+      const extra = normalizedEntries.filter(
+        (post) => !seen.has(String(post._id))
+      );
+      const next = extra.length ? [...prev, ...extra] : prev;
+      entriesRef.current = next;
+      setEntries(next);
       pageRef.current = page;
 
       const reportedPages = data.pagination?.totalPages ?? totalPages;
@@ -421,7 +444,7 @@ const UserProfilePage = () => {
       appendLockRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [userId, limit, isLoading, toast]);
+  }, [userId, limit, isLoading, toast, entriesRef]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -446,19 +469,12 @@ const UserProfilePage = () => {
     );
   };
 
-  const handlePostDelete = useCallback((pid) => {
-    const idStr = String(pid);
-    setEntries((prev) => prev.filter((e) => String(e._id) !== idStr));
-    setUserProfile((prev) => ({
-      ...prev,
-      postsCount: Math.max(0, prev.postsCount - 1),
-    }));
-    setPagination((prev) => {
-      const totalPosts = Math.max(0, prev.totalPosts - 1);
-      const totalPages = Math.max(1, Math.ceil(totalPosts / prev.limit));
-      return { ...prev, totalPosts, totalPages };
-    });
-  }, []);
+  const handlePostDelete = useCallback(
+    (pid) => {
+      dropIfPresent(pid);
+    },
+    [dropIfPresent]
+  );
 
   const renderProfile = () => (
     <Box maxW="800px" mx="auto" w="full">

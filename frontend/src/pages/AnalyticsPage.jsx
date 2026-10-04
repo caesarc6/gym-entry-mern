@@ -458,6 +458,37 @@ const AnalyticsPage = () => {
     };
   }, []);
 
+  const refreshFromPostsRef = useRef(() => {});
+
+  useEffect(() => {
+    return useProductStore.subscribe((state, prev) => {
+      if (state.postSnapshots === prev.postSnapshots) return;
+      const previous = prev.postSnapshots || {};
+      const snaps = state.postSnapshots || {};
+      let refresh = false;
+      for (const id of Object.keys(snaps)) {
+        const snap = snaps[id];
+        if (!snap || snap === previous[id]) continue;
+        if (snap.removed) {
+          refresh = true;
+          setLoggedEntries((current) =>
+            current.filter((entry) => String(entry._id) !== id)
+          );
+          continue;
+        }
+        if (!snap.fields || snap.fields.description == null) continue;
+        refresh = true;
+        const description = snap.fields.description;
+        setLoggedEntries((current) =>
+          current.map((entry) =>
+            String(entry._id) === id ? { ...entry, description } : entry
+          )
+        );
+      }
+      if (refresh) refreshFromPostsRef.current();
+    });
+  }, []);
+
   useEffect(() => {
     if (location.pathname !== "/analytics") return;
     if (skipInitialVisitRef.current) {
@@ -565,6 +596,12 @@ const AnalyticsPage = () => {
     }
   };
 
+  refreshFromPostsRef.current = () => {
+    fetchAnalytics();
+    fetchPersonalRecords();
+    if (selectedExercise) fetchExerciseProgress(selectedExercise);
+  };
+
   const handleExerciseSelect = (exercise) => {
     if (selectedExercise === exercise) {
       setSelectedExercise("");
@@ -614,6 +651,7 @@ const AnalyticsPage = () => {
 
       setLoggedEntries(
         entries.map((entry) => ({
+          _id: entry._id,
           createdAt: entry.createdAt,
           description: entry.description || "",
         })),

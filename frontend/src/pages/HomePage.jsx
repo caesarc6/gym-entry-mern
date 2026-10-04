@@ -28,6 +28,7 @@ import { feedPageLimit } from "../utils/feedPageLimit";
 import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
 import ProductCard from "../components/ProductCard";
 import FeedPullToRefresh from "../components/FeedPullToRefresh";
+import { useMirrorPostList } from "../hooks/useMirrorPostList";
 
 const isCapacitorNative = getIsCapacitorNative();
 const HOME_FEED_PAGE_SIZE = feedPageLimit();
@@ -101,6 +102,22 @@ const HomePage = () => {
   });
   const paginationRef = useRef(pagination);
   paginationRef.current = pagination;
+  const { dropIfPresent, entriesRef } = useMirrorPostList({
+    entries,
+    setEntries,
+    ownerUid: uid,
+    onRemove: () => {
+      setPagination((prev) => {
+        const totalPosts = Math.max(0, (prev.totalPosts || 0) - 1);
+        const pageSize = prev.limit || HOME_FEED_PAGE_SIZE;
+        return {
+          ...prev,
+          totalPosts,
+          totalPages: Math.max(1, Math.ceil(totalPosts / pageSize)),
+        };
+      });
+    },
+  });
   const [profileCache, setProfileCache] = useState(new Map());
   const [habitDetailEntry, setHabitDetailEntry] = useState(null);
   const toast = useCustomToast();
@@ -475,11 +492,12 @@ const HomePage = () => {
       }
 
       const normalized = data.data.map(normalizeFeedPost);
-      setEntries((prev) => {
-        const seen = new Set(prev.map((entry) => String(entry._id)));
-        const extra = normalized.filter((post) => !seen.has(String(post._id)));
-        return extra.length ? [...prev, ...extra] : prev;
-      });
+      const prev = entriesRef.current || [];
+      const seen = new Set(prev.map((entry) => String(entry._id)));
+      const extra = normalized.filter((post) => !seen.has(String(post._id)));
+      const next = extra.length ? [...prev, ...extra] : prev;
+      entriesRef.current = next;
+      setEntries(next);
       pageRef.current = page;
 
       const reportedPages = data.pagination?.totalPages ?? totalPages;
@@ -498,7 +516,7 @@ const HomePage = () => {
       appendLockRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [uid, limit, isLoading, toast]);
+  }, [uid, limit, isLoading, toast, entriesRef]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -530,13 +548,18 @@ const HomePage = () => {
         return;
       }
 
-      setEntries((current) => {
-        const firstPage = cache.entries || [];
-        if (pageRef.current <= 1) return firstPage;
-        const seen = new Set(firstPage.map((entry) => String(entry._id)));
-        const rest = current.filter((entry) => !seen.has(String(entry._id)));
-        return [...firstPage, ...rest];
-      });
+      const current = entriesRef.current || [];
+      const firstPage = cache.entries || [];
+      const seen = new Set(firstPage.map((item) => String(item._id)));
+      const next =
+        pageRef.current <= 1
+          ? firstPage
+          : [
+              ...firstPage,
+              ...current.filter((entry) => !seen.has(String(entry._id))),
+            ];
+      entriesRef.current = next;
+      setEntries(next);
       if (cache.pagination && pageRef.current <= 1) {
         setPagination(cache.pagination);
         setHasMore((cache.pagination.totalPages ?? 1) > 1);
@@ -554,13 +577,7 @@ const HomePage = () => {
   };
 
   const handleDeleteEntry = (pid) => {
-    const idStr = String(pid);
-    setEntries((prev) => prev.filter((e) => String(e._id) !== idStr));
-    setPagination((prev) => {
-      const totalPosts = Math.max(0, prev.totalPosts - 1);
-      const totalPages = Math.max(1, Math.ceil(totalPosts / prev.limit));
-      return { ...prev, totalPosts, totalPages };
-    });
+    dropIfPresent(pid);
   };
 
   useEffect(() => {
