@@ -178,6 +178,10 @@ export const API_ENDPOINTS = {
 
 // Axios instance with default configuration
 import axios from "axios";
+import {
+  isRejectedAuthToken,
+  messageFromApiError,
+} from "../utils/apiErrorMessage";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -253,15 +257,28 @@ apiClient.interceptors.request.use(
   },
 );
 
-// Response interceptor to log backend error messages
+let authFailureSignOut = null;
+
+// Response interceptor: surface the server message, and drop a rejected session once.
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
+    const serverMessage = messageFromApiError(error);
     if (error.response?.status === 413) {
       error.photoTooLarge = true;
-      error.message = "Photo is too large. Use a smaller photo.";
+    }
+    if (serverMessage) {
+      error.message = serverMessage;
+    }
+    if (isRejectedAuthToken(error) && !authFailureSignOut) {
+      authFailureSignOut = import("../utils/auth")
+        .then(({ signOutAll }) => signOutAll())
+        .catch(() => {})
+        .finally(() => {
+          authFailureSignOut = null;
+        });
     }
     return Promise.reject(error);
   },

@@ -1022,6 +1022,12 @@ export const getCurrentUser = async (req, res) => {
       uid,
       "uid firebaseUid supabaseUid name email picture username"
     ).lean();
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve user" });

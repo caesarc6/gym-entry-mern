@@ -609,8 +609,21 @@ const clearAuthBootstrapInflightIf = (promise) => {
   }
 };
 
+const isMissingMongoUser = (error) =>
+  error?.response?.status === 404 &&
+  /user not found/i.test(error.response?.data?.message || error.message || "");
+
 const applySignedInBootstrap = async (session, generation) => {
   try {
+    try {
+      await apiClient.get(API_ENDPOINTS.GET_CURRENT_MONGODB_USER);
+    } catch (mongoError) {
+      if (!isMissingMongoUser(mongoError)) throw mongoError;
+      // Restored sessions never hit login, so create the Mongo user once here.
+      await apiClient.post(API_ENDPOINTS.PROTECTED);
+    }
+    if (generation !== authBootstrapGeneration) return;
+
     const response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
     if (generation !== authBootstrapGeneration) return;
     if (response.data) {
@@ -618,9 +631,6 @@ const applySignedInBootstrap = async (session, generation) => {
     }
 
     try {
-      await apiClient.get(API_ENDPOINTS.GET_CURRENT_MONGODB_USER);
-      if (generation !== authBootstrapGeneration) return;
-
       const pendingResponse = await apiClient.post(
         API_ENDPOINTS.CHECK_PENDING_WORKOUTS,
       );
@@ -631,7 +641,7 @@ const applySignedInBootstrap = async (session, generation) => {
         useProductStore.getState().setClaimedWorkouts(assignments);
         useProductStore.getState().setShowClaimedWorkoutsModal(true);
       }
-    } catch (claimError) {
+    } catch {
       // Signed-in account may have no trainer assignments waiting.
     }
   } catch (e) {
