@@ -1041,7 +1041,7 @@ export const getCurrentUser = async (req, res) => {
 
     const user = await findUserByAnyUid(
       uid,
-      "uid firebaseUid supabaseUid name email picture username"
+      "uid firebaseUid supabaseUid name email picture username isAdmin"
     ).lean();
     if (!user) {
       return res.status(404).json({
@@ -1291,7 +1291,7 @@ export const getUserProfile = async (req, res) => {
   try {
     // Handle both uid and userId parameters
     const userId = req.params.uid || req.params.userId;
-    const includePosts = req.query.includePosts !== "false";
+    const includePosts = req.query.includePosts === "true";
 
     let viewerUser = null;
     if (req.user?.uid) {
@@ -1301,17 +1301,10 @@ export const getUserProfile = async (req, res) => {
       }
     }
 
-    let user = await findUserByAnyUid(userId)
-      .populate("followers", "username name picture")
-      .populate("following", "username name picture");
+    let user = await findUserByAnyUid(userId);
 
     if (!user) {
-      const resolved = await resolveMongoUserByAuthUid(userId);
-      if (resolved) {
-        user = await User.findById(resolved._id)
-          .populate("followers", "username name picture")
-          .populate("following", "username name picture");
-      }
+      user = await resolveMongoUserByAuthUid(userId);
     }
 
     if (!user) {

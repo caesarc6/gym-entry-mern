@@ -33,23 +33,6 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
     return {
       ...publicUserData,
       email: user.email, // Always show email to the user themselves
-      // Optionally include simplified followers/following arrays
-      followers: user.followers
-        ? user.followers.map((follower) => ({
-            _id: follower._id,
-            username: follower.username,
-            name: follower.name,
-            picture: follower.picture,
-          }))
-        : [],
-      following: user.following
-        ? user.following.map((following) => ({
-            _id: following._id,
-            username: following.username,
-            name: following.name,
-            picture: following.picture,
-          }))
-        : [],
     };
   }
 

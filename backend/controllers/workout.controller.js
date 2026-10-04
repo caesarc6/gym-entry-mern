@@ -369,60 +369,79 @@ export const getPersonalRecords = async (req, res) => {
   try {
     const { uid } = req.user;
 
-    const workouts = await Workout.find({ userId: uid })
-      .select("exercises workoutDate")
-      .sort({ workoutDate: -1 })
-      .lean();
+    const rows = await Workout.aggregate([
+      { $match: { userId: uid } },
+      { $sort: { workoutDate: -1 } },
+      { $unwind: "$exercises" },
+      {
+        $group: {
+          _id: "$exercises.name",
+          latest: {
+            $first: {
+              value: "$exercises.maxWeight",
+              date: "$workoutDate",
+              workoutId: "$_id",
+            },
+          },
+          maxWeight: {
+            $top: {
+              sortBy: { "exercises.maxWeight": -1, workoutDate: -1 },
+              output: {
+                value: "$exercises.maxWeight",
+                date: "$workoutDate",
+                workoutId: "$_id",
+              },
+            },
+          },
+          maxVolume: {
+            $top: {
+              sortBy: { "exercises.totalVolume": -1, workoutDate: -1 },
+              output: {
+                value: "$exercises.totalVolume",
+                date: "$workoutDate",
+                workoutId: "$_id",
+              },
+            },
+          },
+          maxReps: {
+            $top: {
+              sortBy: { "exercises.totalReps": -1, workoutDate: -1 },
+              output: {
+                value: "$exercises.totalReps",
+                date: "$workoutDate",
+                workoutId: "$_id",
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    const emptyRecord = { value: 0, date: null, workoutId: null };
+    const recordOrEmpty = (slot) =>
+      slot && slot.value > 0
+        ? {
+            value: slot.value,
+            date: slot.date,
+            workoutId: slot.workoutId,
+          }
+        : emptyRecord;
 
     const prs = {};
-
-    workouts.forEach((workout) => {
-      workout.exercises.forEach((exercise) => {
-        const exerciseName = exercise.name;
-
-        if (!prs[exerciseName]) {
-          prs[exerciseName] = {
-            maxWeight: { value: 0, date: null, workoutId: null },
-            maxVolume: { value: 0, date: null, workoutId: null },
-            maxReps: { value: 0, date: null, workoutId: null },
-            latest: null,
-          };
-        }
-
-        const exercisePRs = prs[exerciseName];
-
-        if (!exercisePRs.latest) {
-          exercisePRs.latest = {
-            value: exercise.maxWeight,
-            date: workout.workoutDate,
-            workoutId: workout._id,
-          };
-        }
-
-        if (exercise.maxWeight > exercisePRs.maxWeight.value) {
-          exercisePRs.maxWeight = {
-            value: exercise.maxWeight,
-            date: workout.workoutDate,
-            workoutId: workout._id,
-          };
-        }
-
-        if (exercise.totalVolume > exercisePRs.maxVolume.value) {
-          exercisePRs.maxVolume = {
-            value: exercise.totalVolume,
-            date: workout.workoutDate,
-            workoutId: workout._id,
-          };
-        }
-
-        if (exercise.totalReps > exercisePRs.maxReps.value) {
-          exercisePRs.maxReps = {
-            value: exercise.totalReps,
-            date: workout.workoutDate,
-            workoutId: workout._id,
-          };
-        }
-      });
+    rows.forEach((row) => {
+      if (!row._id) return;
+      prs[row._id] = {
+        maxWeight: recordOrEmpty(row.maxWeight),
+        maxVolume: recordOrEmpty(row.maxVolume),
+        maxReps: recordOrEmpty(row.maxReps),
+        latest: row.latest
+          ? {
+              value: row.latest.value,
+              date: row.latest.date,
+              workoutId: row.latest.workoutId,
+            }
+          : null,
+      };
     });
 
     res.status(200).json({

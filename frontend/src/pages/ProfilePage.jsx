@@ -113,10 +113,25 @@ const ProfilePage = () => {
   }, []);
 
   useEffect(() => {
-    if (location.pathname !== "/profile") {
-      setIsFollowersOpen(false);
-    }
-  }, [location.pathname]);
+    if (location.pathname === "/profile") return;
+    setIsFollowersOpen(false);
+    setFollowersList([]);
+    setFollowingList([]);
+    if (pageRef.current <= 1) return;
+
+    pageRef.current = 1;
+    setCurrentPage(1);
+    setEntries((prev) => prev.slice(0, limit));
+    setHasMore((paginationRef.current?.totalPages ?? 1) > 1);
+    if (!uid) return;
+    const cache = useProductStore.getState().profileTabCache;
+    if (cache?.uid !== uid || !Array.isArray(cache.entries)) return;
+    useProductStore.getState().setProfileTabCache({
+      ...cache,
+      entries: cache.entries.slice(0, limit),
+      currentPage: 1,
+    });
+  }, [location.pathname, uid, limit]);
 
   useEffect(() => {
     if (!isFollowersOpen) return undefined;
@@ -142,6 +157,7 @@ const ProfilePage = () => {
     setProfileTabCache,
     clearProfileTabCache,
     feedCacheTtlMs,
+    currentUserInfo,
   } = useUiStore();
   const {
 
@@ -350,44 +366,25 @@ const ProfilePage = () => {
     fetchUserPosts(uid, currentPage);
   }, [currentPage, uid]);
 
-  // Check admin status when user is signed in
+  // Admin comes from the account read at sign-in. The admin page still checks the admin route.
   useEffect(() => {
-    if (isSignedIn && uid) {
-      const checkAdminStatus = async () => {
-        const cache = useProductStore.getState().profileTabCache;
-        if (
-          cache?.uid === uid &&
-          cache.adminLoaded === true &&
-          Date.now() - cache.cachedAt < feedCacheTtlMs
-        ) {
-          setIsAdmin(Boolean(cache.isAdmin));
-          return;
-        }
-
-        try {
-          const response = await apiClient.get(API_ENDPOINTS.CHECK_IS_ADMIN);
-          if (response.data.success) {
-            const nextIsAdmin = response.data.isAdmin || false;
-            setIsAdmin(nextIsAdmin);
-            // Only patch admin flags — do not pass entries/pagination/profile from
-            // this effect's closure (deps are [isSignedIn, uid]); stale [] would wipe
-            // the feed in profileTabCache after posts/profile have loaded.
-            setMergedProfileCache({
-              uid,
-              isAdmin: nextIsAdmin,
-              adminLoaded: true,
-            });
-          }
-        } catch (error) {
-          // Default to false on error
-          setIsAdmin(false);
-        }
-      };
-      checkAdminStatus();
-    } else {
+    if (!isSignedIn || !uid) {
       setIsAdmin(false);
+      return;
     }
-  }, [isSignedIn, uid, feedCacheTtlMs]);
+    const info = currentUserInfo;
+    const matches =
+      info &&
+      [info.uid, info.firebaseUid, info.supabaseUid].filter(Boolean).includes(uid);
+    if (!matches) return;
+    const nextIsAdmin = Boolean(info.isAdmin);
+    setIsAdmin(nextIsAdmin);
+    setMergedProfileCache({
+      uid,
+      isAdmin: nextIsAdmin,
+      adminLoaded: true,
+    });
+  }, [isSignedIn, uid, currentUserInfo]);
 
   // Fetch follow requests
   const fetchFollowRequests = async () => {
