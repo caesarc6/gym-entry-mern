@@ -15,6 +15,7 @@ import {
   generateSafeFilePath,
   removeSupabaseObjectByPublicUrl,
 } from "../utils/fileUtils.js";
+import { prepareStoredImage } from "../utils/displayImage.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
 import Workout from "../models/workout.model.js";
 import { syncWorkoutFromEntry } from "./workout.controller.js";
@@ -558,16 +559,22 @@ export const updateUserProfile = async (req, res) => {
           return res.status(500).json({ error: "Supabase connection failed" });
         }
 
+        const stored = await prepareStoredImage(
+          req.file.buffer,
+          "profile",
+          req.file.mimetype || "image/jpeg"
+        );
         const filePath = generateSafeFilePath(
           uid,
           req.file.originalname,
-          "profiles"
+          "profiles",
+          stored.extension
         );
 
         const { error } = await supabase.storage
           .from("user_profiles")
-          .upload(filePath, req.file.buffer, {
-            contentType: req.file.mimetype || "image/jpeg",
+          .upload(filePath, stored.buffer, {
+            contentType: stored.contentType,
             cacheControl: "3600",
             upsert: true,
           });
@@ -605,16 +612,22 @@ export const updateUserProfile = async (req, res) => {
       try {
         const base64Data = profileImage.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
+        const stored = await prepareStoredImage(
+          imageBuffer,
+          "profile",
+          inferImageContentType(profileImage, profileImageName)
+        );
         const filePath = generateSafeFilePath(
           uid,
           profileImageName,
-          "profiles"
+          "profiles",
+          stored.extension
         );
 
         const { error } = await supabase.storage
           .from("user_profiles")
-          .upload(filePath, imageBuffer, {
-            contentType: inferImageContentType(profileImage, profileImageName),
+          .upload(filePath, stored.buffer, {
+            contentType: stored.contentType,
             cacheControl: "3600",
             upsert: true,
           });
@@ -719,11 +732,21 @@ export const createPost = async (req, res) => {
 
     if (req.file?.buffer) {
       const safeName = req.file.originalname || imageName || "post-image.jpg";
-      const filePath = generateSafeFilePath(canonicalUid, safeName, "images");
+      const stored = await prepareStoredImage(
+        req.file.buffer,
+        "post",
+        req.file.mimetype || inferImageContentType(null, safeName)
+      );
+      const filePath = generateSafeFilePath(
+        canonicalUid,
+        safeName,
+        "images",
+        stored.extension
+      );
       const { error } = await supabase.storage
         .from("post_images")
-        .upload(filePath, req.file.buffer, {
-          contentType: req.file.mimetype || inferImageContentType(null, safeName),
+        .upload(filePath, stored.buffer, {
+          contentType: stored.contentType,
           cacheControl: "3600",
           upsert: true,
         });
@@ -744,12 +767,22 @@ export const createPost = async (req, res) => {
       const safeName = imageName || "post-image.jpg";
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
-      const filePath = generateSafeFilePath(canonicalUid, safeName, "images");
+      const stored = await prepareStoredImage(
+        imageBuffer,
+        "post",
+        inferImageContentType(image, safeName)
+      );
+      const filePath = generateSafeFilePath(
+        canonicalUid,
+        safeName,
+        "images",
+        stored.extension
+      );
 
       const { error } = await supabase.storage
         .from("post_images")
-        .upload(filePath, imageBuffer, {
-          contentType: inferImageContentType(image, safeName),
+        .upload(filePath, stored.buffer, {
+          contentType: stored.contentType,
           cacheControl: "3600",
           upsert: true,
         });
@@ -1143,18 +1176,22 @@ export const uploadBackgroundPicture = [
         });
       }
 
-      const fileName = generateSafeFilePath(
+      const stored = await prepareStoredImage(
+        req.file.buffer,
+        "background",
+        req.file.mimetype || inferImageContentType(null, req.file.originalname)
+      );
+      const filePath = generateSafeFilePath(
         user.uid,
         req.file.originalname,
-        "backgrounds"
+        "backgrounds",
+        stored.extension
       );
-      const filePath = fileName;
-
 
       const { error } = await supabase.storage
         .from("user_backgrounds")
-        .upload(filePath, req.file.buffer, {
-          contentType: req.file.mimetype || inferImageContentType(null, req.file.originalname),
+        .upload(filePath, stored.buffer, {
+          contentType: stored.contentType,
           cacheControl: "3600",
           upsert: true,
         });
@@ -1214,18 +1251,22 @@ export const uploadProfilePic = [
         });
       }
 
-      const fileName = generateSafeFilePath(
+      const stored = await prepareStoredImage(
+        req.file.buffer,
+        "profile",
+        req.file.mimetype || inferImageContentType(null, req.file.originalname)
+      );
+      const filePath = generateSafeFilePath(
         user.uid,
         req.file.originalname,
-        "profiles"
+        "profiles",
+        stored.extension
       );
-      const filePath = fileName;
-
 
       const { error } = await supabase.storage
         .from("user_profiles")
-        .upload(filePath, req.file.buffer, {
-          contentType: req.file.mimetype || inferImageContentType(null, req.file.originalname),
+        .upload(filePath, stored.buffer, {
+          contentType: stored.contentType,
           cacheControl: "3600",
           upsert: true,
         });

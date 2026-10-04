@@ -7,6 +7,51 @@ import {
   extractPRs,
 } from "../utils/workoutParser.js";
 
+const exerciseNameKey = (name) => String(name || "").trim().toLowerCase();
+
+const timeframeStart = (timeframe) => {
+  const now = new Date();
+  const days = { "7d": 7, "30d": 30, "90d": 90, "1y": 365 }[timeframe] || 30;
+  return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+};
+
+/** Fill nameKey on older workout rows so chart lookups can use the index. */
+async function ensureExerciseNameKeys(userId) {
+  if (!userId) return;
+  await Workout.updateMany(
+    {
+      userId,
+      exercises: { $elemMatch: { nameKey: { $exists: false } } },
+    },
+    [
+      {
+        $set: {
+          exercises: {
+            $map: {
+              input: { $ifNull: ["$exercises", []] },
+              as: "exercise",
+              in: {
+                $mergeObjects: [
+                  "$$exercise",
+                  {
+                    nameKey: {
+                      $toLower: {
+                        $trim: {
+                          input: { $ifNull: ["$$exercise.name", ""] },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+    ]
+  );
+}
+
 /**
  * Process and store workout data from an entry
  */
@@ -144,41 +189,25 @@ export const getWorkoutAnalytics = async (req, res) => {
   try {
     const { uid } = req.user;
     const { timeframe = "30d", exercise } = req.query;
+    const startDate = timeframeStart(timeframe);
+    const nameKey = exerciseNameKey(exercise);
 
-    // Calculate date range
-    const now = new Date();
-    let startDate;
+    if (nameKey) await ensureExerciseNameKeys(uid);
 
-    switch (timeframe) {
-      case "7d":
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case "30d":
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case "90d":
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case "1y":
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    }
-
-    // Build query
     const query = {
       userId: uid,
       workoutDate: { $gte: startDate },
     };
 
-    if (exercise) {
-      query["exercises.name"] = { $regex: exercise, $options: "i" };
+    if (nameKey) {
+      query["exercises.nameKey"] = nameKey;
     }
 
     const workouts = await Workout.find(query)
       .sort({ workoutDate: -1 })
-      .select("workoutDate split gym exercises totalVolume")
+      .select(
+        "workoutDate split gym totalVolume exercises.name exercises.maxWeight exercises.totalReps exercises.totalVolume"
+      )
       .lean();
 
     // Calculate analytics
@@ -275,79 +304,68 @@ export const getExerciseProgress = async (req, res) => {
   try {
     const { uid } = req.user;
     const { exercise, timeframe = "30d" } = req.query;
+    const nameKey = exerciseNameKey(exercise);
 
-    if (!exercise) {
+    if (!nameKey) {
       return res.status(400).json({
         success: false,
         message: "Exercise name is required",
       });
     }
 
-    // Calculate date range
-    const now = new Date();
-    let startDate;
+    const startDate = timeframeStart(timeframe);
+    await ensureExerciseNameKeys(uid);
 
-    switch (timeframe) {
-      case "7d":
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case "30d":
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case "90d":
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case "1y":
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    }
-
-    const workouts = await Workout.find({
-      userId: uid,
-      workoutDate: { $gte: startDate },
-      "exercises.name": { $regex: exercise, $options: "i" },
-    })
-      .sort({ workoutDate: 1 })
-      .select("workoutDate exercises")
-      .lean();
+    const rows = await Workout.aggregate([
+      {
+        $match: {
+          userId: uid,
+          workoutDate: { $gte: startDate },
+          "exercises.nameKey": nameKey,
+        },
+      },
+      { $unwind: "$exercises" },
+      { $match: { "exercises.nameKey": nameKey } },
+      { $sort: { workoutDate: 1 } },
+      {
+        $project: {
+          _id: 0,
+          name: "$exercises.name",
+          date: "$workoutDate",
+          weight: "$exercises.maxWeight",
+          reps: "$exercises.totalReps",
+          volume: "$exercises.totalVolume",
+          sets: {
+            $cond: [
+              { $isArray: "$exercises.sets" },
+              { $size: "$exercises.sets" },
+              0,
+            ],
+          },
+          workoutId: "$_id",
+        },
+      },
+    ]);
 
     const progress = {
-      exercise: exercise,
-      dataPoints: [],
+      exercise: rows[0]?.name || exercise,
+      dataPoints: rows.map(({ date, weight, reps, volume, sets, workoutId }) => ({
+        date,
+        weight,
+        reps,
+        volume,
+        sets,
+        workoutId,
+      })),
       maxWeight: 0,
       maxVolume: 0,
       maxReps: 0,
     };
 
-    workouts.forEach((workout) => {
-      const exerciseData = workout.exercises.find((e) =>
-        e.name.toLowerCase().includes(exercise.toLowerCase())
-      );
-
-      if (exerciseData) {
-        const dataPoint = {
-          date: workout.workoutDate,
-          weight: exerciseData.maxWeight,
-          reps: exerciseData.totalReps,
-          volume: exerciseData.totalVolume,
-          sets: exerciseData.sets.length,
-          workoutId: workout._id,
-        };
-
-        progress.dataPoints.push(dataPoint);
-
-        if (exerciseData.maxWeight > progress.maxWeight) {
-          progress.maxWeight = exerciseData.maxWeight;
-        }
-        if (exerciseData.totalVolume > progress.maxVolume) {
-          progress.maxVolume = exerciseData.totalVolume;
-        }
-        if (exerciseData.totalReps > progress.maxReps) {
-          progress.maxReps = exerciseData.totalReps;
-        }
-      }
+    progress.dataPoints.forEach((point) => {
+      if (point.weight > progress.maxWeight) progress.maxWeight = point.weight;
+      if (point.volume > progress.maxVolume) progress.maxVolume = point.volume;
+      if (point.reps > progress.maxReps) progress.maxReps = point.reps;
     });
 
     res.status(200).json({

@@ -902,6 +902,7 @@ const SettingsPage = () => {
                 <FileUploader
                   handleFile={handleProfileImageUpload}
                   accept="image/jpeg,image/png,image/gif"
+                  maxWidthOrHeight={512}
                   cropAspect={PROFILE_IMAGE_ASPECT}
                 />
                 <Input

@@ -10,10 +10,16 @@ const setSchema = new mongoose.Schema({
 
 const exerciseSchema = new mongoose.Schema({
   name: { type: String, required: true, set: sanitizeTextInput },
+  nameKey: { type: String },
   sets: [setSchema],
   totalVolume: { type: Number, required: true },
   maxWeight: { type: Number, required: true },
   totalReps: { type: Number, required: true },
+});
+
+exerciseSchema.pre("validate", function stampExerciseNameKey() {
+  const name = typeof this.name === "string" ? this.name.trim() : "";
+  this.nameKey = name.toLowerCase();
 });
 
 const workoutSchema = new mongoose.Schema({
@@ -36,6 +42,7 @@ const workoutSchema = new mongoose.Schema({
 // Indexes for efficient queries
 workoutSchema.index({ userId: 1, workoutDate: -1 });
 workoutSchema.index({ userId: 1, "exercises.name": 1 });
+workoutSchema.index({ userId: 1, "exercises.nameKey": 1, workoutDate: -1 });
 workoutSchema.index({ entryId: 1 }, { unique: true });
 
 const Workout = mongoose.model("Workout", workoutSchema);

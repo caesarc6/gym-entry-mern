@@ -4,6 +4,7 @@ import { supabase } from "../supabase/supabase";
 import { getCurrentAuthUser } from "../utils/auth";
 import { applyOptimisticWorkoutToSummary } from "../utils/workoutHabitWidget";
 import { dataUrlToFile, isDataImage } from "../utils/imageUpload";
+import { compressImageIfNeeded } from "../utils/imageCompression";
 import { feedPageLimit } from "../utils/feedPageLimit";
 import { applyPostPatch, applyPostRemoval, pickPostFields } from "./postCopies";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
@@ -387,8 +388,14 @@ export const useProductStore = create((set) => ({
   },
 
   updateBackgroundProfile: async (newBackgroundProfile) => {
+    const backgroundFile =
+      typeof File !== "undefined" && newBackgroundProfile instanceof File
+        ? await compressImageIfNeeded(newBackgroundProfile, {
+            maxWidthOrHeight: 1280,
+          })
+        : newBackgroundProfile;
     const formData = new FormData();
-    formData.append("backgroundPicture", newBackgroundProfile);
+    formData.append("backgroundPicture", backgroundFile);
 
     try {
       const response = await apiClient.post(
