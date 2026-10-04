@@ -16,18 +16,36 @@ import {
   useColorModeValue,
 } from "@chakra-ui/react";
 import { CheckCircleIcon, CalendarIcon } from "@chakra-ui/icons";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDateSafe } from "../utils/dateUtils";
+import { API_ENDPOINTS, apiClient } from "../config/api";
+import { useCustomToast } from "../hooks/useCustomToast";
+import { useProductStore } from "../store/product";
 
 const ClaimedWorkoutsModal = ({ isOpen, onClose, claimedWorkouts = [] }) => {
   const navigate = useNavigate();
+  const toast = useCustomToast();
+  const [isAccepting, setIsAccepting] = useState(false);
   const bgColor = useColorModeValue("white", "gray.800");
   const cardBg = useColorModeValue("gray.50", "gray.700");
 
-  const handleViewWorkouts = () => {
-    onClose();
-    // Navigate to a page where user can see their assigned workouts
-    navigate("/"); // Redirect to home where they can access their workouts
+  const handleAccept = async () => {
+    setIsAccepting(true);
+    try {
+      await apiClient.post(API_ENDPOINTS.CLAIM_PENDING_WORKOUTS);
+      useProductStore.getState().setClaimedWorkouts([]);
+      useProductStore.getState().setShowClaimedWorkoutsModal(false);
+      onClose();
+      navigate("/");
+    } catch (error) {
+      toast.error(
+        "Could not accept workouts",
+        error.response?.data?.message || "Try again in a moment.",
+      );
+    } finally {
+      setIsAccepting(false);
+    }
   };
 
   if (!claimedWorkouts || claimedWorkouts.length === 0) {
@@ -54,10 +72,11 @@ const ClaimedWorkoutsModal = ({ isOpen, onClose, claimedWorkouts = [] }) => {
         <ModalBody overflowY="auto">
           <VStack spacing={4} align="stretch">
             <Text color="gray.600">
-              Great news! Your trainer has already assigned{" "}
+              Your trainer assigned{" "}
               <strong>{claimedWorkouts.length}</strong> workout
-              {claimedWorkouts.length > 1 ? "s" : ""} to you. These have been
-              automatically added to your account.
+              {claimedWorkouts.length > 1 ? "s" : ""} to you. Accept
+              {claimedWorkouts.length > 1 ? " them" : " it"} to add
+              {claimedWorkouts.length > 1 ? " them" : " it"} to your account.
             </Text>
 
             <Divider />
@@ -115,19 +134,23 @@ const ClaimedWorkoutsModal = ({ isOpen, onClose, claimedWorkouts = [] }) => {
 
             <Box bg="blue.50" p={3} borderRadius="md" mt={2}>
               <Text fontSize="sm" color="blue.800">
-                💡 <strong>Tip:</strong> You can view and complete these
-                workouts from your home page at any time!
+                They stay pending until you accept. After that they show up on
+                your home feed.
               </Text>
             </Box>
           </VStack>
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="ghost" mr={3} onClick={onClose}>
-            Close
+          <Button variant="ghost" mr={3} onClick={onClose} isDisabled={isAccepting}>
+            Not now
           </Button>
-          <Button colorScheme="blue" onClick={handleViewWorkouts}>
-            Go to Home
+          <Button
+            colorScheme="blue"
+            onClick={handleAccept}
+            isLoading={isAccepting}
+          >
+            Accept
           </Button>
         </ModalFooter>
       </ModalContent>

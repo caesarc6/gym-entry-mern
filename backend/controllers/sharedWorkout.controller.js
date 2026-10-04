@@ -12,6 +12,47 @@ import {
 const escapeRegex = (value) =>
   String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const findAccountByAuthUid = (uid) =>
+  User.findOne({
+    $or: [{ uid }, { firebaseUid: uid }, { supabaseUid: uid }],
+  }).select("name email uid");
+
+/** Pending lookup is limited to the signed-in account, never a body name/email. */
+const identityForPendingLookup = async (req) => {
+  const authUid = String(req.user?.uid || "").trim();
+  if (!authUid) return null;
+
+  const account = await findAccountByAuthUid(authUid);
+  const email = String(account?.email || req.user?.email || "")
+    .trim()
+    .toLowerCase();
+  const name = String(account?.name || req.user?.name || "")
+    .trim()
+    .toLowerCase();
+
+  return { authUid, email, name };
+};
+
+const pendingAssignmentQuery = (name, email) => {
+  const or = [];
+  if (name) {
+    or.push({
+      assignedToName: new RegExp(`^${escapeRegex(name)}$`, "i"),
+    });
+  }
+  if (email) {
+    or.push({
+      assignedToEmail: new RegExp(`^${escapeRegex(email)}$`, "i"),
+    });
+  }
+  if (or.length === 0) return null;
+  return {
+    isRegisteredUser: false,
+    assignedToUid: null,
+    $or: or,
+  };
+};
+
 const sanitizeExercises = (exercises) =>
   Array.isArray(exercises)
     ? exercises.map((exercise) =>
@@ -1429,6 +1470,173 @@ export const claimClientWorkoutsByToken = async (req, res) => {
   }
 };
 
+// Workouts a trainer assigned by name or email, still waiting for this client to accept.
+export const checkPendingWorkouts = async (req, res) => {
+  try {
+    const identity = await identityForPendingLookup(req);
+    if (!identity) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
+
+    const query = pendingAssignmentQuery(identity.name, identity.email);
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        message: "Name or email is required to check for pending workouts",
+      });
+    }
+
+    const pendingAssignments = await WorkoutAssignment.find(query)
+      .select("customLabel status createdAt sharedByName sharedWorkoutId")
+      .populate("sharedWorkoutId", "workoutName description")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const assignments = pendingAssignments.map((assignment) => ({
+      _id: assignment._id,
+      customLabel: assignment.customLabel,
+      status: assignment.status,
+      createdAt: assignment.createdAt || null,
+      sharedByName: assignment.sharedByName || null,
+      sharedWorkoutId: assignment.sharedWorkoutId
+        ? {
+            workoutName: assignment.sharedWorkoutId.workoutName,
+            description: assignment.sharedWorkoutId.description || "",
+          }
+        : null,
+    }));
+
+    res.status(200).json({
+      success: true,
+      message:
+        assignments.length === 0
+          ? "No pending workouts found"
+          : `Found ${assignments.length} pending workout${
+              assignments.length > 1 ? "s" : ""
+            }`,
+      data: {
+        count: assignments.length,
+        assignments,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// Client accepts pending trainer assignments and they land on the account.
+export const claimPendingWorkouts = async (req, res) => {
+  try {
+    const identity = await identityForPendingLookup(req);
+    if (!identity) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
+
+    const { authUid: uid, email: normalizedEmail } = identity;
+    const query = pendingAssignmentQuery(identity.name, identity.email);
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        message: "Name or email is required to claim workouts",
+      });
+    }
+
+    const pendingAssignments = await WorkoutAssignment.find(query);
+
+    if (pendingAssignments.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No pending workouts found to claim",
+        data: {
+          claimedCount: 0,
+          assignments: [],
+        },
+      });
+    }
+
+    const updatePromises = pendingAssignments.map((assignment) =>
+      WorkoutAssignment.findByIdAndUpdate(
+        assignment._id,
+        {
+          assignedToUid: uid,
+          isRegisteredUser: true,
+          assignedToEmail: normalizedEmail || assignment.assignedToEmail,
+        },
+        { new: true }
+      ).populate("sharedWorkoutId", "workoutName description image creatorUid creatorName")
+    );
+
+    const claimedAssignments = await Promise.all(updatePromises);
+    const workoutPosts = [];
+
+    for (const assignment of claimedAssignments) {
+      if (assignment.sharedWorkoutId) {
+        const sharedWorkout = assignment.sharedWorkoutId;
+        const trainer = await User.findOne({
+          uid: sharedWorkout.creatorUid,
+        }).select("name username");
+
+        const workoutPost = new Entry({
+          name: sharedWorkout.workoutName,
+          uid: uid,
+          description: sharedWorkout.description,
+          image:
+            sharedWorkout.image ||
+            "https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg",
+          shareable: false,
+          shareToken: null,
+          shareExpiry: null,
+          originalEntryId: null,
+          sharedWorkoutId: sharedWorkout._id,
+          trainerUid: sharedWorkout.creatorUid,
+          trainerName: trainer?.name || sharedWorkout.creatorName || "Trainer",
+          trainerUsername: trainer?.username || null,
+        });
+
+        await workoutPost.save();
+        workoutPosts.push({
+          _id: workoutPost._id,
+          name: workoutPost.name,
+          description: workoutPost.description,
+          image: workoutPost.image,
+          createdAt: workoutPost.createdAt,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully claimed ${claimedAssignments.length} workout${
+        claimedAssignments.length > 1 ? "s" : ""
+      }!`,
+      data: {
+        claimedCount: claimedAssignments.length,
+        assignments: claimedAssignments.map((assignment) => ({
+          _id: assignment._id,
+          customLabel: assignment.customLabel,
+          sharedByName: assignment.sharedByName,
+          sharedWorkoutId: assignment.sharedWorkoutId
+            ? {
+                workoutName: assignment.sharedWorkoutId.workoutName,
+                description: assignment.sharedWorkoutId.description || "",
+              }
+            : null,
+        })),
+        workoutPosts,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
 export default {
   createSharedWorkout,
   getTrainerSharedWorkouts,
@@ -1444,4 +1652,6 @@ export default {
   generateClientShareableLink,
   getClientWorkoutsByToken,
   claimClientWorkoutsByToken,
+  checkPendingWorkouts,
+  claimPendingWorkouts,
 };

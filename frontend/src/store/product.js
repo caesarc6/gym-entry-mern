@@ -588,29 +588,21 @@ const applySignedInBootstrap = async (session, generation) => {
     }
 
     try {
-      const createUserResponse = await apiClient.get(
-        API_ENDPOINTS.GET_CURRENT_MONGODB_USER,
+      await apiClient.get(API_ENDPOINTS.GET_CURRENT_MONGODB_USER);
+      if (generation !== authBootstrapGeneration) return;
+
+      const pendingResponse = await apiClient.post(
+        API_ENDPOINTS.CHECK_PENDING_WORKOUTS,
       );
       if (generation !== authBootstrapGeneration) return;
 
-      if (
-        createUserResponse.data &&
-        (createUserResponse.data.data || createUserResponse.data) &&
-        (createUserResponse.data.data?.claimedWorkouts > 0 ||
-          createUserResponse.data.claimedWorkouts > 0)
-      ) {
-        const userData =
-          createUserResponse.data.data || createUserResponse.data;
-        if (userData.workouts) {
-          useProductStore.getState().setClaimedWorkouts(userData.workouts);
-
-          if (userData.isNewUser) {
-            useProductStore.getState().setShowClaimedWorkoutsModal(true);
-          }
-        }
+      const assignments = pendingResponse.data?.data?.assignments || [];
+      if (assignments.length > 0) {
+        useProductStore.getState().setClaimedWorkouts(assignments);
+        useProductStore.getState().setShowClaimedWorkoutsModal(true);
       }
     } catch (claimError) {
-      // Silently handle errors - user might not have claimed workouts
+      // Signed-in account may have no trainer assignments waiting.
     }
   } catch (e) {
     if (generation !== authBootstrapGeneration) return;

@@ -151,6 +151,8 @@ export const API_ENDPOINTS = {
     buildApiUrl(`shared-workouts/assignments/${assignmentId}/continue`),
   COMPLETE_ASSIGNED_WORKOUT: (assignmentId) =>
     buildApiUrl(`shared-workouts/assignments/${assignmentId}/complete`),
+  CHECK_PENDING_WORKOUTS: buildApiUrl("shared-workouts/check-pending"),
+  CLAIM_PENDING_WORKOUTS: buildApiUrl("shared-workouts/claim-pending"),
 
   // Shareable link endpoints
   GENERATE_SHAREABLE_LINK: (sharedWorkoutId) =>

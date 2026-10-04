@@ -14,12 +14,16 @@ import {
   generateClientShareableLink,
   getClientWorkoutsByToken,
   claimClientWorkoutsByToken,
+  checkPendingWorkouts,
+  claimPendingWorkouts,
 } from "../controllers/sharedWorkout.controller.js";
 import { verifyIdToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
 router.post("/", verifyIdToken, createSharedWorkout);
+router.post("/check-pending", verifyIdToken, checkPendingWorkouts);
+router.post("/claim-pending", verifyIdToken, claimPendingWorkouts);
 router.get("/trainer", verifyIdToken, getTrainerSharedWorkouts);
 router.get("/clients", verifyIdToken, getTrainerClients);
 
