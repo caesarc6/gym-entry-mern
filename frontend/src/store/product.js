@@ -339,31 +339,6 @@ export const useProductStore = create((set) => ({
     }));
   },
 
-  createEntry: async (newEntry) => {
-    const entryPayload = { ...newEntry };
-
-    if (!entryPayload.name || !entryPayload.description) {
-      return { success: false, message: "Please fill in all fields." };
-    }
-
-    if (!entryPayload.image) {
-      delete entryPayload.image;
-      delete entryPayload.imageName;
-    }
-
-    try {
-      const response = await apiClient.post(
-        API_ENDPOINTS.CREATE_ENTRY,
-        entryPayload
-      );
-      const data = response.data;
-      set((state) => ({ entrys: [...state.entrys, data.data] }));
-      return { success: true, message: "Entry created successfully" };
-    } catch (error) {
-      throw new Error(error.response?.data?.error || "Failed to create entry");
-    }
-  },
-
   deleteEntry: async (pid) => {
     try {
       const response = await apiClient.delete(API_ENDPOINTS.DELETE_ENTRY(pid));
@@ -688,64 +663,3 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
   void scheduleAuthBootstrap(session);
 });
-
-// Add sharing functionality to the store
-export const useSharingStore = create((set) => ({
-  // Share a workout and get a shareable link
-  shareWorkout: async (entryId) => {
-    try {
-      const response = await apiClient.post(
-        API_ENDPOINTS.SHARE_WORKOUT(entryId)
-      );
-      return {
-        success: response.data.success,
-        data: response.data.data,
-        message: response.data.message,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || "Failed to share workout",
-      };
-    }
-  },
-
-  // Get a shared workout by token
-  getSharedWorkout: async (shareToken) => {
-    try {
-      const response = await apiClient.get(
-        API_ENDPOINTS.GET_SHARED_WORKOUT(shareToken)
-      );
-      return {
-        success: response.data.success,
-        data: response.data.data,
-        message: response.data.message,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message:
-          error.response?.data?.message || "Failed to load shared workout",
-      };
-    }
-  },
-
-  // Save a shared workout to user's account
-  saveSharedWorkout: async (shareToken) => {
-    try {
-      const response = await apiClient.post(
-        API_ENDPOINTS.SAVE_SHARED_WORKOUT(shareToken)
-      );
-      return {
-        success: response.data.success,
-        data: response.data.data,
-        message: response.data.message,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || "Failed to save workout",
-      };
-    }
-  },
-}));

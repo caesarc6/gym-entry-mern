@@ -1,4 +1,4 @@
-import { User, Post, Comment, FollowRequest } from "../models/user.model.js";
+import { User, FollowRequest } from "../models/user.model.js";
 import Entry from "../models/entry.model.js";
 import { supabase, supabaseAdmin } from "../supabase/supabase.js";
 import { getFirebaseAdmin, isFirebaseConfigured } from "../firebase.js";
@@ -336,86 +336,6 @@ export const updateUserPrivacy = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-
-// Get batch profile images for multiple users (optimized for mobile)
-export const getBatchProfileImages = async (req, res) => {
-  try {
-    // Check if req.user exists (should be set by verifyIdToken middleware)
-    if (!req.user || !req.user.uid) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized: User information not found",
-      });
-    }
-
-    const { uids } = req.body;
-
-    if (!uids || !Array.isArray(uids) || uids.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No UIDs provided",
-      });
-    }
-
-    const dbReady = await ensureMongoConnected();
-    if (!dbReady.ok) {
-      return res.status(500).json({
-        success: false,
-        message: dbReady.message || "Database connection error",
-      });
-    }
-
-    const limitedUids = [...new Set(uids.slice(0, 20).filter(Boolean))];
-
-    const users = await User.find(
-      {
-        $or: [
-          { uid: { $in: limitedUids } },
-          { firebaseUid: { $in: limitedUids } },
-          { supabaseUid: { $in: limitedUids } },
-        ],
-      },
-      { uid: 1, firebaseUid: 1, supabaseUid: 1, name: 1, username: 1, picture: 1 }
-    );
-
-    const variantToUser = new Map();
-    for (const u of users) {
-      for (const v of linkedUidStrings(u)) {
-        variantToUser.set(v, u);
-      }
-    }
-
-    const profileData = limitedUids
-      .map((requestedUid) => {
-        const user = variantToUser.get(requestedUid);
-        if (!user) return null;
-        return {
-          uid: requestedUid,
-          profileImage: user.picture,
-          displayName: user.username || user.name || "Unknown User",
-          isUsername: !!user.username,
-        };
-      })
-      .filter(Boolean);
-
-    res.setHeader("Cache-Control", "private, max-age=300, stale-while-revalidate=600");
-    res.status(200).json({
-      success: true,
-      data: profileData,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
-
-/**
- * Public profile snippet for avatars. Resolves legacy Firebase UIDs even when
- * Mongo only has matching email (firebaseUid not backfilled).
- */
 export const getProfileImageByUid = async (req, res) => {
   try {
     const raw = req.params.uid;
@@ -471,64 +391,6 @@ export const getProfileImageByUid = async (req, res) => {
     });
   }
 };
-
-// Get user profile by username (for public viewing)
-export const getUserProfileByUsername = async (req, res) => {
-  try {
-    const { username } = req.params;
-    let viewerUser = null;
-    if (req.user && req.user.uid) {
-      viewerUser = await findUserByAnyUid(req.user.uid);
-    }
-    const user = await User.findOne({ username }).populate(
-      "followers following"
-    );
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const { filterUserDataForPublicView, filterEntriesForPublicView } =
-      await import("../utils/userUtils.js");
-    const filteredUserData = filterUserDataForPublicView(user, viewerUser);
-
-    // Fetch all entries and let filterEntriesForPublicView handle restrictions
-    const entries = await Entry.find({ uid: user.uid });
-    const filteredEntries = filterEntriesForPublicView(
-      entries,
-      user,
-      viewerUser
-    );
-
-    return res.set("Cache-Control", "no-store").status(200).json({
-      user: filteredUserData,
-      entries: filteredEntries,
-    });
-  } catch (error) {
-    return res.status(500).json({ message: "Server error" });
-  }
-};
-
-// Check if a user is following another user
-export const checkFollowing = async (req, res) => {
-  try {
-    const { targetUserId } = req.params;
-
-    const user = await findUserByAnyUid(req.user.uid);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const isFollowing = user.following.some(
-      (id) => id.toString() === targetUserId
-    );
-
-    return res.status(200).json({ isFollowing });
-  } catch (error) {
-    return res.status(500).json({ message: "Server error" });
-  }
-};
-
-// Existing controller functions (abridged for brevity)
 export const getCurrentMongoDBUser = async (req, res) => {
   try {
     // Check if req.user exists (should be set by verifyIdToken middleware)
@@ -792,89 +654,6 @@ export const checkSupabaseConnection = async () => {
     return false;
   }
 };
-
-export const createUser = async (req, res) => {
-  const { uid, email, picture } = req.user;
-  const name = sanitizeTextInput(req.user?.name);
-
-  try {
-    let user = await findUserByAnyUid(uid);
-    let claimedWorkouts = [];
-    let isNewUser = false;
-
-    if (!user) {
-      isNewUser = true;
-      // Generate username from name: remove spaces and convert to lowercase
-      const generatedUsername = name
-        ? name.replace(/\s+/g, "").toLowerCase()
-        : `user${Date.now()}`;
-
-      user = new User({
-        uid,
-        name,
-        email,
-        picture,
-        username: generatedUsername,
-      });
-      await user.save();
-
-      // Automatically claim any pending workouts assigned to this name or email
-      const normalizedName = name ? name.trim().toLowerCase() : null;
-      const normalizedEmail = email ? email.trim().toLowerCase() : null;
-
-      // Build query to find assignments by name or email
-      const query = {
-        isRegisteredUser: false, // Only claim name-only assignments
-        assignedToUid: null,
-        $or: [],
-      };
-
-      if (normalizedName) {
-        query.$or.push({ assignedToName: normalizedName });
-      }
-      if (normalizedEmail) {
-        query.$or.push({ assignedToEmail: normalizedEmail });
-      }
-
-      if (query.$or.length > 0) {
-        try {
-          // Find all pending assignments that match
-          const pendingAssignments = await WorkoutAssignment.find(query);
-
-          if (pendingAssignments.length > 0) {
-            // Update all matching assignments to link them to the user
-            const updatePromises = pendingAssignments.map((assignment) =>
-              WorkoutAssignment.findByIdAndUpdate(
-                assignment._id,
-                {
-                  assignedToUid: uid,
-                  isRegisteredUser: true,
-                  assignedToEmail:
-                    normalizedEmail || assignment.assignedToEmail,
-                },
-                { new: true }
-              ).populate("sharedWorkoutId")
-            );
-
-            claimedWorkouts = await Promise.all(updatePromises);
-          }
-        } catch (claimError) {
-          // Don't fail user creation if claiming workouts fails
-        }
-      }
-    }
-
-    res.status(201).json({
-      user,
-      claimedWorkouts: claimedWorkouts.length,
-      workouts: claimedWorkouts,
-      isNewUser,
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to create user" });
-  }
-};
-
 export const createPost = async (req, res) => {
   const { image, imageName } = req.body;
   const { name, description } = sanitizeTextFields(req.body, [
@@ -1179,43 +958,6 @@ export const getWorkoutHabitSummary = async (req, res) => {
     });
   }
 };
-
-export const isFollowing = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const currentUserUid = req.user.uid;
-
-    const currentUser = await findUserByAnyUid(currentUserUid);
-    if (!currentUser) {
-      return res.status(404).json({
-        success: false,
-        message: "Current user not found",
-      });
-    }
-
-    const targetUser = await findUserByAnyUid(userId);
-    if (!targetUser) {
-      return res.status(404).json({
-        success: false,
-        message: "Target user not found",
-      });
-    }
-
-    const isFollowing = targetUser.followers.includes(currentUser._id);
-
-    res.status(200).json({
-      success: true,
-      isFollowing,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error checking follow status",
-      error: error.message,
-    });
-  }
-};
-
 export const getCurrentUser = async (req, res) => {
   const { uid } = req.user;
 
@@ -1238,43 +980,6 @@ export const getCurrentUser = async (req, res) => {
   }
 };
 
-export const getUser = async (req, res) => {
-  const { uid } = req.params;
-
-  try {
-    const user = await findUserByAnyUid(uid);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    const viewer = req.user?.uid
-      ? await findUserByAnyUid(req.user.uid)
-      : null;
-    const filtered = filterUserDataForPublicView(user, viewer);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        uid: user.uid,
-        name: filtered.name,
-        profileImage: filtered.picture,
-        bio: filtered.bio || "",
-        gymName: filtered.gymName || "",
-        goal: filtered.goal || "",
-        followersCount: filtered.followersCount || 0,
-        followingCount: filtered.followingCount || 0,
-        isPrivate: Boolean(filtered.isPrivate),
-      },
-    });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to retrieve user" });
-  }
-};
-
 export const searchUsers = async (req, res) => {
   const query = sanitizeTextInput(req.query?.query);
 
@@ -1285,13 +990,11 @@ export const searchUsers = async (req, res) => {
   }
 
   try {
-    // Get the current user (viewer) for privacy filtering
     let viewerUser = null;
     if (req.user?.uid) {
       viewerUser = await findUserByAnyUid(req.user.uid);
     }
 
-    // Find users matching the search query (only match from the beginning)
     const users = await User.find({
       $or: [
         { name: { $regex: `^${escapeRegex(query)}`, $options: "i" } },
@@ -1301,9 +1004,7 @@ export const searchUsers = async (req, res) => {
       .populate("followers", "uid")
       .limit(10);
 
-    // Apply privacy filtering to search results
     const filteredUsers = users.map((user) => {
-      // Ensure privacy object exists
       const privacy = user.privacy || {
         isPrivate: true,
         showEntries: true,
@@ -1323,24 +1024,18 @@ export const searchUsers = async (req, res) => {
 
       const isOwner = viewerUser && accountsMatch(viewerUser, user);
 
-      // For search results, always show basic info (name, username, picture)
-      // but indicate if the profile is private
-      const searchResult = {
+      return {
         uid: user.uid,
         name: user.name || "User",
         username: user.username || user.name || "User",
         picture: user.picture,
         isPrivate: privacy.isPrivate,
-        // Only show bio if profile is public or viewer is follower/owner
         bio: !privacy.isPrivate || isFollower || isOwner ? user.bio || "" : "",
-        // Only show goal/gymName if profile is public or viewer is follower/owner
         goal:
           !privacy.isPrivate || isFollower || isOwner ? user.goal || "" : "",
         gymName:
           !privacy.isPrivate || isFollower || isOwner ? user.gymName || "" : "",
       };
-
-      return searchResult;
     });
 
     res.status(200).json({ success: true, data: filteredUsers });
@@ -1490,35 +1185,6 @@ export const uploadProfilePic = [
     }
   },
 ];
-
-export const followUser = async (req, res) => {
-  try {
-    const { uid } = req.user;
-    const userToFollow = await findUserByAnyUid(req.params.userId);
-    const currentUser = await findUserByAnyUid(uid);
-
-    if (!userToFollow || !currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (currentUser._id.equals(userToFollow._id)) {
-      return res.status(400).json({ message: "Cannot follow yourself" });
-    }
-
-    if (!currentUser.following.includes(userToFollow._id)) {
-      currentUser.following.push(userToFollow._id);
-      userToFollow.followers.push(currentUser._id);
-      await currentUser.save();
-      await userToFollow.save();
-      return res.status(200).json({ message: "Followed successfully" });
-    }
-
-    return res.status(200).json({ message: "Already following" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
 export const unfollowUser = async (req, res) => {
   try {
     const { uid } = req.user;
@@ -1546,47 +1212,6 @@ export const unfollowUser = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-export const likePost = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.postId);
-    const user = await User.findById(req.body.userId);
-
-    if (!post || !user) {
-      return res.status(404).json({ message: "Post or user not found" });
-    }
-
-    if (!post.likes.includes(user._id)) {
-      post.likes.push(user._id);
-      await post.save();
-    }
-    res.status(200).json({ message: "Post liked" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-export const commentOnPost = async (req, res) => {
-  try {
-    const content = sanitizeTextInput(req.body?.content);
-    if (!content) {
-      return res.status(400).json({ message: "Comment content is required" });
-    }
-
-    const comment = new Comment({
-      user: req.body.userId,
-      post: req.params.postId,
-      content,
-    });
-    await comment.save();
-    res.status(201).json(comment);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// user.controller.jsx
-
 export const getUserProfile = async (req, res) => {
   try {
     // Handle both uid and userId parameters
@@ -2064,79 +1689,6 @@ export const checkFollowRequestStatus = async (req, res) => {
     });
   }
 };
-
-export const getFeedPosts = async (req, res) => {
-  try {
-    const { uids } = req.body;
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    if (!uids || !Array.isArray(uids) || uids.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No UIDs provided",
-      });
-    }
-
-    const posts = await Entry.find({ uid: { $in: uids } })
-      .sort({ createdAt: -1 }) // Newest first
-      .skip(skip)
-      .limit(parseInt(limit))
-      .lean();
-    await attachPopulatedLikesToEntries(posts);
-
-    const totalPosts = await Entry.countDocuments({ uid: { $in: uids } });
-    const totalPages = Math.ceil(totalPosts / limit);
-
-    const normalizedPosts = posts.map((post) => ({
-      ownerId: post.uid,
-      _id: post._id.toString(),
-      name: post.name || "Untitled",
-      description: post.description || "No description",
-      image: post.image || null,
-      likes: (post.likes || []).map((user) => ({
-        _id: user._id,
-        uid: user.uid,
-        name: user.name,
-        username: user.username,
-        picture: user.picture,
-      })),
-      comments: post.comments || [],
-      createdAt: post.createdAt || new Date().toISOString(),
-      trainerUid: post.trainerUid || null,
-      trainerName: post.trainerName || null,
-      trainerUsername: post.trainerUsername || null,
-    }));
-
-    res.status(200).json({
-      success: true,
-      data: normalizedPosts,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages,
-        totalPosts,
-        limit: parseInt(limit),
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
-const collectUserUidVariants = (user, intoSet) => {
-  if (!user) return;
-  [user.uid, user.firebaseUid, user.supabaseUid]
-    .filter(Boolean)
-    .forEach((u) => intoSet.add(u));
-};
-
-/**
- * Single-query home feed: current user + everyone they follow (server-side, privacy-safe).
- * Paginated globally by createdAt (newest first).
- */
 export const getHomeFeed = async (req, res) => {
   const startedAt = Date.now();
   try {
@@ -2268,69 +1820,6 @@ export const getHomeFeed = async (req, res) => {
     });
   }
 };
-
-export const getUsers = async (req, res) => {
-  try {
-    const users = await User.find()
-      .select("uid name username picture")
-      .sort({ name: 1 });
-
-    if (!users || users.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "No users found" });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: users,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Request trainer dashboard access
-export const requestTrainerDashboardAccess = async (req, res) => {
-  try {
-    const { uid } = req.user;
-    const user = await findUserByAnyUid(uid);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    // Check if already approved
-    if (user.trainerDashboardAccess === "approved") {
-      return res.status(200).json({
-        success: true,
-        message: "You already have trainer dashboard access",
-        accessStatus: "approved",
-      });
-    }
-
-    // Update to requested status
-    user.trainerDashboardAccess = "requested";
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Trainer dashboard access requested successfully",
-      accessStatus: "requested",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
-  }
-};
-
-// Check trainer dashboard access status
 export const checkTrainerDashboardAccess = async (req, res) => {
   try {
     if (!req.user?.uid) {

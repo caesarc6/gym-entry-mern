@@ -1,10 +1,7 @@
 import express from "express";
 import multer from "multer";
 import {
-  createEntry,
   deleteEntry,
-  getEntrys,
-  updateEntry,
   updateEntryPut,
   saveEntryDraft,
   getEntryDraft,
@@ -16,8 +13,6 @@ import {
   editComment,
   deleteComment,
   generateShareLink,
-  getSharedWorkout,
-  saveSharedWorkout,
 } from "../controllers/entry.controller.js";
 import { verifyIdToken } from "../middleware/auth.js";
 
@@ -68,9 +63,6 @@ export const handleFileUpload = (req, res, next) => {
   next();
 };
 
-router.get("/", verifyIdToken, getEntrys);
-router.post("/", verifyIdToken, createEntry);
-
 router.get("/:id/draft", verifyIdToken, getEntryDraft);
 router.put("/:id/draft", verifyIdToken, saveEntryDraft);
 router.delete("/:id/draft", verifyIdToken, clearEntryDraft);
@@ -94,7 +86,5 @@ router.put("/:id", verifyIdToken, updateEntryPut);
 
 // Sharing routes
 router.post("/:entryId/share", verifyIdToken, generateShareLink);
-router.get("/shared/:shareToken", getSharedWorkout); // Public endpoint
-router.post("/shared/:shareToken/save", verifyIdToken, saveSharedWorkout);
 
 export default router;

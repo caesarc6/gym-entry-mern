@@ -6,9 +6,6 @@ import {
   getExerciseProgress,
   getPersonalRecords,
   getAllWorkouts,
-  reprocessAllWorkouts,
-  reprocessAllWorkoutsWithGymNormalization,
-  completelyReprocessAllWorkouts,
 } from "../controllers/workout.controller.js";
 
 const router = express.Router();
@@ -27,22 +24,5 @@ router.get("/progress", verifyIdToken, getExerciseProgress);
 
 // Get personal records
 router.get("/prs", verifyIdToken, getPersonalRecords);
-
-// Reprocess all workouts to update exercise names
-router.post("/reprocess-all", verifyIdToken, reprocessAllWorkouts);
-
-// Reprocess all workouts to update gym names and exercise names
-router.post(
-  "/reprocess-all-with-gym-normalization",
-  verifyIdToken,
-  reprocessAllWorkoutsWithGymNormalization
-);
-
-// Completely reprocess all workouts from original entry descriptions
-router.post(
-  "/completely-reprocess-all",
-  verifyIdToken,
-  completelyReprocessAllWorkouts
-);
 
 export default router;

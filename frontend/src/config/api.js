@@ -61,7 +61,6 @@ export const API_ENDPOINTS = {
 
   // Profile image endpoints
   PROFILE_IMAGE: (uid) => buildApiUrl(`profile-image/${uid}`),
-  BATCH_PROFILE_IMAGES: buildApiUrl("batch-profile-images"),
   UPLOAD_PROFILE_PIC: buildApiUrl("updateUserProfilePic"),
 
   // Posts/Entries endpoints
@@ -72,7 +71,6 @@ export const API_ENDPOINTS = {
   POSTS: (uid, page = 1, limit = 10) =>
     buildApiUrl(`posts/${uid}?page=${page}&limit=${limit}`),
   CREATE_POST: buildApiUrl("posts"),
-  CREATE_ENTRY: buildApiUrl("entrys"),
   DELETE_ENTRY: (id) => buildApiUrl(`entrys/${id}`),
   UPDATE_ENTRY: (id) => buildApiUrl(`entrys/${id}`),
   ENTRY_EDIT_DRAFT: (id) => buildApiUrl(`entrys/${id}/draft`),
@@ -102,7 +100,6 @@ export const API_ENDPOINTS = {
   PRIVACY: buildApiUrl("privacy"),
 
   // Trainer dashboard access endpoints
-  REQUEST_TRAINER_DASHBOARD_ACCESS: buildApiUrl("trainer-dashboard/request"),
   CHECK_TRAINER_DASHBOARD_ACCESS: buildApiUrl("trainer-dashboard/access"),
 
   // Admin endpoints
@@ -134,50 +131,26 @@ export const API_ENDPOINTS = {
       )}&timeframe=${timeframe}`,
     ),
   PERSONAL_RECORDS: buildApiUrl("workouts/prs"),
-  REPROCESS_ALL_WORKOUTS: buildApiUrl("workouts/reprocess-all"),
-  REPROCESS_ALL_WORKOUTS_WITH_GYM_NORMALIZATION: buildApiUrl(
-    "workouts/reprocess-all-with-gym-normalization",
-  ),
-  COMPLETELY_REPROCESS_ALL_WORKOUTS: buildApiUrl(
-    "workouts/completely-reprocess-all",
-  ),
   WORKOUT_HABIT_SUMMARY: buildApiUrl("workout-habit-summary"),
 
   // Workout sharing endpoints
   SHARE_WORKOUT: (entryId) => buildApiUrl(`entrys/${entryId}/share`),
-  GET_SHARED_WORKOUT: (shareToken) =>
-    buildApiUrl(`entrys/shared/${shareToken}`),
-  SAVE_SHARED_WORKOUT: (shareToken) =>
-    buildApiUrl(`entrys/shared/${shareToken}/save`),
 
   // Shared Workout endpoints
   CREATE_SHARED_WORKOUT: buildApiUrl("shared-workouts"),
   GET_TRAINER_SHARED_WORKOUTS: buildApiUrl("shared-workouts/trainer"),
-  GET_SHARED_WORKOUT: (sharedWorkoutId) =>
-    buildApiUrl(`shared-workouts/${sharedWorkoutId}`),
   UPDATE_SHARED_WORKOUT: (sharedWorkoutId) =>
     buildApiUrl(`shared-workouts/${sharedWorkoutId}`),
   DELETE_SHARED_WORKOUT: (sharedWorkoutId) =>
     buildApiUrl(`shared-workouts/${sharedWorkoutId}`),
 
   // Sharing endpoints
-  SHARE_WORKOUT_TO_USER: (sharedWorkoutId) =>
-    buildApiUrl(`shared-workouts/${sharedWorkoutId}/share`),
   GET_TRAINER_ASSIGNMENTS: buildApiUrl("shared-workouts/assignments/trainer"),
-  GET_USER_ASSIGNMENTS: buildApiUrl("shared-workouts/assignments/user"),
   GET_TRAINER_CLIENTS: buildApiUrl("shared-workouts/clients"),
-  UPDATE_WORKOUT_ASSIGNMENT: (assignmentId) =>
-    buildApiUrl(`shared-workouts/assignments/${assignmentId}`),
-  MARK_WORKOUT_AS_SAVED: (assignmentId) =>
-    buildApiUrl(`shared-workouts/assignments/${assignmentId}/save`),
   CONTINUE_ASSIGNED_WORKOUT: (assignmentId) =>
     buildApiUrl(`shared-workouts/assignments/${assignmentId}/continue`),
   COMPLETE_ASSIGNED_WORKOUT: (assignmentId) =>
     buildApiUrl(`shared-workouts/assignments/${assignmentId}/complete`),
-
-  // Workout claiming endpoints
-  CHECK_PENDING_WORKOUTS: buildApiUrl("shared-workouts/check-pending"),
-  CLAIM_PENDING_WORKOUTS: buildApiUrl("shared-workouts/claim-pending"),
 
   // Shareable link endpoints
   GENERATE_SHAREABLE_LINK: (sharedWorkoutId) =>
@@ -198,7 +171,6 @@ export const API_ENDPOINTS = {
 
   // Migration endpoints
   MIGRATION_LINK: buildApiUrl("migration/link"),
-  MIGRATION_STATUS: buildApiUrl("migration/status"),
 };
 
 // Axios instance with default configuration
