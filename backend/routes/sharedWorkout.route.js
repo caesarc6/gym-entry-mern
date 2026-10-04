@@ -52,7 +52,7 @@ router.put(
 );
 
 // Workout claiming routes (for new users)
-router.post("/check-pending", checkPendingWorkouts);
+router.post("/check-pending", verifyIdToken, checkPendingWorkouts);
 router.post("/claim-pending", verifyIdToken, claimPendingWorkouts);
 
 // Shareable link routes

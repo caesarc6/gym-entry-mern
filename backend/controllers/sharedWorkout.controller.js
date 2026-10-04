@@ -12,6 +12,47 @@ import {
 const escapeRegex = (value) =>
   String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const findAccountByAuthUid = (uid) =>
+  User.findOne({
+    $or: [{ uid }, { firebaseUid: uid }, { supabaseUid: uid }],
+  }).select("name email uid");
+
+/** Pending lookup is limited to the signed-in account, never a body name/email. */
+const identityForPendingLookup = async (req) => {
+  const authUid = String(req.user?.uid || "").trim();
+  if (!authUid) return null;
+
+  const account = await findAccountByAuthUid(authUid);
+  const email = String(account?.email || req.user?.email || "")
+    .trim()
+    .toLowerCase();
+  const name = String(account?.name || req.user?.name || "")
+    .trim()
+    .toLowerCase();
+
+  return { authUid, email, name };
+};
+
+const pendingAssignmentQuery = (name, email) => {
+  const or = [];
+  if (name) {
+    or.push({
+      assignedToName: new RegExp(`^${escapeRegex(name)}$`, "i"),
+    });
+  }
+  if (email) {
+    or.push({
+      assignedToEmail: new RegExp(`^${escapeRegex(email)}$`, "i"),
+    });
+  }
+  if (or.length === 0) return null;
+  return {
+    isRegisteredUser: false,
+    assignedToUid: null,
+    $or: or,
+  };
+};
+
 const sanitizeExercises = (exercises) =>
   Array.isArray(exercises)
     ? exercises.map((exercise) =>
@@ -869,59 +910,50 @@ export const completeAssignedWorkout = async (req, res) => {
   }
 };
 
-// Check for pending workouts assigned to a name/email
+// Check for pending workouts assigned to the signed-in account.
 export const checkPendingWorkouts = async (req, res) => {
   try {
-    const name = sanitizeTextInput(req.body?.name);
-    const email = sanitizeTextInput(req.body?.email);
+    const identity = await identityForPendingLookup(req);
+    if (!identity) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
 
-    if (!name && !email) {
+    const query = pendingAssignmentQuery(identity.name, identity.email);
+    if (!query) {
       return res.status(400).json({
         success: false,
         message: "Name or email is required to check for pending workouts",
       });
     }
 
-    // Normalize name for searching (lowercase, trimmed)
-    const normalizedName = name ? name.trim().toLowerCase() : null;
-
-    // Build query to find assignments by name or email
-    const query = {
-      isRegisteredUser: false, // Only look for name-only assignments
-      $or: [],
-    };
-
-    if (normalizedName) {
-      query.$or.push({ assignedToName: normalizedName });
-    }
-    if (email) {
-      query.$or.push({ assignedToEmail: email.trim().toLowerCase() });
-    }
-
-    // Find pending assignments
     const pendingAssignments = await WorkoutAssignment.find(query)
-      .populate("sharedWorkoutId")
-      .sort({ createdAt: -1 });
+      .select("customLabel status targetDate dueDate createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
 
-    if (pendingAssignments.length === 0) {
-      return res.status(200).json({
-        success: true,
-        message: "No pending workouts found",
-        data: {
-          count: 0,
-          assignments: [],
-        },
-      });
-    }
+    const assignments = pendingAssignments.map((assignment) => ({
+      _id: assignment._id,
+      customLabel: assignment.customLabel,
+      status: assignment.status,
+      targetDate: assignment.targetDate || null,
+      dueDate: assignment.dueDate || null,
+      createdAt: assignment.createdAt || null,
+    }));
 
     res.status(200).json({
       success: true,
-      message: `Found ${pendingAssignments.length} pending workout${
-        pendingAssignments.length > 1 ? "s" : ""
-      }`,
+      message:
+        assignments.length === 0
+          ? "No pending workouts found"
+          : `Found ${assignments.length} pending workout${
+              assignments.length > 1 ? "s" : ""
+            }`,
       data: {
-        count: pendingAssignments.length,
-        assignments: pendingAssignments,
+        count: assignments.length,
+        assignments,
       },
     });
   } catch (error) {
@@ -932,29 +964,18 @@ export const checkPendingWorkouts = async (req, res) => {
 // Claim pending workouts when user creates an account
 export const claimPendingWorkouts = async (req, res) => {
   try {
-    const { uid } = req.user;
-    const name = sanitizeTextInput(req.user?.name);
-    const email = sanitizeTextInput(req.body?.email);
-
-    // Normalize name for searching (lowercase, trimmed)
-    const normalizedName = name ? name.trim().toLowerCase() : null;
-    const normalizedEmail = email ? email.trim().toLowerCase() : null;
-
-    // Build query to find assignments by name or email
-    const query = {
-      isRegisteredUser: false, // Only claim name-only assignments
-      assignedToUid: null,
-      $or: [],
-    };
-
-    if (normalizedName) {
-      query.$or.push({ assignedToName: normalizedName });
-    }
-    if (normalizedEmail) {
-      query.$or.push({ assignedToEmail: normalizedEmail });
+    const identity = await identityForPendingLookup(req);
+    if (!identity) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
     }
 
-    if (query.$or.length === 0) {
+    const { authUid: uid, email: normalizedEmail } = identity;
+    const query = pendingAssignmentQuery(identity.name, identity.email);
+
+    if (!query) {
       return res.status(400).json({
         success: false,
         message: "Name or email is required to claim workouts",
