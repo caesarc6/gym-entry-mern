@@ -160,6 +160,10 @@ const linkedUidStrings = (userDoc) => {
   return [userDoc.uid, userDoc.firebaseUid, userDoc.supabaseUid].filter(Boolean);
 };
 
+const collectUserUidVariants = (userDoc, into) => {
+  for (const id of linkedUidStrings(userDoc)) into.add(id);
+};
+
 const accountsMatch = (a, b) => {
   if (!a || !b) return false;
   const ua = linkedUidStrings(a);
