@@ -1831,6 +1831,10 @@ const ProductCard = memo(function ProductCard({
   const captionHandle = isUsername ? `@${userDisplayName}` : userDisplayName;
   const profileFallbackLetters =
     userDisplayName.trim().slice(0, 2).toUpperCase() || "??";
+  const profilePhotoSrc =
+    profileImage && profileImage !== lightUrl && profileImage !== nightUrl
+      ? profileImage
+      : "";
   const trainerDisplayLabel =
     trainerIsUsername && trainerDisplayName
       ? `@${trainerDisplayName}`
@@ -1992,7 +1996,7 @@ const ProductCard = memo(function ProductCard({
         <FeedEntryCard
           profile={{
             displayName: captionHandle,
-            imageSrc: profileImage,
+            imageSrc: profilePhotoSrc,
             imageAlt: "User Profile",
             fallback: profileFallbackLetters,
           }}
@@ -2143,7 +2147,7 @@ const ProductCard = memo(function ProductCard({
             className={cn("mx-auto w-full max-w-[448px]")}
             profile={{
               displayName: captionHandle,
-              imageSrc: profileImage,
+              imageSrc: profilePhotoSrc,
               imageAlt: "User Profile",
               fallback: profileFallbackLetters,
             }}

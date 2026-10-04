@@ -5,6 +5,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  Avatar,
   Image,
   Input,
   Modal,
@@ -28,13 +29,6 @@ import { useState, useEffect } from "react";
 // import PropTypes from "prop-types";
 import { supabase } from "../supabase/supabase";
 import { getCurrentAuthUser } from "../utils/auth";
-import light from "../assets/light.jpg";
-import night from "../assets/night.jpg";
-
-// Convert Vite asset imports to actual URLs
-const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
-const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
-
 const ModifyProfile = ({ entry }) => {
   const { editProfileData } = useProductStore();
 
@@ -46,7 +40,6 @@ const ModifyProfile = ({ entry }) => {
   const textColorOne = useColorModeValue("gray.300", "gray.700");
   const bg = useColorModeValue("white", "gray.800");
   const { colorMode } = useColorMode();
-  const profileColorMode = useColorModeValue(lightUrl, nightUrl);
   const { deleteEntry, updateEntry, likeEntry, commentEntry } =
     useProductStore();
 
@@ -358,12 +351,12 @@ const ModifyProfile = ({ entry }) => {
             bg={colors.bgCard}
           >
             <VStack spacing={4}>
-              <Image
-                src={userProfile.profileImage || profileColorMode}
-                alt="Profile Picture"
+              <Avatar
+                name={userProfile.name || userProfile.username}
+                src={userProfile.profileImage || undefined}
                 boxSize="150px"
-                objectFit="cover"
-                borderRadius="full"
+                bg={colors.bgMuted}
+                color={colors.textPrimary}
               />
               <Text
                 className="pt-0 pb-0 mb-0 mt-0 text-center font-weight-light"

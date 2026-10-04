@@ -17,15 +17,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCustomToast } from "../hooks/useCustomToast";
-
-// Convert Vite asset imports to actual URLs
-const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
-const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
-const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
-const defaultBgNightUrl = new URL(
-  "../assets/defaultBgNight.jpg",
-  import.meta.url
-).href;
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
@@ -103,11 +94,6 @@ const UserProfilePage = () => {
 
   const toast = useCustomToast();
   const colors = useThemeColors();
-  const profileColorMode =
-    colors.currentTheme === "light" ? lightUrl : nightUrl;
-  const bgColorMode =
-    colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
-
   currentUserRef.current = currentUser;
   toastRef.current = toast;
 
@@ -478,20 +464,29 @@ const UserProfilePage = () => {
 
   const renderProfile = () => (
     <Box maxW="800px" mx="auto" w="full">
-      <Box borderRadius="2xl" overflow="hidden">
-        <Image
-          h={{ base: "140px", md: "168px" }}
-          w="full"
-          src={userProfile.backgroundPicture || bgColorMode}
-          objectFit="cover"
-          alt="Background"
-        />
+      <Box borderRadius="2xl" overflow="hidden" bg={colors.bgMuted}>
+        {userProfile.backgroundPicture ? (
+          <Image
+            h={{ base: "140px", md: "168px" }}
+            w="full"
+            src={userProfile.backgroundPicture}
+            objectFit="cover"
+            alt="Background"
+            fallback={
+              <Box h={{ base: "140px", md: "168px" }} w="full" bg={colors.bgMuted} />
+            }
+          />
+        ) : (
+          <Box h={{ base: "140px", md: "168px" }} w="full" bg={colors.bgMuted} />
+        )}
       </Box>
       <Flex justify="center" mt={-12}>
         <Avatar
           size="xl"
-          src={userProfile.profileImage || profileColorMode}
-          bg={colors.background}
+          name={userProfile.name || userProfile.username}
+          src={userProfile.profileImage || undefined}
+          bg={colors.bgMuted}
+          color={colors.textPrimary}
           css={{
             border: "4px solid hsl(var(--background))",
           }}
