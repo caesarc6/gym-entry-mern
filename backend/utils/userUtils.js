@@ -70,17 +70,18 @@ export const filterUserDataForPublicView = (user, viewerUser = null) => {
     return publicUserData;
   }
 
-  // For private profiles where the viewer is not a follower, return basic profile data
-  // (but not posts - those are handled separately)
+  // Private profiles still need a name and photo so people can send a follow
+  // request. Bio, goal, gym, and the background image stay hidden until the
+  // viewer follows or owns the account.
   const basicProfileData = {
     _id: user._id,
-    username: user.username || user.name || "User", // Fallback to name or "User" if username is undefined
+    username: user.username || user.name || "User",
     name: user.name,
     picture: user.picture,
-    bio: user.bio,
-    goal: user.goal,
-    gymName: user.gymName,
-    backgroundPicture: user.backgroundPicture,
+    bio: "",
+    goal: "",
+    gymName: "",
+    backgroundPicture: "",
     followersCount: user.followers ? user.followers.length : 0,
     followingCount: user.following ? user.following.length : 0,
     isPrivate: true,

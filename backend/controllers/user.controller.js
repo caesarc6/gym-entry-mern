@@ -1242,26 +1242,30 @@ export const getUser = async (req, res) => {
   const { uid } = req.params;
 
   try {
-    const user = await findUserByAnyUid(
-      uid,
-      "uid firebaseUid supabaseUid name picture bio gymName goal followers following"
-    );
+    const user = await findUserByAnyUid(uid);
     if (!user) {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
     }
+
+    const viewer = req.user?.uid
+      ? await findUserByAnyUid(req.user.uid)
+      : null;
+    const filtered = filterUserDataForPublicView(user, viewer);
+
     res.status(200).json({
       success: true,
       data: {
         uid: user.uid,
-        name: user.name,
-        profileImage: user.picture, // Map `picture` to `profileImage` for frontend compatibility
-        bio: user.bio,
-        gymName: user.gymName,
-        goal: user.goal,
-        followersCount: user.followers?.length || 0,
-        followingCount: user.following?.length || 0,
+        name: filtered.name,
+        profileImage: filtered.picture,
+        bio: filtered.bio || "",
+        gymName: filtered.gymName || "",
+        goal: filtered.goal || "",
+        followersCount: filtered.followersCount || 0,
+        followingCount: filtered.followingCount || 0,
+        isPrivate: Boolean(filtered.isPrivate),
       },
     });
   } catch (error) {
@@ -1301,7 +1305,7 @@ export const searchUsers = async (req, res) => {
     const filteredUsers = users.map((user) => {
       // Ensure privacy object exists
       const privacy = user.privacy || {
-        isPrivate: false,
+        isPrivate: true,
         showEntries: true,
         showEmail: false,
       };

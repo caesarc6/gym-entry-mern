@@ -395,24 +395,6 @@ app.get("/api", (req, res) => {
 //   res.json({ message: "Posts endpoint is working!", uid: req.params.uid });
 // });
 
-// Test route to check if the server is working (no auth)
-app.get("/api/test", async (req, res) => {
-  const mongoUriSet = Boolean(process.env.MONGO_URI);
-  let mongoState = "skipped";
-  if (mongoUriSet) {
-    const db = await ensureMongoConnected();
-    mongoState = db.ok ? "connected" : db.message || "error";
-  } else {
-    mongoState = "MONGO_URI not set";
-  }
-  res.json({
-    success: true,
-    message: "API is working",
-    mongoUriSet,
-    mongoState,
-  });
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
 

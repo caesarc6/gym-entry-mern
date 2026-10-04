@@ -20,10 +20,7 @@ import {
   getSharedWorkout,
   saveSharedWorkout,
 } from "../controllers/entry.controller.js";
-import mongoose from "mongoose";
-import Entry from "../models/entry.model.js";
-import { supabase } from "../supabase/supabase.js";
-import { verifyIdToken } from "../middleware/auth.js"; //
+import { verifyIdToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -72,43 +69,8 @@ export const handleFileUpload = (req, res, next) => {
   next();
 };
 
-router.get("/", getEntrys);
+router.get("/", verifyIdToken, getEntrys);
 router.post("/", verifyIdToken, createEntry);
-
-// Test route to check if entry routes are working
-router.get("/test", (req, res) => {
-  res.json({ success: true, message: "Entry routes are working" });
-});
-
-// Database connection test route
-router.get("/db-test", async (req, res) => {
-  try {
-    const connectionState = mongoose.connection.readyState;
-    const connectionStates = {
-      0: "disconnected",
-      1: "connected",
-      2: "connecting",
-      3: "disconnecting",
-    };
-
-    // Try to count entries to test database access
-    const entryCount = await Entry.countDocuments();
-
-    res.json({
-      success: true,
-      message: "Database test completed",
-      connectionState: connectionStates[connectionState],
-      entryCount: entryCount,
-      mongoUri: process.env.MONGO_URI ? "Set" : "Not set",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Database test failed",
-      error: error.message,
-    });
-  }
-});
 
 router.get("/:id/draft", verifyIdToken, getEntryDraft);
 router.put("/:id/draft", verifyIdToken, saveEntryDraft);
@@ -133,26 +95,6 @@ router.delete("/:entryId/comments/:commentId", verifyIdToken, deleteComment);
 
 // PUT route for updating entries (frontend expects this)
 router.put("/:id", verifyIdToken, updateEntryPut);
-
-// Completely basic PUT route without any database operations
-router.put("/:id/basic", (req, res) => {
-  res.json({
-    success: true,
-    message: "Basic PUT route is working",
-    id: req.params.id,
-    body: req.body,
-  });
-});
-
-// Simple test PUT route to check if PUT routing works
-router.put("/:id/test", (req, res) => {
-  res.json({
-    success: true,
-    message: "PUT route is working",
-    id: req.params.id,
-    body: req.body,
-  });
-});
 
 // Sharing routes
 router.post("/:entryId/share", verifyIdToken, generateShareLink);

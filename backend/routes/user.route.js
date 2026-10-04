@@ -61,8 +61,8 @@ router.put("/privacy", verifyIdToken, updateUserPrivacy);
 // Check if a user is following another user
 router.get("/following/:targetUserId", verifyIdToken, checkFollowing);
 
-// Get user profile image by UID (for ProductCard)
-router.get("/users/:uid", getUser);
+// Profile fields for a uid. Private bio/goal/gym depend on the viewer.
+router.get("/users/:uid", verifyIdToken, getUser);
 
 // Get batch profile images for multiple users (optimized for mobile)
 router.post("/batch-profile-images", verifyIdToken, getBatchProfileImages);
@@ -89,7 +89,7 @@ router.get("/getCurrentUser", verifyIdToken, getCurrentUser);
 router.get("/getUserProfile/:uid", verifyIdToken, getUserProfile);
 router.get("/getUserProfile/userId/:userId", verifyIdToken, getUserProfile);
 router.get("/getUsers", verifyIdToken, getUsers);
-router.get("/searchUsers", searchUsers);
+router.get("/searchUsers", verifyIdToken, searchUsers);
 router.post(
   "/updateUserBackgroundPicture",
   verifyIdToken,

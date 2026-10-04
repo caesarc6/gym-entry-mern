@@ -143,7 +143,15 @@ export const handleFileUpload = (req, res, next) => {
 // get all products
 export const getEntrys = async (req, res) => {
   try {
-    const entrys = await Entry.find({});
+    const authUser = await findUserByAuth(req.user);
+    const uids = [...getUserUidSet(authUser, req.user?.uid)].filter(Boolean);
+    if (uids.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const entrys = await Entry.find({ uid: { $in: uids } }).select(
+      "uid name description image likes comments createdAt trainerUid trainerName trainerUsername"
+    );
     res.status(200).json({ success: true, data: entrys });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
@@ -1000,9 +1008,19 @@ export const editComment = async (req, res) => {
   }
 };
 
-// Cleanup malformed comments in all entries (utility function)
+// Admin-only. Loads every entry and deletes top-level comments missing uid or
+// text, then save() writes the document back. Comment.uid is optional so older
+// rows still validate, which means this permanently removes those comments.
 export const cleanupMalformedComments = async (req, res) => {
   try {
+    const authUser = await findUserByAuth(req.user);
+    if (!authUser?.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: Admin access required",
+      });
+    }
+
     const entries = await Entry.find({});
     let updatedCount = 0;
 
