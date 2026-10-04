@@ -6,6 +6,7 @@ import {
   updateUserProfile,
   handleOptionalFileUpload,
   createPost,
+  handlePostImageUpload,
   getPostsByUID,
   getCurrentUser,
   getUserProfile,
@@ -29,12 +30,14 @@ import {
   rejectTrainerDashboardAccess,
   getWorkoutHabitSummary,
   searchUsers,
+  deleteAccount,
 } from "../controllers/user.controller.js";
 import { linkFirebaseToSupabase } from "../controllers/migration.controller.js";
 
 const router = express.Router();
 
 router.put("/privacy", verifyIdToken, updateUserPrivacy);
+router.delete("/account", verifyIdToken, deleteAccount);
 
 router.get("/profile-image/:uid", getProfileImageByUid);
 
@@ -45,7 +48,7 @@ router.post(
   handleOptionalFileUpload,
   updateUserProfile,
 );
-router.post("/posts", verifyIdToken, createPost);
+router.post("/posts", verifyIdToken, handlePostImageUpload, createPost);
 router.get("/posts/home-feed", verifyIdToken, getHomeFeed);
 router.get("/workout-habit-summary", verifyIdToken, getWorkoutHabitSummary);
 router.get("/posts/:uid", verifyIdToken, getPostsByUID);

@@ -24,13 +24,13 @@ import { cn } from "../lib/utils";
 import { landingDarkMainCanvas } from "../lib/homeLandingDarkTheme";
 import ProductPreviewSection from "../components/ProductPreviewSection";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+import { feedPageLimit } from "../utils/feedPageLimit";
 import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
 import ProductCard from "../components/ProductCard";
 import FeedPullToRefresh from "../components/FeedPullToRefresh";
 
 const isCapacitorNative = getIsCapacitorNative();
-/** Smaller pages on native reduce feed DOM + ProductCard instances per request. */
-const HOME_FEED_PAGE_SIZE = isCapacitorNative ? 4 : 6;
+const HOME_FEED_PAGE_SIZE = feedPageLimit();
 /** Second home tap within this window reloads the feed. */
 const HOME_DOUBLE_TAP_MS = 350;
 
@@ -91,6 +91,7 @@ const HomePage = () => {
   const sentinelRef = useRef(null);
   const isSignedInRef = useRef(false);
   const lastHomeTapAtRef = useRef(0);
+  const provisionAttemptedRef = useRef(false);
   const [limit] = useState(HOME_FEED_PAGE_SIZE);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -412,9 +413,33 @@ const HomePage = () => {
         if (cancelled || isRequestAbortError(error)) {
           return;
         }
-      setEntries([]);
-      setHasMore(false);
-      toast.error("Error", error.message || "Failed to load feed");
+        const missingAccount =
+          error.response?.status === 404 &&
+          /user not found/i.test(error.response?.data?.message || "");
+        if (missingAccount && !provisionAttemptedRef.current) {
+          provisionAttemptedRef.current = true;
+          try {
+            await apiClient.post(API_ENDPOINTS.PROTECTED);
+            if (!cancelled) {
+              setFeedEpoch((epoch) => epoch + 1);
+              return;
+            }
+          } catch {
+            // Provisioning failed; keep whatever is already on screen.
+          }
+        }
+        const cached = useProductStore.getState().homeFeedCache;
+        const keepCached =
+          cached?.uid === uid &&
+          Array.isArray(cached.entries) &&
+          cached.entries.length > 0;
+        if (!keepCached) {
+          setEntries([]);
+          setHasMore(false);
+        }
+        const serverMessage =
+          error.response?.data?.message || error.response?.data?.error;
+        toast.error("Error", serverMessage || "Failed to load feed");
       } finally {
         if (!cancelled) {
           setIsLoading(false);

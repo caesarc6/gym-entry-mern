@@ -45,6 +45,40 @@ const RouteFallback = () => (
 /** Minimal placeholder so layout does not jump while the header chunk loads. */
 const HeaderFallback = () => <Box minH="64px" w="100%" aria-hidden />;
 
+const PROTECTED_PAGES = [
+  ["/notifications", NotificationsPage],
+  ["/create", CreatePage],
+  ["/editProfile", ModifyProfile],
+  ["/settings", SettingsPage],
+  ["/user/:userId", UserProfilePage],
+  ["/shared-workout/:shareToken", SharedWorkoutPage],
+  ["/client-claim/:shareToken", ClientClaimPage],
+  ["/trainer/dashboard", TrainerDashboard],
+  ["/trainer/create-shared-workout", CreateSharedWorkout],
+  ["/trainer/client/:clientName", ClientWorkoutsPage],
+  ["/admin/dashboard", AdminDashboard],
+  ["/analytics", AnalyticsPage],
+  ["/profile", ProfilePage],
+];
+
+const NATIVE_TAB_PATHS = new Set(["/analytics", "/profile"]);
+
+function protectedRoutes(omitNativeTabs) {
+  return PROTECTED_PAGES.filter(
+    ([path]) => !(omitNativeTabs && NATIVE_TAB_PATHS.has(path)),
+  ).map(([path, Page]) => (
+    <Route
+      key={path}
+      path={path}
+      element={
+        <RequireAuth>
+          <Page />
+        </RequireAuth>
+      }
+    />
+  ));
+}
+
 /** Tracks which main tabs the user has opened so we do not mount Analytics + Profile until needed (native perf). */
 function getNativeTabVisitSet(pathname) {
   const visited = new Set();
@@ -137,94 +171,7 @@ function NativeTabsLayout() {
         <Routes>
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
-          <Route
-            path="/notifications"
-            element={
-              <RequireAuth>
-                <NotificationsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/create"
-            element={
-              <RequireAuth>
-                <CreatePage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/editProfile"
-            element={
-              <RequireAuth>
-                <ModifyProfile />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <RequireAuth>
-                <SettingsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/user/:userId"
-            element={
-              <RequireAuth>
-                <UserProfilePage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/shared-workout/:shareToken"
-            element={
-              <RequireAuth>
-                <SharedWorkoutPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/client-claim/:shareToken"
-            element={
-              <RequireAuth>
-                <ClientClaimPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/trainer/dashboard"
-            element={
-              <RequireAuth>
-                <TrainerDashboard />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/trainer/create-shared-workout"
-            element={
-              <RequireAuth>
-                <CreateSharedWorkout />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/trainer/client/:clientName"
-            element={
-              <RequireAuth>
-                <ClientWorkoutsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <RequireAuth>
-                <AdminDashboard />
-              </RequireAuth>
-            }
-          />
+          {protectedRoutes(true)}
         </Routes>
         </Suspense>
       )}
@@ -270,39 +217,12 @@ function App() {
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<HomePage />} />
-                <Route path="/create" element={<CreatePage />} />
-                <Route path="/editProfile" element={<ModifyProfile />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/user/:userId" element={<UserProfilePage />} />
+                {protectedRoutes(false)}
                 <Route path="/signup" element={<SignUpFlow />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/terms-of-service" element={<TermsOfService />} />
-                <Route path="/notifications" element={<NotificationsPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route
-                  path="/shared-workout/:shareToken"
-                  element={<SharedWorkoutPage />}
-                />
-                <Route
-                  path="/client-claim/:shareToken"
-                  element={<ClientClaimPage />}
-                />
-                <Route
-                  path="/trainer/dashboard"
-                  element={<TrainerDashboard />}
-                />
-                <Route
-                  path="/trainer/create-shared-workout"
-                  element={<CreateSharedWorkout />}
-                />
-                <Route
-                  path="/trainer/client/:clientName"
-                  element={<ClientWorkoutsPage />}
-                />
-                <Route path="/admin/dashboard" element={<AdminDashboard />} />
               </Routes>
             </Suspense>
           </div>

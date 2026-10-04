@@ -38,6 +38,10 @@ import { PROFILE_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import PrivacySettings from "../components/PrivacySettings";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { getCurrentAuthUser, signOutAll } from "../utils/auth";
+import {
+  buildEmptyWorkoutHabitSummary,
+  syncWorkoutHabitWidget,
+} from "../utils/workoutHabitWidget";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { cn } from "../lib/utils";
 import { useProductStore } from "../store/product";
@@ -77,6 +81,8 @@ const SettingsPage = () => {
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [isSavingBackground, setIsSavingBackground] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const themeSliderRef = useRef(null);
   const isThemeDraggingRef = useRef(false);
@@ -441,6 +447,32 @@ const SettingsPage = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const response = await apiClient.delete(API_ENDPOINTS.DELETE_ACCOUNT);
+      if (response.data?.success === false) {
+        throw new Error(response.data.message || "Failed to delete account.");
+      }
+      await syncWorkoutHabitWidget(buildEmptyWorkoutHabitSummary()).catch(
+        () => {},
+      );
+      await signOutAll();
+      setCurrentUser(null);
+      navigate("/", { replace: true });
+    } catch (error) {
+      toast.error(
+        "Could not delete account",
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to delete account.",
+      );
+    } finally {
+      setIsDeletingAccount(false);
+      setShowDeleteAccount(false);
+    }
+  };
+
   return (
     <>
       {isNative ? (
@@ -768,11 +800,74 @@ const SettingsPage = () => {
                   Sign out
                 </Button>
               </Flex>
+              <Flex
+                align={{ base: "stretch", md: "center" }}
+                justify="space-between"
+                gap={5}
+                direction={{ base: "column", md: "row" }}
+                mt={6}
+              >
+                <Box>
+                  <Heading size="sm" color={colors.textPrimary} fontWeight="500">
+                    Delete account
+                  </Heading>
+                  <Text fontSize="sm" color={colors.textMuted} mt={2} lineHeight="1.7">
+                    Removes your profile, workouts, photos, and sign-in. This
+                    cannot be undone.
+                  </Text>
+                </Box>
+                <Button
+                  minW={{ md: "220px" }}
+                  colorScheme="red"
+                  borderRadius="full"
+                  onClick={() => setShowDeleteAccount(true)}
+                >
+                  Delete account
+                </Button>
+              </Flex>
             </Box>
           </VStack>
         </Box>
         </VStack>
       </Container>
+
+      <Modal
+        isOpen={showDeleteAccount}
+        onClose={() => {
+          if (!isDeletingAccount) setShowDeleteAccount(false);
+        }}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent bg={colors.bgCard}>
+          <ModalHeader color={colors.textPrimary}>Delete account</ModalHeader>
+          <ModalCloseButton isDisabled={isDeletingAccount} />
+          <ModalBody>
+            <Text color={colors.textMuted}>
+              This deletes your workouts, photos, profile, and sign-in. The
+              home-screen widget is cleared on this device.
+            </Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setShowDeleteAccount(false)}
+              isDisabled={isDeletingAccount}
+            >
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              onClick={handleDeleteAccount}
+              isLoading={isDeletingAccount}
+              spinner={<ButtonLoadingSpinner />}
+            >
+              Delete account
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {/* Background Edit Modal */}
       <Modal isOpen={isBackgroundOpen} onClose={onBackgroundClose}>

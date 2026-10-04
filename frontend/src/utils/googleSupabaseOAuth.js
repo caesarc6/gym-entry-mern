@@ -9,7 +9,8 @@ import { Browser } from "@capacitor/browser";
  * @param {string} opts.redirectPath - in-app path after auth
  * @param {string} [opts.debugContext] - label for debug logs
  */
-export async function startGoogleSupabaseOAuth({
+export async function startSupabaseOAuth({
+  provider = "google",
   authMode,
   redirectPath,
   debugContext = "OAuth",
@@ -30,7 +31,7 @@ export async function startGoogleSupabaseOAuth({
   pushAuthDebug(`${debugContext}: starting OAuth`, { redirectTo });
 
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
+    provider,
     options: {
       redirectTo,
       skipBrowserRedirect: true,
@@ -53,4 +54,8 @@ export async function startGoogleSupabaseOAuth({
   }
 
   window.location.replace(data.url);
+}
+
+export function startGoogleSupabaseOAuth(options) {
+  return startSupabaseOAuth({ ...options, provider: "google" });
 }

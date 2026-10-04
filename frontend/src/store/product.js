@@ -3,6 +3,8 @@ import { API_ENDPOINTS, apiClient } from "../config/api";
 import { supabase } from "../supabase/supabase";
 import { getCurrentAuthUser } from "../utils/auth";
 import { applyOptimisticWorkoutToSummary } from "../utils/workoutHabitWidget";
+import { dataUrlToFile, isDataImage } from "../utils/imageUpload";
+import { feedPageLimit } from "../utils/feedPageLimit";
 // import { commentProduct } from "../../../backend/controllers/product.controller";
 
 const FEED_CACHE_TTL_MS = 15 * 60_000;
@@ -32,7 +34,7 @@ const upsertEntryInCache = (cache, entry, ownerUid) => {
     return cache;
   }
 
-  const limit = cache.limit || cache.pagination?.limit || 6;
+  const limit = cache.limit || cache.pagination?.limit || feedPageLimit();
   const nextEntries = [entry, ...entries].slice(0, limit);
   const nextPagination = cache.pagination
     ? {
@@ -66,7 +68,7 @@ const replaceEntryInCache = (cache, tempId, entry) => {
 const removeEntryFromCache = (cache, id) => {
   if (!cache || !Array.isArray(cache.entries)) return cache;
   const entries = cache.entries.filter((item) => String(item._id) !== String(id));
-  const limit = cache.limit || cache.pagination?.limit || 6;
+  const limit = cache.limit || cache.pagination?.limit || feedPageLimit();
   const nextPagination = cache.pagination
     ? {
         ...cache.pagination,
@@ -117,13 +119,13 @@ const buildOptimisticProfile = (state, entry, ownerUid) => {
 const seedHomeFeedCache = (entry, viewerUid) => ({
   uid: viewerUid,
   page: 1,
-  limit: 6,
+  limit: feedPageLimit(),
   entries: [entry],
   pagination: {
     currentPage: 1,
     totalPages: 1,
     totalPosts: 1,
-    limit: 6,
+    limit: feedPageLimit(),
   },
   // Stale on purpose: show the optimistic post immediately, then HomePage must refetch
   // the full page-1 feed (otherwise a 1-item seed blocks network for the TTL window).
@@ -133,13 +135,13 @@ const seedHomeFeedCache = (entry, viewerUid) => ({
 const seedProfileTabCache = (state, entry, ownerUid) => ({
   uid: ownerUid,
   currentPage: 1,
-  limit: 6,
+  limit: feedPageLimit(),
   entries: [entry],
   pagination: {
     currentPage: 1,
     totalPages: 1,
     totalPosts: 1,
-    limit: 6,
+    limit: feedPageLimit(),
   },
   userProfile: buildOptimisticProfile(state, entry, ownerUid),
   profileLoaded: true,
@@ -273,7 +275,20 @@ export const useProductStore = create((set) => ({
     delete postPayload.postImageName;
 
     try {
-      const response = await apiClient.post(API_ENDPOINTS.CREATE_POST, postPayload);
+      let response;
+      if (isDataImage(postPayload.image)) {
+        const form = new FormData();
+        form.append("name", postPayload.name);
+        form.append("description", postPayload.description);
+        const file = dataUrlToFile(
+          postPayload.image,
+          postPayload.imageName || "photo.jpg",
+        );
+        if (file) form.append("image", file);
+        response = await apiClient.post(API_ENDPOINTS.CREATE_POST, form);
+      } else {
+        response = await apiClient.post(API_ENDPOINTS.CREATE_POST, postPayload);
+      }
 
       const data = response.data;
       const createdPost = normalizePostForFeeds(data.data);
@@ -284,7 +299,13 @@ export const useProductStore = create((set) => ({
         data: createdPost,
       };
     } catch (error) {
-      throw new Error(error.response?.data?.error || "Failed to create post");
+      throw new Error(
+        error.photoTooLarge
+          ? error.message
+          : error.response?.data?.message ||
+              error.response?.data?.error ||
+              "Failed to create post",
+      );
     }
   },
 
@@ -383,8 +404,21 @@ export const useProductStore = create((set) => ({
       const requestConfig = { timeout: ENTRY_UPDATE_TIMEOUT_MS };
       let response;
 
+      const imageFile = isDataImage(updatedEntry?.image)
+        ? dataUrlToFile(updatedEntry.image, updatedEntry.imageName || "photo.jpg")
+        : null;
+      const requestBody = imageFile
+        ? (() => {
+            const form = new FormData();
+            form.append("name", updatedEntry.name || "");
+            form.append("description", updatedEntry.description || "");
+            form.append("image", imageFile);
+            return form;
+          })()
+        : updatedEntry;
+
       try {
-        response = await apiClient.put(url, updatedEntry, requestConfig);
+        response = await apiClient.put(url, requestBody, requestConfig);
       } catch (error) {
         if (!isRetryableEntryUpdateError(error)) {
           throw error;

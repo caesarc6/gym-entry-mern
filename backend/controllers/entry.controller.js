@@ -497,8 +497,29 @@ export const updateEntryPut = async (req, res) => {
 
     let postImageUrl = null;
 
-    // Handle image upload if provided
-    if (imageName && imageName !== "undefined" && image) {
+    if (req.file?.buffer) {
+      const safeName = req.file.originalname || imageName || "photo.jpg";
+      const filePath = generateSafeFilePath(canonicalUid, safeName, "images");
+      const { error } = await supabase.storage.from("post_images").upload(
+        filePath,
+        req.file.buffer,
+        {
+          contentType:
+            req.file.mimetype || inferImageContentType(null, safeName),
+          cacheControl: "3600",
+          upsert: true,
+        },
+      );
+
+      if (error) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload image",
+        });
+      }
+
+      postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+    } else if (imageName && imageName !== "undefined" && image && String(image).includes("base64")) {
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
       const filePath = generateSafeFilePath(canonicalUid, imageName, "images");

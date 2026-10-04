@@ -775,6 +775,28 @@ export const parseWorkoutDescription = (description) => {
     const exercise = parseExerciseLine(line);
     if (exercise) {
       exercises.push(exercise);
+      continue;
+    }
+    const cardio = parseCardioLine(line);
+    if (cardio) {
+      const roundedMinutes = cardio.minutes ? Math.round(cardio.minutes) : 0;
+      exercises.push({
+        name: cardio.name,
+        sets: [
+          {
+            reps: roundedMinutes,
+            weight: 0,
+            unit: "min",
+            completed: true,
+          },
+        ],
+        totalVolume: 0,
+        maxWeight: 0,
+        totalReps: roundedMinutes,
+        minutes: cardio.minutes,
+        incline: cardio.incline,
+        level: cardio.level,
+      });
     }
   }
 

@@ -98,6 +98,7 @@ export const API_ENDPOINTS = {
 
   // Privacy endpoints
   PRIVACY: buildApiUrl("privacy"),
+  DELETE_ACCOUNT: buildApiUrl("account"),
 
   // Trainer dashboard access endpoints
   CHECK_TRAINER_DASHBOARD_ACCESS: buildApiUrl("trainer-dashboard/access"),
@@ -236,6 +237,15 @@ apiClient.interceptors.request.use(
       console.warn("Failed to get auth token:", error);
     }
 
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+      const headers = config.headers;
+      if (headers?.delete) {
+        headers.delete("Content-Type");
+      } else if (headers) {
+        delete headers["Content-Type"];
+      }
+    }
+
     return config;
   },
   (error) => {
@@ -249,6 +259,10 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (error.response?.status === 413) {
+      error.photoTooLarge = true;
+      error.message = "Photo is too large. Use a smaller photo.";
+    }
     return Promise.reject(error);
   },
 );

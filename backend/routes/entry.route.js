@@ -82,7 +82,25 @@ router.put("/:entryId/comments/:commentId", verifyIdToken, editComment);
 router.delete("/:entryId/comments/:commentId", verifyIdToken, deleteComment);
 
 // PUT route for updating entries (frontend expects this)
-router.put("/:id", verifyIdToken, updateEntryPut);
+const optionalEntryImage = (req, res, next) => {
+  upload.single("image")(req, res, (err) => {
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({
+        success: false,
+        message: "Photo is too large. Use a smaller photo.",
+      });
+    }
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || "Invalid photo",
+      });
+    }
+    next();
+  });
+};
+
+router.put("/:id", verifyIdToken, optionalEntryImage, updateEntryPut);
 
 // Sharing routes
 router.post("/:entryId/share", verifyIdToken, generateShareLink);

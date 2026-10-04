@@ -46,9 +46,10 @@ import PrivacySettings from "../components/PrivacySettings";
 import { useProductStore as useUiStore } from "../store/product";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+import { feedPageLimit } from "../utils/feedPageLimit";
 
 const isCapacitorNative = getIsCapacitorNative();
-const PROFILE_POSTS_PAGE_SIZE = isCapacitorNative ? 4 : 6;
+const PROFILE_POSTS_PAGE_SIZE = feedPageLimit();
 const ProductCard = lazy(() => import("../components/ProductCard"));
 
 const ProfilePage = () => {

@@ -108,7 +108,8 @@ const PrivacyPolicy = () => {
               <p>
                 You can update account details and privacy settings in the app. You
                 can also choose what profile and activity information you add to the
-                service. If you want to request account deletion or data access,
+                service. Delete your account in Settings. That removes your profile,
+                workouts, stored photos, and sign-in. For a copy of your data,
                 contact us using the information below.
               </p>
             </Section>

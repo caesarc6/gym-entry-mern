@@ -39,13 +39,18 @@ If signing fails: Apple Developer → Identifiers → enable **App Groups** on b
    - Bundle ID: `com.etherealgains.gymentry`
    - SKU: `ethereal-gains-ios`
    - Platform: iOS
-2. Xcode: set destination to **Any iOS Device (arm64)**.
-3. **Product → Archive**.
-4. Organizer → select archive → **Distribute App** → **App Store Connect** → **Upload**.
-5. Wait for processing in App Store Connect → **TestFlight**.
-6. Export compliance: should be auto-cleared (`ITSAppUsesNonExemptEncryption` = false).
-7. **Internal Testing** → create group → add yourself → enable the build.
-8. On iPhone: install **TestFlight** → install Ethereal Gains.
+2. From the repo, immediately before opening Xcode to archive:
+   ```bash
+   npm run cap:sync:ios:store
+   ```
+   That script refuses to finish if `capacitor.config.json` still has a live-reload `server.url`. Do not archive after `cap:sync:live`.
+3. Xcode: set destination to **Any iOS Device (arm64)**.
+4. **Product → Archive**.
+5. Organizer → select archive → **Distribute App** → **App Store Connect** → **Upload**.
+6. Wait for processing in App Store Connect → **TestFlight**.
+7. Export compliance: should be auto-cleared (`ITSAppUsesNonExemptEncryption` = false).
+8. **Internal Testing** → create group → add yourself → enable the build.
+9. On iPhone: install **TestFlight** → install Ethereal Gains.
 
 Bump `CURRENT_PROJECT_VERSION` in Xcode (or `project.pbxproj`) before every new upload. Keep marketing version `1.0` until you ship a user-facing version change.
 
@@ -65,16 +70,16 @@ Required in App Store Connect → your app → **App Store** tab:
 | Screenshots | 6.7" iPhone required (and others Apple prompts for) |
 | Description + keywords | Short marketing copy |
 | Review contact | Your email + phone |
-| Demo account | Username/password if login required for review |
+| Demo account | Seed with `node backend/scripts/seed-reviewer-account.js` (`REVIEWER_EMAIL`, `REVIEWER_PASSWORD`, plus Mongo and Supabase service role). Put that email and password in App Review Information. |
 | Version 1.0 “What’s New” | First release notes |
 
 ### Suggested privacy nutrition labels (edit if inaccurate)
 
-- **Contact Info** (email/name) — Account + App Functionality
-- **User Content** (photos, workout posts) — App Functionality
-- **Identifiers** (User ID) — App Functionality
-- **Usage Data** (if analytics) — Analytics / App Functionality
-- Linked to user: yes for account data; tracking: no (unless you add ad/tracking SDKs)
+- **Contact Info** (email, name) — App Functionality, linked to the user
+- **User Content** (photos, workout posts) — App Functionality, linked to the user
+- **Health & Fitness** (workout logs) — App Functionality, linked to the user
+- **Identifiers** (user ID) — App Functionality, linked to the user
+- Tracking: no
 
 Submit for Review only after the same build is healthy on TestFlight.
 

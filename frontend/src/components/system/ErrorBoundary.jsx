@@ -69,8 +69,36 @@ export default class ErrorBoundary extends React.Component {
           >
             {message}
           </pre>
-          <div style={{ color: "#6b7280", marginTop: 12, fontSize: 12 }}>
-            Open DevTools Console for full stack trace.
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                minHeight: 44,
+                padding: "0 16px",
+                borderRadius: 999,
+                border: "1px solid #d1d5db",
+                background: "white",
+                fontWeight: 600,
+              }}
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.assign("/")}
+              style={{
+                minHeight: 44,
+                padding: "0 16px",
+                borderRadius: 999,
+                border: "none",
+                background: "#111827",
+                color: "white",
+                fontWeight: 600,
+              }}
+            >
+              Go home
+            </button>
           </div>
         </div>
       </div>

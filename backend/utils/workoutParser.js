@@ -633,6 +633,67 @@ export const parseExerciseLine = (line) => {
   return null;
 };
 
+const minutesFromUnit = (amount, unit) => {
+  const value = Number(amount);
+  if (!value) return 0;
+  return /^h/i.test(unit) ? value * 60 : value;
+};
+
+/**
+ * Lines like "Treadmill 20 min incline 5 lvl 8" are not weighted sets.
+ * Matches the client parser so server analytics keep the same cardio lines.
+ */
+export const parseCardioLine = (line) => {
+  const cleaned = stripGymOrLocationTagsFromLine(line);
+  if (!cleaned || /\d+(?:\.\d+)?\s*(?:lbs?|kg)\b/i.test(cleaned)) return null;
+
+  const timePattern = /(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b/gi;
+  let minutes = 0;
+  let sawTime = false;
+  for (const match of cleaned.matchAll(timePattern)) {
+    sawTime = true;
+    minutes += minutesFromUnit(match[1], match[2]);
+  }
+
+  const inclineMatch =
+    cleaned.match(/\bincline\s*(\d+(?:\.\d+)?)/i) ||
+    cleaned.match(/\b(\d+(?:\.\d+)?)\s*incline\b/i);
+  const levelMatch =
+    cleaned.match(/\b(?:lvl|level)\s*(\d+(?:\.\d+)?)/i) ||
+    cleaned.match(/\b(\d+(?:\.\d+)?)\s*(?:lvl|level)\b/i);
+  if (!sawTime && !inclineMatch && !levelMatch) return null;
+
+  const name = cleaned
+    .replace(timePattern, " ")
+    .replace(/\bincline\s*\d+(?:\.\d+)?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*incline\b/gi, " ")
+    .replace(/\b(?:lvl|level)\s*\d+(?:\.\d+)?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*(?:lvl|level)\b/gi, " ")
+    .replace(/[-–—]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!name) return null;
+
+  const roundedMinutes = sawTime ? Math.round(minutes) : 0;
+  return {
+    name: cleanExerciseName(name, 0),
+    sets: [
+      {
+        reps: roundedMinutes,
+        weight: 0,
+        unit: "min",
+        completed: true,
+      },
+    ],
+    totalVolume: 0,
+    maxWeight: 0,
+    totalReps: roundedMinutes,
+    minutes: sawTime ? minutes : null,
+    incline: inclineMatch ? Number(inclineMatch[1] || inclineMatch[2]) : null,
+    level: levelMatch ? Number(levelMatch[1] || levelMatch[2]) : null,
+  };
+};
+
 /**
  * Parse workout description and extract exercises
  * @param {string} description - Full workout description
@@ -651,7 +712,10 @@ export const parseWorkoutDescription = (description) => {
     const exercise = parseExerciseLine(line);
     if (exercise) {
       exercises.push(exercise);
+      continue;
     }
+    const cardio = parseCardioLine(line);
+    if (cardio) exercises.push(cardio);
   }
 
   return exercises;

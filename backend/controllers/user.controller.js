@@ -16,6 +16,8 @@ import {
   removeSupabaseObjectByPublicUrl,
 } from "../utils/fileUtils.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
+import Workout from "../models/workout.model.js";
+import SharedWorkout from "../models/sharedWorkout.model.js";
 import { sanitizeTextFields, sanitizeTextInput } from "../utils/sanitizeInput.js";
 import {
   addGregorianDaysToDateKey,
@@ -227,6 +229,30 @@ export const handleOptionalFileUpload = (req, res, next) => {
       });
     }
     // Allow the request to proceed even if no file is uploaded
+    next();
+  });
+};
+
+export const handlePostImageUpload = (req, res, next) => {
+  upload.single("image")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({
+          success: false,
+          message: "Photo is too large. Use a smaller photo.",
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: "Photo could not be uploaded.",
+      });
+    }
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || "Invalid photo",
+      });
+    }
     next();
   });
 };
@@ -673,7 +699,26 @@ export const createPost = async (req, res) => {
     const canonicalUid = author?.uid || uid;
     let finalImage = image;
 
-    if (
+    if (req.file?.buffer) {
+      const safeName = req.file.originalname || imageName || "post-image.jpg";
+      const filePath = generateSafeFilePath(canonicalUid, safeName, "images");
+      const { error } = await supabase.storage
+        .from("post_images")
+        .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype || inferImageContentType(null, safeName),
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (error) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload image",
+        });
+      }
+
+      finalImage = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
+    } else if (
       image &&
       typeof image === "string" &&
       image.includes("base64")
@@ -693,8 +738,8 @@ export const createPost = async (req, res) => {
 
       if (error) {
         return res.status(500).json({
-          error: "Failed to upload image",
-          details: error.message,
+          success: false,
+          message: "Failed to upload image",
         });
       }
 
@@ -721,7 +766,10 @@ export const createPost = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: "Failed to create post" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to create post",
+    });
   }
 };
 
@@ -1814,6 +1862,7 @@ export const getHomeFeed = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("getHomeFeed failed", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -2157,6 +2206,96 @@ export const cancelFollowRequest = async (req, res) => {
       success: false,
       message: "Server error",
       error: error.message,
+    });
+  }
+};
+
+const removeStoredImage = async (bucket, url) => {
+  if (!url || typeof url !== "string") return;
+  if (!url.includes("/storage/v1/object/")) return;
+  try {
+    await removeSupabaseObjectByPublicUrl(supabase, bucket, url);
+  } catch {
+    // A missing object should not block account deletion.
+  }
+};
+
+export const deleteAccount = async (req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({
+        success: false,
+        message: "Account deletion is unavailable right now.",
+      });
+    }
+
+    const authUid = String(req.user?.uid || "").trim();
+    if (!authUid) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: User information not found",
+      });
+    }
+
+    const user = await findUserByAnyUid(authUid);
+    const uids = user ? linkedUidStrings(user) : [authUid];
+    const uniqueUids = [...new Set(uids.filter(Boolean))];
+
+    if (user) {
+      const entries = await Entry.find({ uid: { $in: uniqueUids } }).select(
+        "image",
+      );
+      for (const entry of entries) {
+        await removeStoredImage("post_images", entry.image);
+      }
+      await Entry.deleteMany({ uid: { $in: uniqueUids } });
+      await Workout.deleteMany({ userId: { $in: uniqueUids } });
+
+      const sharedWorkouts = await SharedWorkout.find({
+        creatorUid: { $in: uniqueUids },
+      }).select("image");
+      for (const workout of sharedWorkouts) {
+        await removeStoredImage("post_images", workout.image);
+      }
+      await SharedWorkout.deleteMany({ creatorUid: { $in: uniqueUids } });
+      await WorkoutAssignment.deleteMany({
+        $or: [
+          { assignedToUid: { $in: uniqueUids } },
+          { sharedByUid: { $in: uniqueUids } },
+        ],
+      });
+
+      await FollowRequest.deleteMany({
+        $or: [{ requester: user._id }, { recipient: user._id }],
+      });
+      await User.updateMany(
+        { $or: [{ followers: user._id }, { following: user._id }] },
+        { $pull: { followers: user._id, following: user._id } },
+      );
+
+      await removeStoredImage("user_profiles", user.picture);
+      await removeStoredImage("user_backgrounds", user.backgroundPicture);
+      await User.deleteOne({ _id: user._id });
+    }
+
+    const supabaseId = user?.supabaseUid || authUid;
+    const { error: authError } =
+      await supabaseAdmin.auth.admin.deleteUser(supabaseId);
+    if (authError && !/not found/i.test(authError.message || "")) {
+      return res.status(500).json({
+        success: false,
+        message: "Account data was removed, but sign-in could not be deleted.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Account deleted",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete account",
     });
   }
 };
