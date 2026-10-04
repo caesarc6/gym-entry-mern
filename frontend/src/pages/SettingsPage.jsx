@@ -1,4 +1,5 @@
 import {
+  Avatar,
   Badge,
   Box,
   Button,
@@ -49,13 +50,6 @@ import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlat
 
 const isNative = getIsCapacitorNative();
 
-const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
-const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
-const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
-const defaultBgNightUrl = new URL(
-  "../assets/defaultBgNight.jpg",
-  import.meta.url
-).href;
 const THEME_OPTIONS = [
   { value: "light", label: "Light", description: "Bright" },
   { value: "dark", label: "Dark", description: "Dim" },
@@ -67,10 +61,6 @@ const SettingsPage = () => {
   const toast = useCustomToast();
   const navigate = useNavigate();
   const { themeMode, setThemeMode, currentTheme } = useTheme();
-  const profileColorMode =
-    colors.currentTheme === "light" ? lightUrl : nightUrl;
-  const bgColorMode =
-    colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
   const setCurrentUser = useProductStore((s) => s.setCurrentUser);
   const storeUser = useProductStore((s) => s.currentUser);
 
@@ -880,15 +870,23 @@ const SettingsPage = () => {
             <ModalCloseButton color={colors.textMuted} />
             <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
-                <Image
-                  src={backgroundPreview || bgColorMode}
-                  alt="Background Picture"
+                <Box
                   w="full"
                   h="200px"
-                  objectFit="cover"
+                  bg={colors.bgMuted}
                   borderRadius="2xl"
-                  fallbackSrc={bgColorMode}
-                />
+                  overflow="hidden"
+                >
+                  {backgroundPreview ? (
+                    <Image
+                      src={backgroundPreview}
+                      alt="Background Picture"
+                      w="full"
+                      h="200px"
+                      objectFit="cover"
+                    />
+                  ) : null}
+                </Box>
                 <FileUploader
                   handleFile={handleBackgroundImageUpload}
                   accept="image/jpeg,image/png,image/gif"
@@ -936,12 +934,12 @@ const SettingsPage = () => {
             <ModalCloseButton color={colors.textMuted} />
             <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
-                <Image
-                  src={userProfile.profileImage || profileColorMode}
-                  alt="Profile Picture"
+                <Avatar
+                  name={userProfile.name || userProfile.username}
+                  src={userProfile.profileImage || undefined}
                   boxSize="150px"
-                  objectFit="cover"
-                  borderRadius="full"
+                  bg={colors.bgMuted}
+                  color={colors.textPrimary}
                 />
                 <FileUploader
                   handleFile={handleProfileImageUpload}

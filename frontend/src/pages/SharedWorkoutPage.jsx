@@ -29,9 +29,6 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { getCurrentAuthUser } from "../utils/auth";
 
-// Convert Vite asset imports to actual URLs
-const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
-const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
 const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
 const defaultBgNightUrl = new URL(
   "../assets/defaultBgNight.jpg",
@@ -51,8 +48,6 @@ const SharedWorkoutPage = () => {
   const toast = useCustomToast();
   const navigate = useNavigate();
   const colors = useThemeColors();
-  const profileColorMode =
-    colors.currentTheme === "light" ? lightUrl : nightUrl;
   const bgColorMode =
     colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
 
@@ -227,8 +222,10 @@ const SharedWorkoutPage = () => {
             <HStack spacing={4} w="full" justify="center">
               <Avatar
                 size="lg"
-                src={creator?.picture || profileColorMode}
+                src={creator?.picture || undefined}
                 name={creator?.name || "Creator"}
+                bg={colors.bgMuted}
+                color={colors.textPrimary}
               />
               <VStack align="start" spacing={1}>
                 <Text

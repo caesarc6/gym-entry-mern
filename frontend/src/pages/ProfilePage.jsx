@@ -30,15 +30,6 @@ import { FileUploader } from "../components/FileUploader";
 import { PROFILE_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import { supabase } from "../supabase/supabase";
 import { useThemeColors } from "../hooks/useThemeColors";
-
-// Convert Vite asset imports to actual URLs
-const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
-const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
-const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
-const defaultBgNightUrl = new URL(
-  "../assets/defaultBgNight.jpg",
-  import.meta.url
-).href;
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import { API_ENDPOINTS, apiClient } from "../config/api";
@@ -122,12 +113,9 @@ const ProfilePage = () => {
     clearProfileTabCache,
     feedCacheTtlMs,
   } = useUiStore();
-  const profileColorMode =
-    colors.currentTheme === "light" ? lightUrl : nightUrl;
-  const bgColorMode =
-    colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
-
   const {
+
+
     isOpen: isProfileOpen,
     onOpen: onProfileOpen,
     onClose: onProfileClose,
@@ -793,22 +781,30 @@ const ProfilePage = () => {
         pb={12}
       >
       <Box maxW="800px" mx="auto" w="full" pt={{ base: 2, md: 4 }}>
-        <Box borderRadius="2xl" overflow="hidden">
-          <Image
-            h={{ base: "140px", md: "168px" }}
-            w="full"
-            src={userProfile.backgroundPicture || bgColorMode}
-            fallbackSrc={bgColorMode}
-            objectFit="cover"
-            alt="Background"
-          />
+        <Box borderRadius="2xl" overflow="hidden" bg={colors.bgMuted}>
+          {userProfile.backgroundPicture ? (
+            <Image
+              h={{ base: "140px", md: "168px" }}
+              w="full"
+              src={userProfile.backgroundPicture}
+              objectFit="cover"
+              alt="Background"
+              fallback={
+                <Box h={{ base: "140px", md: "168px" }} w="full" bg={colors.bgMuted} />
+              }
+            />
+          ) : (
+            <Box h={{ base: "140px", md: "168px" }} w="full" bg={colors.bgMuted} />
+          )}
         </Box>
 
         <Flex justify="center" mt={-12}>
           <Avatar
             size="xl"
-            src={userProfile.profileImage || profileColorMode}
-            bg={colors.background}
+            name={userProfile.name || userProfile.username}
+            src={userProfile.profileImage || undefined}
+            bg={colors.bgMuted}
+            color={colors.textPrimary}
             css={{
               border: "4px solid hsl(var(--background))",
             }}
@@ -1122,7 +1118,14 @@ const ProfilePage = () => {
                   >
                     <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
-                        <Avatar src={user.picture || profileColorMode} size="sm" mr={3} />
+                        <Avatar
+                          name={user.name || user.username}
+                          src={user.picture || undefined}
+                          bg={colors.bgMuted}
+                          color={colors.textPrimary}
+                          size="sm"
+                          mr={3}
+                        />
                       </Link>
                       <Link to={`/user/${user.uid}`}>
                         <Box>
@@ -1183,7 +1186,14 @@ const ProfilePage = () => {
                   >
                     <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
-                        <Avatar src={user.picture || profileColorMode} size="sm" mr={3} />
+                        <Avatar
+                          name={user.name || user.username}
+                          src={user.picture || undefined}
+                          bg={colors.bgMuted}
+                          color={colors.textPrimary}
+                          size="sm"
+                          mr={3}
+                        />
                       </Link>
                       <Link to={`/user/${user.uid}`}>
                         <Box>
@@ -1230,12 +1240,12 @@ const ProfilePage = () => {
             <ModalCloseButton color={colors.textMuted} />
             <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
-                <Image
-                  src={userProfile.profileImage || profileColorMode}
-                  alt="Profile Picture"
+                <Avatar
+                  name={userProfile.name || userProfile.username}
+                  src={userProfile.profileImage || undefined}
                   boxSize="150px"
-                  objectFit="cover"
-                  borderRadius="full"
+                  bg={colors.bgMuted}
+                  color={colors.textPrimary}
                 />
                 <FileUploader
                   handleFile={handleProfileImageUpload}
