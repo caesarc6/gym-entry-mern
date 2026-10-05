@@ -9,7 +9,7 @@ import imageCompression from "browser-image-compression";
 const defaultOptions = {
   maxSizeMB: 5, // Validation limit, not the output target
   targetSizeMB: 1.25,
-  maxWidthOrHeight: 1600,
+  maxWidthOrHeight: 1080,
   useWebWorker: true,
   initialQuality: 0.78,
   alwaysKeepResolution: false,

@@ -59,7 +59,7 @@ function ProfilePictureUpload() {
           setError(compressionError);
           setIsProcessing(false);
         },
-        { maxSizeMB: 5 }
+        { maxSizeMB: 5, maxWidthOrHeight: 512 }
       );
     } catch (error) {
       setError("Failed to process image. Please try again.");
@@ -72,6 +72,7 @@ function ProfilePictureUpload() {
       <FileUploader
         handleFile={handleFileUpload}
         maxSizeMB={5}
+        maxWidthOrHeight={512}
         cropAspect={PROFILE_IMAGE_ASPECT}
       />
 

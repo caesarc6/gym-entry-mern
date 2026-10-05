@@ -37,13 +37,15 @@ export const sanitizeFileName = (originalName) => {
 export const generateSafeFilePath = (
   uid,
   originalFileName,
-  folder = "images"
+  folder = "images",
+  extension = "jpg"
 ) => {
   const sanitizedFileName = sanitizeFileName(originalFileName);
   const timestamp = Date.now();
   const randomSuffix = crypto.randomBytes(4).toString("hex");
+  const safeExtension = String(extension || "jpg").replace(/[^a-z0-9]/gi, "") || "jpg";
 
-  return `${folder}/${uid}/${sanitizedFileName}_${timestamp}_${randomSuffix}.jpg`;
+  return `${folder}/${uid}/${sanitizedFileName}_${timestamp}_${randomSuffix}.${safeExtension}`;
 };
 
 /**

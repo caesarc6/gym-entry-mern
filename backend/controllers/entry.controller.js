@@ -14,6 +14,7 @@ import {
   generateSafeFilePath,
   removeSupabaseObjectByPublicUrl,
 } from "../utils/fileUtils.js";
+import { prepareStoredImage } from "../utils/displayImage.js";
 import { attachPopulatedLikesToEntries } from "../utils/entryLikes.js";
 import { syncWorkoutFromEntry } from "./workout.controller.js";
 import { ensureMongoConnected } from "../config/db.js";
@@ -174,13 +175,23 @@ export const updateEntry = async (req, res) => {
       try {
         const base64Data = image.split(";base64,").pop();
         const imageBuffer = Buffer.from(base64Data, "base64");
-        const filePath = generateSafeFilePath(canonicalUid, imageName, "images");
+        const stored = await prepareStoredImage(
+          imageBuffer,
+          "post",
+          inferImageContentType(image, imageName)
+        );
+        const filePath = generateSafeFilePath(
+          canonicalUid,
+          imageName,
+          "images",
+          stored.extension
+        );
 
         // Upload the new image to Supabase storage
         const { data: file, error } = await supabase.storage
           .from("post_images")
-          .upload(filePath, imageBuffer, {
-            contentType: inferImageContentType(image, imageName),
+          .upload(filePath, stored.buffer, {
+            contentType: stored.contentType,
             cacheControl: "3600",
             upsert: true,
           });
@@ -500,13 +511,22 @@ export const updateEntryPut = async (req, res) => {
 
     if (req.file?.buffer) {
       const safeName = req.file.originalname || imageName || "photo.jpg";
-      const filePath = generateSafeFilePath(canonicalUid, safeName, "images");
+      const stored = await prepareStoredImage(
+        req.file.buffer,
+        "post",
+        req.file.mimetype || inferImageContentType(null, safeName)
+      );
+      const filePath = generateSafeFilePath(
+        canonicalUid,
+        safeName,
+        "images",
+        stored.extension
+      );
       const { error } = await supabase.storage.from("post_images").upload(
         filePath,
-        req.file.buffer,
+        stored.buffer,
         {
-          contentType:
-            req.file.mimetype || inferImageContentType(null, safeName),
+          contentType: stored.contentType,
           cacheControl: "3600",
           upsert: true,
         },
@@ -523,13 +543,23 @@ export const updateEntryPut = async (req, res) => {
     } else if (imageName && imageName !== "undefined" && image && String(image).includes("base64")) {
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
-      const filePath = generateSafeFilePath(canonicalUid, imageName, "images");
+      const stored = await prepareStoredImage(
+        imageBuffer,
+        "post",
+        inferImageContentType(image, imageName)
+      );
+      const filePath = generateSafeFilePath(
+        canonicalUid,
+        imageName,
+        "images",
+        stored.extension
+      );
 
       // Upload the new image to Supabase storage
       const { data: file, error } = await supabase.storage
         .from("post_images")
-        .upload(filePath, imageBuffer, {
-          contentType: inferImageContentType(image, imageName),
+        .upload(filePath, stored.buffer, {
+          contentType: stored.contentType,
           cacheControl: "3600",
           upsert: true,
         });

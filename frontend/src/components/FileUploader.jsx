@@ -78,6 +78,7 @@ const subtleTriggerClassName =
 export const FileUploader = ({
   handleFile,
   maxSizeMB = 5,
+  maxWidthOrHeight,
   enableNativeCamera = true,
   showSelectedPreview = true,
   /** When set (width/height), user crops inside the preview before compression. */
@@ -284,7 +285,10 @@ export const FileUploader = ({
           toast.error("Upload Error", error);
           setIsProcessing(false);
         },
-        { maxSizeMB }
+        {
+          maxSizeMB,
+          ...(maxWidthOrHeight ? { maxWidthOrHeight } : {}),
+        }
       );
     } catch {
       setIsProcessing(false);
