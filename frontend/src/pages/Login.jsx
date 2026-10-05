@@ -2,7 +2,7 @@ import { Container, Text, VStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
-import { API_ENDPOINTS, apiClient } from "../config/api";
+import { provisionAccount } from "../utils/provisionAccount";
 import { maybeMigrateAccount } from "../utils/migration";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { useIosAwareGoogleOAuth } from "../hooks/useIosAwareGoogleOAuth";
@@ -89,7 +89,7 @@ const Login = () => {
         throw error;
       }
 
-      const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
+      const response = await provisionAccount();
       await maybeMigrateAccount(response?.data?.data);
       navigate(redirectPath, { replace: true });
     } catch (error) {

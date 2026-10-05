@@ -16,6 +16,10 @@ import sharedWorkoutRoutes from "../routes/sharedWorkout.route.js";
 
 import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
+import {
+  duplicateKeyField,
+  shouldReportCreated,
+} from "../utils/accountProvision.js";
 
 const usernameBase = (name) => {
   const stripped = String(name || "")
@@ -24,12 +28,6 @@ const usernameBase = (name) => {
     .replace(/[^a-z0-9_]/g, "")
     .slice(0, 24);
   return stripped || "user";
-};
-
-const isUsernameConflict = (error) => {
-  if (error?.code !== 11000) return false;
-  if (error.keyPattern?.username) return true;
-  return String(error?.message || "").includes("username");
 };
 
 const allocateUsername = async (name) => {
@@ -196,6 +194,7 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
 
     let user;
     let created = false;
+    let foundBefore = false;
     try {
       const lookupConditions = [{ uid }];
 
@@ -215,6 +214,7 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
       user = await User.findOne({
         $or: lookupConditions,
       });
+      foundBefore = Boolean(user);
     } catch (dbError) {
       return res.status(500).json({
         success: false,
@@ -260,12 +260,13 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
             saved = true;
           } catch (error) {
             saveError = error;
-            if (!isUsernameConflict(error)) break;
+            if (duplicateKeyField(error) !== "username") break;
           }
         }
 
         if (!saved) {
-          if (saveError?.code === 11000) {
+          const conflict = duplicateKeyField(saveError);
+          if (conflict === "identity" || conflict === "email" || conflict === "unknown") {
             const retryConditions = [{ uid }];
             if (firebaseUid) {
               retryConditions.push({ firebaseUid });
@@ -286,6 +287,17 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
                 message: "Failed to create user",
                 error: process.env.NODE_ENV === "development" ? saveError.message : undefined,
               });
+            }
+            // Parallel sign-in inserted this Apple id first. That row is new;
+            // do not tell the client the account already existed.
+            if (
+              shouldReportCreated({
+                foundBefore,
+                inserted: false,
+                recoveredCreatedAt: user.createdAt,
+              })
+            ) {
+              created = true;
             }
           } else {
             console.error("[api/protected] user.save failed:", saveError?.message, saveError?.code);

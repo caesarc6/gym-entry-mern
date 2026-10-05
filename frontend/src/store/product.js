@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import { provisionAccount } from "../utils/provisionAccount";
 import { supabase } from "../supabase/supabase";
 import { getCurrentAuthUser } from "../utils/auth";
 import { applyOptimisticWorkoutToSummary } from "../utils/workoutHabitWidget";
@@ -628,7 +629,7 @@ const applySignedInBootstrap = async (session, generation) => {
     } catch (error) {
       if (!isMissingMongoUser(error)) throw error;
       // Restored sessions never hit login, so create the Mongo user once here.
-      await apiClient.post(API_ENDPOINTS.PROTECTED);
+      await provisionAccount();
       if (generation !== authBootstrapGeneration) return;
       response = await apiClient.get(API_ENDPOINTS.GET_CURRENT_USER);
     }

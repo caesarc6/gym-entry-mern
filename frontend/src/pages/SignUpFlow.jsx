@@ -2,7 +2,7 @@ import { Container, VStack } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase/supabase";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { API_ENDPOINTS, apiClient } from "../config/api";
+import { provisionAccount } from "../utils/provisionAccount";
 import { maybeMigrateAccount } from "../utils/migration";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { setAuthRedirect } from "../utils/auth";
@@ -106,7 +106,7 @@ const SignUpFlow = () => {
       }
 
       if (data?.session?.access_token) {
-        const response = await apiClient.post(API_ENDPOINTS.PROTECTED);
+        const response = await provisionAccount();
         await maybeMigrateAccount(response?.data?.data);
         navigate(redirectPath, { replace: true });
       } else {

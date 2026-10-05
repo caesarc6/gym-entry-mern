@@ -10,7 +10,7 @@ import {
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
 import { supabase } from "../supabase/supabase";
-import { API_ENDPOINTS, apiClient } from "../config/api";
+import { apiClient } from "../config/api";
 import { maybeMigrateAccount } from "../utils/migration";
 import {
   clearAuthDebug,
@@ -21,6 +21,11 @@ import {
   signOutAll,
 } from "../utils/auth";
 import { useCustomToast } from "../hooks/useCustomToast";
+import { shouldToastExistingAccount } from "../utils/oauthAccountToast";
+import {
+  provisionAccount,
+  wasAccountCreatedRecently,
+} from "../utils/provisionAccount";
 
 const GET_SESSION_MS = 25_000;
 
@@ -327,7 +332,7 @@ const AuthCallback = () => {
         }
 
         const response = await Promise.race([
-          apiClient.post(API_ENDPOINTS.PROTECTED),
+          provisionAccount(),
           new Promise((_, reject) =>
             setTimeout(
               () => reject(new Error("Backend timeout")),
@@ -348,7 +353,16 @@ const AuthCallback = () => {
           ? `this ${providerName} account`
           : "this account";
 
-        if (mode === "signup" && !wasCreated) {
+        // The signed-in bootstrap can insert the account before this callback
+        // reads it. created:false then means "the other call just created it",
+        // not "this Apple id already had an account".
+        if (
+          shouldToastExistingAccount({
+            mode,
+            created: wasCreated,
+            createdRecently: wasAccountCreatedRecently(userData),
+          })
+        ) {
           toast.info(
             "Account Already Exists",
             `An account already exists for ${accountPhrase}. You're logged in.`,

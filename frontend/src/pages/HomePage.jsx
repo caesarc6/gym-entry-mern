@@ -17,6 +17,7 @@ import { Hero } from "../components/Hero";
 import { HomeLandingSections } from "../components/HomeLandingSections";
 import axios from "axios";
 import { API_ENDPOINTS, apiClient } from "../config/api";
+import { provisionAccount } from "../utils/provisionAccount";
 import ClaimedWorkoutsModal from "../components/ClaimedWorkoutsModal";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
@@ -439,7 +440,7 @@ const HomePage = () => {
         if (missingAccount && !provisionAttemptedRef.current) {
           provisionAttemptedRef.current = true;
           try {
-            await apiClient.post(API_ENDPOINTS.PROTECTED);
+            await provisionAccount();
             if (!cancelled) {
               setFeedEpoch((epoch) => epoch + 1);
               return;
