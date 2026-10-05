@@ -385,12 +385,13 @@ export const FileUploader = ({
               size={compact ? "sm" : "md"}
               isDisabled={isProcessing}
               colorScheme="blue"
-              variant="solid"
+              variant="outline"
             >
               Take Photo
             </Button>
 
             <Button
+              className="button-upload"
               onClick={onChoosePhotoNative}
               type="button"
               size={compact ? "sm" : "md"}

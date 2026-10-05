@@ -21,6 +21,11 @@ import { API_ENDPOINTS, apiClient } from "../config/api";
 import { getCurrentAuthUser } from "../utils/auth";
 import { useProductStore } from "../store/product";
 import { useMirrorPostList } from "../hooks/useMirrorPostList";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+import { feedPageLimit } from "../utils/feedPageLimit";
+
+const isCapacitorNative = getIsCapacitorNative();
+const PROFILE_POSTS_PAGE_SIZE = feedPageLimit();
 
 const ProductCard = lazy(() => import("../components/ProductCard"));
 
@@ -51,12 +56,12 @@ const UserProfilePage = () => {
   const [isFollowingLoadingInitial, setIsFollowingLoadingInitial] =
     useState(true);
   const [currentUser, setCurrentUser] = useState(null);
-  const [limit] = useState(6);
+  const [limit] = useState(PROFILE_POSTS_PAGE_SIZE);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     totalPosts: 0,
-    limit: 6,
+    limit: PROFILE_POSTS_PAGE_SIZE,
   });
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -77,7 +82,7 @@ const UserProfilePage = () => {
       }));
       setPagination((prev) => {
         const totalPosts = Math.max(0, (prev.totalPosts || 0) - 1);
-        const pageSize = prev.limit || 6;
+        const pageSize = prev.limit || PROFILE_POSTS_PAGE_SIZE;
         return {
           ...prev,
           totalPosts,
@@ -291,7 +296,7 @@ const UserProfilePage = () => {
           currentPage: 1,
           totalPages: 0,
           totalPosts: 0,
-          limit: 6,
+          limit: PROFILE_POSTS_PAGE_SIZE,
         });
       }
     } catch (error) {
@@ -647,7 +652,11 @@ const UserProfilePage = () => {
   );
 
   return (
-    <Container maxW="container.xl" py={12}>
+    <Container
+      maxW="container.xl"
+      pt={isCapacitorNative ? 4 : 12}
+      pb={12}
+    >
       {renderProfile()}
       {userProfile.isPrivate &&
       !userProfile.allowsPostView &&
