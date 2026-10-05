@@ -23,8 +23,16 @@ import {
   HStack,
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
-import { lazy, Suspense, useEffect, useState, useCallback, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader";
 import { PROFILE_IMAGE_ASPECT } from "../constants/imageAspectRatios";
@@ -101,7 +109,9 @@ const ProfilePage = () => {
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const followersDialogRef = useRef(null);
+  const followRequestNavLock = useRef(false);
   const [followersList, setFollowersList] = useState([]);
   const [followingList, setFollowingList] = useState([]);
   const [followRequests, setFollowRequests] = useState([]);
@@ -111,6 +121,34 @@ const ProfilePage = () => {
   const closeFollowers = useCallback(() => {
     setIsFollowersOpen(false);
   }, []);
+
+  // Native keeps this page mounted and the dialog is portaled to the document,
+  // so it stays on top of the next screen unless it is closed before paint.
+  // A tap inside the dialog often never delivers click on iOS, so the profile
+  // link closes and navigates from pointerup as well.
+  const openFollowRequestProfile = useCallback(
+    (userId) => (event) => {
+      if (!isCapacitorNative) {
+        closeFollowers();
+        return;
+      }
+      event.preventDefault();
+      if (followRequestNavLock.current) return;
+      followRequestNavLock.current = true;
+      closeFollowers();
+      navigate(`/user/${userId}`);
+      window.setTimeout(() => {
+        followRequestNavLock.current = false;
+      }, 400);
+    },
+    [closeFollowers, navigate],
+  );
+
+  useLayoutEffect(() => {
+    if (!isCapacitorNative || location.pathname === "/profile") return;
+    followRequestNavLock.current = false;
+    setIsFollowersOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (location.pathname === "/profile") return;
@@ -1057,7 +1095,12 @@ const ProfilePage = () => {
                       <Flex align="center" flex={1}>
                         <Link
                           to={`/user/${request.requester.uid}`}
-                          onClick={closeFollowers}
+                          onClick={openFollowRequestProfile(request.requester.uid)}
+                          onPointerUp={
+                            isCapacitorNative
+                              ? openFollowRequestProfile(request.requester.uid)
+                              : undefined
+                          }
                         >
                           <Avatar
                             src={request.requester.picture}
@@ -1067,7 +1110,12 @@ const ProfilePage = () => {
                         </Link>
                         <Link
                           to={`/user/${request.requester.uid}`}
-                          onClick={closeFollowers}
+                          onClick={openFollowRequestProfile(request.requester.uid)}
+                          onPointerUp={
+                            isCapacitorNative
+                              ? openFollowRequestProfile(request.requester.uid)
+                              : undefined
+                          }
                         >
                           <Box flex={1}>
                             <Text
