@@ -256,9 +256,10 @@ struct WorkoutHabitWidgetView: View {
             let metrics = gridMetrics(in: geo.size)
             ZStack(alignment: .topLeading) {
                 calendarCells(metrics: metrics, glow: false)
-                glowLayer(metrics: metrics, radius: isSmall ? 5 : 9, offset: isSmall ? 1 : 4, opacity: 0.85)
-                glowLayer(metrics: metrics, radius: isSmall ? 10 : 18, offset: isSmall ? 2 : 8, opacity: 0.8)
-                glowLayer(metrics: metrics, radius: isSmall ? 18 : 40, offset: isSmall ? 4 : 16, opacity: 0.65)
+                // Same stack as WorkoutHabitWidgetPreview: blur(9/18/52px), translateX(4/8/22px).
+                glowLayer(metrics: metrics, radius: 9, offset: 4, opacity: 0.85)
+                glowLayer(metrics: metrics, radius: 18, offset: 8, opacity: 0.8)
+                glowLayer(metrics: metrics, radius: 52, offset: 22, opacity: 0.65)
             }
             .frame(width: metrics.gridWidth, height: metrics.gridHeight, alignment: .topLeading)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
