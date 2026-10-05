@@ -15,7 +15,6 @@ import {
 import { supabase } from "../supabase/supabase";
 import SignedOutTabPrompt from "../components/SignedOutTabPrompt";
 import Card11 from "../components/ui/card-11";
-import { cn } from "../lib/utils";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { recognizeWorkoutLines } from "../utils/workoutParser";
 
@@ -386,14 +385,8 @@ const CreatePage = () => {
 
   if (!sessionResolved) {
     return (
-      <Container
-        maxW="container.sm"
-        className={cn(
-          isCapacitorNative &&
-            "flex min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))] flex-col justify-center",
-        )}
-      >
-        <Center minH={isCapacitorNative ? undefined : "50vh"}>
+      <Container maxW="container.sm">
+        <Center minH="50vh">
           <LoadingIndicator variant="hero" chakraColor="blue.400" />
         </Center>
       </Container>
