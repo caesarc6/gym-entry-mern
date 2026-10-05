@@ -39,3 +39,14 @@ export function markIosFormFields() {
   document.documentElement.classList.add("ios-form");
 }
 
+const NATIVE_VIEWPORT =
+  "width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no";
+
+/** Lock pinch zoom in the Capacitor app. The website keeps the HTML viewport. */
+export function lockNativeViewportZoom() {
+  if (typeof document === "undefined" || !isCapacitorNative()) return;
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if (!viewport) return;
+  viewport.setAttribute("content", NATIVE_VIEWPORT);
+}
+

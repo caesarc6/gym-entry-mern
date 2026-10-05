@@ -13,10 +13,12 @@ import "./components/loading/dmx.css";
 import "./utils/getMyUID.js";
 import {
   isCapacitorNative as getIsCapacitorNative,
+  lockNativeViewportZoom,
   markIosFormFields,
 } from "./utils/isNativePlatform";
 
 markIosFormFields();
+lockNativeViewportZoom();
 
 const isCapacitorNative = getIsCapacitorNative();
 
