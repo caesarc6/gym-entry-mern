@@ -8,16 +8,42 @@ export function editEntryDraftKey(uid, entryId) {
   return `draft:editEntry:v${EDIT_ENTRY_DRAFT_VERSION}:${uid || "anon"}:${entryId}`;
 }
 
+const isInlineImage = (value) =>
+  typeof value === "string" && value.startsWith("data:");
+
 export function writeEditEntryDraft(uid, entryId, fields) {
-  const payload = {
+  const key = editEntryDraftKey(uid, entryId);
+  const image = fields.image ?? "";
+  const inlineImage = isInlineImage(image);
+  const base = {
     version: EDIT_ENTRY_DRAFT_VERSION,
     lastLocalSaveAt: new Date().toISOString(),
     name: fields.name ?? "",
     description: fields.description ?? "",
-    image: fields.image ?? "",
-    imageName: fields.imageName ?? "",
+    // Inline photos fill the WebView quota and throw out of edit autosave.
+    // Keep a remote URL. Drop a data URL, and drop any photo if storage is full.
+    image: inlineImage ? "" : image,
+    imageName: inlineImage ? "" : (fields.imageName ?? ""),
   };
-  localStorage.setItem(editEntryDraftKey(uid, entryId), JSON.stringify(payload));
+
+  try {
+    localStorage.setItem(key, JSON.stringify(base));
+    return true;
+  } catch {
+    try {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          ...base,
+          image: "",
+          imageName: "",
+        }),
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export function readEditEntryDraft(uid, entryId) {

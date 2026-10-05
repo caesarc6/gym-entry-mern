@@ -207,10 +207,27 @@ export async function fetchWorkoutHabitSummary() {
   return data.data;
 }
 
+function summaryForWidget(summary) {
+  const days = Array.isArray(summary.workoutDays) ? summary.workoutDays : [];
+  return {
+    generatedAt: summary.generatedAt ?? null,
+    windowDays: summary.windowDays ?? days.length,
+    today: summary.today ?? null,
+    lastWorkoutName: summary.lastWorkoutName ?? null,
+    lastWorkoutAt: summary.lastWorkoutAt ?? null,
+    workoutCount30d: summary.workoutCount30d ?? 0,
+    currentStreak: summary.currentStreak ?? 0,
+    workoutDays: days.map((day) => ({
+      date: day?.date,
+      workedOut: Boolean(day?.workedOut),
+    })),
+  };
+}
+
 export async function syncWorkoutHabitWidget(summary) {
   if (!summary || !canSyncWorkoutHabitWidget()) {
     return { skipped: true, reason: "not-ios-native" };
   }
 
-  return WorkoutWidget.updateSummary({ summary });
+  return WorkoutWidget.updateSummary({ summary: summaryForWidget(summary) });
 }
