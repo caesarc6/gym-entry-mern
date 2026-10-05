@@ -38,7 +38,7 @@ import {
   MENU_ROW_TEXT,
   heroNavMenuChrome,
 } from "./ui/dropdown-menu-1";
-import { MoreHorizontal, Pencil, Share2, Sparkles, Trash2 } from "lucide-react";
+import { Flag, MoreHorizontal, Pencil, Share2, Sparkles, Trash2 } from "lucide-react";
 import { ButtonLoadingSpinner } from "./loading";
 import { FileUploader } from "./FileUploader";
 import {
@@ -1777,6 +1777,29 @@ const ProductCard = memo(function ProductCard({
     return currentUserInfo?.uid === comment.uid || isOwner;
   };
 
+  const reportContent = async ({ targetType, commentId, replyId }) => {
+    try {
+      await apiClient.post(API_ENDPOINTS.REPORT_CONTENT, {
+        targetType,
+        entryId: entry._id,
+        commentId,
+        replyId,
+      });
+      showToast({
+        title: "Report sent",
+        description: "We'll review it at support@etherealgains.com.",
+        status: "success",
+      });
+    } catch (error) {
+      showToast({
+        title: "Couldn't send report",
+        description:
+          error.response?.data?.message || error.message || "Try again.",
+        status: "error",
+      });
+    }
+  };
+
   // Check if user has liked a comment
   const hasLikedComment = (comment) => {
     return (
@@ -1957,6 +1980,38 @@ const ProductCard = memo(function ProductCard({
     </DropdownMenu>
   );
 
+  const viewerPostMenu = currentUser ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Post actions"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md ring-1 ring-white/20 hover:bg-black/50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MoreHorizontal
+            className="h-4 w-4"
+            strokeWidth={HEADER_ICON_STROKE}
+          />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={6}
+        className={cn("w-52 p-2", menuSurfaceClassName)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DropdownMenuItem
+          className={postMenuItemClassName}
+          onSelect={() => reportContent({ targetType: "workout" })}
+        >
+          <Flag strokeWidth={HEADER_ICON_STROKE} aria-hidden />
+          Report workout
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
   const getSquareEntryMedia = (preferHighPriority, { compact = false } = {}) => (
     <Box
       position="relative"
@@ -2059,7 +2114,7 @@ const ProductCard = memo(function ProductCard({
           }
           commentsCount={shownCommentCount}
           description={updatedEntry.description}
-          headerTrailing={isOwner ? ownerPostMenu : undefined}
+          headerTrailing={isOwner ? ownerPostMenu : viewerPostMenu}
           toolbarExtra={
             isOwner ? (
               <IconButton
@@ -2219,7 +2274,7 @@ const ProductCard = memo(function ProductCard({
             }
             commentsCount={shownCommentCount}
             description={updatedEntry.description}
-            headerTrailing={isOwner ? ownerPostMenu : undefined}
+            headerTrailing={isOwner ? ownerPostMenu : viewerPostMenu}
             toolbarExtra={
               isOwner ? (
                 <IconButton
@@ -2466,6 +2521,52 @@ const ProductCard = memo(function ProductCard({
                                             aria-hidden
                                           />
                                           Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  ) : commentIdStr && currentUser ? (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button
+                                          type="button"
+                                          aria-label="Comment actions"
+                                          className={cn(
+                                            "inline-flex h-7 w-7 items-center justify-center rounded-full",
+                                            colors.currentTheme === "light"
+                                              ? "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                                              : "text-zinc-400 hover:bg-white/10 hover:text-zinc-100",
+                                          )}
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <MoreHorizontal
+                                            className="h-4 w-4"
+                                            strokeWidth={HEADER_ICON_STROKE}
+                                          />
+                                        </button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent
+                                        align="end"
+                                        sideOffset={4}
+                                        className={cn(
+                                          "w-40 p-2",
+                                          menuSurfaceClassName,
+                                        )}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <DropdownMenuItem
+                                          className={postMenuItemClassName}
+                                          onSelect={() =>
+                                            reportContent({
+                                              targetType: "comment",
+                                              commentId: commentIdStr,
+                                            })
+                                          }
+                                        >
+                                          <Flag
+                                            strokeWidth={HEADER_ICON_STROKE}
+                                            aria-hidden
+                                          />
+                                          Report
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
@@ -2736,6 +2837,26 @@ const ProductCard = memo(function ProductCard({
                                             >
                                               {formatDate(reply.createdAt)}
                                             </Text>
+                                            {reply._id &&
+                                            currentUser &&
+                                            currentUserInfo?.uid !== reply.uid &&
+                                            !isOwner ? (
+                                              <button
+                                                type="button"
+                                                className="text-[11px] text-zinc-400 hover:underline"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
+                                                  reportContent({
+                                                    targetType: "comment",
+                                                    commentId: commentIdStr,
+                                                    replyId: String(reply._id),
+                                                  });
+                                                }}
+                                              >
+                                                Report
+                                              </button>
+                                            ) : null}
                                           </HStack>
                                           <Text
                                             whiteSpace="pre-wrap"

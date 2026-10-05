@@ -186,6 +186,57 @@ const accountsMatch = (a, b) => {
   return ua.some((id) => ub.includes(id));
 };
 
+const hasBlocked = (userDoc, otherDoc) => {
+  const blocked = userDoc?.blockedUids || [];
+  if (blocked.length === 0 || !otherDoc) return false;
+  return linkedUidStrings(otherDoc).some((id) => blocked.includes(id));
+};
+
+const DELETED_ACCOUNT_LABEL = "Deleted account";
+
+const scrubDeletedIdentityFromEntries = async (uids) => {
+  const ids = [...new Set((uids || []).filter(Boolean))];
+  if (ids.length === 0) return;
+  const cleared = {
+    name: DELETED_ACCOUNT_LABEL,
+    username: "",
+    picture: "",
+  };
+  await Entry.updateMany(
+    { "comments.uid": { $in: ids } },
+    {
+      $set: {
+        "comments.$[comment].name": cleared.name,
+        "comments.$[comment].username": cleared.username,
+        "comments.$[comment].picture": cleared.picture,
+      },
+    },
+    { arrayFilters: [{ "comment.uid": { $in: ids } }] },
+  );
+  await Entry.updateMany(
+    { "comments.replies.uid": { $in: ids } },
+    {
+      $set: {
+        "comments.$[].replies.$[reply].name": cleared.name,
+        "comments.$[].replies.$[reply].username": cleared.username,
+        "comments.$[].replies.$[reply].picture": cleared.picture,
+      },
+    },
+    { arrayFilters: [{ "reply.uid": { $in: ids } }] },
+  );
+  await Entry.updateMany(
+    { "comments.likes.uid": { $in: ids } },
+    {
+      $set: {
+        "comments.$[].likes.$[like].name": cleared.name,
+        "comments.$[].likes.$[like].username": cleared.username,
+        "comments.$[].likes.$[like].picture": cleared.picture,
+      },
+    },
+    { arrayFilters: [{ "like.uid": { $in: ids } }] },
+  );
+};
+
 // Multer configuration
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
@@ -862,6 +913,15 @@ export const getPostsByUID = async (req, res) => {
     const targetUids = [user.uid, user.firebaseUid, user.supabaseUid].filter(
       Boolean
     );
+    if (
+      requesterUser &&
+      (hasBlocked(requesterUser, user) || hasBlocked(user, requesterUser))
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "These workouts aren't available",
+      });
+    }
     if (isPrivate && !isFollower && !requesterIsOwner) {
       return res.status(403).json({
         success: false,
@@ -1368,10 +1428,14 @@ export const getUserProfile = async (req, res) => {
         refIdEquals(follower, viewerUser._id)
       );
     const isOwner = viewerUser && accountsMatch(viewerUser, user);
+    const viewerHasBlocked = hasBlocked(viewerUser, user);
+    const blockedViewer = hasBlocked(user, viewerUser);
     const canViewPosts =
-      isOwner ||
-      !user.privacy.isPrivate ||
-      (user.privacy.isPrivate && isFollower);
+      !viewerHasBlocked &&
+      !blockedViewer &&
+      (isOwner ||
+        !user.privacy.isPrivate ||
+        (user.privacy.isPrivate && isFollower));
 
     // Fetch posts only if allowed
     let posts = [];
@@ -1417,6 +1481,8 @@ export const getUserProfile = async (req, res) => {
     const responseData = {
       success: true,
       viewerIsOwner: !!(viewerUser && accountsMatch(viewerUser, user)),
+      viewerHasBlocked,
+      blockedViewer,
       data: {
         user: userData,
         posts: normalizedPosts,
@@ -1463,6 +1529,13 @@ export const sendFollowRequest = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Cannot send follow request to yourself",
+      });
+    }
+
+    if (hasBlocked(requester, recipient) || hasBlocked(recipient, requester)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can't follow this account",
       });
     }
 
@@ -1828,7 +1901,16 @@ export const getHomeFeed = async (req, res) => {
       collectUserUidVariants(followed, allowedUids)
     );
 
-    const uidArray = [...allowedUids];
+    const hiddenUids = new Set(requester.blockedUids || []);
+    if (linkedUidStrings(requester).length > 0) {
+      const blockers = await User.find({
+        blockedUids: { $in: linkedUidStrings(requester) },
+      }).select("uid firebaseUid supabaseUid");
+      blockers.forEach((blocker) => {
+        linkedUidStrings(blocker).forEach((id) => hiddenUids.add(id));
+      });
+    }
+    const uidArray = [...allowedUids].filter((id) => !hiddenUids.has(id));
 
     if (uidArray.length === 0) {
       return res.status(200).json({
@@ -2301,6 +2383,8 @@ export const deleteAccount = async (req, res) => {
     const user = await findUserByAnyUid(authUid);
     const uids = user ? linkedUidStrings(user) : [authUid];
     const uniqueUids = [...new Set(uids.filter(Boolean))];
+
+    await scrubDeletedIdentityFromEntries(uniqueUids);
 
     if (user) {
       const entries = await Entry.find({ uid: { $in: uniqueUids } }).select(

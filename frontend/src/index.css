@@ -296,6 +296,23 @@ html.theme-chrome-transition .landing-no-theme-chrome-fade *::after {
   }
 }
 
+/*
+ * Chakra paints a per-name hex into --avatar-bg while [data-loaded] is missing.
+ * A flat surface override lost to that rule on iOS, so the hex still showed
+ * behind photos. Force the variable off; initials keep a flat chip.
+ */
+.chakra-avatar,
+.chakra-avatar:not([data-loaded]) {
+  --avatar-bg: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+.chakra-avatar__initials {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
 /* Button styles */
 .button-upload {
   padding: 5px 30px;

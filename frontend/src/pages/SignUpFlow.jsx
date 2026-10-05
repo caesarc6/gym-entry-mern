@@ -8,6 +8,10 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { setAuthRedirect } from "../utils/auth";
 import { useIosAwareGoogleOAuth } from "../hooks/useIosAwareGoogleOAuth";
 import { Card } from "../components/ui/card";
+import {
+  AppleSignInMark,
+  oauthButtonClassName,
+} from "../components/AppleSignInMark";
 import { landingDarkMainCanvas } from "../lib/homeLandingDarkTheme";
 import { cn } from "../lib/utils";
 
@@ -145,8 +149,18 @@ const SignUpFlow = () => {
               </p>
 
               <button
+                type="button"
+                onClick={handleAppleSignIn}
+                className={`${oauthButtonClassName} bg-black text-white border border-black hover:bg-neutral-900`}
+              >
+                <AppleSignInMark />
+                Sign in with Apple
+              </button>
+
+              <button
+                type="button"
                 onClick={handleGoogleSignIn}
-                className="w-full flex items-center justify-center gap-3 rounded-xl min-h-11 px-4 py-3 font-semibold tracking-tight transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 dark:bg-white dark:text-slate-900 dark:border-slate-300 dark:hover:bg-slate-50"
+                className={`${oauthButtonClassName} mt-3 bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 dark:bg-white dark:text-slate-900 dark:border-slate-300 dark:hover:bg-slate-50`}
               >
                 <svg className="w-6 h-6" viewBox="0 0 24 24">
                   <path
@@ -167,20 +181,6 @@ const SignUpFlow = () => {
                   />
                 </svg>
                 Continue with Google
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAppleSignIn}
-                className="mt-3 w-full flex items-center justify-center gap-3 rounded-xl min-h-11 px-4 py-3 font-semibold tracking-tight transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 bg-black text-white border border-black hover:bg-neutral-900"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    fill="currentColor"
-                    d="M16.7 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9s-1.8-.8-3-.8c-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.3 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7 2-.1 2.9-2.2c1.1-1.5 1.5-2.9 1.5-3 0 0-2.8-1.1-2.8-4.5zM14.8 6.5c.6-.8 1.1-1.9.9-3-.9 0-2 .6-2.6 1.4-.6.7-1.1 1.8-.9 2.9 1 .1 2-.5 2.6-1.3z"
-                  />
-                </svg>
-                Sign in with Apple
               </button>
 
               <div className="my-6 text-sm text-muted-foreground text-center">

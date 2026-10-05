@@ -33,13 +33,21 @@ import {
   deleteAccount,
 } from "../controllers/user.controller.js";
 import { linkFirebaseToSupabase } from "../controllers/migration.controller.js";
+import {
+  blockUser,
+  createReport,
+  unblockUser,
+} from "../controllers/safety.controller.js";
 
 const router = express.Router();
 
 router.put("/privacy", verifyIdToken, updateUserPrivacy);
 router.delete("/account", verifyIdToken, deleteAccount);
+router.post("/reports", verifyIdToken, createReport);
+router.post("/block/:userId", verifyIdToken, blockUser);
+router.delete("/block/:userId", verifyIdToken, unblockUser);
 
-router.get("/profile-image/:uid", getProfileImageByUid);
+router.get("/profile-image/:uid", verifyIdToken, getProfileImageByUid);
 
 router.get("/getCurrentMongoDBUser", verifyIdToken, getCurrentMongoDBUser);
 router.post(

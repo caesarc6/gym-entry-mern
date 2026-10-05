@@ -1,5 +1,7 @@
+import crypto from "crypto";
 import mongoose from "mongoose";
 import SharedWorkout from "../models/sharedWorkout.model.js";
+import ClientShareLink from "../models/clientShareLink.model.js";
 import WorkoutAssignment from "../models/workoutAssignment.model.js";
 import { User } from "../models/user.model.js";
 import Entry from "../models/entry.model.js";
@@ -11,6 +13,15 @@ import {
 
 const escapeRegex = (value) =>
   String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const loadStoredClientShare = async (shareToken) => {
+  const token = typeof shareToken === "string" ? shareToken.trim() : "";
+  if (!/^[a-f0-9]{64}$/i.test(token)) return null;
+  return ClientShareLink.findOne({
+    token: token.toLowerCase(),
+    expiresAt: { $gt: new Date() },
+  }).lean();
+};
 
 const findAccountByAuthUid = (uid) =>
   User.findOne({
@@ -1028,16 +1039,14 @@ export const generateClientShareableLink = async (req, res) => {
       });
     }
 
-    // Generate a unique share token that encodes trainer UID and client name
-    // Format: base64(uid:clientName:timestamp:expiresAt)
-    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
-    const tokenData = `${uid}:${normalizedClientName}:${Date.now()}:${expiresAt}`;
-    // Use base64 and replace URL-unsafe characters
-    const shareToken = Buffer.from(tokenData)
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=/g, "");
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const shareToken = crypto.randomBytes(32).toString("hex");
+    await ClientShareLink.create({
+      token: shareToken,
+      creatorUid: uid,
+      clientName: normalizedClientName,
+      expiresAt,
+    });
 
     const shareUrl = `${
       process.env.FRONTEND_URL || "http://localhost:5173"
@@ -1051,7 +1060,7 @@ export const generateClientShareableLink = async (req, res) => {
         shareUrl,
         clientName: clientName.trim(),
         workoutCount: clientWorkouts.length,
-        expiresAt: new Date(expiresAt),
+        expiresAt,
       },
     });
   } catch (error) {
@@ -1071,57 +1080,22 @@ export const getClientWorkoutsByToken = async (req, res) => {
       });
     }
 
-    // Decode the token to get trainer UID and client name
-    let tokenData;
-    try {
-      // Decode URL encoding if present
-      let decodedToken;
-      try {
-        decodedToken = decodeURIComponent(shareToken);
-      } catch (e) {
-        // If decodeURIComponent fails, token might not be URL-encoded, use as-is
-        decodedToken = shareToken;
-      }
-
-      // Restore base64 format (replace URL-safe characters back)
-      const base64Token = decodedToken.replace(/-/g, "+").replace(/_/g, "/");
-      // Add padding if needed
-      const paddedToken =
-        base64Token + "=".repeat((4 - (base64Token.length % 4)) % 4);
-      tokenData = Buffer.from(paddedToken, "base64").toString("utf-8");
-    } catch (error) {
-      return res.status(400).json({
+    const storedShare = await loadStoredClientShare(shareToken);
+    if (!storedShare) {
+      return res.status(404).json({
         success: false,
-        message: "Invalid share token - decoding failed",
+        message: "Share link is invalid or has expired",
       });
     }
 
-    // Split token data
-    const tokenParts = tokenData.split(":");
-    if (tokenParts.length !== 4) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid share token format",
-      });
-    }
+    const uid = storedShare.creatorUid;
+    const normalizedClientName = sanitizeTextInput(storedShare.clientName);
+    const expiresAt = storedShare.expiresAt;
 
-    const [uid, rawClientNameFromToken, , expiresAtStr] = tokenParts;
-    const normalizedClientName = sanitizeTextInput(rawClientNameFromToken);
-    const expiresAt = parseInt(expiresAtStr, 10);
-
-    // Validate token components
-    if (!uid || !normalizedClientName || isNaN(expiresAt)) {
+    if (!uid || !normalizedClientName) {
       return res.status(400).json({
         success: false,
         message: "Invalid share token - missing required components",
-      });
-    }
-
-    // Check if token has expired
-    if (Date.now() > expiresAt) {
-      return res.status(400).json({
-        success: false,
-        message: "Share link has expired",
       });
     }
 
@@ -1184,57 +1158,21 @@ export const claimClientWorkoutsByToken = async (req, res) => {
       });
     }
 
-    // Decode the token to get trainer UID and client name
-    let tokenData;
-    try {
-      // Decode URL encoding if present
-      let decodedToken;
-      try {
-        decodedToken = decodeURIComponent(shareToken);
-      } catch (e) {
-        // If decodeURIComponent fails, token might not be URL-encoded, use as-is
-        decodedToken = shareToken;
-      }
-
-      // Restore base64 format (replace URL-safe characters back)
-      const base64Token = decodedToken.replace(/-/g, "+").replace(/_/g, "/");
-      // Add padding if needed
-      const paddedToken =
-        base64Token + "=".repeat((4 - (base64Token.length % 4)) % 4);
-      tokenData = Buffer.from(paddedToken, "base64").toString("utf-8");
-    } catch (error) {
-      return res.status(400).json({
+    const storedShare = await loadStoredClientShare(shareToken);
+    if (!storedShare) {
+      return res.status(404).json({
         success: false,
-        message: "Invalid share token - decoding failed",
+        message: "Share link is invalid or has expired",
       });
     }
 
-    // Split token data
-    const tokenParts = tokenData.split(":");
-    if (tokenParts.length !== 4) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid share token format",
-      });
-    }
+    const trainerUid = storedShare.creatorUid;
+    const normalizedClientName = sanitizeTextInput(storedShare.clientName);
 
-    const [trainerUid, rawClientNameFromToken, , expiresAtStr] = tokenParts;
-    const normalizedClientName = sanitizeTextInput(rawClientNameFromToken);
-    const expiresAt = parseInt(expiresAtStr, 10);
-
-    // Validate token components
-    if (!trainerUid || !normalizedClientName || isNaN(expiresAt)) {
+    if (!trainerUid || !normalizedClientName) {
       return res.status(400).json({
         success: false,
         message: "Invalid share token - missing required components",
-      });
-    }
-
-    // Check if token has expired
-    if (Date.now() > expiresAt) {
-      return res.status(400).json({
-        success: false,
-        message: "Share link has expired",
       });
     }
 

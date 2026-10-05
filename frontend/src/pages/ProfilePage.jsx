@@ -32,6 +32,7 @@ import {
   useCallback,
   useRef,
 } from "react";
+import { flushSync } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader";
@@ -111,6 +112,7 @@ const ProfilePage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const followersDialogRef = useRef(null);
+  const profileDialogHostRef = useRef(null);
   const followRequestNavLock = useRef(false);
   const [followersList, setFollowersList] = useState([]);
   const [followingList, setFollowingList] = useState([]);
@@ -122,37 +124,65 @@ const ProfilePage = () => {
     setIsFollowersOpen(false);
   }, []);
 
-  // Native keeps this page mounted and the dialog is portaled to the document,
-  // so it stays on top of the next screen unless it is closed before paint.
-  // A tap inside the dialog often never delivers click on iOS, so the profile
-  // link closes and navigates from pointerup as well.
-  const openFollowRequestProfile = useCallback(
-    (userId) => (event) => {
-      if (!isCapacitorNative) {
-        closeFollowers();
-        return;
-      }
-      event.preventDefault();
+  // The profile tab stays mounted. A dialog portaled to document.body stays
+  // on top of the next screen. These dialogs portal into this page, and
+  // navigation closes them before the route changes.
+  const openProfileFromDialog = useCallback(
+    (href) => {
       if (followRequestNavLock.current) return;
       followRequestNavLock.current = true;
-      closeFollowers();
-      navigate(`/user/${userId}`);
+      flushSync(() => {
+        setIsFollowersOpen(false);
+        setIsFollowingOpen(false);
+      });
+      navigate(href);
       window.setTimeout(() => {
         followRequestNavLock.current = false;
       }, 400);
     },
-    [closeFollowers, navigate],
+    [navigate],
   );
 
   useLayoutEffect(() => {
-    if (!isCapacitorNative || location.pathname === "/profile") return;
+    if (location.pathname === "/profile") return;
     followRequestNavLock.current = false;
     setIsFollowersOpen(false);
+    setIsFollowingOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isFollowersOpen && !isFollowingOpen) return undefined;
+    const onActivate = (event) => {
+      const host = profileDialogHostRef.current;
+      const target = event.target;
+      if (
+        !(host instanceof Element) ||
+        !(target instanceof Node) ||
+        !host.contains(target)
+      ) {
+        return;
+      }
+      const origin = target instanceof Element ? target : target.parentElement;
+      const link = origin?.closest?.("a[href]");
+      if (!(link instanceof HTMLAnchorElement) || !host.contains(link)) return;
+      const href = link.getAttribute("href") || "";
+      if (!href.startsWith("/user/")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openProfileFromDialog(href);
+    };
+    document.addEventListener("touchend", onActivate, true);
+    document.addEventListener("click", onActivate, true);
+    return () => {
+      document.removeEventListener("touchend", onActivate, true);
+      document.removeEventListener("click", onActivate, true);
+    };
+  }, [isFollowersOpen, isFollowingOpen, openProfileFromDialog]);
 
   useEffect(() => {
     if (location.pathname === "/profile") return;
     setIsFollowersOpen(false);
+    setIsFollowingOpen(false);
     setFollowersList([]);
     setFollowingList([]);
     if (pageRef.current <= 1) return;
@@ -840,6 +870,7 @@ const ProfilePage = () => {
 
   return (
     <>
+      <div ref={profileDialogHostRef} />
       <Container
         maxW="container.xl"
         pt={isCapacitorNative ? 4 : { base: "6.5rem", md: 28 }}
@@ -1065,6 +1096,9 @@ const ProfilePage = () => {
         onClose={closeFollowers}
         closeOnOverlayClick
         closeOnEsc
+        motionPreset="none"
+        lockFocusAcrossFrames={false}
+        portalProps={{ containerRef: profileDialogHostRef }}
       >
         <ModalOverlay />
         <ModalContent ref={followersDialogRef} bg={colors.bgCard}>
@@ -1093,30 +1127,14 @@ const ProfilePage = () => {
                       _hover={{ bg: colors.bgMuted }}
                     >
                       <Flex align="center" flex={1}>
-                        <Link
-                          to={`/user/${request.requester.uid}`}
-                          onClick={openFollowRequestProfile(request.requester.uid)}
-                          onPointerUp={
-                            isCapacitorNative
-                              ? openFollowRequestProfile(request.requester.uid)
-                              : undefined
-                          }
-                        >
+                        <Link to={`/user/${request.requester.uid}`}>
                           <Avatar
                             src={request.requester.picture}
                             size="sm"
                             mr={3}
                           />
                         </Link>
-                        <Link
-                          to={`/user/${request.requester.uid}`}
-                          onClick={openFollowRequestProfile(request.requester.uid)}
-                          onPointerUp={
-                            isCapacitorNative
-                              ? openFollowRequestProfile(request.requester.uid)
-                              : undefined
-                          }
-                        >
+                        <Link to={`/user/${request.requester.uid}`}>
                           <Box flex={1}>
                             <Text
                               fontWeight="medium"
@@ -1248,7 +1266,13 @@ const ProfilePage = () => {
       </Modal>
 
       {/* Following Modal */}
-      <Modal isOpen={isFollowingOpen} onClose={() => setIsFollowingOpen(false)}>
+      <Modal
+        isOpen={isFollowingOpen}
+        onClose={() => setIsFollowingOpen(false)}
+        motionPreset="none"
+        lockFocusAcrossFrames={false}
+        portalProps={{ containerRef: profileDialogHostRef }}
+      >
         <ModalOverlay />
         <ModalContent bg={colors.bgCard}>
           <ModalHeader color={colors.textPrimary} bg={colors.bgCard}>

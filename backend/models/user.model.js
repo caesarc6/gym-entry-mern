@@ -40,6 +40,8 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Auth uids of members this person has blocked.
+    blockedUids: [{ type: String }],
   },
   { timestamps: true }
 );

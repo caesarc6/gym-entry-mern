@@ -52,6 +52,9 @@ const UserProfilePage = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [hasFollowRequest, setHasFollowRequest] = useState(false);
+  const [viewerHasBlocked, setViewerHasBlocked] = useState(false);
+  const [blockedViewer, setBlockedViewer] = useState(false);
+  const [isBlockLoading, setIsBlockLoading] = useState(false);
   const [isFollowingLoading, setIsFollowingLoading] = useState(false);
   const [isFollowingLoadingInitial, setIsFollowingLoadingInitial] =
     useState(true);
@@ -208,6 +211,10 @@ const UserProfilePage = () => {
       const viewerIsOwner = profilePayload.viewerIsOwner === true;
 
       const userData = profilePayload.data.user;
+      const nextViewerHasBlocked = profilePayload.viewerHasBlocked === true;
+      const nextBlockedViewer = profilePayload.blockedViewer === true;
+      setViewerHasBlocked(nextViewerHasBlocked);
+      setBlockedViewer(nextBlockedViewer);
 
       const finalProfileImage = userData.picture || userData.profileImage || "";
 
@@ -231,7 +238,9 @@ const UserProfilePage = () => {
 
       // Owner must match linked Firebase/Supabase ids (viewerIsOwner from API), not raw URL vs JWT string
       const allowsPostView =
-        !userData.isPrivate || followingForPosts || viewerIsOwner;
+        !nextViewerHasBlocked &&
+        !nextBlockedViewer &&
+        (!userData.isPrivate || followingForPosts || viewerIsOwner);
 
       setUserProfile({
         name: userData.name || "Name",
@@ -376,6 +385,34 @@ const UserProfilePage = () => {
       toast.error("Error", error.message);
     } finally {
       setIsFollowingLoading(false);
+    }
+  };
+
+  const handleBlock = async () => {
+    if (!userId || currentUser?.uid === userId) return;
+    setIsBlockLoading(true);
+    try {
+      if (viewerHasBlocked) {
+        await apiClient.delete(API_ENDPOINTS.BLOCK_USER(userId));
+        setViewerHasBlocked(false);
+        toast.success("Unblocked", "You can see this profile again.");
+        fetchUserProfile();
+      } else {
+        await apiClient.post(API_ENDPOINTS.BLOCK_USER(userId));
+        setViewerHasBlocked(true);
+        setIsFollowing(false);
+        setHasFollowRequest(false);
+        setEntries([]);
+        setUserProfile((prev) => ({ ...prev, allowsPostView: false }));
+        toast.success("Blocked", "You won't see this member's workouts.");
+      }
+    } catch (error) {
+      toast.error(
+        "Error",
+        error?.response?.data?.message || error.message || "Couldn't update block.",
+      );
+    } finally {
+      setIsBlockLoading(false);
     }
   };
 
@@ -571,6 +608,11 @@ const UserProfilePage = () => {
               ? () => navigate("/settings")
               : handleFollow
           }
+          display={
+            currentUser?.uid !== userId && (viewerHasBlocked || blockedViewer)
+              ? "none"
+              : undefined
+          }
           variant="outline"
           color={colors.textPrimary}
           borderColor={colors.borderColor}
@@ -594,6 +636,21 @@ const UserProfilePage = () => {
                   ? "Cancel request"
                   : "Follow"}
         </Button>
+        {currentUser?.uid !== userId && !blockedViewer ? (
+          <Button
+            mt={viewerHasBlocked ? 8 : 3}
+            onClick={handleBlock}
+            variant="ghost"
+            color={colors.textMuted}
+            borderRadius="full"
+            fontWeight="500"
+            minW="180px"
+            isLoading={isBlockLoading}
+            spinner={<ButtonLoadingSpinner />}
+          >
+            {viewerHasBlocked ? "Unblock" : "Block"}
+          </Button>
+        ) : null}
       </Box>
     </Box>
   );
@@ -658,7 +715,25 @@ const UserProfilePage = () => {
       pb={12}
     >
       {renderProfile()}
-      {userProfile.isPrivate &&
+      {currentUser?.uid !== userId && (viewerHasBlocked || blockedViewer) ? (
+        <Center py={6}>
+          <Box
+            maxW="580px"
+            w="full"
+            bg={colors.bgCard}
+            boxShadow="sm"
+            rounded="2xl"
+            p={6}
+            textAlign="center"
+          >
+            <Text fontSize="lg" color={colors.textMuted}>
+              {viewerHasBlocked
+                ? "You blocked this member. Their workouts stay hidden until you unblock them."
+                : "This member isn't available."}
+            </Text>
+          </Box>
+        </Center>
+      ) : userProfile.isPrivate &&
       !userProfile.allowsPostView &&
       !hasFollowRequest &&
       currentUser?.uid !== userId ? (

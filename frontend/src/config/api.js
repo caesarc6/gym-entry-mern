@@ -100,6 +100,8 @@ export const API_ENDPOINTS = {
   // Privacy endpoints
   PRIVACY: buildApiUrl("privacy"),
   DELETE_ACCOUNT: buildApiUrl("account"),
+  REPORT_CONTENT: buildApiUrl("reports"),
+  BLOCK_USER: (userId) => buildApiUrl(`block/${userId}`),
 
   // Trainer dashboard access endpoints
   CHECK_TRAINER_DASHBOARD_ACCESS: buildApiUrl("trainer-dashboard/access"),

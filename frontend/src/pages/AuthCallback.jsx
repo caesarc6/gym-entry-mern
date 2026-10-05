@@ -24,6 +24,17 @@ import { useCustomToast } from "../hooks/useCustomToast";
 
 const GET_SESSION_MS = 25_000;
 
+const oauthProviderName = (session) => {
+  const raw = String(
+    session?.user?.app_metadata?.provider ||
+      session?.user?.identities?.[0]?.provider ||
+      "",
+  ).toLowerCase();
+  if (raw === "apple") return "Apple";
+  if (raw === "google") return "Google";
+  return "";
+};
+
 const AuthCallback = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -332,21 +343,15 @@ const AuthCallback = () => {
         pushAuthDebug("AuthCallback: backend response", backendPayload);
         const wasCreated = response?.data?.created === true;
         const userData = response?.data?.data;
-
-        if (mode === "login" && wasCreated) {
-          await signOutAll();
-          toast.error(
-            "Account Not Found",
-            "No account found for this Google account. Please sign up first."
-          );
-          navigate("/", { replace: true });
-          return;
-        }
+        const providerName = oauthProviderName(session);
+        const accountPhrase = providerName
+          ? `this ${providerName} account`
+          : "this account";
 
         if (mode === "signup" && !wasCreated) {
           toast.info(
             "Account Already Exists",
-            "An account already exists for this Google account. You're logged in."
+            `An account already exists for ${accountPhrase}. You're logged in.`,
           );
         }
 

@@ -1,5 +1,4 @@
 import { extendTheme } from "@chakra-ui/react";
-import { isCapacitorNative } from "../utils/isNativePlatform";
 
 const sansFont =
   'var(--font-sans, "Instagram Sans", "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif)';
@@ -80,24 +79,17 @@ const theme = extendTheme({
   },
   components: {
     Avatar: {
-      baseStyle: (props) => {
-        if (!isCapacitorNative()) return {};
-        // Chakra paints a name-based color into --avatar-bg until data-loaded.
-        // WKWebView often never fires the avatar image onLoad, so that color
-        // stays behind photos that already exist. The website clears it.
-        const surface = "hsl(var(--workout-muted))";
-        const ink = "hsl(var(--workout-text-primary))";
-        return {
-          container: {
-            bg: surface,
-            color: props.color ?? ink,
-            "--avatar-bg": surface,
-            "&:not([data-loaded])": {
-              bg: surface,
-              "--avatar-bg": surface,
-            },
+      baseStyle: {
+        container: {
+          // Name-hash color lives in --avatar-bg until data-loaded. WKWebView
+          // often never sets that attribute, so the hex stays behind photos.
+          bg: "transparent",
+          "--avatar-bg": "transparent",
+          "&:not([data-loaded])": {
+            bg: "transparent",
+            "--avatar-bg": "transparent",
           },
-        };
+        },
       },
     },
     Toast: {

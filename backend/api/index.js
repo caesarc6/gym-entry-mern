@@ -16,6 +16,32 @@ import sharedWorkoutRoutes from "../routes/sharedWorkout.route.js";
 
 import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
+
+const usernameBase = (name) => {
+  const stripped = String(name || "")
+    .replace(/\s+/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, 24);
+  return stripped || "user";
+};
+
+const isUsernameConflict = (error) => {
+  if (error?.code !== 11000) return false;
+  if (error.keyPattern?.username) return true;
+  return String(error?.message || "").includes("username");
+};
+
+const allocateUsername = async (name) => {
+  const base = usernameBase(name);
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const suffix = attempt === 0 ? "" : Math.random().toString(36).slice(2, 6);
+    const candidate = `${base}${suffix}`.slice(0, 32);
+    const taken = await User.exists({ username: candidate });
+    if (!taken) return candidate;
+  }
+  return `${base}${Date.now().toString(36)}`.slice(0, 32);
+};
 import { migrateUserData } from "../controllers/migration.controller.js";
 import { legacyIdsToRewrite } from "../utils/accountIds.js";
 import Entry from "../models/entry.model.js";
@@ -198,77 +224,97 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
     }
 
     if (!user) {
-      // Generate username from name: remove spaces and convert to lowercase
-      const generatedUsername = name
-        ? name.replace(/\s+/g, "").toLowerCase()
-        : `user${Date.now()}`;
-
       const safeEmail =
         email && String(email).trim()
           ? String(email).trim().toLowerCase()
           : `${uid}@oauth.noreply.local`;
 
-      try {
-        // Create new user with appropriate UID fields based on auth provider
-        const userData = {
-          uid, // Primary UID
-          name: name || "User",
-          email: safeEmail,
-          picture,
-          username: generatedUsername,
-          authProvider,
-          bio: null,
-          goal: null,
-          gymName: null,
-          backgroundPicture: null,
-        };
+      const userData = {
+        uid, // Primary UID
+        name: name || "User",
+        email: safeEmail,
+        picture,
+        authProvider,
+        bio: null,
+        goal: null,
+        gymName: null,
+        backgroundPicture: null,
+      };
 
-        // Set provider-specific UID fields
-        if (authProvider === "firebase") {
-          userData.firebaseUid = uid;
-        } else if (authProvider === "supabase") {
-          userData.supabaseUid = uid;
+      // Set provider-specific UID fields
+      if (authProvider === "firebase") {
+        userData.firebaseUid = uid;
+      } else if (authProvider === "supabase") {
+        userData.supabaseUid = uid;
+      }
+
+      try {
+        let saved = false;
+        let saveError = null;
+        for (let attempt = 0; attempt < 6 && !saved; attempt += 1) {
+          userData.username = await allocateUsername(name);
+          try {
+            user = new User(userData);
+            await user.save();
+            created = true;
+            saved = true;
+          } catch (error) {
+            saveError = error;
+            if (!isUsernameConflict(error)) break;
+          }
         }
 
-        user = new User(userData);
-        await user.save();
-        created = true;
-      } catch (saveError) {
-        // Check if it's a duplicate key error (user already exists)
-        if (saveError.code === 11000) {
-          // User was created between findOne and save, try to fetch again
-          const retryConditions = [{ uid }];
-          if (firebaseUid) {
-            retryConditions.push({ firebaseUid });
-          }
-          if (supabaseUid) {
-            retryConditions.push({ supabaseUid });
-          }
+        if (!saved) {
+          if (saveError?.code === 11000) {
+            const retryConditions = [{ uid }];
+            if (firebaseUid) {
+              retryConditions.push({ firebaseUid });
+            }
+            if (supabaseUid) {
+              retryConditions.push({ supabaseUid });
+            }
+            if (email) {
+              retryConditions.push({ email: safeEmail });
+            }
 
-          user = await User.findOne({
-            $or: retryConditions,
-          });
-          if (!user) {
+            user = await User.findOne({
+              $or: retryConditions,
+            });
+            if (!user) {
+              return res.status(500).json({
+                success: false,
+                message: "Failed to create user",
+                error: process.env.NODE_ENV === "development" ? saveError.message : undefined,
+              });
+            }
+          } else {
+            console.error("[api/protected] user.save failed:", saveError?.message, saveError?.code);
             return res.status(500).json({
               success: false,
               message: "Failed to create user",
-              error: process.env.NODE_ENV === "development" ? saveError.message : undefined,
+              error:
+                saveError?.name === "ValidationError"
+                  ? saveError.message
+                  : process.env.NODE_ENV === "development"
+                    ? saveError.message
+                    : undefined,
+              code: saveError?.code,
             });
           }
-        } else {
-          console.error("[api/protected] user.save failed:", saveError?.message, saveError?.code);
-          return res.status(500).json({
-            success: false,
-            message: "Failed to create user",
-            error:
-              saveError?.name === "ValidationError"
-                ? saveError.message
-                : process.env.NODE_ENV === "development"
-                  ? saveError.message
-                  : undefined,
-            code: saveError?.code,
-          });
         }
+      } catch (saveError) {
+        console.error("[api/protected] user.save failed:", saveError?.message, saveError?.code);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to create user",
+          error:
+            saveError?.name === "ValidationError"
+              ? saveError.message
+              : process.env.NODE_ENV === "development"
+                ? saveError.message
+                : undefined,
+          code: saveError?.code,
+        });
       }
     } else {
       // Returning user on Supabase: if Mongo still uses the legacy Firebase UID as
