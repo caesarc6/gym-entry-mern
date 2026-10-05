@@ -11,7 +11,12 @@ import ErrorBoundary from "./components/system/ErrorBoundary.jsx";
 import "./components/loading/dmx.css";
 // Expose auth helpers to window for console debugging
 import "./utils/getMyUID.js";
-import { isCapacitorNative as getIsCapacitorNative } from "./utils/isNativePlatform";
+import {
+  isCapacitorNative as getIsCapacitorNative,
+  markIosFormFields,
+} from "./utils/isNativePlatform";
+
+markIosFormFields();
 
 const isCapacitorNative = getIsCapacitorNative();
 

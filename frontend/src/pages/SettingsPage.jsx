@@ -72,6 +72,8 @@ const SettingsPage = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmReady, setDeleteConfirmReady] = useState(false);
+  const deleteArmTimerRef = useRef(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const themeSliderRef = useRef(null);
   const isThemeDraggingRef = useRef(false);
@@ -262,6 +264,13 @@ const SettingsPage = () => {
     }
   }, [storeUser?.uid, applyUserProfileToForm]);
 
+  useEffect(
+    () => () => {
+      if (deleteArmTimerRef.current) window.clearTimeout(deleteArmTimerRef.current);
+    },
+    [],
+  );
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -436,7 +445,26 @@ const SettingsPage = () => {
     }
   };
 
+  const openDeleteConfirm = () => {
+    setShowDeleteAccount(true);
+    setDeleteConfirmReady(false);
+    if (deleteArmTimerRef.current) window.clearTimeout(deleteArmTimerRef.current);
+    deleteArmTimerRef.current = window.setTimeout(() => {
+      setDeleteConfirmReady(true);
+      deleteArmTimerRef.current = null;
+    }, 450);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (isDeletingAccount) return;
+    if (deleteArmTimerRef.current) window.clearTimeout(deleteArmTimerRef.current);
+    deleteArmTimerRef.current = null;
+    setDeleteConfirmReady(false);
+    setShowDeleteAccount(false);
+  };
+
   const handleDeleteAccount = async () => {
+    if (!deleteConfirmReady) return;
     setIsDeletingAccount(true);
     try {
       const response = await apiClient.delete(API_ENDPOINTS.DELETE_ACCOUNT);
@@ -748,12 +776,19 @@ const SettingsPage = () => {
                   Sign out
                 </Button>
               </Flex>
+            </Box>
+
+            <Box
+              mt={{ base: 16, md: 20 }}
+              pt={{ base: 10, md: 12 }}
+              borderTopWidth="1px"
+              borderColor={colors.borderColor}
+            >
               <Flex
                 align={{ base: "stretch", md: "center" }}
                 justify="space-between"
                 gap={5}
                 direction={{ base: "column", md: "row" }}
-                mt={6}
               >
                 <Box>
                   <Heading size="sm" color={colors.textPrimary} fontWeight="500">
@@ -765,10 +800,11 @@ const SettingsPage = () => {
                   </Text>
                 </Box>
                 <Button
+                  type="button"
                   minW={{ md: "220px" }}
                   colorScheme="red"
                   borderRadius="full"
-                  onClick={() => setShowDeleteAccount(true)}
+                  onClick={openDeleteConfirm}
                 >
                   Delete account
                 </Button>
@@ -781,9 +817,7 @@ const SettingsPage = () => {
 
       <Modal
         isOpen={showDeleteAccount}
-        onClose={() => {
-          if (!isDeletingAccount) setShowDeleteAccount(false);
-        }}
+        onClose={closeDeleteConfirm}
         isCentered
       >
         <ModalOverlay />
@@ -800,14 +834,16 @@ const SettingsPage = () => {
             <Button
               variant="ghost"
               mr={3}
-              onClick={() => setShowDeleteAccount(false)}
+              onClick={closeDeleteConfirm}
               isDisabled={isDeletingAccount}
             >
               Cancel
             </Button>
             <Button
+              type="button"
               colorScheme="red"
               onClick={handleDeleteAccount}
+              isDisabled={!deleteConfirmReady}
               isLoading={isDeletingAccount}
               spinner={<ButtonLoadingSpinner />}
             >

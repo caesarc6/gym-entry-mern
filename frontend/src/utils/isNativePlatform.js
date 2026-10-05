@@ -17,3 +17,25 @@ export function isCapacitorNative() {
   return false;
 }
 
+/** iPhone, iPad, and the Capacitor iOS WKWebView. Desktop Safari stays out. */
+export function isIosClient() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) {
+    return true;
+  }
+  try {
+    const platform =
+      typeof window !== "undefined" && window.Capacitor?.getPlatform?.();
+    return platform === "ios";
+  } catch {
+    return false;
+  }
+}
+
+export function markIosFormFields() {
+  if (typeof document === "undefined" || !isIosClient()) return;
+  document.documentElement.classList.add("ios-form");
+}
+

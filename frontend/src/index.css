@@ -354,3 +354,13 @@ html.theme-chrome-transition .landing-no-theme-chrome-fade *::after {
     font-size: 1.375rem;
   }
 }
+
+/*
+ * iOS WKWebView zooms the page when a focused field computes under 16px.
+ * Pinch zoom stays available; the viewport meta is unchanged.
+ */
+html.ios-form input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]):not([type="hidden"]),
+html.ios-form textarea,
+html.ios-form select {
+  font-size: 16px !important;
+}
