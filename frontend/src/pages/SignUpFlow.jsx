@@ -1,4 +1,3 @@
-import { Container, VStack } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase/supabase";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -10,10 +9,13 @@ import { useIosAwareGoogleOAuth } from "../hooks/useIosAwareGoogleOAuth";
 import { Card } from "../components/ui/card";
 import {
   AppleSignInMark,
+  authFieldClassName,
   oauthButtonClassName,
 } from "../components/AppleSignInMark";
-import { landingDarkMainCanvas } from "../lib/homeLandingDarkTheme";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { cn } from "../lib/utils";
+
+const isNative = getIsCapacitorNative();
 
 const SignUpFlow = () => {
   const [fullName, setFullName] = useState("");
@@ -124,140 +126,143 @@ const SignUpFlow = () => {
   };
 
   return (
-    <>
-      <div
-        className={cn(
-          "w-full min-w-0 min-h-[100dvh] pb-[env(safe-area-inset-bottom)] bg-white bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200/80",
-          landingDarkMainCanvas,
-        )}
-      >
-        <Container maxW="container.xl" className="text-center" py={12}>
-          <VStack
-            spacing={8}
-            mt={10}
-            className="pt-[calc(88px+env(safe-area-inset-top))]"
+    <div
+      className={cn(
+        "mx-auto flex w-full min-w-0 max-w-md flex-col justify-center px-5",
+        "min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))]",
+        isNative
+          ? "py-6"
+          : "pb-16 pt-[calc(5.5rem+env(safe-area-inset-top))] md:min-h-[100dvh] md:pt-28",
+      )}
+    >
+      <div className="space-y-8 text-center text-sm">
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            Sign up
+          </p>
+          <h1 className="text-2xl font-medium tracking-tight text-foreground">
+            Welcome to Ethereal Gains
+          </h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Sign up with Apple, Google, or email and password.
+          </p>
+        </div>
+
+        <Card
+          variant="mixed"
+          className="border-border/80 bg-card/95 p-6 text-left shadow-md backdrop-blur-sm supports-[backdrop-filter]:bg-card/80 sm:p-8"
+        >
+          <button
+            type="button"
+            onClick={handleAppleSignIn}
+            className={`${oauthButtonClassName} bg-black text-white border border-black hover:bg-neutral-900`}
           >
-            <Card
-              variant="mixed"
-              className="w-full max-w-md mx-auto p-8 text-left shadow-sm rounded-2xl"
+            <AppleSignInMark />
+            Sign in with Apple
+          </button>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            className={`${oauthButtonClassName} mt-3 bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 dark:bg-white dark:text-slate-900 dark:border-slate-300 dark:hover:bg-slate-50`}
+          >
+            <svg className="w-6 h-6" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
+            </svg>
+            Continue with Google
+          </button>
+
+          <p className="my-6 text-center text-sm leading-relaxed text-muted-foreground">
+            Or sign up with email
+          </p>
+
+          <form onSubmit={handleEmailSignUp} className="space-y-3">
+            <input
+              type="text"
+              placeholder="Full name"
+              autoComplete="name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className={authFieldClassName}
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={authFieldClassName}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={authFieldClassName}
+              required
+            />
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="mt-2 w-full rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 active:scale-[0.99] disabled:opacity-60"
             >
-              <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-2 text-center">
-                Welcome to Ethereal Gains
-              </h2>
-              <p className="text-center text-muted-foreground mb-6">
-                Sign up with Apple, Google, or email and password.
-              </p>
+              {isSubmitting ? "Creating account..." : "Sign up"}
+            </button>
+          </form>
 
-              <button
-                type="button"
-                onClick={handleAppleSignIn}
-                className={`${oauthButtonClassName} bg-black text-white border border-black hover:bg-neutral-900`}
-              >
-                <AppleSignInMark />
-                Sign in with Apple
-              </button>
+          <p className="mt-5 text-center text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/login", {
+                  replace: true,
+                  state: { from: redirectPath },
+                })
+              }
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Sign in
+            </button>
+          </p>
 
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                className={`${oauthButtonClassName} mt-3 bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 dark:bg-white dark:text-slate-900 dark:border-slate-300 dark:hover:bg-slate-50`}
-              >
-                <svg className="w-6 h-6" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  />
-                </svg>
-                Continue with Google
-              </button>
-
-              <div className="my-6 text-sm text-muted-foreground text-center">
-                Or sign up with email
-              </div>
-
-              <form onSubmit={handleEmailSignUp} className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 min-h-11 px-3 py-2.5 bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 min-h-11 px-3 py-2.5 bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
-                  required
-                />
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 min-h-11 px-3 py-2.5 bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-xl bg-primary text-primary-foreground min-h-11 px-4 py-2.5 font-semibold tracking-tight hover:bg-primary/90 disabled:opacity-60"
-                >
-                  {isSubmitting ? "Creating account..." : "Sign up"}
-                </button>
-              </form>
-
-              <p className="mt-5 text-center text-sm text-muted-foreground">
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate("/login", {
-                      replace: true,
-                      state: { from: redirectPath },
-                    })
-                  }
-                  className="font-medium text-primary hover:underline"
-                >
-                  Sign in
-                </button>
-              </p>
-
-              <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">
-                By creating an account, you agree to the{" "}
-                <Link
-                  to="/terms-of-service"
-                  className="font-medium text-primary hover:underline"
-                >
-                  Terms of Service
-                </Link>{" "}
-                and acknowledge the{" "}
-                <Link
-                  to="/privacy-policy"
-                  className="font-medium text-primary hover:underline"
-                >
-                  Privacy Policy
-                </Link>
-                .
-              </p>
-            </Card>
-          </VStack>
-        </Container>
+          <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">
+            By creating an account, you agree to the{" "}
+            <Link
+              to="/terms-of-service"
+              className="font-medium text-primary hover:underline"
+            >
+              Terms of Service
+            </Link>{" "}
+            and acknowledge the{" "}
+            <Link
+              to="/privacy-policy"
+              className="font-medium text-primary hover:underline"
+            >
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        </Card>
       </div>
-    </>
+    </div>
   );
 };
 

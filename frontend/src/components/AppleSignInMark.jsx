@@ -12,3 +12,7 @@ export function AppleSignInMark({ className = "h-6 w-6" }) {
 
 export const oauthButtonClassName =
   "w-full flex items-center justify-center gap-3 rounded-xl min-h-11 px-4 py-3 font-semibold tracking-tight transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2";
+
+/** Single-line field, same as the log composer. */
+export const authFieldClassName =
+  "h-12 w-full min-w-0 rounded-full border border-border bg-transparent px-4 text-sm font-medium text-foreground outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-foreground/40";
