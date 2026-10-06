@@ -106,21 +106,6 @@ const ENTRY_POST_THEME_TRANSITION_SX = {
 };
 
 /**
- * Space the edit dialog must leave so it can sit in the middle of the screen.
- * On iOS that is the fixed header, the tab bar, and the safe areas.
- */
-function editModalChromeInset(isNativeApp) {
-  if (!isNativeApp || typeof document === "undefined") return 32;
-  const probe = document.createElement("div");
-  probe.style.cssText =
-    "position:absolute;visibility:hidden;pointer-events:none;height:calc(env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 3.75rem + 7.5rem + 1rem);";
-  document.body.appendChild(probe);
-  const height = probe.getBoundingClientRect().height;
-  probe.remove();
-  return Number.isFinite(height) && height > 0 ? height : 180;
-}
-
-/**
  * Keep focused inputs/textareas visible inside an overflow modal when mobile
  * keyboards resize the Visual Viewport.
  */
@@ -610,6 +595,7 @@ const ProductCard = memo(function ProductCard({
 
   /** Scroll container for Edit workout modal (viewport + keyboard). */
   const editModalScrollRef = useRef(null);
+  const editModalLockedHeightRef = useRef(null);
   const isNativeApp = getIsCapacitorNative();
 
   const ensureEditableFieldVisibleInEditModal = useCallback((element) => {
@@ -626,9 +612,17 @@ const ProductCard = memo(function ProductCard({
   }, []);
 
   useEffect(() => {
+    const clearLockedSize = (el) => {
+      if (!el) return;
+      el.style.height = "";
+      el.style.minHeight = "";
+      el.style.maxHeight = "";
+      el.style.transform = "";
+    };
+
     if (!isOpen) {
-      const el = editModalScrollRef.current;
-      if (el) el.style.maxHeight = "";
+      editModalLockedHeightRef.current = null;
+      clearLockedSize(editModalScrollRef.current);
       return undefined;
     }
 
@@ -643,35 +637,72 @@ const ProductCard = memo(function ProductCard({
       scrollFocusedFieldIntoEditableModalScroller(editModalScrollRef.current, ae, vv);
     }
 
-    function syncEditModalViewport() {
+    function lockEditModalHeight() {
+      const content = editModalScrollRef.current;
+      if (!content || editModalLockedHeightRef.current != null) return;
+      const measured = Math.round(content.getBoundingClientRect().height);
+      if (measured < 80) return;
+      editModalLockedHeightRef.current = measured;
+      const px = `${measured}px`;
+      content.style.height = px;
+      content.style.minHeight = px;
+      content.style.maxHeight = px;
+    }
+
+    function placeEditModalAboveKeyboard() {
       const content = editModalScrollRef.current;
       if (!content) return;
-      const chrome = editModalChromeInset(isNativeApp);
-      if (vv && typeof vv.height === "number") {
-        content.style.maxHeight = `${Math.max(240, Math.round(vv.height - chrome))}px`;
-      } else {
-        content.style.maxHeight = "";
+      lockEditModalHeight();
+      const locked = editModalLockedHeightRef.current;
+      if (!vv || locked == null) {
+        content.style.transform = "";
+        return;
       }
+      const keyboardInset = Math.max(
+        0,
+        window.innerHeight - vv.height - vv.offsetTop,
+      );
+      if (keyboardInset <= 80 || locked > vv.height - 16) {
+        content.style.transform = "";
+        return;
+      }
+      content.style.transform = "none";
+      const naturalTop = content.getBoundingClientRect().top;
+      const targetTop = vv.offsetTop + (vv.height - locked) / 2;
+      const delta = targetTop - naturalTop;
+      content.style.transform =
+        Math.abs(delta) < 1 ? "" : `translateY(${Math.round(delta)}px)`;
+    }
 
+    function syncEditModalViewport() {
+      placeEditModalAboveKeyboard();
       scrollActiveFocusedFieldIntoView();
       window.requestAnimationFrame(() => {
         scrollActiveFocusedFieldIntoView();
       });
     }
 
+    function resetLockForOrientation() {
+      editModalLockedHeightRef.current = null;
+      clearLockedSize(editModalScrollRef.current);
+      window.requestAnimationFrame(syncEditModalViewport);
+    }
+
     syncEditModalViewport();
+    const frame = window.requestAnimationFrame(syncEditModalViewport);
     vv?.addEventListener("resize", syncEditModalViewport);
     vv?.addEventListener("scroll", syncEditModalViewport);
-    window.addEventListener("orientationchange", syncEditModalViewport);
+    window.addEventListener("orientationchange", resetLockForOrientation);
 
     return () => {
+      window.cancelAnimationFrame(frame);
       vv?.removeEventListener("resize", syncEditModalViewport);
       vv?.removeEventListener("scroll", syncEditModalViewport);
-      window.removeEventListener("orientationchange", syncEditModalViewport);
-      const el = editModalScrollRef.current;
-      if (el) el.style.maxHeight = "";
+      window.removeEventListener("orientationchange", resetLockForOrientation);
+      editModalLockedHeightRef.current = null;
+      clearLockedSize(editModalScrollRef.current);
     };
-  }, [isOpen, isNativeApp]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (cachedProfile) {
@@ -2904,10 +2935,9 @@ const ProductCard = memo(function ProductCard({
           }
           maxH={
             isNativeApp
-              ? "calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 3.75rem - 7.5rem - 1rem)"
-              : "calc(100dvh - 2rem)"
+              ? "calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 3.75rem - 7.5rem - 1rem)"
+              : "calc(100vh - 2rem)"
           }
-          minH={0}
           overflowY="auto"
           sx={{
             WebkitOverflowScrolling: "touch",
