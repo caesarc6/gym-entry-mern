@@ -17,7 +17,6 @@ import {
   ModalOverlay,
   Text,
   Textarea,
-  useBreakpointValue,
   useDisclosure,
   VStack,
   Skeleton,
@@ -66,6 +65,7 @@ import { useThemeColors } from "../hooks/useThemeColors";
 import { useCanvasShell } from "../contexts/CanvasShellContext.jsx";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import {
   getProfileImageRequestDeduped,
   setCachedProfileSnippet,
@@ -104,6 +104,21 @@ const ENTRY_POST_THEME_TRANSITION_SX = {
   transitionTimingFunction:
     "var(--theme-shell-ease, cubic-bezier(0.42, 0, 0.58, 1))",
 };
+
+/**
+ * Space the edit dialog must leave so it can sit in the middle of the screen.
+ * On iOS that is the fixed header, the tab bar, and the safe areas.
+ */
+function editModalChromeInset(isNativeApp) {
+  if (!isNativeApp || typeof document === "undefined") return 32;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:absolute;visibility:hidden;pointer-events:none;height:calc(env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 3.75rem + 7.5rem + 1rem);";
+  document.body.appendChild(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return Number.isFinite(height) && height > 0 ? height : 180;
+}
 
 /**
  * Keep focused inputs/textareas visible inside an overflow modal when mobile
@@ -595,8 +610,7 @@ const ProductCard = memo(function ProductCard({
 
   /** Scroll container for Edit workout modal (viewport + keyboard). */
   const editModalScrollRef = useRef(null);
-  const editModalCentered =
-    useBreakpointValue({ base: false, md: true }, { fallback: false }) === true;
+  const isNativeApp = getIsCapacitorNative();
 
   const ensureEditableFieldVisibleInEditModal = useCallback((element) => {
     if (!(element instanceof HTMLElement)) return;
@@ -632,9 +646,9 @@ const ProductCard = memo(function ProductCard({
     function syncEditModalViewport() {
       const content = editModalScrollRef.current;
       if (!content) return;
-      const pad = 20;
+      const chrome = editModalChromeInset(isNativeApp);
       if (vv && typeof vv.height === "number") {
-        content.style.maxHeight = `${Math.max(240, Math.round(vv.height - pad))}px`;
+        content.style.maxHeight = `${Math.max(240, Math.round(vv.height - chrome))}px`;
       } else {
         content.style.maxHeight = "";
       }
@@ -657,7 +671,7 @@ const ProductCard = memo(function ProductCard({
       const el = editModalScrollRef.current;
       if (el) el.style.maxHeight = "";
     };
-  }, [isOpen]);
+  }, [isOpen, isNativeApp]);
 
   useEffect(() => {
     if (cachedProfile) {
@@ -2093,6 +2107,29 @@ const ProductCard = memo(function ProductCard({
     ? (updatedEntry.comments || []).length
     : commentCount;
 
+  const editWorkoutButton = isOwner ? (
+    <IconButton
+      aria-label="Edit post"
+      icon={<EditIcon boxSize={5} />}
+      variant="ghost"
+      borderRadius="full"
+      minW="44px"
+      w="44px"
+      h="44px"
+      color={colors.currentTheme === "light" ? "gray.800" : "white"}
+      _hover={{
+        bg:
+          colors.currentTheme === "light"
+            ? "blackAlpha.100"
+            : "whiteAlpha.200",
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
+    />
+  ) : null;
+
   return (
     <>
       <Box alignSelf="center" w="full" maxW="448px" mx="auto">
@@ -2115,28 +2152,7 @@ const ProductCard = memo(function ProductCard({
           commentsCount={shownCommentCount}
           description={updatedEntry.description}
           headerTrailing={isOwner ? ownerPostMenu : viewerPostMenu}
-          toolbarExtra={
-            isOwner ? (
-              <IconButton
-                aria-label="Edit post"
-                icon={<EditIcon />}
-                variant="ghost"
-                size="sm"
-                borderRadius="full"
-                color={colors.currentTheme === "light" ? "gray.800" : "white"}
-                _hover={{
-                  bg:
-                    colors.currentTheme === "light"
-                      ? "blackAlpha.100"
-                      : "whiteAlpha.200",
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpen();
-                }}
-              />
-            ) : undefined
-          }
+          toolbarExtra={editWorkoutButton}
           onCardClick={handleDetailOpen}
           footer={
             <VStack spacing={2} w="full">
@@ -2275,28 +2291,7 @@ const ProductCard = memo(function ProductCard({
             commentsCount={shownCommentCount}
             description={updatedEntry.description}
             headerTrailing={isOwner ? ownerPostMenu : viewerPostMenu}
-            toolbarExtra={
-              isOwner ? (
-                <IconButton
-                  aria-label="Edit post"
-                  icon={<EditIcon />}
-                  variant="ghost"
-                  size="sm"
-                  borderRadius="full"
-                  color={colors.currentTheme === "light" ? "gray.800" : "white"}
-                  _hover={{
-                    bg:
-                      colors.currentTheme === "light"
-                        ? "blackAlpha.100"
-                        : "whiteAlpha.200",
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpen();
-                  }}
-                />
-              ) : undefined
-            }
+            toolbarExtra={editWorkoutButton}
             footer={
               <VStack spacing={3} align="stretch" w="full">
                 {Array.isArray(updatedEntry.likes) &&
@@ -2891,13 +2886,27 @@ const ProductCard = memo(function ProductCard({
         isOpen={isOpen}
         onClose={onClose}
         size="md"
-        isCentered={editModalCentered}
+        isCentered
         scrollBehavior="inside"
       >
         <ModalOverlay />
         <ModalContent
           ref={editModalScrollRef}
-          maxH="calc(100dvh - 2rem)"
+          containerProps={
+            isNativeApp
+              ? {
+                  alignItems: "center",
+                  justifyContent: "center",
+                  pt: "calc(env(safe-area-inset-top, 0px) + 3.75rem)",
+                  pb: "calc(env(safe-area-inset-bottom, 0px) + 7.5rem)",
+                }
+              : undefined
+          }
+          maxH={
+            isNativeApp
+              ? "calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 3.75rem - 7.5rem - 1rem)"
+              : "calc(100dvh - 2rem)"
+          }
           minH={0}
           overflowY="auto"
           sx={{
@@ -3004,22 +3013,39 @@ const ProductCard = memo(function ProductCard({
               )}
             </VStack>
           </ModalBody>
-          <ModalFooter>
+          <ModalFooter
+            flexDirection="column"
+            alignItems="stretch"
+            gap={1}
+          >
+            <Flex justify="flex-end" gap={3} flexWrap="wrap">
+              <Button
+                variant="ghost"
+                borderRadius="full"
+                fontWeight="500"
+                color={colors.textMuted}
+                _hover={{ bg: colors.bgHover }}
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                borderRadius="full"
+                fontWeight="500"
+                color={colors.textPrimary}
+                borderColor={colors.borderColor}
+                _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
+                onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
+                isLoading={isUpdateSubmitting}
+                spinner={<ButtonLoadingSpinner />}
+                loadingText="Saving…"
+              >
+                Save changes
+              </Button>
+            </Flex>
             <Button
-              variant="outline"
-              borderRadius="full"
-              fontWeight="500"
-              color={colors.textPrimary}
-              borderColor={colors.borderColor}
-              _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
-              onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
-              isLoading={isUpdateSubmitting}
-              spinner={<ButtonLoadingSpinner />}
-              loadingText="Saving…"
-            >
-              Save changes
-            </Button>
-            <Button
+              alignSelf="flex-start"
               variant="ghost"
               borderRadius="full"
               fontWeight="500"
@@ -3032,16 +3058,6 @@ const ProductCard = memo(function ProductCard({
               }
             >
               Revert
-            </Button>
-            <Button
-              variant="ghost"
-              borderRadius="full"
-              fontWeight="500"
-              color={colors.textMuted}
-              _hover={{ bg: colors.bgHover }}
-              onClick={onClose}
-            >
-              Cancel
             </Button>
           </ModalFooter>
         </ModalContent>
