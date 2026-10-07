@@ -107,6 +107,9 @@ const ProfilePage = () => {
     },
   });
   const [profileImage, setProfileImage] = useState(null);
+  const [clearProfileImage, setClearProfileImage] = useState(false);
+  const savedProfileImageRef = useRef("");
+  const profileSaveSucceededRef = useRef(false);
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
   const location = useLocation();
@@ -234,6 +237,30 @@ const ProfilePage = () => {
     onOpen: onProfileOpen,
     onClose: onProfileClose,
   } = useDisclosure();
+
+  useEffect(() => {
+    if (!isProfileOpen) return;
+    savedProfileImageRef.current = userProfile.profileImage || "";
+    setProfileImage(null);
+    setClearProfileImage(false);
+    profileSaveSucceededRef.current = false;
+    // Snapshot the photo shown when the editor opens. Later edits must not reset it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isProfileOpen]);
+
+  const dismissProfileEditor = () => {
+    if (!profileSaveSucceededRef.current && clearProfileImage) {
+      setUserProfile((prev) => ({
+        ...prev,
+        profileImage: savedProfileImageRef.current,
+      }));
+    }
+    profileSaveSucceededRef.current = false;
+    setProfileImage(null);
+    setClearProfileImage(false);
+    onProfileClose();
+  };
+
   const {
     isOpen: isPrivacyOpen,
     onOpen: onPrivacyOpen,
@@ -730,17 +757,25 @@ const ProfilePage = () => {
   );
 
   const handleProfileImageUpload = (file) => {
-    if (file) {
-      setProfileImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUserProfile((prev) => ({
-          ...prev,
-          profileImage: reader.result,
-        }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) {
+      setProfileImage(null);
+      setClearProfileImage(true);
+      setUserProfile((prev) => ({
+        ...prev,
+        profileImage: "",
+      }));
+      return;
     }
+    setClearProfileImage(false);
+    setProfileImage(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setUserProfile((prev) => ({
+        ...prev,
+        profileImage: reader.result,
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleProfileSubmit = async (e) => {
@@ -772,6 +807,8 @@ const ProfilePage = () => {
       if (profileImage) {
         profileFormData.append("profileImage", profileImage);
         profileFormData.append("profileImageName", profileImage.name);
+      } else if (clearProfileImage) {
+        profileFormData.append("clearProfileImage", "true");
       }
 
       const profileResponse = await apiClient.post(
@@ -780,17 +817,19 @@ const ProfilePage = () => {
       );
 
       const profileData = profileResponse.data;
+      profileSaveSucceededRef.current = true;
       setUserProfile((prev) => ({
         ...prev,
         ...profileData.data,
         profileImage:
-          profileData.data.picture ||
-          profileData.data.profileImage ||
-          prev.profileImage,
+          typeof profileData.data?.picture === "string"
+            ? profileData.data.picture
+            : prev.profileImage,
       }));
 
       setProfileImage(null);
-      onProfileClose();
+      setClearProfileImage(false);
+      dismissProfileEditor();
 
       // Refresh profile data to ensure everything is in sync
       const currentUser = await getCurrentAuthUser();
@@ -1340,7 +1379,7 @@ const ProfilePage = () => {
       </Modal>
 
       {/* Profile Edit Modal */}
-      <Modal isOpen={isProfileOpen} onClose={onProfileClose}>
+      <Modal isOpen={isProfileOpen} onClose={dismissProfileEditor}>
         <form onSubmit={handleProfileSubmit}>
           <ModalOverlay />
           <ModalContent bg={colors.bgCard}>
@@ -1457,7 +1496,7 @@ const ProfilePage = () => {
                 Save changes
               </Button>
               <Button
-                onClick={onProfileClose}
+                onClick={dismissProfileEditor}
                 variant="ghost"
                 borderRadius="full"
                 fontWeight="500"

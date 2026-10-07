@@ -19,16 +19,12 @@ import { attachPopulatedLikesToEntries } from "../utils/entryLikes.js";
 import { syncWorkoutFromEntry } from "./workout.controller.js";
 import { ensureMongoConnected } from "../config/db.js";
 import { sanitizeTextFields, sanitizeTextInput } from "../utils/sanitizeInput.js";
+import {
+  imageUploadFileFilter,
+  isExplicitImageClear,
+} from "../utils/uploadImageTypes.js";
 
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
-
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error("Invalid file type"), false);
-  }
-};
+const fileFilter = imageUploadFileFilter;
 
 // Define multer middleware at the top level
 const storage = multer.memoryStorage();
@@ -508,6 +504,8 @@ export const updateEntryPut = async (req, res) => {
     }
 
     let postImageUrl = null;
+    const clearImage =
+      !req.file?.buffer && isExplicitImageClear(req.body?.clearImage);
 
     if (req.file?.buffer) {
       const safeName = req.file.originalname || imageName || "photo.jpg";
@@ -540,7 +538,7 @@ export const updateEntryPut = async (req, res) => {
       }
 
       postImageUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/post_images/${filePath}`;
-    } else if (imageName && imageName !== "undefined" && image && String(image).includes("base64")) {
+    } else if (!clearImage && imageName && imageName !== "undefined" && image && String(image).includes("base64")) {
       const base64Data = image.split(";base64,").pop();
       const imageBuffer = Buffer.from(base64Data, "base64");
       const stored = await prepareStoredImage(
@@ -582,9 +580,11 @@ export const updateEntryPut = async (req, res) => {
       ...(description && { description }), // Only include description if it's provided
       ...(postImageUrl
         ? { image: postImageUrl }
+        : clearImage
+        ? { image: "" }
         : existingEntry.image
         ? { image: existingEntry.image }
-        : {}), // Use new image if uploaded, otherwise preserve existing image
+        : {}), // New upload replaces, an explicit clear removes, otherwise keep the current photo
     };
 
     // Update the entry in the database; clear any in-progress edit draft
@@ -603,6 +603,7 @@ export const updateEntryPut = async (req, res) => {
         if (name) sharedWorkoutUpdates.workoutName = name;
         if (description) sharedWorkoutUpdates.description = description;
         if (postImageUrl) sharedWorkoutUpdates.image = postImageUrl;
+        if (clearImage) sharedWorkoutUpdates.image = "";
 
         if (Object.keys(sharedWorkoutUpdates).length > 0) {
           // Update the SharedWorkout
@@ -620,6 +621,7 @@ export const updateEntryPut = async (req, res) => {
             otherEntryUpdates.description = description;
           }
           if (postImageUrl) otherEntryUpdates.image = postImageUrl;
+          if (clearImage) otherEntryUpdates.image = "";
 
           if (Object.keys(otherEntryUpdates).length > 0) {
             await Entry.updateMany(
@@ -636,10 +638,10 @@ export const updateEntryPut = async (req, res) => {
       }
     }
 
-    if (postImageUrl) {
+    if (postImageUrl || clearImage) {
       await cleanupReplacedPostImage({
         previousUrl: existingEntry.image,
-        newUrl: postImageUrl,
+        newUrl: postImageUrl || "",
         ownerUid: canonicalUid,
       });
     }

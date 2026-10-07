@@ -420,9 +420,12 @@ export const useProductStore = create((set) => ({
       const requestConfig = { timeout: ENTRY_UPDATE_TIMEOUT_MS };
       let response;
 
-      const imageFile = isDataImage(updatedEntry?.image)
-        ? dataUrlToFile(updatedEntry.image, updatedEntry.imageName || "photo.jpg")
-        : null;
+      const clearingImage =
+        updatedEntry?.clearImage === true || updatedEntry?.clearImage === "true";
+      const imageFile =
+        !clearingImage && isDataImage(updatedEntry?.image)
+          ? dataUrlToFile(updatedEntry.image, updatedEntry.imageName || "photo.jpg")
+          : null;
       const requestBody = imageFile
         ? (() => {
             const form = new FormData();

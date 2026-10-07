@@ -933,10 +933,10 @@ const WorkoutCard = memo(function WorkoutCard({
         description: candidate.description,
       };
 
-      // Only include image fields if:
-      // 1. imageName exists (new image was uploaded)
-      // 2. AND image is not the placeholder SVG
-      if (
+      // Removing the photo must be explicit. Omitting image keeps the saved one.
+      if (candidate.clearImage) {
+        payload.clearImage = true;
+      } else if (
         candidate.imageName &&
         candidate.imageName !== "undefined" &&
         candidate.image &&
@@ -979,6 +979,8 @@ const WorkoutCard = memo(function WorkoutCard({
     ) {
       // Check if current updatedEntry image is placeholder or missing before updating
       setUpdatedEntry((prev) => {
+        // A remove is in flight. Don't put the previous photo back.
+        if (prev.clearImage) return prev;
         // Only update if current image is placeholder or missing
         if (isPlaceholderImage(prev.image) || !prev.image) {
           return {
@@ -1138,17 +1140,20 @@ const WorkoutCard = memo(function WorkoutCard({
           return;
         }
 
-        setUpdatedEntry((prev) => ({
-          ...prev,
-          name: typeof mergedName === "string" ? mergedName : prev.name,
-          description:
-            typeof mergedDesc === "string" ? mergedDesc : prev.description,
-          image: mergedImage || prev.image,
-          imageName:
-            typeof mergedImageName === "string" && mergedImageName
-              ? mergedImageName
-              : prev.imageName,
-        }));
+        setUpdatedEntry((prev) => {
+          if (prev.clearImage) return prev;
+          return {
+            ...prev,
+            name: typeof mergedName === "string" ? mergedName : prev.name,
+            description:
+              typeof mergedDesc === "string" ? mergedDesc : prev.description,
+            image: mergedImage || prev.image,
+            imageName:
+              typeof mergedImageName === "string" && mergedImageName
+                ? mergedImageName
+                : prev.imageName,
+          };
+        });
       } catch (e) {
         // ignore
       }
@@ -1325,6 +1330,12 @@ const WorkoutCard = memo(function WorkoutCard({
               if (imageUnchangedSinceSend && data?.image && didSendNewImage) {
                 next.image = data.image;
                 next.imageName = "";
+                next.clearImage = false;
+              }
+              if (imageUnchangedSinceSend && candidate.clearImage) {
+                next.image = data?.image || "";
+                next.imageName = "";
+                next.clearImage = false;
               }
               return next;
             });
@@ -1408,6 +1419,7 @@ const WorkoutCard = memo(function WorkoutCard({
       description: baseline.description ?? "",
       image: baseline.image ?? prev.image,
       imageName: baseline.imageName ?? prev.imageName,
+      clearImage: false,
     }));
     lastEditServerPayloadHashRef.current = JSON.stringify(
       buildUpdatePayload(baseline),
@@ -1416,6 +1428,16 @@ const WorkoutCard = memo(function WorkoutCard({
   }, [buildUpdatePayload]);
 
   const handleFileUpload = async (file) => {
+    if (!file) {
+      setUpdatedEntry((prev) => ({
+        ...prev,
+        image: "",
+        imageName: "",
+        clearImage: true,
+      }));
+      return;
+    }
+
     try {
       // Use the image compression utility
       const { handleImageUploadWithCompression } = await import(
@@ -1428,11 +1450,12 @@ const WorkoutCard = memo(function WorkoutCard({
           // Success callback
           const reader = new FileReader();
           reader.onloadend = () => {
-            setUpdatedEntry({
-              ...updatedEntry,
+            setUpdatedEntry((prev) => ({
+              ...prev,
               image: reader.result,
               imageName: result.file.name,
-            });
+              clearImage: false,
+            }));
           };
           reader.readAsDataURL(result.file);
         },
@@ -1472,21 +1495,8 @@ const WorkoutCard = memo(function WorkoutCard({
 
     const previousEntry = { ...updatedEntry };
     setUpdatedEntry((prevEntry) => ({ ...prevEntry, ...updatedEntry }));
-    
-    // Prepare the payload - only include image/imageName if a new image was uploaded
-    const payload = {
-      name: updatedEntry.name,
-      description: updatedEntry.description,
-    };
-    
-    // Only include image fields if:
-    // 1. imageName exists (new image was uploaded)
-    // 2. AND image is not the placeholder SVG
-    if (updatedEntry.imageName && updatedEntry.imageName !== "undefined" && 
-        updatedEntry.image && !isPlaceholderImage(updatedEntry.image)) {
-      payload.image = updatedEntry.image;
-      payload.imageName = updatedEntry.imageName;
-    }
+
+    const payload = buildUpdatePayload(updatedEntry);
 
     setIsUpdateSubmitting(true);
     try {
@@ -1507,13 +1517,15 @@ const WorkoutCard = memo(function WorkoutCard({
               description,
               likes,
               comments,
-              image, // Add the image field to update the UI
+              image: image || "",
+              imageName: "",
+              clearImage: false,
             };
             const savedSnap = JSON.stringify({
               name: name ?? "",
               description: description ?? "",
               image: image ?? "",
-              imageName: prevEntry?.imageName || "",
+              imageName: "",
             });
             lastEditAutosavedSnapshotRef.current = savedSnap;
             setEditBaselineSnapshot(savedSnap);
@@ -1521,7 +1533,7 @@ const WorkoutCard = memo(function WorkoutCard({
               name: name ?? "",
               description: description ?? "",
               image: image ?? "",
-              imageName: prevEntry?.imageName || "",
+              imageName: "",
             };
             return newUpdatedEntry;
           });

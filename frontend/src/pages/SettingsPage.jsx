@@ -91,6 +91,9 @@ const SettingsPage = () => {
     profileImage: "",
   });
   const [profileImage, setProfileImage] = useState(null);
+  const [clearProfileImage, setClearProfileImage] = useState(false);
+  const savedProfileImageRef = useRef("");
+  const profileSaveSucceededRef = useRef(false);
 
   const {
     isOpen: isBackgroundOpen,
@@ -102,6 +105,30 @@ const SettingsPage = () => {
     onOpen: onProfileOpen,
     onClose: onProfileClose,
   } = useDisclosure();
+
+  useEffect(() => {
+    if (!isProfileOpen) return;
+    savedProfileImageRef.current = userProfile.profileImage || "";
+    setProfileImage(null);
+    setClearProfileImage(false);
+    profileSaveSucceededRef.current = false;
+    // Snapshot the photo shown when the editor opens. Later edits must not reset it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isProfileOpen]);
+
+  const dismissProfileEditor = () => {
+    if (!profileSaveSucceededRef.current && clearProfileImage) {
+      setUserProfile((prev) => ({
+        ...prev,
+        profileImage: savedProfileImageRef.current,
+      }));
+    }
+    profileSaveSucceededRef.current = false;
+    setProfileImage(null);
+    setClearProfileImage(false);
+    onProfileClose();
+  };
+
   const {
     isOpen: isPrivacyOpen,
     onOpen: onPrivacyOpen,
@@ -342,7 +369,16 @@ const SettingsPage = () => {
   };
 
   const handleProfileImageUpload = (file) => {
-    if (!file) return;
+    if (!file) {
+      setProfileImage(null);
+      setClearProfileImage(true);
+      setUserProfile((prev) => ({
+        ...prev,
+        profileImage: "",
+      }));
+      return;
+    }
+    setClearProfileImage(false);
     setProfileImage(file);
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -381,18 +417,23 @@ const SettingsPage = () => {
       if (profileImage) {
         form.append("profileImage", profileImage);
         form.append("profileImageName", profileImage.name);
+      } else if (clearProfileImage) {
+        form.append("clearProfileImage", "true");
       }
 
       const resp = await apiClient.post(API_ENDPOINTS.UPDATE_USER_PROFILE, form);
       const next = resp.data?.data || {};
 
+      profileSaveSucceededRef.current = true;
       setUserProfile((prev) => ({
         ...prev,
         ...next,
-        profileImage: next.picture || next.profileImage || prev.profileImage,
+        profileImage:
+          typeof next.picture === "string" ? next.picture : prev.profileImage,
       }));
       setProfileImage(null);
-      onProfileClose();
+      setClearProfileImage(false);
+      dismissProfileEditor();
     } catch (error) {
       toast.error("Update failed", error?.message || "Unable to update profile.");
     } finally {
@@ -918,7 +959,7 @@ const SettingsPage = () => {
       </Modal>
 
       {/* Profile Edit Modal */}
-      <Modal isOpen={isProfileOpen} onClose={onProfileClose}>
+      <Modal isOpen={isProfileOpen} onClose={dismissProfileEditor}>
         <form onSubmit={handleProfileSubmit}>
           <ModalOverlay />
           <ModalContent bg={colors.bgCard}>
@@ -1032,7 +1073,7 @@ const SettingsPage = () => {
                 Save changes
               </Button>
               <Button
-                onClick={onProfileClose}
+                onClick={dismissProfileEditor}
                 variant="ghost"
                 borderRadius="full"
                 fontWeight="500"

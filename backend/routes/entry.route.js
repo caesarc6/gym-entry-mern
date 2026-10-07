@@ -16,18 +16,11 @@ import {
   generateShareLink,
 } from "../controllers/entry.controller.js";
 import { verifyIdToken } from "../middleware/auth.js";
+import { imageUploadFileFilter } from "../utils/uploadImageTypes.js";
 
 const router = express.Router();
 
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
-
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error("Invalid file type"), false);
-  }
-};
+const fileFilter = imageUploadFileFilter;
 
 // Define multer middleware at the top level
 const storage = multer.memoryStorage();

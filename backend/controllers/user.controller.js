@@ -22,6 +22,10 @@ import { syncWorkoutFromEntry } from "./workout.controller.js";
 import SharedWorkout from "../models/sharedWorkout.model.js";
 import { sanitizeTextFields, sanitizeTextInput } from "../utils/sanitizeInput.js";
 import {
+  imageUploadFileFilter,
+  isExplicitImageClear,
+} from "../utils/uploadImageTypes.js";
+import {
   addGregorianDaysToDateKey,
   calendarDateKeyInTimeZone,
   normalizeWorkoutCalendarTimeZone,
@@ -237,20 +241,10 @@ const scrubDeletedIdentityFromEntries = async (uids) => {
   );
 };
 
-// Multer configuration
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-  ];
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error("Invalid file type"), false);
-  }
-};
+// Multer configuration. Profile uploads are re-encoded to WebP, and iOS
+// may send JPEG, WebP, or HEIC. Rejecting those types surfaces as
+// "Invalid file type" on the profile update.
+const fileFilter = imageUploadFileFilter;
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -571,6 +565,10 @@ export const updateUserProfile = async (req, res) => {
       profileImageName !== "undefined" &&
       typeof profileImage === "string" &&
       profileImage.includes("base64");
+    const clearProfileImage =
+      !hasMultipartProfileImage &&
+      !hasBase64ProfileImage &&
+      isExplicitImageClear(body.clearProfileImage);
 
     if (
       !name &&
@@ -579,7 +577,8 @@ export const updateUserProfile = async (req, res) => {
       !gymName &&
       !bio &&
       !profileImage &&
-      !hasMultipartProfileImage
+      !hasMultipartProfileImage &&
+      !clearProfileImage
     ) {
       return res.status(400).json({
         success: false,
@@ -716,6 +715,15 @@ export const updateUserProfile = async (req, res) => {
     if (goal) updateData.goal = goal;
     if (gymName) updateData.gymName = gymName;
     if (bio) updateData.bio = bio;
+    if (clearProfileImage) updateData.picture = "";
+
+    let removedProfileImageUrl = "";
+    if (clearProfileImage) {
+      const existingProfile =
+        existingUserForImageReplacement ||
+        (await User.findOne(authUserQuery).select("picture").lean());
+      removedProfileImageUrl = existingProfile?.picture || "";
+    }
 
     const user = await User.findOneAndUpdate(
       authUserQuery,
@@ -727,6 +735,14 @@ export const updateUserProfile = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "User not found",
+      });
+    }
+
+    if (removedProfileImageUrl) {
+      await cleanupReplacedImage({
+        bucket: "user_profiles",
+        previousUrl: removedProfileImageUrl,
+        newUrl: "",
       });
     }
 

@@ -120,6 +120,8 @@ export const validateImageFile = (file, maxSizeMB = 5) => {
     "image/png",
     "image/gif",
     "image/webp",
+    "image/heic",
+    "image/heif",
   ];
 
   if (!file) {
@@ -130,7 +132,7 @@ export const validateImageFile = (file, maxSizeMB = 5) => {
     return {
       success: false,
       message:
-        "Invalid file type. Please select a JPEG, PNG, GIF, or WebP image.",
+        "Invalid file type. Please select a JPEG, PNG, GIF, WebP, or HEIC image.",
     };
   }
 
