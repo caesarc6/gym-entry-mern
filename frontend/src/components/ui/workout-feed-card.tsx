@@ -217,7 +217,7 @@ export function WorkoutFeedCard({
               {/* Same delay/duration/ease as theme shell so all chrome moves together. */}
               <div
                 aria-hidden
-                className="absolute inset-0 bg-gradient-to-t from-white via-white/70 to-transparent opacity-100 dark:opacity-0"
+                className="absolute inset-0 bg-gradient-to-t from-white via-white/70 to-transparent opacity-100 [.dark_&]:opacity-0"
                 style={{
                   transition:
                     "opacity var(--theme-shell-duration, 0.45s) var(--theme-shell-ease, cubic-bezier(0.42, 0, 0.58, 1)) var(--theme-shell-delay, 0s)",
@@ -225,7 +225,7 @@ export function WorkoutFeedCard({
               />
               <div
                 aria-hidden
-                className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 dark:opacity-100"
+                className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 [.dark_&]:opacity-100"
                 style={{
                   transition:
                     "opacity var(--theme-shell-duration, 0.45s) var(--theme-shell-ease, cubic-bezier(0.42, 0, 0.58, 1)) var(--theme-shell-delay, 0s)",
