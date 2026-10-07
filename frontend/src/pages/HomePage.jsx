@@ -27,7 +27,7 @@ import ProductPreviewSection from "../components/ProductPreviewSection";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { feedPageLimit } from "../utils/feedPageLimit";
 import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
-import ProductCard from "../components/ProductCard";
+import WorkoutCard from "../components/WorkoutCard";
 import FeedPullToRefresh from "../components/FeedPullToRefresh";
 import { useMirrorPostList } from "../hooks/useMirrorPostList";
 
@@ -642,7 +642,7 @@ const HomePage = () => {
                   pointerEvents="none"
                   aria-hidden
                 >
-                  <ProductCard
+                  <WorkoutCard
                     key={`habit-detail-${habitDetailEntry._id}`}
                     entry={habitDetailEntry}
                     isOwner={
@@ -686,7 +686,7 @@ const HomePage = () => {
                     justifyItems="stretch"
                   >
                     {entries.map((entry, index) => (
-                      <ProductCard
+                      <WorkoutCard
                         key={entry._id}
                         entry={entry}
                         priority={index < 9}

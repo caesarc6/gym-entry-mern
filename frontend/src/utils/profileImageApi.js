@@ -1,6 +1,6 @@
 import { API_ENDPOINTS, apiClient } from "../config/api";
 
-/** One in-flight GET profile-image per uid (many ProductCards share the same promise). */
+/** One in-flight GET profile-image per uid (many WorkoutCards share the same promise). */
 const inflight = new Map();
 const cache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000;

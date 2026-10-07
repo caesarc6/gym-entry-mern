@@ -27,7 +27,7 @@ import { feedPageLimit } from "../utils/feedPageLimit";
 const isCapacitorNative = getIsCapacitorNative();
 const PROFILE_POSTS_PAGE_SIZE = feedPageLimit();
 
-const ProductCard = lazy(() => import("../components/ProductCard"));
+const WorkoutCard = lazy(() => import("../components/WorkoutCard"));
 
 const UserProfilePage = () => {
   const { userId: paramUserId } = useParams(); // Rename to avoid confusion
@@ -267,7 +267,7 @@ const UserProfilePage = () => {
         const postsData = postsResponse.data;
 
         if (postsData.success) {
-          // Normalize posts to match ProductCard expectations
+          // Normalize posts to match WorkoutCard expectations
           const normalizedEntries = postsData.data.map((post) => ({
             _id: post._id,
             name: post.name || "Untitled",
@@ -279,7 +279,7 @@ const UserProfilePage = () => {
               post.commentsCount ??
               (Array.isArray(post.comments) ? post.comments.length : 0),
             createdAt: post.createdAt || new Date().toISOString(),
-            uid: post.uid || userId, // ProductCard expects 'uid' field
+            uid: post.uid || userId, // WorkoutCard expects 'uid' field
             ownerId: post.uid || userId,
             trainerUid: post.trainerUid || null,
             trainerName: post.trainerName || null,
@@ -688,7 +688,7 @@ const UserProfilePage = () => {
               justifyItems="stretch"
             >
               {entries.map((entry, index) => (
-                <ProductCard
+                <WorkoutCard
                   key={entry._id}
                   entry={entry}
                   priority={index < 3}

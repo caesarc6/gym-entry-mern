@@ -31,7 +31,7 @@
     --ring: 222.2 84% 4.9%;
     --radius: 0.875rem;
 
-    /* Workout feed — ProductCard, pagination (Chakra via useThemeColors) */
+    /* Workout feed — WorkoutCard, pagination (Chakra via useThemeColors) */
     --workout-text-primary: 210 17.9% 54.1%;
     --workout-text-muted: 235 7.1% 67.1%;
     --workout-text-subtle: 220 9% 78%;

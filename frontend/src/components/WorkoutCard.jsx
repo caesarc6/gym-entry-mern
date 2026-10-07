@@ -59,7 +59,7 @@ import { API_ENDPOINTS, apiClient } from "../config/api";
 import { recognizeWorkoutLines } from "../utils/workoutParser";
 import { parseWorkoutDescription } from "../utils/workoutParser.js";
 import ShareWorkoutModal from "./ShareWorkoutModal";
-import { FeedEntryCard } from "./ui/feed-entry-card";
+import { WorkoutFeedCard } from "./ui/workout-feed-card";
 import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCanvasShell } from "../contexts/CanvasShellContext.jsx";
@@ -242,7 +242,7 @@ const EntryPostDefaultThemeArtwork = memo(function EntryPostDefaultThemeArtwork(
   );
 });
 
-const ProductCard = memo(function ProductCard({
+const WorkoutCard = memo(function WorkoutCard({
   entry,
   isOwner: propIsOwner,
   onUpdate,
@@ -2164,7 +2164,7 @@ const ProductCard = memo(function ProductCard({
   return (
     <>
       <Box alignSelf="center" w="full" maxW="448px" mx="auto">
-        <FeedEntryCard
+        <WorkoutFeedCard
           profile={{
             displayName: captionHandle,
             imageSrc: profilePhotoSrc,
@@ -2287,7 +2287,7 @@ const ProductCard = memo(function ProductCard({
           px={{ base: 1, md: 2 }}
           py={{ base: 2, md: 3 }}
         >
-          <FeedEntryCard
+          <WorkoutFeedCard
             clipCardShell={false}
             clampDescription={false}
             className={cn("mx-auto w-full max-w-[448px]")}
@@ -3150,7 +3150,7 @@ const ProductCard = memo(function ProductCard({
   );
 });
 
-ProductCard.propTypes = {
+WorkoutCard.propTypes = {
   entry: PropTypes.shape({
     _id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
@@ -3186,4 +3186,4 @@ ProductCard.propTypes = {
   onDetailOpenChange: PropTypes.func,
 };
 
-export default ProductCard;
+export default WorkoutCard;

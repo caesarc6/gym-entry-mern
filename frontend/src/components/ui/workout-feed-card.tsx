@@ -26,7 +26,7 @@ const toolbarStats: readonly ToolbarStat[] = [
   { icon: MessageCircleIcon, label: "Comment" },
 ] as const;
 
-export type FeedEntryCardProfile = {
+export type WorkoutFeedCardProfile = {
   fallback: string;
   /** Large header line (display name / @handle). */
   displayName: string;
@@ -34,9 +34,9 @@ export type FeedEntryCardProfile = {
   imageSrc: string;
 };
 
-export type FeedEntryCardProps = {
+export type WorkoutFeedCardProps = {
   className?: string;
-  profile: FeedEntryCardProfile;
+  profile: WorkoutFeedCardProfile;
   /** Muted line under the header title (date, workout meta). */
   subtitle: string;
   image: ReactNode;
@@ -65,7 +65,7 @@ export type FeedEntryCardProps = {
   captionReplacement?: ReactNode;
 };
 
-export function FeedEntryCard({
+export function WorkoutFeedCard({
   className,
   profile,
   subtitle,
@@ -85,7 +85,7 @@ export function FeedEntryCard({
   showSocialToolbar = true,
   clampDescription = true,
   captionReplacement,
-}: FeedEntryCardProps) {
+}: WorkoutFeedCardProps) {
   const likesLabel =
     likesCount === 0
       ? ""

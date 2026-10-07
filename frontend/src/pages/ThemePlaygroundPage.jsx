@@ -16,7 +16,7 @@ import {
 import { CloseIcon } from "@chakra-ui/icons";
 import { Hero } from "../components/Hero";
 import { HomeLandingSections } from "../components/HomeLandingSections";
-import ProductCard from "../components/ProductCard";
+import WorkoutCard from "../components/WorkoutCard";
 import PaginationComponent from "../components/Pagination";
 import { landingDarkMainCanvas } from "../lib/homeLandingDarkTheme";
 import {
@@ -616,7 +616,7 @@ export default function ThemePlaygroundPage() {
               Color & contrast
             </h1>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              Adjust landing tokens, workout feed tokens (ProductCard /
+              Adjust landing tokens, workout feed tokens (WorkoutCard /
               pagination), and hero surfaces. Preview updates live. Values
               autosave in this browser.{" "}
               <strong className="font-medium text-foreground">
@@ -844,7 +844,7 @@ export default function ThemePlaygroundPage() {
                       justifyItems="stretch"
                     >
                       {MOCK_WORKOUT_ENTRIES.map((entry) => (
-                        <ProductCard
+                        <WorkoutCard
                           key={entry._id}
                           entry={entry}
                           isOwner={false}

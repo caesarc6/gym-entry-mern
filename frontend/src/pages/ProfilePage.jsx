@@ -51,7 +51,7 @@ import { useMirrorPostList } from "../hooks/useMirrorPostList";
 
 const isCapacitorNative = getIsCapacitorNative();
 const PROFILE_POSTS_PAGE_SIZE = feedPageLimit();
-const ProductCard = lazy(() => import("../components/ProductCard"));
+const WorkoutCard = lazy(() => import("../components/WorkoutCard"));
 
 const ProfilePage = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -1047,7 +1047,7 @@ const ProfilePage = () => {
                 justifyItems="stretch"
               >
                 {entries.map((entry, index) => (
-                  <ProductCard
+                  <WorkoutCard
                     key={entry._id}
                     entry={entry}
                     priority={index < 3}

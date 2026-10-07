@@ -48,7 +48,7 @@ export const useThemeColors = () => {
     destructive: getCSSVariable("destructive"),
     destructiveForeground: getCSSVariable("destructive-foreground"),
 
-    // Workout feed / ProductCard — driven by CSS variables (theme playground + index.css)
+    // Workout feed / WorkoutCard — driven by CSS variables (theme playground + index.css)
     textPrimary: getCSSVariable("workout-text-primary"),
     textSecondary: getCSSVariable("workout-text-muted"),
     textMuted: getCSSVariable("workout-text-muted"),
