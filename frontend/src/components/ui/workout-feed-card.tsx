@@ -10,6 +10,11 @@ import type {
   ReactNode,
 } from "react";
 
+import { useTheme } from "../../contexts/ThemeContext";
+import {
+  defaultProfileImageUrl,
+  isUploadedProfilePhoto,
+} from "../../utils/defaultProfileImage";
 import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
 import { Button } from "./button";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
@@ -25,6 +30,27 @@ const toolbarStats: readonly ToolbarStat[] = [
   { icon: HeartIcon, label: "Like" },
   { icon: MessageCircleIcon, label: "Comment" },
 ] as const;
+
+function ProfileAvatarFace({
+  src,
+  alt,
+}: {
+  src: string;
+  alt: string;
+}) {
+  const { currentTheme } = useTheme();
+  const fallbackSrc = defaultProfileImageUrl(currentTheme);
+  const photo = isUploadedProfilePhoto(src) ? src : "";
+
+  return (
+    <Avatar className="size-9 shrink-0">
+      {photo ? <AvatarImage src={photo} alt={alt} /> : null}
+      <AvatarFallback className="bg-transparent p-0">
+        <img src={fallbackSrc} alt="" className="h-full w-full object-cover" />
+      </AvatarFallback>
+    </Avatar>
+  );
+}
 
 export type WorkoutFeedCardProfile = {
   fallback: string;
@@ -157,17 +183,10 @@ export function WorkoutFeedCard({
                   }}
                   aria-label={`View ${profile.displayName}'s profile`}
                 >
-                  <Avatar className="size-9 shrink-0">
-                      {profile.imageSrc ? (
-                        <AvatarImage
-                          src={profile.imageSrc}
-                          alt={profile.imageAlt}
-                        />
-                      ) : null}
-                      <AvatarFallback className="text-xs">
-                        {profile.fallback}
-                      </AvatarFallback>
-                  </Avatar>
+                  <ProfileAvatarFace
+                    src={profile.imageSrc}
+                    alt={profile.imageAlt}
+                  />
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <CardTitle className="truncate text-sm font-medium leading-tight tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)] hover:underline">
                       {profile.displayName}
@@ -179,17 +198,10 @@ export function WorkoutFeedCard({
                 </button>
               ) : (
                 <>
-                  <Avatar className="size-9 shrink-0">
-                      {profile.imageSrc ? (
-                        <AvatarImage
-                          src={profile.imageSrc}
-                          alt={profile.imageAlt}
-                        />
-                      ) : null}
-                      <AvatarFallback className="text-xs">
-                        {profile.fallback}
-                      </AvatarFallback>
-                  </Avatar>
+                  <ProfileAvatarFace
+                    src={profile.imageSrc}
+                    alt={profile.imageAlt}
+                  />
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <CardTitle className="truncate text-sm font-medium leading-tight tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
                       {profile.displayName}

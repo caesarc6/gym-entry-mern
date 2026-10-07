@@ -6,7 +6,6 @@ import {
   Button,
   Box,
   Heading,
-  Avatar,
   Center,
   Flex,
   Image,
@@ -36,6 +35,7 @@ import { flushSync } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { FileUploader } from "../components/FileUploader";
+import ProfileAvatar from "../components/ProfileAvatar";
 import { PROFILE_IMAGE_ASPECT } from "../constants/imageAspectRatios";
 import { supabase } from "../supabase/supabase";
 import { useThemeColors } from "../hooks/useThemeColors";
@@ -895,7 +895,7 @@ const ProfilePage = () => {
         </Box>
 
         <Flex justify="center" mt={-12}>
-          <Avatar
+          <ProfileAvatar
             size="xl"
             name={userProfile.name || userProfile.username}
             src={userProfile.profileImage || undefined}
@@ -1128,7 +1128,7 @@ const ProfilePage = () => {
                     >
                       <Flex align="center" flex={1}>
                         <Link to={`/user/${request.requester.uid}`}>
-                          <Avatar
+                          <ProfileAvatar
                             src={request.requester.picture}
                             size="sm"
                             mr={3}
@@ -1222,7 +1222,7 @@ const ProfilePage = () => {
                   >
                     <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
-                        <Avatar
+                        <ProfileAvatar
                           name={user.name || user.username}
                           src={user.picture || undefined}
                           bg={colors.bgMuted}
@@ -1296,7 +1296,7 @@ const ProfilePage = () => {
                   >
                     <Flex align="center" flex={1}>
                       <Link to={`/user/${user.uid}`}>
-                        <Avatar
+                        <ProfileAvatar
                           name={user.name || user.username}
                           src={user.picture || undefined}
                           bg={colors.bgMuted}
@@ -1350,7 +1350,7 @@ const ProfilePage = () => {
             <ModalCloseButton color={colors.textMuted} />
             <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
-                <Avatar
+                <ProfileAvatar
                   name={userProfile.name || userProfile.username}
                   src={userProfile.profileImage || undefined}
                   boxSize="150px"

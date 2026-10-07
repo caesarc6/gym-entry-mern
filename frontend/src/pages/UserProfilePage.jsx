@@ -5,7 +5,6 @@ import {
   VStack,
   Button,
   Heading,
-  Avatar,
   Center,
   Flex,
   Box,
@@ -23,6 +22,7 @@ import { useProductStore } from "../store/product";
 import { useMirrorPostList } from "../hooks/useMirrorPostList";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { feedPageLimit } from "../utils/feedPageLimit";
+import ProfileAvatar from "../components/ProfileAvatar";
 
 const isCapacitorNative = getIsCapacitorNative();
 const PROFILE_POSTS_PAGE_SIZE = feedPageLimit();
@@ -529,7 +529,7 @@ const UserProfilePage = () => {
         )}
       </Box>
       <Flex justify="center" mt={-12}>
-        <Avatar
+        <ProfileAvatar
           size="xl"
           name={userProfile.name || userProfile.username}
           src={userProfile.profileImage || undefined}

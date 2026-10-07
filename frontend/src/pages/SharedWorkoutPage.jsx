@@ -7,7 +7,6 @@ import {
   Image,
   Button,
   Box,
-  Avatar,
   Badge,
   Divider,
   Flex,
@@ -28,6 +27,7 @@ import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { getCurrentAuthUser } from "../utils/auth";
+import ProfileAvatar from "../components/ProfileAvatar";
 
 const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
 const defaultBgNightUrl = new URL(
@@ -220,7 +220,7 @@ const SharedWorkoutPage = () => {
           <VStack spacing={6}>
             {/* Creator Info */}
             <HStack spacing={4} w="full" justify="center">
-              <Avatar
+              <ProfileAvatar
                 size="lg"
                 src={creator?.picture || undefined}
                 name={creator?.name || "Creator"}

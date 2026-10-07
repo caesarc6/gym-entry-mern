@@ -1,11 +1,11 @@
 import { DeleteIcon, EditIcon, StarIcon } from "@chakra-ui/icons";
+import ProfileAvatar from "../components/ProfileAvatar";
 import {
   Box,
   Button,
   Heading,
   HStack,
   IconButton,
-  Avatar,
   Image,
   Input,
   Modal,
@@ -351,7 +351,7 @@ const ModifyProfile = ({ entry }) => {
             bg={colors.bgCard}
           >
             <VStack spacing={4}>
-              <Avatar
+              <ProfileAvatar
                 name={userProfile.name || userProfile.username}
                 src={userProfile.profileImage || undefined}
                 boxSize="150px"

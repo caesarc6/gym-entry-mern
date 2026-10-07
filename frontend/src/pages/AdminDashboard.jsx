@@ -10,7 +10,6 @@ import {
   CardHeader,
   Badge,
   Center,
-  Avatar,
   Box,
   Divider,
   Alert,
@@ -25,6 +24,7 @@ import {
   ModalCloseButton,
 } from "@chakra-ui/react";
 import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
+import ProfileAvatar from "../components/ProfileAvatar";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustomToast } from "../hooks/useCustomToast";
@@ -298,7 +298,7 @@ const AdminDashboard = () => {
                       <CardBody>
                         <VStack spacing={4} align="stretch">
                           <HStack spacing={4} flexWrap="wrap">
-                            <Avatar
+                            <ProfileAvatar
                               src={user.picture}
                               name={user.name || user.email}
                               size={{ base: "sm", md: "md" }}
@@ -375,7 +375,7 @@ const AdminDashboard = () => {
                       <CardBody>
                         <VStack spacing={4} align="stretch">
                           <HStack spacing={4} flexWrap="wrap">
-                            <Avatar
+                            <ProfileAvatar
                               src={user.picture}
                               name={user.name || user.email}
                               size={{ base: "sm", md: "md" }}

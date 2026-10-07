@@ -1,5 +1,4 @@
 import {
-  Avatar,
   Badge,
   Box,
   Button,
@@ -22,6 +21,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { ButtonLoadingSpinner } from "../components/loading";
+import ProfileAvatar from "../components/ProfileAvatar";
 import {
   useCallback,
   useEffect,
@@ -928,7 +928,7 @@ const SettingsPage = () => {
             <ModalCloseButton color={colors.textMuted} />
             <ModalBody bg={colors.bgCard}>
               <VStack spacing={4}>
-                <Avatar
+                <ProfileAvatar
                   name={userProfile.name || userProfile.username}
                   src={userProfile.profileImage || undefined}
                   boxSize="150px"

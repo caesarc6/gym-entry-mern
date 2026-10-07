@@ -28,6 +28,7 @@ import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
 import { Button } from "../components/ui/button";
 import { useThemeColors } from "../hooks/useThemeColors";
+import { defaultProfileImageUrl } from "../utils/defaultProfileImage";
 
 const STORAGE_KEY = "gym-theme-playground-v1";
 
@@ -292,7 +293,13 @@ function WorkoutDetailModalPanel({ entry }) {
           style={{ background: colors.modalHeaderBg, color: colors.textPrimary }}
         >
           <HStack spacing={3}>
-            <Box boxSize="34px" borderRadius="full" bg={colors.bgMuted} />
+            <Image
+              src={defaultProfileImageUrl(colors.currentTheme)}
+              alt=""
+              boxSize="34px"
+              borderRadius="full"
+              objectFit="cover"
+            />
             <VStack align="start" spacing={0} minW={0}>
               <Text fontWeight="700" noOfLines={1} fontSize="sm">
                 @demo_user

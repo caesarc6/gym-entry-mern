@@ -29,12 +29,12 @@ import {
   Input,
   VStack,
   Text,
-  Avatar,
   Flex,
   Box,
   Button as ChakraButton,
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
+import ProfileAvatar from "./ProfileAvatar";
 import debounce from "lodash/debounce";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { useTheme } from "../contexts/ThemeContext";
@@ -534,7 +534,7 @@ export const HeroHeader = () => {
                                     w="full"
                                     bg={colors.bgCard}
                                   >
-                                    <Avatar
+                                    <ProfileAvatar
                                       src={user.picture}
                                       size="sm"
                                       mr={2}
@@ -722,7 +722,7 @@ export const HeroHeader = () => {
                                 w="full"
                                 bg={colors.bgCard}
                               >
-                                <Avatar src={user.picture} size="sm" mr={2} />
+                                <ProfileAvatar src={user.picture} size="sm" mr={2} />
                                 <Box flex={1}>
                                   <Text
                                     fontWeight={

@@ -71,6 +71,11 @@ import {
   setCachedProfileSnippet,
 } from "../utils/profileImageApi";
 import {
+  defaultProfileImageUrl,
+  isUploadedProfilePhoto,
+  profileImageSrc,
+} from "../utils/defaultProfileImage";
+import {
   clearEditEntryDraft,
   readEditEntryDraft,
   writeEditEntryDraft,
@@ -82,8 +87,6 @@ import {
 } from "../constants/themeShellTiming.js";
 
 // Convert Vite asset imports to actual URLs
-const lightUrl = new URL("../assets/light.jpg", import.meta.url).href;
-const nightUrl = new URL("../assets/night.jpg", import.meta.url).href;
 const defaultBgUrl = new URL("../assets/defaultBg.jpg", import.meta.url).href;
 const defaultBgNightUrl = new URL(
   "../assets/defaultBgNight.jpg",
@@ -272,8 +275,7 @@ const WorkoutCard = memo(function WorkoutCard({
     navigate(`/user/${ownerUid}`);
   }, [currentUser?.uid, entry.uid, navigate]);
   const { prefersReducedMotion } = useCanvasShell();
-  const profileImageFallback =
-    colors.currentTheme === "light" ? lightUrl : nightUrl;
+  const profileImageFallback = defaultProfileImageUrl(colors.currentTheme);
   const postImageFallback =
     colors.currentTheme === "light" ? defaultBgUrl : defaultBgNightUrl;
 
@@ -443,12 +445,6 @@ const WorkoutCard = memo(function WorkoutCard({
     return currentUserInfo.username
       ? `@${currentUserInfo.username}`
       : currentUserInfo.name || "User";
-  };
-
-  // Get current user's profile picture for comments
-  const getCurrentUserProfilePicture = () => {
-    if (!currentUserInfo) return profileImageFallback;
-    return currentUserInfo.picture || profileImageFallback;
   };
 
   const { showToast, error: toastError } = useCustomToast();
@@ -823,7 +819,7 @@ const WorkoutCard = memo(function WorkoutCard({
   useEffect(() => {
     // Only update to default if we truly have no profile image and no cached profile
     if (
-      (!profileImage || profileImage === lightUrl || profileImage === nightUrl) &&
+      (!profileImage || !isUploadedProfilePhoto(profileImage)) &&
       !cachedProfile?.profileImage
     ) {
       setProfileImage(profileImageFallback);
@@ -1944,10 +1940,9 @@ const WorkoutCard = memo(function WorkoutCard({
   const captionHandle = isUsername ? `@${userDisplayName}` : userDisplayName;
   const profileFallbackLetters =
     userDisplayName.trim().slice(0, 2).toUpperCase() || "??";
-  const profilePhotoSrc =
-    profileImage && profileImage !== lightUrl && profileImage !== nightUrl
-      ? profileImage
-      : "";
+  const profilePhotoSrc = isUploadedProfilePhoto(profileImage)
+    ? profileImage
+    : "";
   const trainerDisplayLabel =
     trainerIsUsername && trainerDisplayName
       ? `@${trainerDisplayName}`
@@ -2440,15 +2435,17 @@ const WorkoutCard = memo(function WorkoutCard({
                     >
                       {updatedEntry.comments.map((cmt, index) => {
                         const commentIdStr = normalizeCommentMongoId(cmt);
-                        const commentPicSrc =
-                          cmt.picture || getCurrentUserProfilePicture();
+                        const commentPicSrc = profileImageSrc(
+                          cmt.picture,
+                          colors.currentTheme,
+                        );
 
                         return (
                           <Box key={commentIdStr ?? `legacy-comment-${index}`}>
                             <HStack spacing={2} align="flex-start">
                               <Image
                                 src={commentPicSrc}
-                                fallbackSrc={postImageFallback}
+                                fallbackSrc={profileImageFallback}
                                 alt=""
                                 boxSize="22px"
                                 borderRadius="full"
@@ -2827,11 +2824,11 @@ const WorkoutCard = memo(function WorkoutCard({
                                         align="flex-start"
                                       >
                                         <Image
-                                          src={
-                                            reply.picture ||
-                                            getCurrentUserProfilePicture()
-                                          }
-                                          fallbackSrc={postImageFallback}
+                                          src={profileImageSrc(
+                                            reply.picture,
+                                            colors.currentTheme,
+                                          )}
+                                          fallbackSrc={profileImageFallback}
                                           alt=""
                                           boxSize="18px"
                                           borderRadius="full"

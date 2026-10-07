@@ -6,7 +6,6 @@ import {
   Heading,
   Button,
   Box,
-  Avatar,
   Badge,
   Divider,
   Flex,
@@ -29,6 +28,7 @@ import {
   AlertDialogOverlay,
 } from "@chakra-ui/react";
 import { ButtonLoadingSpinner, LoadingIndicator } from "../components/loading";
+import ProfileAvatar from "../components/ProfileAvatar";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/supabase";
@@ -228,7 +228,7 @@ const ClientClaimPage = () => {
           <VStack spacing={6}>
             {/* Creator Info */}
             <HStack spacing={4} w="full" justify="center">
-              <Avatar
+              <ProfileAvatar
                 size="lg"
                 src={creator?.picture || undefined}
                 name={creator?.name || "Creator"}
