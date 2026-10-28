@@ -66,6 +66,11 @@ import {
   handleImageUploadWithCompression,
 } from "../utils/imageCompression";
 import { getCroppedImgAsFile } from "../utils/getCroppedImg";
+import {
+  ensureFilePreviewForCrop,
+  inferImageMimeType,
+} from "../utils/imageCropPreview";
+import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import "../index.css";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -102,11 +107,7 @@ export const FileUploader = ({
   const actionsDisclosure = useDisclosure();
   const toast = useCustomToast();
   const selectedBorderColor = useColorModeValue("blue.500", "blue.300");
-  const isCapacitorNative = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    const cap = window.Capacitor;
-    return !!(cap && typeof cap.isNativePlatform === "function" && cap.isNativePlatform());
-  }, []);
+  const isCapacitorNative = useMemo(() => getIsCapacitorNative(), []);
 
   useEffect(() => {
     return () => {
@@ -142,7 +143,10 @@ export const FileUploader = ({
     hiddenFileInput.current.click();
   };
 
-  const setPendingSelection = async (file, source = "file") => {
+  const wantsCropStep =
+    cropAspect != null && Number.isFinite(cropAspect);
+
+  const setPendingSelection = async (file, source = "file", formatHint) => {
     if (!file) return;
 
     try {
@@ -158,12 +162,37 @@ export const FileUploader = ({
       // no-op
     }
 
+    if (
+      isCapacitorNative &&
+      (source === "camera" || source === "photos")
+    ) {
+      // Let the native picker dismiss before presenting the crop modal (iOS).
+      await new Promise((r) => setTimeout(r, 450));
+    }
+
     if (pendingPreviewUrl && pendingPreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(pendingPreviewUrl);
     }
 
-    const previewUrl = URL.createObjectURL(file);
-    setPendingFile(file);
+    let fileForPreview = file;
+    let previewUrl;
+    if (wantsCropStep && file.type !== "image/gif" && file.type !== "image/svg+xml") {
+      try {
+        const prepared = await ensureFilePreviewForCrop(file, formatHint);
+        fileForPreview = prepared.file;
+        previewUrl = prepared.previewUrl;
+      } catch (err) {
+        toast.error(
+          "Photo Error",
+          err?.message || "Could not prepare this photo for cropping."
+        );
+        return;
+      }
+    } else {
+      previewUrl = URL.createObjectURL(file);
+    }
+
+    setPendingFile(fileForPreview);
     setPendingPreviewUrl(previewUrl);
     setPendingSource(source);
     previewDisclosure.onOpen();
@@ -179,7 +208,10 @@ export const FileUploader = ({
     const blob = await resp.blob();
     const ext = (photo.format || "jpeg").toLowerCase();
     const filename = `photo-${Date.now()}.${ext === "jpg" ? "jpeg" : ext}`;
-    const mime = blob.type || (ext === "png" ? "image/png" : "image/jpeg");
+    const mime =
+      blob.type && blob.type.startsWith("image/")
+        ? blob.type
+        : inferImageMimeType(null, ext);
     return new File([blob], filename, { type: mime, lastModified: Date.now() });
   };
 
@@ -194,7 +226,7 @@ export const FileUploader = ({
       correctOrientation: true,
     });
     const file = await fileFromCapacitorPhoto(photo);
-    await setPendingSelection(file, "camera");
+    await setPendingSelection(file, "camera", photo.format);
   };
 
   const choosePhotoNative = async () => {
@@ -206,7 +238,7 @@ export const FileUploader = ({
       correctOrientation: true,
     });
     const file = await fileFromCapacitorPhoto(photo);
-    await setPendingSelection(file, "photos");
+    await setPendingSelection(file, "photos", photo.format);
   };
 
   const presentNativePicker = async (kind) => {
@@ -288,6 +320,7 @@ export const FileUploader = ({
         {
           maxSizeMB,
           ...(maxWidthOrHeight ? { maxWidthOrHeight } : {}),
+          ...(isCapacitorNative ? { useWebWorker: false } : {}),
         }
       );
     } catch {
@@ -476,8 +509,18 @@ export const FileUploader = ({
               position="relative"
               px={3}
               pt={6}
-              pb={20}
+              pb={showCropper ? 28 : 20}
               minH={0}
+              sx={
+                showCropper
+                  ? {
+                      ".reactEasyCrop_Container": {
+                        touchAction: "none",
+                        WebkitUserSelect: "none",
+                      },
+                    }
+                  : undefined
+              }
             >
               {/* Top controls */}
               <HStack
@@ -540,6 +583,9 @@ export const FileUploader = ({
                         onCropChange={setCrop}
                         onZoomChange={setZoom}
                         onCropComplete={(_area, areaPixels) =>
+                          setCroppedAreaPixels(areaPixels)
+                        }
+                        onCropAreaChange={(_area, areaPixels) =>
                           setCroppedAreaPixels(areaPixels)
                         }
                       />

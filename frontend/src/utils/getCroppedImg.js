@@ -6,6 +6,9 @@ export function loadImageElement(src) {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error("Could not load image for cropping."));
+    if (typeof src === "string" && src.startsWith("blob:")) {
+      img.crossOrigin = "anonymous";
+    }
     img.src = src;
   });
 }
