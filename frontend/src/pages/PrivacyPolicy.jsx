@@ -36,7 +36,7 @@ const PrivacyPolicy = () => {
               Privacy Policy
             </h1>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Last updated: April 27, 2026
+              Last updated: October 28, 2026
             </p>
           </div>
 
@@ -94,8 +94,9 @@ const PrivacyPolicy = () => {
               <p>
                 We do not sell your personal information. We may share information
                 with service providers that help us operate the app, such as
-                authentication, hosting, database, analytics, and infrastructure
+                authentication, hosting, database, and infrastructure
                 providers. These providers are only used to support Ethereal Gains.
+                This information is not used for tracking.
               </p>
               <p>
                 We may also disclose information if required by law, to protect the
