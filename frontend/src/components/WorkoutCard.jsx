@@ -1,4 +1,4 @@
-import { EditIcon } from "@chakra-ui/icons";
+import { CloseIcon, EditIcon } from "@chakra-ui/icons";
 import {
   Box,
   Button,
@@ -918,11 +918,8 @@ const WorkoutCard = memo(function WorkoutCard({
     lastSavedAt: null,
   });
   const [isUpdateSubmitting, setIsUpdateSubmitting] = useState(false);
-  /** Stringified baseline for Revert; state (not ref) so the Revert button re-renders when it updates. */
-  const [editBaselineSnapshot, setEditBaselineSnapshot] = useState("");
   const editAutosaveTimerRef = useRef(null);
   const lastEditAutosavedSnapshotRef = useRef("");
-  const lastEditAutosavedEntryRef = useRef(null);
   /** JSON.stringify(payload) of the last successful server save — skip redundant identical PUTs. */
   const lastEditServerPayloadHashRef = useRef("");
 
@@ -1034,7 +1031,7 @@ const WorkoutCard = memo(function WorkoutCard({
     })();
   }, [entry._id, isOwner, saveEntryDraft]);
 
-  // Edit modal: server baseline for Revert + recover device draft if the app died mid-edit.
+  // Edit modal: seed autosave baseline + recover device/server draft if the app died mid-edit.
   useEffect(() => {
     if (!isOpen) {
       // Closing cancels debounce timers — flush so drafts survive quick dismiss.
@@ -1051,9 +1048,7 @@ const WorkoutCard = memo(function WorkoutCard({
       }
       prevEditModalOpenRef.current = false;
       setEditAutosaveMeta({ status: "idle", lastSavedAt: null });
-      setEditBaselineSnapshot("");
       lastEditAutosavedSnapshotRef.current = "";
-      lastEditAutosavedEntryRef.current = null;
       lastEditServerPayloadHashRef.current = "";
       return;
     }
@@ -1073,8 +1068,6 @@ const WorkoutCard = memo(function WorkoutCard({
     };
     const serverSnap = JSON.stringify(serverBaseline);
     lastEditAutosavedSnapshotRef.current = serverSnap;
-    setEditBaselineSnapshot(serverSnap);
-    lastEditAutosavedEntryRef.current = { ...serverBaseline };
     lastEditServerPayloadHashRef.current = JSON.stringify(
       buildUpdatePayload(serverBaseline),
     );
@@ -1303,12 +1296,6 @@ const WorkoutCard = memo(function WorkoutCard({
             const publishedImageName =
               data?.image && didSendNewImage ? "" : sentImageName;
 
-            lastEditAutosavedEntryRef.current = {
-              name: sentName,
-              description: sentDesc,
-              image: publishedImage,
-              imageName: publishedImageName,
-            };
             const savedSnap = JSON.stringify({
               name: sentName,
               description: sentDesc,
@@ -1316,7 +1303,6 @@ const WorkoutCard = memo(function WorkoutCard({
               imageName: publishedImageName,
             });
             lastEditAutosavedSnapshotRef.current = savedSnap;
-            setEditBaselineSnapshot(savedSnap);
 
             setUpdatedEntry((prevEntry) => {
               const next = {
@@ -1409,23 +1395,6 @@ const WorkoutCard = memo(function WorkoutCard({
     saveEntryDraft,
     currentEditSnapshot,
   ]);
-
-  const handleRevertEdits = useCallback(() => {
-    const baseline = lastEditAutosavedEntryRef.current;
-    if (!baseline) return;
-    setUpdatedEntry((prev) => ({
-      ...prev,
-      name: baseline.name ?? "",
-      description: baseline.description ?? "",
-      image: baseline.image ?? prev.image,
-      imageName: baseline.imageName ?? prev.imageName,
-      clearImage: false,
-    }));
-    lastEditServerPayloadHashRef.current = JSON.stringify(
-      buildUpdatePayload(baseline),
-    );
-    setEditAutosaveMeta((m) => ({ ...m, status: "idle" }));
-  }, [buildUpdatePayload]);
 
   const handleFileUpload = async (file) => {
     if (!file) {
@@ -1528,13 +1497,6 @@ const WorkoutCard = memo(function WorkoutCard({
               imageName: "",
             });
             lastEditAutosavedSnapshotRef.current = savedSnap;
-            setEditBaselineSnapshot(savedSnap);
-            lastEditAutosavedEntryRef.current = {
-              name: name ?? "",
-              description: description ?? "",
-              image: image ?? "",
-              imageName: "",
-            };
             return newUpdatedEntry;
           });
           onUpdate(pid, data);
@@ -2963,15 +2925,17 @@ const WorkoutCard = memo(function WorkoutCard({
             }
           }}
         >
-          <ModalHeader>Edit</ModalHeader>
-          <ModalCloseButton />
+          <ModalHeader
+            color={colors.textPrimary}
+            fontWeight="500"
+            borderBottomWidth="1px"
+            borderColor={colors.modalDivider}
+          >
+            Edit workout
+          </ModalHeader>
+          <ModalCloseButton color={colors.textMuted} />
           <ModalBody>
             <VStack align="stretch" spacing={5}>
-              {!usesThemeDefaultPostArt ? (
-                <Box borderRadius="2xl" overflow="hidden">
-                  {getSquareEntryMedia(false)}
-                </Box>
-              ) : null}
               <Box>
                 <Text fontSize="sm" fontWeight="500" color={colors.textPrimary}>
                   Title
@@ -3034,11 +2998,52 @@ const WorkoutCard = memo(function WorkoutCard({
                   </VStack>
                 </Box>
               ) : null}
-              <FileUploader
-                handleFile={handleFileUpload}
-                cropAspect={ENTRY_POST_IMAGE_ASPECT}
-                compact
-              />
+              <Box>
+                <Text fontSize="sm" fontWeight="500" color={colors.textPrimary} mb={2}>
+                  Photo
+                </Text>
+                {updatedEntry?.image &&
+                !isPlaceholderImage(updatedEntry.image) ? (
+                  <Box
+                    position="relative"
+                    mb={3}
+                    w="96px"
+                    h="96px"
+                    borderRadius="xl"
+                    overflow="hidden"
+                    borderWidth="1px"
+                    borderColor={colors.borderColor}
+                  >
+                    <Image
+                      src={updatedEntry.image}
+                      alt=""
+                      w="100%"
+                      h="100%"
+                      objectFit="cover"
+                    />
+                    <IconButton
+                      aria-label="Remove photo"
+                      icon={<CloseIcon boxSize={2.5} />}
+                      size="xs"
+                      position="absolute"
+                      top={1.5}
+                      right={1.5}
+                      borderRadius="full"
+                      bg="blackAlpha.600"
+                      color="white"
+                      _hover={{ bg: "blackAlpha.700" }}
+                      onClick={() => handleFileUpload(null)}
+                    />
+                  </Box>
+                ) : null}
+                <FileUploader
+                  handleFile={handleFileUpload}
+                  cropAspect={ENTRY_POST_IMAGE_ASPECT}
+                  compact
+                  variant="subtle"
+                  showSelectedPreview={false}
+                />
+              </Box>
               {(editAutosaveMeta.status === "saving" ||
                 editAutosaveMeta.status === "saved" ||
                 editAutosaveMeta.status === "error") && (
@@ -3053,50 +3058,33 @@ const WorkoutCard = memo(function WorkoutCard({
             </VStack>
           </ModalBody>
           <ModalFooter
-            flexDirection="column"
-            alignItems="stretch"
-            gap={1}
+            borderTopWidth="1px"
+            borderColor={colors.modalDivider}
+            gap={3}
           >
-            <Flex justify="flex-end" gap={3} flexWrap="wrap">
-              <Button
-                variant="ghost"
-                borderRadius="full"
-                fontWeight="500"
-                color={colors.textMuted}
-                _hover={{ bg: colors.bgHover }}
-                onClick={onClose}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="outline"
-                borderRadius="full"
-                fontWeight="500"
-                color={colors.textPrimary}
-                borderColor={colors.borderColor}
-                _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
-                onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
-                isLoading={isUpdateSubmitting}
-                spinner={<ButtonLoadingSpinner />}
-                loadingText="Saving…"
-              >
-                Save changes
-              </Button>
-            </Flex>
             <Button
-              alignSelf="flex-start"
               variant="ghost"
               borderRadius="full"
               fontWeight="500"
               color={colors.textMuted}
               _hover={{ bg: colors.bgHover }}
-              onClick={handleRevertEdits}
-              isDisabled={
-                !editBaselineSnapshot ||
-                currentEditSnapshot === editBaselineSnapshot
-              }
+              onClick={onClose}
             >
-              Revert
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              borderRadius="full"
+              fontWeight="500"
+              color={colors.textPrimary}
+              borderColor={colors.borderColor}
+              _hover={{ bg: colors.bgHover, borderColor: colors.borderColorInput }}
+              onClick={() => handleUpdateEntry(entry._id, updatedEntry)}
+              isLoading={isUpdateSubmitting}
+              spinner={<ButtonLoadingSpinner />}
+              loadingText="Saving…"
+            >
+              Save changes
             </Button>
           </ModalFooter>
         </ModalContent>

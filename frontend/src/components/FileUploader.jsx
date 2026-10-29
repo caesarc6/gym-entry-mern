@@ -69,7 +69,7 @@ import { setNativeCropGestures } from "../utils/nativeCropGestures";
 import "../index.css";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
-import { Camera as CameraIcon, ImagePlus } from "lucide-react";
+import { ImagePlus } from "lucide-react";
 import { cn } from "../lib/utils";
 
 /** Crop UI + CSS load only when needed (and while the native picker is open). */
@@ -129,8 +129,8 @@ export const FileUploader = ({
   cropAspect = undefined,
   /** Smaller layout for dense modals (e.g. edit workout post). */
   compact = false,
-  /** `subtle` = dashed dropzone style (create post). */
-  variant = "default",
+  /** Kept for callers; trigger always uses the dashed theme-matched control. */
+  variant = "default", // eslint-disable-line no-unused-vars
 }) => {
   const hiddenFileInput = useRef(null);
   const cropStageRef = useRef(null);
@@ -274,47 +274,33 @@ export const FileUploader = ({
     return new File([blob], filename, { type: mime, lastModified: Date.now() });
   };
 
-  const takePhotoNative = async () => {
-    // Warm the crop chunk while the native camera is open.
+  /** One entry: native sheet lets the user pick Camera or Library. */
+  const pickPhotoNative = async () => {
     if (wantsCropStep) preloadEasyCropper();
-    // Let the tap animation / any transitions finish before presenting iOS UI.
     await new Promise((r) => setTimeout(r, 150));
     const photo = await Camera.getPhoto({
       resultType: CameraResultType.Uri,
-      source: CameraSource.Camera,
+      source: CameraSource.Prompt,
       quality: 90,
       saveToGallery: false,
       correctOrientation: true,
-    });
-    const file = await fileFromCapacitorPhoto(photo);
-    await setPendingSelection(file, "camera", photo.format);
-  };
-
-  const choosePhotoNative = async () => {
-    if (wantsCropStep) preloadEasyCropper();
-    await new Promise((r) => setTimeout(r, 150));
-    const photo = await Camera.getPhoto({
-      resultType: CameraResultType.Uri,
-      source: CameraSource.Photos,
-      quality: 90,
-      correctOrientation: true,
+      promptLabelHeader: "Photo",
+      promptLabelPhoto: "Choose photo",
+      promptLabelPicture: "Take photo",
+      promptLabelCancel: "Cancel",
     });
     const file = await fileFromCapacitorPhoto(photo);
     await setPendingSelection(file, "photos", photo.format);
   };
 
-  const presentNativePicker = async (kind) => {
+  const presentNativePicker = async () => {
     // iOS can behave oddly if we present the picker while a bottom drawer is open.
     actionsDisclosure.onClose();
     // Also dismiss the preview modal itself (without clearing state) so we don't
     // stack native iOS presentation on top of an active full-screen modal.
     previewDisclosure.onClose();
     await new Promise((r) => setTimeout(r, 450));
-    if (kind === "camera") {
-      await takePhotoNative();
-      return;
-    }
-    await choosePhotoNative();
+    await pickPhotoNative();
   };
 
   const handleChange = async (event) => {
@@ -420,93 +406,52 @@ export const FileUploader = ({
     }
   };
 
-  const isSubtle = variant === "subtle";
-
-  const onTakePhotoNative = async (e) => {
+  const onPickPhotoNative = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await takePhotoNative();
+      await pickPhotoNative();
     } catch (err) {
       // User cancel is common; avoid noisy errors.
       const msg = err?.message || "";
       if (!/cancel/i.test(msg)) {
-        toast.error("Camera Error", "Could not open the camera.");
+        toast.error("Photo Error", "Could not open the camera or photo library.");
       }
     }
   };
 
-  const onChoosePhotoNative = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      await choosePhotoNative();
-    } catch (err) {
-      const msg = err?.message || "";
-      if (!/cancel/i.test(msg)) {
-        toast.error("Photos Error", "Could not open your photo library.");
-      }
-    }
-  };
+  const photoTriggerClassName = cn(
+    subtleTriggerClassName,
+    compact ? "py-2.5" : "py-3.5",
+  );
+
+  const photoTriggerLabel = isProcessing ? (
+    <>
+      <ButtonLoadingSpinner />
+      <span>Processing…</span>
+    </>
+  ) : (
+    <>
+      <ImagePlus className="size-4 shrink-0" strokeWidth={1.75} />
+      <span>Add a photo</span>
+    </>
+  );
 
   return (
     <VStack spacing={compact ? 2 : 3} align="stretch">
       {isCapacitorNative && enableNativeCamera ? (
-        isSubtle ? (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className={subtleTriggerClassName}
-              onClick={onTakePhotoNative}
-              disabled={isProcessing}
-            >
-              <CameraIcon className="size-4 shrink-0" strokeWidth={1.75} />
-              <span>Camera</span>
-            </button>
-            <button
-              type="button"
-              className={subtleTriggerClassName}
-              onClick={onChoosePhotoNative}
-              disabled={isProcessing}
-            >
-              <ImagePlus className="size-4 shrink-0" strokeWidth={1.75} />
-              <span>Library</span>
-            </button>
-          </div>
-        ) : (
-          <HStack
-            spacing={compact ? 2 : 3}
-            flexWrap={compact ? "wrap" : undefined}
-          >
-            <Button
-              className="button-upload"
-              onClick={onTakePhotoNative}
-              type="button"
-              size={compact ? "sm" : "md"}
-              isDisabled={isProcessing}
-              colorScheme="blue"
-              variant="outline"
-            >
-              Take Photo
-            </Button>
-
-            <Button
-              className="button-upload"
-              onClick={onChoosePhotoNative}
-              type="button"
-              size={compact ? "sm" : "md"}
-              isDisabled={isProcessing}
-              colorScheme="blue"
-              variant="outline"
-            >
-              Choose Photo
-            </Button>
-          </HStack>
-        )
-      ) : isSubtle ? (
         <button
           type="button"
-          className={cn(subtleTriggerClassName, compact ? "py-2.5" : "py-3.5")}
+          className={photoTriggerClassName}
+          onClick={onPickPhotoNative}
+          disabled={isProcessing}
+        >
+          {photoTriggerLabel}
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={photoTriggerClassName}
           onClick={handleClick}
           disabled={isProcessing}
           onMouseDown={(e) => e.stopPropagation()}
@@ -514,37 +459,8 @@ export const FileUploader = ({
           onTouchStart={(e) => e.stopPropagation()}
           onTouchEnd={(e) => e.stopPropagation()}
         >
-          {isProcessing ? (
-            <>
-              <ButtonLoadingSpinner />
-              <span>Processing…</span>
-            </>
-          ) : (
-            <>
-              <ImagePlus className="size-4 shrink-0" strokeWidth={1.75} />
-              <span>Add a photo</span>
-            </>
-          )}
+          {photoTriggerLabel}
         </button>
-      ) : (
-        <Button
-          className="button-upload"
-          onClick={handleClick}
-          type="button"
-          size={compact ? "sm" : "md"}
-          isLoading={isProcessing}
-          spinner={<ButtonLoadingSpinner />}
-          loadingText="Processing..."
-          isDisabled={isProcessing}
-          colorScheme="blue"
-          variant="outline"
-          onMouseDown={(e) => e.stopPropagation()}
-          onMouseUp={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchEnd={(e) => e.stopPropagation()}
-        >
-          {isProcessing ? "Processing Image..." : "Add Image"}
-        </Button>
       )}
 
       <input
@@ -609,23 +525,21 @@ export const FileUploader = ({
                 </Button>
 
                 {isCapacitorNative && enableNativeCamera ? (
-                  pendingSource === "camera" ? (
-                    <Button
-                      variant="ghost"
-                      color="white"
-                      onClick={async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        try {
-                          await takePhotoNative();
-                        } catch {
-                          // ignore
-                        }
-                      }}
-                    >
-                      Retake
-                    </Button>
-                  ) : null
+                  <Button
+                    variant="ghost"
+                    color="white"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try {
+                        await pickPhotoNative();
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                  >
+                    Change
+                  </Button>
                 ) : null}
               </HStack>
 
@@ -758,34 +672,17 @@ export const FileUploader = ({
                     </Button>
 
                     {isCapacitorNative && enableNativeCamera ? (
-                      <HStack spacing={3}>
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          flex="1"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            presentNativePicker("photos").catch(() => {});
-                          }}
-                        >
-                          Choose Another
-                        </Button>
-                        {pendingSource === "camera" ? (
-                          <Button
-                            size="lg"
-                            variant="outline"
-                            flex="1"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              presentNativePicker("camera").catch(() => {});
-                            }}
-                          >
-                            Retake
-                          </Button>
-                        ) : null}
-                      </HStack>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          presentNativePicker().catch(() => {});
+                        }}
+                      >
+                        Choose Another
+                      </Button>
                     ) : (
                       <Button
                         size="lg"
