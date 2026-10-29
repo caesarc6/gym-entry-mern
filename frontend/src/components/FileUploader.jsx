@@ -71,6 +71,7 @@ import {
   inferImageMimeType,
 } from "../utils/imageCropPreview";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
+import { setNativeCropGestures } from "../utils/nativeCropGestures";
 import "../index.css";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -79,6 +80,46 @@ import { cn } from "../lib/utils";
 
 const subtleTriggerClassName =
   "inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background px-3 py-3 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-50";
+
+const CROP_MIN_ZOOM = 1;
+const CROP_MAX_ZOOM = 3;
+
+/**
+ * Keep a pinch or drag inside the crop frame on iPhone.
+ * react-easy-crop binds touchmove on document during touchstart, which WebKit
+ * will not cancel, and the modal scroll lock calls preventDefault on pinches.
+ */
+function retainCropGestures(node) {
+  const nativePreventDefault = Event.prototype.preventDefault;
+
+  function allowCropTouchMove() {
+    if (
+      this.type === "touchmove" &&
+      this.target instanceof Node &&
+      node.contains(this.target)
+    ) {
+      return;
+    }
+    return nativePreventDefault.call(this);
+  }
+
+  Event.prototype.preventDefault = allowCropTouchMove;
+
+  const blockNativePanAndZoom = (event) => {
+    if (event.cancelable) nativePreventDefault.call(event);
+  };
+  node.addEventListener("touchmove", blockNativePanAndZoom, {
+    passive: false,
+    capture: true,
+  });
+
+  return () => {
+    Event.prototype.preventDefault = nativePreventDefault;
+    node.removeEventListener("touchmove", blockNativePanAndZoom, {
+      capture: true,
+    });
+  };
+}
 
 export const FileUploader = ({
   handleFile,
@@ -94,6 +135,7 @@ export const FileUploader = ({
   variant = "default",
 }) => {
   const hiddenFileInput = useRef(null);
+  const cropStageRef = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState(null);
@@ -133,6 +175,21 @@ export const FileUploader = ({
     pendingFile &&
     pendingFile.type !== "image/gif" &&
     pendingFile.type !== "image/svg+xml";
+
+  useEffect(() => {
+    if (!showCropper) return undefined;
+    const node = cropStageRef.current;
+    if (!node) return undefined;
+    return retainCropGestures(node);
+  }, [showCropper, pendingPreviewUrl]);
+
+  useEffect(() => {
+    const active = Boolean(showCropper && previewDisclosure.isOpen);
+    setNativeCropGestures(active);
+    return () => {
+      setNativeCropGestures(false);
+    };
+  }, [showCropper, previewDisclosure.isOpen]);
 
   const canConfirmCrop =
     !showCropper || (croppedAreaPixels != null && croppedAreaPixels.width > 0);
@@ -498,8 +555,15 @@ export const FileUploader = ({
         returnFocusOnClose={false}
       >
         <ModalOverlay bg="blackAlpha.800" />
-        <ModalContent bg="black" borderRadius={0}>
-          <ModalBody p={0} display="flex" flexDirection="column">
+        <ModalContent bg="black" borderRadius={0} overflow="hidden" h="100%" maxH="100%">
+          <ModalBody
+            p={0}
+            display="flex"
+            flexDirection="column"
+            overflow="hidden"
+            h="100%"
+            sx={{ overscrollBehavior: "none" }}
+          >
             <Box
               flex="1"
               display="flex"
@@ -511,16 +575,7 @@ export const FileUploader = ({
               pt={6}
               pb={showCropper ? 28 : 20}
               minH={0}
-              sx={
-                showCropper
-                  ? {
-                      ".reactEasyCrop_Container": {
-                        touchAction: "none",
-                        WebkitUserSelect: "none",
-                      },
-                    }
-                  : undefined
-              }
+              overflow="hidden"
             >
               {/* Top controls */}
               <HStack
@@ -568,17 +623,26 @@ export const FileUploader = ({
                 showCropper ? (
                   <VStack spacing={0} align="stretch" w="100%" flex="1" minH={0}>
                     <Box
+                      ref={cropStageRef}
                       position="relative"
                       w="100%"
                       flex="1"
                       minH={{ base: "280px", md: "340px" }}
                       borderRadius="md"
                       overflow="hidden"
+                      sx={{
+                        touchAction: "none",
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
+                        WebkitTouchCallout: "none",
+                      }}
                     >
                       <Cropper
                         image={pendingPreviewUrl}
                         crop={crop}
                         zoom={zoom}
+                        minZoom={CROP_MIN_ZOOM}
+                        maxZoom={CROP_MAX_ZOOM}
                         aspect={cropAspect}
                         onCropChange={setCrop}
                         onZoomChange={setZoom}
@@ -588,6 +652,11 @@ export const FileUploader = ({
                         onCropAreaChange={(_area, areaPixels) =>
                           setCroppedAreaPixels(areaPixels)
                         }
+                        style={{
+                          containerStyle: { touchAction: "none" },
+                          cropAreaStyle: { touchAction: "none" },
+                          mediaStyle: { touchAction: "none" },
+                        }}
                       />
                     </Box>
                     <Box px={4} py={3} w="100%">
@@ -596,8 +665,8 @@ export const FileUploader = ({
                       </Text>
                       <Slider
                         aria-label="Crop zoom"
-                        min={1}
-                        max={3}
+                        min={CROP_MIN_ZOOM}
+                        max={CROP_MAX_ZOOM}
                         step={0.02}
                         value={zoom}
                         onChange={setZoom}
@@ -630,9 +699,12 @@ export const FileUploader = ({
               onClose={closePreview}
               closeOnOverlayClick={false}
               returnFocusOnClose={false}
+              blockScrollOnMount={false}
             >
-              <DrawerOverlay bg="transparent" />
+              <DrawerOverlay bg="transparent" pointerEvents="none" />
               <DrawerContent
+                containerProps={{ pointerEvents: "none" }}
+                pointerEvents="auto"
                 borderTopRadius="2xl"
                 bg={useColorModeValue("white", "gray.900")}
               >
