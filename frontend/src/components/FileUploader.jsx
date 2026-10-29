@@ -33,7 +33,7 @@
 // };
 
 // FileUploader.js
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Text,
@@ -59,13 +59,7 @@ import {
 } from "@chakra-ui/react";
 import { ButtonLoadingSpinner } from "./loading";
 import { CloseIcon } from "@chakra-ui/icons";
-import Cropper from "react-easy-crop";
-import "react-easy-crop/react-easy-crop.css";
 import { useCustomToast } from "../hooks/useCustomToast";
-import {
-  handleImageUploadWithCompression,
-} from "../utils/imageCompression";
-import { getCroppedImgAsFile } from "../utils/getCroppedImg";
 import {
   ensureFilePreviewForCrop,
   inferImageMimeType,
@@ -77,6 +71,10 @@ import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Camera as CameraIcon, ImagePlus } from "lucide-react";
 import { cn } from "../lib/utils";
+
+/** Crop UI + CSS load only when needed (and while the native picker is open). */
+const EasyCropper = lazy(() => import("./EasyCropper"));
+const preloadEasyCropper = () => import("./EasyCropper");
 
 const subtleTriggerClassName =
   "inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background px-3 py-3 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-50";
@@ -206,51 +204,55 @@ export const FileUploader = ({
   const setPendingSelection = async (file, source = "file", formatHint) => {
     if (!file) return;
 
-    try {
-      // Lightweight haptic feedback for native feel
-      if (isCapacitorNative) {
-        try {
-          await Haptics.impact({ style: ImpactStyle.Light });
-        } catch {
-          // no-op
-        }
-      }
-    } catch {
-      // no-op
+    // Don't block the crop modal on haptics.
+    if (isCapacitorNative) {
+      Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
     }
 
-    if (
-      isCapacitorNative &&
-      (source === "camera" || source === "photos")
-    ) {
-      // Let the native picker dismiss before presenting the crop modal (iOS).
-      await new Promise((r) => setTimeout(r, 450));
+    const needsCropPrep =
+      wantsCropStep &&
+      file.type !== "image/gif" &&
+      file.type !== "image/svg+xml";
+
+    // Overlap iOS picker dismiss with preview prep + cropper chunk load.
+    const dismissWait =
+      isCapacitorNative && (source === "camera" || source === "photos")
+        ? new Promise((r) => setTimeout(r, 450))
+        : Promise.resolve();
+
+    const prepPromise = needsCropPrep
+      ? ensureFilePreviewForCrop(file, formatHint)
+      : Promise.resolve({
+          file,
+          previewUrl: URL.createObjectURL(file),
+        });
+
+    const cropperPromise = needsCropPrep
+      ? preloadEasyCropper()
+      : Promise.resolve();
+
+    let prepared;
+    try {
+      const [preview] = await Promise.all([
+        prepPromise,
+        dismissWait,
+        cropperPromise,
+      ]);
+      prepared = preview;
+    } catch (err) {
+      toast.error(
+        "Photo Error",
+        err?.message || "Could not prepare this photo for cropping."
+      );
+      return;
     }
 
     if (pendingPreviewUrl && pendingPreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(pendingPreviewUrl);
     }
 
-    let fileForPreview = file;
-    let previewUrl;
-    if (wantsCropStep && file.type !== "image/gif" && file.type !== "image/svg+xml") {
-      try {
-        const prepared = await ensureFilePreviewForCrop(file, formatHint);
-        fileForPreview = prepared.file;
-        previewUrl = prepared.previewUrl;
-      } catch (err) {
-        toast.error(
-          "Photo Error",
-          err?.message || "Could not prepare this photo for cropping."
-        );
-        return;
-      }
-    } else {
-      previewUrl = URL.createObjectURL(file);
-    }
-
-    setPendingFile(fileForPreview);
-    setPendingPreviewUrl(previewUrl);
+    setPendingFile(prepared.file);
+    setPendingPreviewUrl(prepared.previewUrl);
     setPendingSource(source);
     previewDisclosure.onOpen();
     actionsDisclosure.onOpen();
@@ -273,6 +275,8 @@ export const FileUploader = ({
   };
 
   const takePhotoNative = async () => {
+    // Warm the crop chunk while the native camera is open.
+    if (wantsCropStep) preloadEasyCropper();
     // Let the tap animation / any transitions finish before presenting iOS UI.
     await new Promise((r) => setTimeout(r, 150));
     const photo = await Camera.getPhoto({
@@ -287,6 +291,7 @@ export const FileUploader = ({
   };
 
   const choosePhotoNative = async () => {
+    if (wantsCropStep) preloadEasyCropper();
     await new Promise((r) => setTimeout(r, 150));
     const photo = await Camera.getPhoto({
       resultType: CameraResultType.Uri,
@@ -317,6 +322,7 @@ export const FileUploader = ({
     if (!fileUploaded) {
       return;
     }
+    if (wantsCropStep) preloadEasyCropper();
     await setPendingSelection(fileUploaded, "file");
   };
 
@@ -343,6 +349,7 @@ export const FileUploader = ({
         pendingPreviewUrl
       ) {
         try {
+          const { getCroppedImgAsFile } = await import("../utils/getCroppedImg");
           fileToCompress = await getCroppedImgAsFile(
             pendingPreviewUrl,
             croppedAreaPixels,
@@ -358,6 +365,9 @@ export const FileUploader = ({
         }
       }
 
+      const { handleImageUploadWithCompression } = await import(
+        "../utils/imageCompression"
+      );
       await handleImageUploadWithCompression(
         fileToCompress,
         (result) => {
@@ -637,27 +647,41 @@ export const FileUploader = ({
                         WebkitTouchCallout: "none",
                       }}
                     >
-                      <Cropper
-                        image={pendingPreviewUrl}
-                        crop={crop}
-                        zoom={zoom}
-                        minZoom={CROP_MIN_ZOOM}
-                        maxZoom={CROP_MAX_ZOOM}
-                        aspect={cropAspect}
-                        onCropChange={setCrop}
-                        onZoomChange={setZoom}
-                        onCropComplete={(_area, areaPixels) =>
-                          setCroppedAreaPixels(areaPixels)
+                      <Suspense
+                        fallback={
+                          <Box
+                            position="absolute"
+                            inset={0}
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                          >
+                            <ButtonLoadingSpinner />
+                          </Box>
                         }
-                        onCropAreaChange={(_area, areaPixels) =>
-                          setCroppedAreaPixels(areaPixels)
-                        }
-                        style={{
-                          containerStyle: { touchAction: "none" },
-                          cropAreaStyle: { touchAction: "none" },
-                          mediaStyle: { touchAction: "none" },
-                        }}
-                      />
+                      >
+                        <EasyCropper
+                          image={pendingPreviewUrl}
+                          crop={crop}
+                          zoom={zoom}
+                          minZoom={CROP_MIN_ZOOM}
+                          maxZoom={CROP_MAX_ZOOM}
+                          aspect={cropAspect}
+                          onCropChange={setCrop}
+                          onZoomChange={setZoom}
+                          onCropComplete={(_area, areaPixels) =>
+                            setCroppedAreaPixels(areaPixels)
+                          }
+                          onCropAreaChange={(_area, areaPixels) =>
+                            setCroppedAreaPixels(areaPixels)
+                          }
+                          style={{
+                            containerStyle: { touchAction: "none" },
+                            cropAreaStyle: { touchAction: "none" },
+                            mediaStyle: { touchAction: "none" },
+                          }}
+                        />
+                      </Suspense>
                     </Box>
                     <Box px={4} py={3} w="100%">
                       <Text fontSize="sm" color="whiteAlpha.800" mb={2}>

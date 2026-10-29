@@ -38,6 +38,12 @@ export default defineConfig({
           if (id.includes("chart.js") || id.includes("react-chartjs-2")) {
             return "charts";
           }
+          if (id.includes("react-easy-crop")) {
+            return "image-crop";
+          }
+          if (id.includes("browser-image-compression")) {
+            return "image-compress";
+          }
           return "vendor";
         },
       },
