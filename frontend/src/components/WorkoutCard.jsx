@@ -3080,7 +3080,15 @@ const WorkoutCard = memo(function WorkoutCard({
               {(editAutosaveMeta.status === "saving" ||
                 editAutosaveMeta.status === "saved" ||
                 editAutosaveMeta.status === "error") && (
-                <Text fontSize="sm" color={colors.textMuted} lineHeight="1.7">
+                <Text
+                  fontSize="sm"
+                  color={
+                    editAutosaveMeta.status === "error"
+                      ? "red.400"
+                      : colors.textMuted
+                  }
+                  lineHeight="1.7"
+                >
                   {editAutosaveMeta.status === "saving"
                     ? "Saving…"
                     : editAutosaveMeta.status === "saved"

@@ -66,6 +66,7 @@ const ensureMongoReadyForRequest = async (res) => {
 
   res.status(503).json({
     success: false,
+    code: dbReady.code || "DB_UNAVAILABLE",
     message: dbReady.message || "Database not ready",
   });
   return false;

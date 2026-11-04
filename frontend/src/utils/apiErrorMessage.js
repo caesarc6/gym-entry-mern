@@ -7,6 +7,12 @@ export const messageFromApiError = (error) => {
     return "Photo is too large. Use a smaller photo.";
   }
   const data = error?.response?.data;
+  if (data?.code === "DB_UNAVAILABLE") {
+    return (
+      serverText(data?.message) ||
+      "Could not save. The server could not reach the database."
+    );
+  }
   return serverText(data?.message) || serverText(data?.error) || "";
 };
 

@@ -3,12 +3,19 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Fail immediately when not connected instead of buffering ~10s then throwing
+// "Operation `….findOne()` buffering timed out after 10000ms" on Vercel.
+mongoose.set("bufferCommands", false);
+
 /** Reuse one connection across Vercel serverless invocations — do not close/reopen per request. */
 const g = globalThis;
 if (!g.__mongooseConnection) {
   g.__mongooseConnection = { promise: null };
 }
 const connection = g.__mongooseConnection;
+
+const ATLAS_HINT =
+  "Check Vercel MONGO_URI and MongoDB Atlas Network Access (allow 0.0.0.0/0 or Vercel egress IPs).";
 
 export const connectDB = async () => {
   if (mongoose.connection.readyState === 1) {
@@ -21,11 +28,13 @@ export const connectDB = async () => {
   }
 
   if (!connection.promise) {
+    // Keep under typical Vercel hobby maxDuration so the client gets 503, not a hung request.
     connection.promise = mongoose
       .connect(mongoUri, {
-        serverSelectionTimeoutMS: 15000,
-        socketTimeoutMS: 45000,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 20000,
         maxPoolSize: 10,
+        bufferCommands: false,
       })
       .then(() => mongoose.connection);
   }
@@ -39,6 +48,14 @@ export const connectDB = async () => {
   }
 };
 
+const waitForReadyState = async (states, maxWaitMs) => {
+  let waited = 0;
+  while (states.includes(mongoose.connection.readyState) && waited < maxWaitMs) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    waited += 100;
+  }
+};
+
 /**
  * Serverless-friendly: wait if connecting (2), then connect if not ready.
  * Avoids false failures when readyState is 3 (disconnecting) between invocations.
@@ -49,8 +66,9 @@ export const ensureMongoConnected = async () => {
       console.error("[db] MONGO_URI is not set");
       return {
         ok: false,
+        code: "DB_UNAVAILABLE",
         message:
-          "Database is not configured (set MONGO_URI on the server environment)",
+          "Database is not configured (set MONGO_URI in the Vercel project environment).",
       };
     }
 
@@ -58,25 +76,17 @@ export const ensureMongoConnected = async () => {
       return { ok: true };
     }
 
+    // Connecting — wait briefly for the in-flight attempt from module load / prior request.
     if (mongoose.connection.readyState === 2) {
-      let waitTime = 0;
-      const maxWait = 8000;
-      while (mongoose.connection.readyState === 2 && waitTime < maxWait) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        waitTime += 100;
-      }
+      await waitForReadyState([2], 5000);
       if (mongoose.connection.readyState === 1) {
         return { ok: true };
       }
     }
 
+    // Disconnecting — wait for it to settle, then reconnect.
     if (mongoose.connection.readyState === 3) {
-      let waitTime = 0;
-      const maxWait = 3000;
-      while (mongoose.connection.readyState === 3 && waitTime < maxWait) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        waitTime += 100;
-      }
+      await waitForReadyState([3], 2000);
     }
 
     if (mongoose.connection.readyState === 1) {
@@ -94,14 +104,17 @@ export const ensureMongoConnected = async () => {
     }
     return {
       ok: false,
-      message: "Database connection timeout",
+      code: "DB_UNAVAILABLE",
+      message: `Database connection timeout. ${ATLAS_HINT}`,
     };
   } catch (e) {
     console.error("[db] ensureMongoConnected failed:", e?.message || e);
     connection.promise = null;
+    const detail = e?.message ? String(e.message) : "Database connection error";
     return {
       ok: false,
-      message: "Database connection error",
+      code: "DB_UNAVAILABLE",
+      message: `${detail}. ${ATLAS_HINT}`,
     };
   }
 };
