@@ -70,6 +70,7 @@ import {
   getProfileImageRequestDeduped,
   setCachedProfileSnippet,
 } from "../utils/profileImageApi";
+import { formatPostDate } from "../utils/dateUtils";
 import {
   defaultProfileImageUrl,
   isUploadedProfilePhoto,
@@ -1925,40 +1926,6 @@ const WorkoutCard = memo(function WorkoutCard({
     return date.toLocaleString("en-US", options);
   };
 
-  const formatDateHour = (dateString) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const ordinal =
-      day % 10 === 1 && day !== 11
-        ? "st"
-        : day % 10 === 2 && day !== 12
-          ? "nd"
-          : day % 10 === 3 && day !== 13
-            ? "rd"
-            : "th";
-    const monthName = date.toLocaleString("en-US", { month: "long" });
-    const sameYear = date.getFullYear() === new Date().getFullYear();
-    const datePart = sameYear
-      ? `${monthName} ${day}${ordinal}`
-      : `${monthName} ${day}${ordinal}, ${date.getFullYear()}`;
-    const timePart = date.toLocaleString("en-US", {
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
-    });
-    return `${datePart} · ${timePart}`;
-  };
-
-  const formatDateTitleTime = (dateString) => {
-    const date = new Date(dateString);
-    const options = {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    };
-    return date.toLocaleString("en-US", options);
-  };
-
   const rawEntryImage = updatedEntry.image || entry.image;
   const usesThemeDefaultPostArt = isPlaceholderImage(rawEntryImage);
   const displayEntryImage = usesThemeDefaultPostArt
@@ -1981,7 +1948,14 @@ const WorkoutCard = memo(function WorkoutCard({
     updatedEntry.trainerUid !== entry.uid &&
     trainerDisplayName
       ? `${trainerDisplayLabel} · ${updatedEntry.name}`
-      : `${updatedEntry.name} · ${formatDateHour(updatedEntry.createdAt)}`;
+      : updatedEntry.name || "";
+  const feedDate = formatPostDate(updatedEntry.createdAt);
+  const feedDateTime =
+    updatedEntry.createdAt instanceof Date
+      ? updatedEntry.createdAt.toISOString()
+      : typeof updatedEntry.createdAt === "string"
+        ? updatedEntry.createdAt
+        : undefined;
 
   const {
     surface: menuSurfaceClassName,
@@ -2196,6 +2170,8 @@ const WorkoutCard = memo(function WorkoutCard({
             fallback: profileFallbackLetters,
           }}
           subtitle={feedSubtitle}
+          date={feedDate}
+          dateTime={feedDateTime}
           image={getSquareEntryMedia(priority)}
           liked={isLiked}
           onToggleLike={() => handleLikeEntry(entry._id)}
@@ -2322,6 +2298,8 @@ const WorkoutCard = memo(function WorkoutCard({
               fallback: profileFallbackLetters,
             }}
             subtitle={feedSubtitle}
+            date={feedDate}
+            dateTime={feedDateTime}
             image={getSquareEntryMedia(false)}
             liked={isLiked}
             onToggleLike={() => handleLikeEntry(entry._id)}

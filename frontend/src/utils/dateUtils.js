@@ -3,6 +3,37 @@
  */
 
 /**
+ * Apple-style calendar brevity for workout posts.
+ * Short month + day (e.g. "Nov 4"), localized via the runtime locale.
+ * Includes the year only when the post is more than one year old.
+ *
+ * @param {string|Date} dateString
+ * @param {Date} [now]
+ * @returns {string}
+ */
+export const formatPostDate = (dateString, now = new Date()) => {
+  if (!dateString && dateString !== 0) return "";
+
+  try {
+    const date =
+      dateString instanceof Date ? dateString : parseDateSafe(dateString);
+    if (!date || Number.isNaN(date.getTime())) return "";
+
+    const oneYearAgo = new Date(now);
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const includeYear = date.getTime() < oneYearAgo.getTime();
+
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      ...(includeYear ? { year: "numeric" } : {}),
+    });
+  } catch {
+    return "";
+  }
+};
+
+/**
  * Safely formats a date string to display as a local date
  * Handles timezone issues by ensuring the date is treated as local time
  * @param {string|Date} dateString - The date to format
