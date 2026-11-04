@@ -157,6 +157,32 @@ app.use((req, res, next) => {
   next();
 });
 
+/**
+ * Ensure Mongo is connected before any API handler that needs it.
+ * Without this, cold starts + unreachable Atlas surface as mongoose
+ * "buffering timed out after 10000ms" (e.g. getHomeFeed users.findOne).
+ */
+app.use(async (req, res, next) => {
+  const pathname = String(req.originalUrl || req.url || "").split("?")[0];
+  if (!pathname.startsWith("/api")) {
+    return next();
+  }
+  // Plain health ping — no DB required
+  if (req.method === "GET" && (pathname === "/api" || pathname === "/api/")) {
+    return next();
+  }
+
+  const dbReady = await ensureMongoConnected();
+  if (!dbReady.ok) {
+    return res.status(503).json({
+      success: false,
+      code: dbReady.code || "DB_UNAVAILABLE",
+      message: dbReady.message || "Database unavailable",
+    });
+  }
+  return next();
+});
+
 const __dirname = path.resolve();
 // write a middleware to check if the user is authenticated and create a user in the database if it doesn't exist
 app.post("/api/protected", verifyIdToken, async (req, res) => {
@@ -179,8 +205,9 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
 
     const dbReady = await ensureMongoConnected();
     if (!dbReady.ok) {
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
+        code: dbReady.code || "DB_UNAVAILABLE",
         message: dbReady.message || "Database connection error",
       });
     }

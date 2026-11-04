@@ -495,8 +495,9 @@ export const getCurrentMongoDBUser = async (req, res) => {
 
     const dbReady = await ensureMongoConnected();
     if (!dbReady.ok) {
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
+        code: dbReady.code || "DB_UNAVAILABLE",
         message: dbReady.message || "Database connection error",
       });
     }
@@ -1142,8 +1143,9 @@ export const getCurrentUser = async (req, res) => {
   try {
     const dbReady = await ensureMongoConnected();
     if (!dbReady.ok) {
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
+        code: dbReady.code || "DB_UNAVAILABLE",
         message: dbReady.message || "Database connection error",
       });
     }
@@ -2039,8 +2041,9 @@ export const checkTrainerDashboardAccess = async (req, res) => {
 
     const dbReady = await ensureMongoConnected();
     if (!dbReady.ok) {
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
+        code: dbReady.code || "DB_UNAVAILABLE",
         message: dbReady.message || "Database connection error",
       });
     }
@@ -2084,8 +2087,9 @@ export const checkIsAdmin = async (req, res) => {
 
     const dbReady = await ensureMongoConnected();
     if (!dbReady.ok) {
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
+        code: dbReady.code || "DB_UNAVAILABLE",
         message: dbReady.message || "Database connection error",
       });
     }

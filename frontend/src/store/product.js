@@ -169,11 +169,37 @@ const RETRYABLE_ENTRY_UPDATE_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const isRetryableEntryUpdateError = (error) =>
-  error?.code === "ECONNABORTED" ||
-  error?.code === "ERR_NETWORK" ||
-  !error?.response ||
-  RETRYABLE_ENTRY_UPDATE_STATUS_CODES.has(error.response.status);
+const isDatabaseUnavailableError = (error) =>
+  error?.response?.data?.code === "DB_UNAVAILABLE" ||
+  /MONGO_URI|Database (is not configured|connection|unavailable)|Atlas Network Access/i.test(
+    String(error?.response?.data?.message || error?.message || ""),
+  );
+
+const couldNotSaveMessage = (error) => {
+  if (isDatabaseUnavailableError(error)) {
+    return "Could not save. The server could not reach the database.";
+  }
+  if (error?.code === "ECONNABORTED") {
+    return "Save timed out. Please check your connection and try again.";
+  }
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    "Could not save"
+  );
+};
+
+/** Retry transient network / gateway failures — not a confirmed Mongo outage. */
+const isRetryableEntryUpdateError = (error) => {
+  if (isDatabaseUnavailableError(error)) return false;
+  return (
+    error?.code === "ECONNABORTED" ||
+    error?.code === "ERR_NETWORK" ||
+    !error?.response ||
+    RETRYABLE_ENTRY_UPDATE_STATUS_CODES.has(error.response.status)
+  );
+};
 
 export const useProductStore = create((set) => ({
   currentUser: null,
@@ -445,24 +471,23 @@ export const useProductStore = create((set) => ({
 
         // The first request after a long idle can wake a cold backend/DB connection.
         await wait(750);
-        response = await apiClient.put(url, updatedEntry, requestConfig);
+        // Retry the same body (FormData for photo uploads, not the raw object).
+        response = await apiClient.put(url, requestBody, requestConfig);
       }
 
       const data = response.data;
 
-      if (!data.success) return { success: false, message: data.message };
+      if (!data.success) {
+        return {
+          success: false,
+          message: data.message || "Could not save",
+        };
+      }
 
       set((state) => applyPostPatch(state, pid, pickPostFields(data.data)));
       return { success: true, message: data.message, data: data.data };
     } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        (error.code === "ECONNABORTED"
-          ? "Save timed out. Please check your connection and try again."
-          : error.message) ||
-        "Failed to update entry";
-      throw new Error(message);
+      throw new Error(couldNotSaveMessage(error));
     }
   },
 
