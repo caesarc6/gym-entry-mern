@@ -77,6 +77,8 @@ import {
 } from "../utils/defaultProfileImage";
 import {
   clearEditEntryDraft,
+  editDraftMatchesPublished,
+  normalizeEditDraftImage,
   readEditEntryDraft,
   writeEditEntryDraft,
 } from "../utils/workoutDraftStorage";
@@ -954,12 +956,14 @@ const WorkoutCard = memo(function WorkoutCard({
       description: updatedEntry?.description || "",
       image: updatedEntry?.image || "",
       imageName: updatedEntry?.imageName || "",
+      clearImage: Boolean(updatedEntry?.clearImage),
     });
   }, [
     updatedEntry?.name,
     updatedEntry?.description,
     updatedEntry?.image,
     updatedEntry?.imageName,
+    updatedEntry?.clearImage,
   ]);
 
   // Sync entry.image to updatedEntry.image when entry changes
@@ -993,40 +997,34 @@ const WorkoutCard = memo(function WorkoutCard({
   const flushEditDraftBackup = useCallback(() => {
     if (!isOwner) return;
     const current = updatedEntryRef.current;
-    const nameTrim = (current?.name || "").trim();
-    const descTrim = (current?.description || "").trim();
-    const hasNewImage = !!(
-      current?.imageName && current.imageName !== "undefined"
-    );
-    const hasDisplayImage =
-      current?.image && !isPlaceholderImage(current.image);
-    if (!nameTrim && !descTrim && !hasNewImage && !hasDisplayImage) return;
-
     const snap = JSON.stringify({
       name: current?.name || "",
       description: current?.description || "",
       image: current?.image || "",
       imageName: current?.imageName || "",
+      clearImage: Boolean(current?.clearImage),
     });
     // Nothing pending vs last successful publish/autosave.
+    // Still backup empty-title / cleared-title forms when they differ.
     if (snap === lastEditAutosavedSnapshotRef.current) return;
 
     (async () => {
       try {
         const user = await getCurrentAuthUser();
         const uid = user?.uid || "anon";
-        writeEditEntryDraft(uid, entry._id, {
+        await writeEditEntryDraft(uid, entry._id, {
           name: current?.name || "",
           description: current?.description || "",
           image: current?.image || "",
           imageName: current?.imageName || "",
+          clearImage: Boolean(current?.clearImage),
         });
         await saveEntryDraft(entry._id, {
           name: current?.name ?? "",
           description: current?.description ?? "",
         });
       } catch {
-        // ignore quota / network
+        // ignore quota / network — local write is best-effort
       }
     })();
   }, [entry._id, isOwner, saveEntryDraft]);
@@ -1065,6 +1063,7 @@ const WorkoutCard = memo(function WorkoutCard({
       description: entry?.description || "",
       image: serverImage,
       imageName: "",
+      clearImage: false,
     };
     const serverSnap = JSON.stringify(serverBaseline);
     lastEditAutosavedSnapshotRef.current = serverSnap;
@@ -1080,16 +1079,33 @@ const WorkoutCard = memo(function WorkoutCard({
         const draftRes = await getEntryDraft(entry._id);
         const serverDraft =
           draftRes?.success && draftRes.data ? draftRes.data : null;
-        const localDraft = readEditEntryDraft(uid, entry._id);
+        let localDraft = await readEditEntryDraft(uid, entry._id);
 
         if (!serverDraft && !localDraft) return;
 
-        const serverTs = serverDraft?.updatedAt
-          ? new Date(serverDraft.updatedAt).getTime()
+        const entryUpdatedAt = entry?.updatedAt
+          ? new Date(entry.updatedAt).getTime()
           : -1;
         const localTs = localDraft?.lastLocalSaveAt
           ? new Date(localDraft.lastLocalSaveAt).getTime()
           : -1;
+        const serverTs = serverDraft?.updatedAt
+          ? new Date(serverDraft.updatedAt).getTime()
+          : -1;
+
+        // Never revive an older local leftover over a newer published clear.
+        if (localDraft && !serverDraft && Number.isFinite(entryUpdatedAt)) {
+          if (
+            !Number.isFinite(localTs) ||
+            localTs <= entryUpdatedAt
+          ) {
+            await clearEditEntryDraft(uid, entry._id);
+            localDraft = null;
+            if (!serverDraft) return;
+          }
+        }
+
+        if (!serverDraft && !localDraft) return;
 
         let mergedName;
         let mergedDesc;
@@ -1109,42 +1125,53 @@ const WorkoutCard = memo(function WorkoutCard({
           mergedDesc = localDraft.description;
         }
 
-        const mergedImage =
-          localDraft?.image &&
-          typeof localDraft.image === "string" &&
-          localDraft.image
+        const localClearImage = Boolean(localDraft?.clearImage);
+        const localHasPhoto =
+          !localClearImage &&
+          typeof localDraft?.image === "string" &&
+          normalizeEditDraftImage(localDraft.image);
+
+        const mergedImage = localClearImage
+          ? ""
+          : localHasPhoto
             ? localDraft.image
             : serverBaseline.image;
-        const mergedImageName =
-          localDraft && typeof localDraft.imageName === "string"
+        const mergedImageName = localClearImage
+          ? ""
+          : localHasPhoto && typeof localDraft.imageName === "string"
             ? localDraft.imageName
             : "";
 
-        const draftSnap = JSON.stringify({
+        const mergedDraft = {
           name: typeof mergedName === "string" ? mergedName : "",
           description: typeof mergedDesc === "string" ? mergedDesc : "",
           image: mergedImage || "",
           imageName: mergedImageName || "",
-        });
+          clearImage: localClearImage,
+        };
 
-        if (draftSnap === serverSnap) {
-          clearEditEntryDraft(uid, entry._id);
+        // Prefer published when drafts equal it (normalize placeholders).
+        if (editDraftMatchesPublished(mergedDraft, serverBaseline)) {
+          await clearEditEntryDraft(uid, entry._id);
           deleteEntryDraft(entry._id).catch(() => {});
           return;
         }
 
         setUpdatedEntry((prev) => {
-          if (prev.clearImage) return prev;
+          // In-session remove already won for this open — don't fight it.
+          if (prev.clearImage && !localClearImage) return prev;
           return {
             ...prev,
             name: typeof mergedName === "string" ? mergedName : prev.name,
             description:
               typeof mergedDesc === "string" ? mergedDesc : prev.description,
-            image: mergedImage || prev.image,
-            imageName:
-              typeof mergedImageName === "string" && mergedImageName
+            image: localClearImage ? "" : mergedImage || prev.image,
+            imageName: localClearImage
+              ? ""
+              : typeof mergedImageName === "string" && mergedImageName
                 ? mergedImageName
                 : prev.imageName,
+            clearImage: localClearImage,
           };
         });
       } catch (e) {
@@ -1155,19 +1182,18 @@ const WorkoutCard = memo(function WorkoutCard({
   }, [isOpen]);
 
   // Device-local + server text backup while editing (survives crash / battery dying before publish autosave).
+  // Title is optional here — empty-title text must not stay only in memory.
   useEffect(() => {
     if (!isOpen || !isOwner) return;
 
-    const nameTrim = (updatedEntry?.name || "").trim();
-    const descTrim = (updatedEntry?.description || "").trim();
-    const hasNewImage = !!(
-      updatedEntry?.imageName &&
-      updatedEntry.imageName !== "undefined"
-    );
-    const hasDisplayImage =
-      updatedEntry?.image && !isPlaceholderImage(updatedEntry.image);
-
-    if (!nameTrim && !descTrim && !hasNewImage && !hasDisplayImage) return;
+    const snap = JSON.stringify({
+      name: updatedEntry?.name || "",
+      description: updatedEntry?.description || "",
+      image: updatedEntry?.image || "",
+      imageName: updatedEntry?.imageName || "",
+      clearImage: Boolean(updatedEntry?.clearImage),
+    });
+    if (snap === lastEditAutosavedSnapshotRef.current) return;
 
     if (editLocalDraftTimerRef.current) {
       clearTimeout(editLocalDraftTimerRef.current);
@@ -1179,11 +1205,12 @@ const WorkoutCard = memo(function WorkoutCard({
           const current = updatedEntryRef.current;
           const user = await getCurrentAuthUser();
           const uid = user?.uid || "anon";
-          writeEditEntryDraft(uid, entry._id, {
+          await writeEditEntryDraft(uid, entry._id, {
             name: current?.name || "",
             description: current?.description || "",
             image: current?.image || "",
             imageName: current?.imageName || "",
+            clearImage: Boolean(current?.clearImage),
           });
           saveEntryDraft(entry._id, {
             name: current?.name ?? "",
@@ -1208,6 +1235,7 @@ const WorkoutCard = memo(function WorkoutCard({
     updatedEntry?.description,
     updatedEntry?.image,
     updatedEntry?.imageName,
+    updatedEntry?.clearImage,
     saveEntryDraft,
   ]);
 
@@ -1261,6 +1289,7 @@ const WorkoutCard = memo(function WorkoutCard({
               description: candidate?.description || "",
               image: candidate?.image || "",
               imageName: candidate?.imageName || "",
+              clearImage: Boolean(candidate?.clearImage),
             });
 
             if (snap === lastEditAutosavedSnapshotRef.current) break;
@@ -1276,6 +1305,20 @@ const WorkoutCard = memo(function WorkoutCard({
             const { success, data } = await updateEntry(entry._id, payload);
 
             if (!success) {
+              // Offline / failed publish: keep local draft authoritative.
+              try {
+                const latest = updatedEntryRef.current;
+                const user = await getCurrentAuthUser();
+                await writeEditEntryDraft(user?.uid || "anon", entry._id, {
+                  name: latest?.name || "",
+                  description: latest?.description || "",
+                  image: latest?.image || "",
+                  imageName: latest?.imageName || "",
+                  clearImage: Boolean(latest?.clearImage),
+                });
+              } catch {
+                // ignore
+              }
               setEditAutosaveMeta((m) => ({ ...m, status: "error" }));
               return;
             }
@@ -1301,6 +1344,7 @@ const WorkoutCard = memo(function WorkoutCard({
               description: sentDesc,
               image: publishedImage,
               imageName: publishedImageName,
+              clearImage: false,
             });
             lastEditAutosavedSnapshotRef.current = savedSnap;
 
@@ -1330,39 +1374,40 @@ const WorkoutCard = memo(function WorkoutCard({
               onUpdateRef.current(entry._id, data);
             }
 
-            // updatedEntryRef is still pre-setState; if the user typed or swapped
-            // the image during the request, keep drafts for recovery.
+            // updateEntry $unsets editDraft. After await, ref reflects typing
+            // during the request — rewrite that in-progress text reliably.
             const latest = updatedEntryRef.current;
             const formMatchesSent =
               (latest?.name || "") === sentName &&
               (latest?.description || "") === sentDesc &&
               (latest?.image || "") === sentImage &&
-              (latest?.imageName || "") === sentImageName;
-            if (formMatchesSent) {
-              try {
-                const user = await getCurrentAuthUser();
-                clearEditEntryDraft(user?.uid || "anon", entry._id);
-              } catch (clearErr) {
-                // ignore
-              }
-              deleteEntryDraft(entry._id).catch(() => {});
-            } else {
-              // updateEntry $unsets editDraft — restore the newer in-progress text.
-              try {
-                const user = await getCurrentAuthUser();
-                writeEditEntryDraft(user?.uid || "anon", entry._id, {
+              (latest?.imageName || "") === sentImageName &&
+              Boolean(latest?.clearImage) === Boolean(candidate.clearImage);
+            try {
+              const user = await getCurrentAuthUser();
+              const uid = user?.uid || "anon";
+              if (formMatchesSent) {
+                await clearEditEntryDraft(uid, entry._id);
+                deleteEntryDraft(entry._id).catch(() => {});
+              } else {
+                await writeEditEntryDraft(uid, entry._id, {
                   name: latest?.name || "",
                   description: latest?.description || "",
                   image: latest?.image || "",
                   imageName: latest?.imageName || "",
+                  clearImage: Boolean(latest?.clearImage),
                 });
-              } catch {
-                // ignore
+                // Server text draft rewrite may fail offline; local stays authoritative.
+                const draftRes = await saveEntryDraft(entry._id, {
+                  name: latest?.name ?? "",
+                  description: latest?.description ?? "",
+                });
+                if (!draftRes?.success) {
+                  // Publish already succeeded; local draft holds the newer text.
+                }
               }
-              saveEntryDraft(entry._id, {
-                name: latest?.name ?? "",
-                description: latest?.description ?? "",
-              }).catch(() => {});
+            } catch {
+              // Local write failed — still mark publish saved below.
             }
           }
 
@@ -1371,6 +1416,19 @@ const WorkoutCard = memo(function WorkoutCard({
             lastSavedAt: new Date().toISOString(),
           });
         } catch (e) {
+          try {
+            const latest = updatedEntryRef.current;
+            const user = await getCurrentAuthUser();
+            await writeEditEntryDraft(user?.uid || "anon", entry._id, {
+              name: latest?.name || "",
+              description: latest?.description || "",
+              image: latest?.image || "",
+              imageName: latest?.imageName || "",
+              clearImage: Boolean(latest?.clearImage),
+            });
+          } catch {
+            // ignore
+          }
           setEditAutosaveMeta((m) => ({ ...m, status: "error" }));
         }
       })();
@@ -1396,7 +1454,7 @@ const WorkoutCard = memo(function WorkoutCard({
     currentEditSnapshot,
   ]);
 
-  const handleFileUpload = async (file) => {
+  const handleFileUpload = (file) => {
     if (!file) {
       setUpdatedEntry((prev) => ({
         ...prev,
@@ -1407,36 +1465,20 @@ const WorkoutCard = memo(function WorkoutCard({
       return;
     }
 
-    try {
-      // Use the image compression utility
-      const { handleImageUploadWithCompression } = await import(
-        "../utils/imageCompression"
-      );
-
-      await handleImageUploadWithCompression(
-        file,
-        (result) => {
-          // Success callback
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            setUpdatedEntry((prev) => ({
-              ...prev,
-              image: reader.result,
-              imageName: result.file.name,
-              clearImage: false,
-            }));
-          };
-          reader.readAsDataURL(result.file);
-        },
-        (error) => {
-          // Error callback
-          toastError("Upload Error", error);
-        },
-        { maxSizeMB: 5 }
-      );
-    } catch (error) {
+    // FileUploader already compresses once — do not compress again (create path).
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setUpdatedEntry((prev) => ({
+        ...prev,
+        image: typeof reader.result === "string" ? reader.result : "",
+        imageName: file?.name || "",
+        clearImage: false,
+      }));
+    };
+    reader.onerror = () => {
       toastError("Error", "Failed to process image. Please try again.");
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteEntry = async (pid) => {
@@ -1448,7 +1490,7 @@ const WorkoutCard = memo(function WorkoutCard({
       onDeleteClose();
       try {
         const user = await getCurrentAuthUser();
-        clearEditEntryDraft(user?.uid || "anon", pid);
+        await clearEditEntryDraft(user?.uid || "anon", pid);
       } catch (e) {
         // ignore
       }
@@ -1495,6 +1537,7 @@ const WorkoutCard = memo(function WorkoutCard({
               description: description ?? "",
               image: image ?? "",
               imageName: "",
+              clearImage: false,
             });
             lastEditAutosavedSnapshotRef.current = savedSnap;
             return newUpdatedEntry;
@@ -1504,7 +1547,7 @@ const WorkoutCard = memo(function WorkoutCard({
         (async () => {
           try {
             const user = await getCurrentAuthUser();
-            clearEditEntryDraft(user?.uid || "anon", pid);
+            await clearEditEntryDraft(user?.uid || "anon", pid);
           } catch (e) {
             // ignore
           }
@@ -1512,6 +1555,18 @@ const WorkoutCard = memo(function WorkoutCard({
       }
     } catch (error) {
       setUpdatedEntry(previousEntry);
+      try {
+        const user = await getCurrentAuthUser();
+        await writeEditEntryDraft(user?.uid || "anon", pid, {
+          name: previousEntry?.name || "",
+          description: previousEntry?.description || "",
+          image: previousEntry?.image || "",
+          imageName: previousEntry?.imageName || "",
+          clearImage: Boolean(previousEntry?.clearImage),
+        });
+      } catch {
+        // ignore
+      }
       toastError("Update failed", error.message || "Unable to update post.");
     } finally {
       setIsUpdateSubmitting(false);
@@ -3084,7 +3139,7 @@ const WorkoutCard = memo(function WorkoutCard({
               spinner={<ButtonLoadingSpinner />}
               loadingText="Saving…"
             >
-              Save changes
+              Save
             </Button>
           </ModalFooter>
         </ModalContent>
