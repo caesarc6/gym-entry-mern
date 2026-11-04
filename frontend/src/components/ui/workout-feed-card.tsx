@@ -52,6 +52,54 @@ function ProfileAvatarFace({
   );
 }
 
+function FeedHeaderMeta({
+  displayName,
+  subtitle,
+  date,
+  dateTime,
+  underlineOnHover,
+}: {
+  displayName: string;
+  subtitle?: string;
+  date?: string;
+  dateTime?: string;
+  underlineOnHover?: boolean;
+}) {
+  const subtitleTrimmed =
+    typeof subtitle === "string" ? subtitle.trim() : "";
+  const dateTrimmed = typeof date === "string" ? date.trim() : "";
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <CardTitle
+        className={cn(
+          "truncate text-sm font-medium leading-tight tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]",
+          underlineOnHover && "hover:underline",
+        )}
+      >
+        {displayName}
+      </CardTitle>
+      {subtitleTrimmed || dateTrimmed ? (
+        <div className="flex min-w-0 flex-col gap-0.5">
+          {subtitleTrimmed ? (
+            <span className="min-w-0 truncate text-xs font-normal leading-snug text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+              {subtitleTrimmed}
+            </span>
+          ) : null}
+          {dateTrimmed ? (
+            <time
+              dateTime={dateTime || undefined}
+              className="shrink-0 text-[11px] font-normal leading-snug tracking-tight text-white/55 drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+            >
+              {dateTrimmed}
+            </time>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export type WorkoutFeedCardProfile = {
   fallback: string;
   /** Large header line (display name / @handle). */
@@ -63,8 +111,15 @@ export type WorkoutFeedCardProfile = {
 export type WorkoutFeedCardProps = {
   className?: string;
   profile: WorkoutFeedCardProfile;
-  /** Muted line under the header title (date, workout meta). */
+  /** Truncatable workout title / meta under the author name. */
   subtitle: string;
+  /**
+   * Reserved post date caption. Never truncates; sits under the title
+   * with secondary (quieter) type so the title cannot cover it.
+   */
+  date?: string;
+  /** Machine-readable datetime for the date caption (`<time dateTime>`). */
+  dateTime?: string;
   image: ReactNode;
   liked: boolean;
   onToggleLike: () => void;
@@ -95,6 +150,8 @@ export function WorkoutFeedCard({
   className,
   profile,
   subtitle,
+  date,
+  dateTime,
   image,
   liked,
   onToggleLike,
@@ -187,14 +244,13 @@ export function WorkoutFeedCard({
                     src={profile.imageSrc}
                     alt={profile.imageAlt}
                   />
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <CardTitle className="truncate text-sm font-medium leading-tight tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)] hover:underline">
-                      {profile.displayName}
-                    </CardTitle>
-                    <span className="truncate text-xs leading-snug text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
-                      {subtitle}
-                    </span>
-                  </div>
+                  <FeedHeaderMeta
+                    displayName={profile.displayName}
+                    subtitle={subtitle}
+                    date={date}
+                    dateTime={dateTime}
+                    underlineOnHover
+                  />
                 </button>
               ) : (
                 <>
@@ -202,14 +258,12 @@ export function WorkoutFeedCard({
                     src={profile.imageSrc}
                     alt={profile.imageAlt}
                   />
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <CardTitle className="truncate text-sm font-medium leading-tight tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
-                      {profile.displayName}
-                    </CardTitle>
-                    <span className="truncate text-xs leading-snug text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
-                      {subtitle}
-                    </span>
-                  </div>
+                  <FeedHeaderMeta
+                    displayName={profile.displayName}
+                    subtitle={subtitle}
+                    date={date}
+                    dateTime={dateTime}
+                  />
                 </>
               )}
             </div>
