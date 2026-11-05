@@ -45,6 +45,10 @@ import { THEME_SHELL_BG_BORDER_TRANSITION } from "../constants/themeShellTiming.
 import { HEADER_ICON_STROKE } from "../constants/headerIconStroke.js";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser, signOutAll } from "../utils/auth";
+import {
+  graphemeLength,
+  MIN_PEOPLE_SEARCH_CHARS,
+} from "../utils/graphemeLength";
 
 export const HeroHeader = () => {
   const [menuState, setMenuState] = React.useState(false);
@@ -133,10 +137,12 @@ export const HeroHeader = () => {
   const DRAWER_SWIPE_CLOSE_OFFSET_PX = 56;
   const DRAWER_SWIPE_CLOSE_VELOCITY = 400;
 
-  // Search users function
+  // Search users function — only after 2+ Unicode graphemes (one emoji = 1).
   const searchUsers = debounce(async (query) => {
-    if (!query.trim()) {
+    const normalized = String(query || "").normalize("NFC").trim();
+    if (graphemeLength(normalized) < MIN_PEOPLE_SEARCH_CHARS) {
       setSearchResults([]);
+      setIsSearching(false);
       setHasSearched(false);
       return;
     }
@@ -144,7 +150,9 @@ export const HeroHeader = () => {
     try {
       if (!currentUser) throw new Error("User not authenticated");
 
-      const response = await apiClient.get(API_ENDPOINTS.SEARCH_USERS(query));
+      const response = await apiClient.get(
+        API_ENDPOINTS.SEARCH_USERS(normalized),
+      );
       const data = response.data;
       setSearchResults(data.data || []);
     } catch (error) {
@@ -497,7 +505,8 @@ export const HeroHeader = () => {
                           <X strokeWidth={HEADER_ICON_STROKE} className="h-1 w-1" />
                         </Button>
                       )}
-                      {searchQuery && (
+                      {graphemeLength(searchQuery) >=
+                        MIN_PEOPLE_SEARCH_CHARS && (
                         <VStack
                           align="start"
                           spacing={2}
@@ -686,7 +695,7 @@ export const HeroHeader = () => {
                       <X strokeWidth={HEADER_ICON_STROKE} className="h-1 w-2" />
                     </Button>
                   )}
-                  {searchQuery && (
+                  {graphemeLength(searchQuery) >= MIN_PEOPLE_SEARCH_CHARS && (
                     <VStack
                       align="start"
                       spacing={2}

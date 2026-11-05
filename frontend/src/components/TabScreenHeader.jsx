@@ -4,6 +4,7 @@ import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { useProductStore } from "../store/product";
+import ProfilePeopleSearch from "./ProfilePeopleSearch";
 
 function screenMeta(pathname) {
   if (pathname === "/" || pathname === "") {
@@ -132,7 +133,9 @@ export function NativeTabScreenHeader() {
   };
 
   const leading =
-    meta.key === "feed" ? (
+    meta.key === "profile" && currentUser ? (
+      <ProfilePeopleSearch iconBtnClass={iconBtnClass} />
+    ) : meta.key === "feed" ? (
       <button
         type="button"
         onClick={() => navigate("/create")}
