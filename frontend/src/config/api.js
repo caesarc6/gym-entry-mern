@@ -122,7 +122,6 @@ export const API_ENDPOINTS = {
 
   // Workout analytics endpoints
   GET_WORKOUTS: buildApiUrl("workouts"),
-  PROCESS_WORKOUT: (entryId) => buildApiUrl(`workouts/process/${entryId}`),
   WORKOUT_ANALYTICS: (timeframe = "30d", exercise) => {
     const params = new URLSearchParams({ timeframe });
     if (exercise) params.append("exercise", exercise);
