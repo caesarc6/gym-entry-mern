@@ -21,6 +21,7 @@ import Workout from "../models/workout.model.js";
 import { syncWorkoutFromEntry } from "./workout.controller.js";
 import SharedWorkout from "../models/sharedWorkout.model.js";
 import { sanitizeTextFields, sanitizeTextInput } from "../utils/sanitizeInput.js";
+import { graphemeLength } from "../utils/graphemeLength.js";
 import {
   imageUploadFileFilter,
   isExplicitImageClear,
@@ -30,6 +31,8 @@ import {
   calendarDateKeyInTimeZone,
   normalizeWorkoutCalendarTimeZone,
 } from "../utils/workoutCalendarDate.js";
+
+const MIN_PEOPLE_SEARCH_CHARS = 2;
 
 const listEntryProjection = {
   uid: 1,
@@ -1167,12 +1170,21 @@ export const getCurrentUser = async (req, res) => {
 };
 
 export const searchUsers = async (req, res) => {
-  const query = sanitizeTextInput(req.query?.query);
+  const rawQuery = sanitizeTextInput(req.query?.query);
+  const query =
+    typeof rawQuery === "string" ? rawQuery.normalize("NFC").trim() : "";
 
-  if (!query || query.trim() === "") {
+  if (!query) {
     return res
       .status(400)
       .json({ success: false, message: "Search query is required" });
+  }
+
+  if (graphemeLength(query) < MIN_PEOPLE_SEARCH_CHARS) {
+    return res.status(400).json({
+      success: false,
+      message: "Search query must be at least 2 characters",
+    });
   }
 
   try {
@@ -1181,10 +1193,13 @@ export const searchUsers = async (req, res) => {
       viewerUser = await findUserByAnyUid(req.user.uid);
     }
 
+    // Match name or username (Unicode / emoji inclusive). Case-insensitive
+    // contains — not letter-class or username-only.
+    const pattern = escapeRegex(query);
     const users = await User.find({
       $or: [
-        { name: { $regex: `^${escapeRegex(query)}`, $options: "i" } },
-        { username: { $regex: `^${escapeRegex(query)}`, $options: "i" } },
+        { name: { $regex: pattern, $options: "i" } },
+        { username: { $regex: pattern, $options: "i" } },
       ],
     })
       .populate("followers", "uid")
