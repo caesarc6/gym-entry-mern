@@ -4,6 +4,7 @@ import multer from "multer";
 import Entry from "../models/entry.model.js";
 import { User } from "../models/user.model.js";
 import SharedWorkout from "../models/sharedWorkout.model.js";
+import Workout from "../models/workout.model.js";
 import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
@@ -263,6 +264,22 @@ export const updateEntry = async (req, res) => {
               },
               { $set: otherEntryUpdates }
             );
+            const siblingEntries = await Entry.find({
+              sharedWorkoutId: existingEntry.sharedWorkoutId,
+              _id: { $ne: pid },
+            });
+            await Promise.all(
+              siblingEntries.map(async (sibling) => {
+                try {
+                  await syncWorkoutFromEntry(sibling, sibling.uid);
+                } catch (siblingSyncError) {
+                  console.error(
+                    "syncWorkoutFromEntry failed",
+                    siblingSyncError,
+                  );
+                }
+              }),
+            );
           }
         }
       } catch (syncError) {
@@ -276,6 +293,12 @@ export const updateEntry = async (req, res) => {
         newUrl: postImageUrl,
         ownerUid: canonicalUid,
       });
+    }
+
+    try {
+      await syncWorkoutFromEntry(entryData, canonicalUid);
+    } catch (syncError) {
+      console.error("syncWorkoutFromEntry failed", syncError);
     }
 
     res.status(200).json({ success: true, data: entryData });
@@ -632,6 +655,22 @@ export const updateEntryPut = async (req, res) => {
               },
               { $set: otherEntryUpdates }
             );
+            const siblingEntries = await Entry.find({
+              sharedWorkoutId: existingEntry.sharedWorkoutId,
+              _id: { $ne: id },
+            });
+            await Promise.all(
+              siblingEntries.map(async (sibling) => {
+                try {
+                  await syncWorkoutFromEntry(sibling, sibling.uid);
+                } catch (siblingSyncError) {
+                  console.error(
+                    "syncWorkoutFromEntry failed",
+                    siblingSyncError,
+                  );
+                }
+              }),
+            );
           }
         }
       } catch (syncError) {
@@ -691,6 +730,11 @@ export const deleteEntry = async (req, res) => {
     }
 
     await Entry.findByIdAndDelete(id);
+    try {
+      await Workout.deleteMany({ entryId: id });
+    } catch (workoutCleanupError) {
+      console.error("Workout cleanup after entry delete failed", workoutCleanupError);
+    }
     res.status(200).json({ success: true, message: "Entry deleted" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });

@@ -3,9 +3,9 @@
  */
 
 /**
- * Apple-style calendar brevity for workout posts.
- * Short month + day (e.g. "Nov 4"), localized via the runtime locale.
- * Includes the year only when the post is more than one year old.
+ * Apple-style quiet caption for workout posts.
+ * Short month + day (e.g. "Nov 4"), time, and year only when the post
+ * is more than one year old — localized via the runtime locale.
  *
  * @param {string|Date} dateString
  * @param {Date} [now]
@@ -15,18 +15,27 @@ export const formatPostDate = (dateString, now = new Date()) => {
   if (!dateString && dateString !== 0) return "";
 
   try {
-    const date =
-      dateString instanceof Date ? dateString : parseDateSafe(dateString);
+    // ISO timestamps keep their real clock time; date-only strings stay local.
+    let date;
+    if (dateString instanceof Date) {
+      date = dateString;
+    } else if (typeof dateString === "string" && dateString.includes("T")) {
+      date = new Date(dateString);
+    } else {
+      date = parseDateSafe(dateString);
+    }
     if (!date || Number.isNaN(date.getTime())) return "";
 
     const oneYearAgo = new Date(now);
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     const includeYear = date.getTime() < oneYearAgo.getTime();
 
-    return date.toLocaleDateString(undefined, {
+    return date.toLocaleString(undefined, {
       month: "short",
       day: "numeric",
       ...(includeYear ? { year: "numeric" } : {}),
+      hour: "numeric",
+      minute: "2-digit",
     });
   } catch {
     return "";
