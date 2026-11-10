@@ -4,6 +4,7 @@ import multer from "multer";
 import Entry from "../models/entry.model.js";
 import { User } from "../models/user.model.js";
 import SharedWorkout from "../models/sharedWorkout.model.js";
+import Workout from "../models/workout.model.js";
 import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
@@ -729,6 +730,11 @@ export const deleteEntry = async (req, res) => {
     }
 
     await Entry.findByIdAndDelete(id);
+    try {
+      await Workout.deleteMany({ entryId: id });
+    } catch (workoutCleanupError) {
+      console.error("Workout cleanup after entry delete failed", workoutCleanupError);
+    }
     res.status(200).json({ success: true, message: "Entry deleted" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
