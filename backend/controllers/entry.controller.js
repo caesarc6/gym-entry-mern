@@ -263,6 +263,22 @@ export const updateEntry = async (req, res) => {
               },
               { $set: otherEntryUpdates }
             );
+            const siblingEntries = await Entry.find({
+              sharedWorkoutId: existingEntry.sharedWorkoutId,
+              _id: { $ne: pid },
+            });
+            await Promise.all(
+              siblingEntries.map(async (sibling) => {
+                try {
+                  await syncWorkoutFromEntry(sibling, sibling.uid);
+                } catch (siblingSyncError) {
+                  console.error(
+                    "syncWorkoutFromEntry failed",
+                    siblingSyncError,
+                  );
+                }
+              }),
+            );
           }
         }
       } catch (syncError) {
@@ -276,6 +292,12 @@ export const updateEntry = async (req, res) => {
         newUrl: postImageUrl,
         ownerUid: canonicalUid,
       });
+    }
+
+    try {
+      await syncWorkoutFromEntry(entryData, canonicalUid);
+    } catch (syncError) {
+      console.error("syncWorkoutFromEntry failed", syncError);
     }
 
     res.status(200).json({ success: true, data: entryData });
@@ -631,6 +653,22 @@ export const updateEntryPut = async (req, res) => {
                 _id: { $ne: id },
               },
               { $set: otherEntryUpdates }
+            );
+            const siblingEntries = await Entry.find({
+              sharedWorkoutId: existingEntry.sharedWorkoutId,
+              _id: { $ne: id },
+            });
+            await Promise.all(
+              siblingEntries.map(async (sibling) => {
+                try {
+                  await syncWorkoutFromEntry(sibling, sibling.uid);
+                } catch (siblingSyncError) {
+                  console.error(
+                    "syncWorkoutFromEntry failed",
+                    siblingSyncError,
+                  );
+                }
+              }),
             );
           }
         }

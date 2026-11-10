@@ -423,16 +423,6 @@ const CreatePage = () => {
             >
               Write the session.
             </Heading>
-            <Text
-              maxW="460px"
-              mx="auto"
-              mt={4}
-              fontSize="sm"
-              color={colors.textMuted}
-              lineHeight="1.8"
-            >
-              Drafts save while you type. Progress tracks the lifts it recognizes.
-            </Text>
           </Box>
           <Card11
             sessionTitle={newPost.name}

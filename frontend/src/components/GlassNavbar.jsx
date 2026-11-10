@@ -189,6 +189,9 @@ export default function GlassNavbar({ alwaysVisible = false }) {
   const [scrubbing, setScrubbing] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [hoverIndex, setHoverIndex] = useState(null);
+  // iOS WKWebView shrinks/offsets the visual viewport when the keyboard opens;
+  // a fixed bottom dock then rides above the keyboard. Hide it instead.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   const expanded = scrubbing || hovered;
 
@@ -409,6 +412,63 @@ export default function GlassNavbar({ alwaysVisible = false }) {
 
   useEffect(() => () => clearHoldTimer(), [clearHoldTimer]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const vv = window.visualViewport;
+    let focusOutTimer = null;
+
+    const syncKeyboard = () => {
+      if (!vv) {
+        setKeyboardOpen(false);
+        return;
+      }
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardOpen(inset > 80);
+    };
+
+    const onFocusIn = (event) => {
+      const target = event.target;
+      if (
+        !(target instanceof HTMLElement) ||
+        !(
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable
+        )
+      ) {
+        return;
+      }
+      if (focusOutTimer != null) {
+        window.clearTimeout(focusOutTimer);
+        focusOutTimer = null;
+      }
+      // visualViewport resize usually follows focus; sync both immediately and next frame.
+      syncKeyboard();
+      window.requestAnimationFrame(syncKeyboard);
+    };
+
+    const onFocusOut = () => {
+      if (focusOutTimer != null) window.clearTimeout(focusOutTimer);
+      focusOutTimer = window.setTimeout(syncKeyboard, 120);
+    };
+
+    syncKeyboard();
+    vv?.addEventListener("resize", syncKeyboard);
+    vv?.addEventListener("scroll", syncKeyboard);
+    window.addEventListener("focusin", onFocusIn);
+    window.addEventListener("focusout", onFocusOut);
+
+    return () => {
+      if (focusOutTimer != null) window.clearTimeout(focusOutTimer);
+      vv?.removeEventListener("resize", syncKeyboard);
+      vv?.removeEventListener("scroll", syncKeyboard);
+      window.removeEventListener("focusin", onFocusIn);
+      window.removeEventListener("focusout", onFocusOut);
+    };
+  }, []);
+
   const barStyle = prefersReducedMotion
     ? {
         backgroundColor: hexAlpha(paintHex, 0.45),
@@ -419,6 +479,10 @@ export default function GlassNavbar({ alwaysVisible = false }) {
         boxShadow: `0 8px 32px ${hexAlpha(paintHex, 0.25)}`,
         transition,
       };
+
+  if (keyboardOpen) {
+    return null;
+  }
 
   return (
     <nav

@@ -37,7 +37,7 @@ import {
   MENU_ROW_TEXT,
   heroNavMenuChrome,
 } from "./ui/dropdown-menu-1";
-import { Flag, MoreHorizontal, Pencil, Share2, Sparkles, Trash2 } from "lucide-react";
+import { Flag, MoreHorizontal, Pencil, Share2, Trash2 } from "lucide-react";
 import { ButtonLoadingSpinner } from "./loading";
 import { FileUploader } from "./FileUploader";
 import {
@@ -57,10 +57,8 @@ import PropTypes from "prop-types";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { recognizeWorkoutLines } from "../utils/workoutParser";
-import { parseWorkoutDescription } from "../utils/workoutParser.js";
 import ShareWorkoutModal from "./ShareWorkoutModal";
 import { WorkoutFeedCard } from "./ui/workout-feed-card";
-import EnhancedWorkoutEditor from "./EnhancedWorkoutEditor";
 import { useThemeColors } from "../hooks/useThemeColors";
 import { useCanvasShell } from "../contexts/CanvasShellContext.jsx";
 import { useCustomToast } from "../hooks/useCustomToast";
@@ -554,11 +552,6 @@ const WorkoutCard = memo(function WorkoutCard({
     isOpen: isShareOpen,
     onOpen: onShareOpen,
     onClose: onShareClose,
-  } = useDisclosure();
-  const {
-    isOpen: isEnhancedEditOpen,
-    onOpen: onEnhancedEditOpen,
-    onClose: onEnhancedEditClose,
   } = useDisclosure();
 
   const commentsAnchorId = `post-detail-comments-${entry._id}`;
@@ -1878,34 +1871,6 @@ const WorkoutCard = memo(function WorkoutCard({
     );
   };
 
-  const handleProcessWorkout = async () => {
-    try {
-      // Check if this looks like a workout post
-      const exercises = parseWorkoutDescription(updatedEntry.description);
-
-      if (exercises.length === 0) {
-        showToast({
-          title: "Not a workout post",
-          description:
-            "This post doesn't contain workout data in the expected format.",
-          status: "warning",
-        });
-        return;
-      }
-
-      await apiClient.post(API_ENDPOINTS.PROCESS_WORKOUT(entry._id));
-    } catch (error) {
-      showToast({
-        title: "Error",
-        description:
-          error.response?.data?.message || "Failed to process workout data",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
-
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -1990,17 +1955,10 @@ const WorkoutCard = memo(function WorkoutCard({
       >
         <DropdownMenuItem
           className={postMenuItemClassName}
-          onSelect={onEnhancedEditOpen}
+          onSelect={onOpen}
         >
           <Pencil strokeWidth={HEADER_ICON_STROKE} aria-hidden />
           Edit workout
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className={postMenuItemClassName}
-          onSelect={handleProcessWorkout}
-        >
-          <Sparkles strokeWidth={HEADER_ICON_STROKE} aria-hidden />
-          Process workout
         </DropdownMenuItem>
         <DropdownMenuItem
           className={postMenuItemClassName}
@@ -3175,14 +3133,6 @@ const WorkoutCard = memo(function WorkoutCard({
         isOpen={isShareOpen}
         onClose={onShareClose}
         entry={updatedEntry}
-      />
-
-      {/* Enhanced Workout Editor */}
-      <EnhancedWorkoutEditor
-        isOpen={isEnhancedEditOpen}
-        onClose={onEnhancedEditClose}
-        entry={entry}
-        onUpdate={handleUpdateEntry}
       />
     </>
   );

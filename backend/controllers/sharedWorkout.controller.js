@@ -10,6 +10,16 @@ import {
   sanitizeTextArray,
   sanitizeTextInput,
 } from "../utils/sanitizeInput.js";
+import { syncWorkoutFromEntry } from "./workout.controller.js";
+
+async function syncEntryWorkoutSafe(entry) {
+  if (!entry?._id || !entry?.uid) return;
+  try {
+    await syncWorkoutFromEntry(entry, entry.uid);
+  } catch (syncError) {
+    console.error("syncWorkoutFromEntry failed", syncError);
+  }
+}
 
 const escapeRegex = (value) =>
   String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -267,6 +277,7 @@ export const createSharedWorkout = async (req, res) => {
           });
 
           await workoutPost.save();
+          await syncEntryWorkoutSafe(workoutPost);
 
           // Update shared workout share count
           await SharedWorkout.findByIdAndUpdate(sharedWorkout._id, {
@@ -437,11 +448,12 @@ export const updateSharedWorkout = async (req, res) => {
 
 
       if (linkedEntries.length > 0) {
-        const updateResult = await Entry.updateMany(
+        await Entry.updateMany(
           { sharedWorkoutId: workoutObjectId },
           { $set: entryUpdates }
         );
-
+        const refreshed = await Entry.find({ sharedWorkoutId: workoutObjectId });
+        await Promise.all(refreshed.map((entry) => syncEntryWorkoutSafe(entry)));
       } else {
         // Try to find entries by workout name as fallback (for entries created before sharedWorkoutId was added)
         const fallbackEntries = await Entry.find({
@@ -458,13 +470,18 @@ export const updateSharedWorkout = async (req, res) => {
             sharedWorkoutId: workoutObjectId, // Add the sharedWorkoutId for future syncing
           };
 
-          const fallbackResult = await Entry.updateMany(
+          await Entry.updateMany(
             {
               _id: { $in: fallbackEntries.map((e) => e._id) },
             },
             { $set: fallbackUpdate }
           );
-
+          const refreshedFallback = await Entry.find({
+            _id: { $in: fallbackEntries.map((e) => e._id) },
+          });
+          await Promise.all(
+            refreshedFallback.map((entry) => syncEntryWorkoutSafe(entry)),
+          );
         }
       }
     }
@@ -888,6 +905,7 @@ export const saveSharedWorkoutToAccount = async (req, res) => {
     });
 
     await workoutPost.save();
+    await syncEntryWorkoutSafe(workoutPost);
 
     // Update shared workout share count
     await SharedWorkout.findByIdAndUpdate(sharedWorkout._id, {
@@ -1264,6 +1282,7 @@ export const claimClientWorkoutsByToken = async (req, res) => {
       });
 
       await workoutPost.save();
+      await syncEntryWorkoutSafe(workoutPost);
       createdMissingEntries.push({
         _id: workoutPost._id,
         name: workoutPost.name,
@@ -1356,6 +1375,7 @@ export const claimClientWorkoutsByToken = async (req, res) => {
       });
 
       await workoutPost.save();
+      await syncEntryWorkoutSafe(workoutPost);
       workoutPosts.push({
         _id: workoutPost._id,
         name: workoutPost.name,
@@ -1539,6 +1559,7 @@ export const claimPendingWorkouts = async (req, res) => {
         });
 
         await workoutPost.save();
+        await syncEntryWorkoutSafe(workoutPost);
         workoutPosts.push({
           _id: workoutPost._id,
           name: workoutPost.name,
