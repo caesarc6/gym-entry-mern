@@ -104,8 +104,8 @@ export const processWorkoutEntry = async (req, res) => {
       entryId,
       userId: uid,
       title: entry.name,
-      split,
-      gym,
+      split: split || undefined,
+      gym: gym || undefined,
       exercises,
       totalVolume,
       workoutDate: entry.createdAt,
@@ -145,8 +145,10 @@ export async function syncWorkoutFromEntry(entry, userId) {
   const fields = {
     userId,
     title: entry.name || "Workout",
-    split,
-    gym,
+    split: split || undefined,
+    // Persist short gym tags ("Pg"); use undefined (not null) when absent so
+    // Mongoose String setters are not called with a null prior/next pair oddly.
+    gym: gym || undefined,
     exercises,
     totalVolume,
     workoutDate: entry.createdAt || new Date(),

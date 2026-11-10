@@ -1,15 +1,18 @@
 import mongoose from "mongoose";
 import { sanitizeTextInput } from "../utils/sanitizeInput.js";
 
+/** Mongoose passes (value, priorVal, …); only forward the value into sanitize. */
+const sanitizeString = (value) => sanitizeTextInput(value);
+
 const setSchema = new mongoose.Schema({
   reps: { type: Number, required: true },
   weight: { type: Number, required: true },
-  unit: { type: String, default: "lbs", set: sanitizeTextInput },
+  unit: { type: String, default: "lbs", set: sanitizeString },
   completed: { type: Boolean, default: true },
 });
 
 const exerciseSchema = new mongoose.Schema({
-  name: { type: String, required: true, set: sanitizeTextInput },
+  name: { type: String, required: true, set: sanitizeString },
   nameKey: { type: String },
   sets: [setSchema],
   totalVolume: { type: Number, required: true },
@@ -29,9 +32,10 @@ const workoutSchema = new mongoose.Schema({
     required: true,
   },
   userId: { type: String, required: true },
-  title: { type: String, required: true, set: sanitizeTextInput }, // e.g., "Push @blink"
-  split: { type: String, set: sanitizeTextInput }, // extracted from title
-  gym: { type: String, set: sanitizeTextInput }, // extracted from title
+  title: { type: String, required: true, set: sanitizeString }, // e.g., "Push @blink"
+  split: { type: String, set: sanitizeString }, // extracted from title
+  // Short tags like "Pg" are fine; null prior gym must not break the setter.
+  gym: { type: String, set: sanitizeString },
   exercises: [exerciseSchema],
   totalVolume: { type: Number, required: true },
   workoutDate: { type: Date, required: true },
