@@ -32,22 +32,37 @@ export const stripGymOrLocationTagsFromLine = (text) => {
  * and extracts structured data for analytics
  */
 
+// Letters, spaces, hyphens, apostrophes in the name; weight/reps stay outside the capture.
+const EXERCISE_NAME = String.raw`[A-Za-z][A-Za-z\s\-']*`;
+
 // More flexible exercise patterns to handle real-world variations
 const EXERCISE_PATTERNS = [
   // Standard format: Exercise Weight - reps reps reps (with extra text allowed)
-  /^([A-Za-z\s]+)\s+(\d+(?:\.\d+)?)\s*(lbs?|kg)\s*-\s*((?:\d+\s*[x,]\s*\d+\s*)+)$/i,
+  new RegExp(
+    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*-\\s*((?:\\d+\\s*[x,]\\s*\\d+\\s*)+)$`,
+    "i",
+  ),
 
   // Alternative format: Exercise - Weight x reps reps reps
-  /^([A-Za-z\s]+)\s*-\s*(\d+(?:\.\d+)?)\s*(lbs?|kg)\s*x\s*((?:\d+\s*)+)$/i,
+  new RegExp(
+    `^(${EXERCISE_NAME})\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*x\\s*((?:\\d+\\s*)+)$`,
+    "i",
+  ),
 
   // Format with complex rep patterns: Exercise Weight - 8x2, 7x1, 8x1
-  /^([A-Za-z\s]+)\s+(\d+(?:\.\d+)?)\s*(lbs?|kg)\s*-\s*((?:\d+\s*x\s*\d+\s*,?\s*)+)$/i,
+  new RegExp(
+    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*-\\s*((?:\\d+\\s*x\\s*\\d+\\s*,?\\s*)+)$`,
+    "i",
+  ),
 
   // Simple format: Exercise reps reps reps (assume bodyweight)
-  /^([A-Za-z\s]+)\s*-\s*((?:\d+\s*)+)$/i,
+  new RegExp(`^(${EXERCISE_NAME})\\s*-\\s*((?:\\d+\\s*)+)$`, "i"),
 
   // Very flexible format: Exercise with any text Weight - reps
-  /^([A-Za-z\s]+(?:\s+[A-Za-z\s]+)*)\s+(\d+(?:\.\d+)?)\s*(lbs?|kg)\s*-\s*((?:\d+\s*)+)$/i,
+  new RegExp(
+    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*-\\s*((?:\\d+\\s*)+)$`,
+    "i",
+  ),
 ];
 
 /**
@@ -95,14 +110,14 @@ const EXERCISE_NORMALIZATION = {
   "iso row": "ISO Lateral Row",
   "iso lat row hg": "ISO Lateral Row",
 
-  // Bent-Over Row
+  // Bent-Over Row — keep DB distinct from plain/barbell
   "bent over row": "Bent-Over Row",
   "bent row row": "Bent-Over Row",
   "bent row": "Bent-Over Row",
-  "db bentover row": "Bent-Over Row",
-  "db bent row": "Bent-Over Row",
-  "db bent over row": "Bent-Over Row",
-  "bent over db row": "Bent-Over Row",
+  "db bentover row": "Dumbbell Bent-Over Row",
+  "db bent row": "Dumbbell Bent-Over Row",
+  "db bent over row": "Dumbbell Bent-Over Row",
+  "bent over db row": "Dumbbell Bent-Over Row",
 
   // Bench Press variations
   "elevated bp": "Bench Press",
@@ -125,11 +140,19 @@ const EXERCISE_NORMALIZATION = {
   "seat chest p mch": "Machine Chest Press",
   "chest prss mchn": "Machine Chest Press",
 
-  // Incline Bench Press
+  // Incline Bench Press (plain / barbell); DB variants stay under Incline Dumbbell Press
   "incline press": "Incline Bench Press",
   "incline bp": "Incline Bench Press",
   "incline bench": "Incline Bench Press",
   "incline bench press": "Incline Bench Press",
+  "bb incline press": "Incline Barbell Press",
+  "bb incline bench": "Incline Barbell Press",
+  "bb incline bench press": "Incline Barbell Press",
+  "barbell incline press": "Incline Barbell Press",
+  "barbell incline bench": "Incline Barbell Press",
+  "barbell incline bench press": "Incline Barbell Press",
+  "incline bb press": "Incline Barbell Press",
+  "incline barbell press": "Incline Barbell Press",
 
   // Incline Dumbbell Press — bench and press are the same movement
   "db incline press": "Incline Dumbbell Press",
@@ -157,22 +180,22 @@ const EXERCISE_NORMALIZATION = {
   "rev pec fly": "Rear Delt Fly",
   "rev pec fly": "Rear Delt Fly",
 
-  // Overhead Press (dumbbell variations)
+  // Overhead Press — keep DB/BB/machine distinct
   "overhead press": "Overhead Press",
-  "overhead db press": "Overhead Press",
+  "overhead db press": "Dumbbell Overhead Press",
   "over head press": "Overhead Press",
-  "db overhead press": "Overhead Press",
-  "db shoulder press": "Overhead Press",
-  "dumbbell shoulder press": "Overhead Press",
-  "dumbbell overhead press": "Overhead Press",
+  "db overhead press": "Dumbbell Overhead Press",
+  "db shoulder press": "Dumbbell Overhead Press",
+  "dumbbell shoulder press": "Dumbbell Overhead Press",
+  "dumbbell overhead press": "Dumbbell Overhead Press",
 
   // Barbell Shoulder Press
   "bb should press": "Barbell Shoulder Press",
   "barbell shoulder press": "Barbell Shoulder Press",
 
-  // Dumbbell Shoulder Press — same movement as overhead press
+  // Plain "shoulder press" stays generic; DB variants stay dumbbell
   "shoulder press": "Overhead Press",
-  "db should press": "Overhead Press",
+  "db should press": "Dumbbell Overhead Press",
 
   // Machine Shoulder Press
   "shoulder pres machine": "Machine Shoulder Press",
@@ -208,25 +231,26 @@ const EXERCISE_NORMALIZATION = {
   "bb s curl": "Barbell Bicep Curl",
   "exbar curl": "Barbell Bicep Curl",
 
-  // Reverse Bicep Curl
-  "rev db curls": "Reverse Bicep Curl",
-  "rev bb curls": "Reverse Bicep Curl",
-  "rev bb curl": "Reverse Bicep Curl",
-  "revrse bb curl": "Reverse Bicep Curl",
-  "rev db curl": "Reverse Bicep Curl",
-  "rev db curl": "Reverse Bicep Curl",
-  "rev sbb curl": "Reverse Bicep Curl",
+  // Reverse curls — DB and BB stay distinct
+  "rev db curls": "Reverse Dumbbell Curl",
+  "rev db curl": "Reverse Dumbbell Curl",
+  "rev bb curls": "Reverse Barbell Curl",
+  "rev bb curl": "Reverse Barbell Curl",
+  "revrse bb curl": "Reverse Barbell Curl",
+  "rev sbb curl": "Reverse Barbell Curl",
 
-  // Preacher Curl
-  "preach db curl": "Preacher Curl",
-  "preacher db curl": "Preacher Curl",
-  "machine curls": "Preacher Curl",
-  "curl machine": "Preacher Curl",
-  "machine curl": "Preacher Curl",
+  // Preacher Curl (keep equipment when present — machine ≠ preacher)
+  "preach db curl": "Dumbbell Preacher Curl",
+  "preacher db curl": "Dumbbell Preacher Curl",
+  "machine curls": "Machine Curl",
+  "curl machine": "Machine Curl",
+  "machine curl": "Machine Curl",
+  "bicep curl machine": "Bicep Curl Machine",
   "preacher curls": "Preacher Curl",
+  "preacher curl": "Preacher Curl",
   "preacher curl m": "Preacher Curl",
-  "sbb preacher c": "Preacher Curl",
-  "seated curl machine": "Preacher Curl",
+  "sbb preacher c": "Barbell Preacher Curl",
+  "seated curl machine": "Machine Curl",
 
   // Cable Tricep Pulldown
   "tri cable pulldown": "Cable Tricep Pulldown",
@@ -385,6 +409,27 @@ const mergeCompoundTokens = (tokens) => {
   return merged;
 };
 
+const EQUIPMENT_TOKENS = new Set([
+  "dumbbell",
+  "barbell",
+  "cable",
+  "machine",
+  "smith",
+  "kettlebell",
+]);
+
+const equipmentOf = (tokens) =>
+  [...new Set(tokens.filter((token) => EQUIPMENT_TOKENS.has(token)))].sort();
+
+/** Reject aliases that drop or swap DB/BB/machine/cable/etc. */
+const equipmentCompatible = (inputTokens, canonicalName) => {
+  const inputEq = equipmentOf(inputTokens);
+  if (inputEq.length === 0) return true;
+  const canonicalEq = equipmentOf(nameTokens(canonicalName));
+  if (inputEq.length !== canonicalEq.length) return false;
+  return inputEq.every((token, index) => token === canonicalEq[index]);
+};
+
 const canonicalizeNameTokens = (tokens) => {
   const has = (word) => tokens.includes(word);
   const isTricep = has("tricep") || has("extension") || has("pushdown");
@@ -397,6 +442,9 @@ const canonicalizeNameTokens = (tokens) => {
   if (isShoulderPress) {
     if (has("machine")) return ["machine", "shoulder", "press"];
     if (has("barbell")) return ["barbell", "shoulder", "press"];
+    if (has("dumbbell")) return ["dumbbell", "overhead", "press"];
+    if (has("cable")) return ["cable", "shoulder", "press"];
+    if (has("smith")) return ["smith", "shoulder", "press"];
     return ["overhead", "press"];
   }
 
@@ -440,8 +488,9 @@ const canonicalizeNameTokens = (tokens) => {
 };
 
 const nameTokens = (value) => {
-  const raw = value
-    .split(/\s+/)
+  const raw = String(value || "")
+    .toLowerCase()
+    .split(/[\s\-–—']+/)
     .filter(Boolean)
     .flatMap((token) => {
       if (token === "wg") return ["wide", "grip"];
@@ -474,7 +523,9 @@ const CANONICAL_BY_TOKEN_KEY = Object.fromEntries(
 );
 
 /**
- * Clean and normalize exercise name by removing common extra text and standardizing names
+ * Clean and normalize exercise name by removing common extra text and standardizing names.
+ * Keeps equipment/modifiers (DB, BB, machine, cable, …) so similar names stay distinct.
+ * Unknown names become title-cased tokens and are still tracked for Progress.
  * @param {string} name - Raw exercise name
  * @param {number} weight - Weight value (0 for bodyweight)
  * @returns {string} Cleaned and normalized exercise name
@@ -484,25 +535,30 @@ export const cleanExerciseName = (name, weight = 0) => {
   const cleaned = withoutLocation
     .trim()
     .toLowerCase()
+    .replace(/[-–—]/g, " ")
     .replace(/\s+/g, " ")
     .replace(/\d+(?:st|nd|rd|th)\s+(?:tile|floor|level)/gi, "")
     .replace(/\s+-\s*$/, "")
-    .replace(/^(machine|mchne|mch|mchn|seat)\s+/i, "")
-    .replace(/\s+(machine|mchne|mch|mchn|seat)$/i, "")
     .trim();
 
-  const exact = EXERCISE_NORMALIZATION[cleaned];
-  if (exact) return applyDipWeightRule(exact, weight);
+  const inputTokens = nameTokens(cleaned);
+  const acceptCanonical = (canonical) => {
+    if (!canonical) return null;
+    if (!equipmentCompatible(inputTokens, canonical)) return null;
+    return applyDipWeightRule(canonical, weight);
+  };
 
-  const expandedKey = nameTokens(cleaned).join(" ");
-  if (EXERCISE_NORMALIZATION[expandedKey]) {
-    return applyDipWeightRule(EXERCISE_NORMALIZATION[expandedKey], weight);
-  }
+  const exact = acceptCanonical(EXERCISE_NORMALIZATION[cleaned]);
+  if (exact) return exact;
 
-  const tokenMatch = CANONICAL_BY_TOKEN_KEY[tokenSetKey(cleaned)];
-  if (tokenMatch) return applyDipWeightRule(tokenMatch, weight);
+  const expandedKey = inputTokens.join(" ");
+  const expanded = acceptCanonical(EXERCISE_NORMALIZATION[expandedKey]);
+  if (expanded) return expanded;
 
-  // Keep the logged name rather than guessing a nearby exercise.
+  const tokenMatch = acceptCanonical(CANONICAL_BY_TOKEN_KEY[tokenSetKey(cleaned)]);
+  if (tokenMatch) return tokenMatch;
+
+  // New or unmatched name: track as written (abbreviations expanded, equipment kept).
   return titleCaseExerciseName(cleaned) || withoutLocation.trim().replace(/\s+/g, " ");
 };
 
