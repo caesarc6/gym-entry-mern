@@ -37,17 +37,21 @@ export const stripGymOrLocationTagsFromLine = (text) => {
 // run into the weight token so "35lbs" cannot be swallowed as part of the name.
 const EXERCISE_NAME = String.raw`(?:\d+\s+)?[A-Za-z](?:[A-Za-z\s\-']|\([^)]*\))*`;
 
+// Rep tokens: plain "12", multiply "8x2", or colon schemes "6:2" / "4:1:1"
+// (assisted working:assist or multi-part drop sets), space/comma separated.
+const REPS_SEQUENCE = String.raw`(?:\d+(?:\s*[:x]\s*\d+)*(?:\s*,\s*|\s+))*\d+(?:\s*[:x]\s*\d+)*`;
+
 // More flexible exercise patterns to handle real-world variations
 const EXERCISE_PATTERNS = [
   // Standard format: Exercise Weight - reps reps reps (with extra text allowed)
   new RegExp(
-    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*-\\s*((?:\\d+\\s*[x,]\\s*\\d+\\s*)+)$`,
+    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*-\\s*(${REPS_SEQUENCE})$`,
     "i",
   ),
 
   // Alternative format: Exercise - Weight x reps reps reps
   new RegExp(
-    `^(${EXERCISE_NAME})\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*x\\s*((?:\\d+\\s*)+)$`,
+    `^(${EXERCISE_NAME})\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*x\\s*(${REPS_SEQUENCE})$`,
     "i",
   ),
 
@@ -59,22 +63,22 @@ const EXERCISE_PATTERNS = [
 
   // Weight x reps without a dash: Exercise 185 lbs x 8 8 8
   new RegExp(
-    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*x\\s*((?:\\d+\\s*)+)$`,
+    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*x\\s*(${REPS_SEQUENCE})$`,
     "i",
   ),
 
   // Simple format: Exercise reps reps reps (assume bodyweight)
-  new RegExp(`^(${EXERCISE_NAME})\\s*-\\s*((?:\\d+\\s*)+)$`, "i"),
+  new RegExp(`^(${EXERCISE_NAME})\\s*-\\s*(${REPS_SEQUENCE})$`, "i"),
 
   // Very flexible format: Exercise with any text Weight - reps
   new RegExp(
-    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*-\\s*((?:\\d+\\s*)+)$`,
+    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*-\\s*(${REPS_SEQUENCE})$`,
     "i",
   ),
 
   // Missing dash between weight and reps: Exercise 135lbs 5 5 5
   new RegExp(
-    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s+((?:\\d+\\s*)+)$`,
+    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s+(${REPS_SEQUENCE})$`,
     "i",
   ),
 ];
@@ -577,35 +581,48 @@ export const cleanExerciseName = (name, weight = 0) => {
 };
 
 /**
- * Parse complex rep patterns like "8x2, 7x1, 8x1" or "12 12 10 8"
+ * Parse complex rep patterns like "8x2, 7x1, 8x1", "12 12 10 8",
+ * or colon set schemes "6:2" / "4:1:1" (assisted / drop-set parts).
+ * Colon segments become separate sets at the line weight — no invented drop weights.
  * @param {string} repsStr - String containing rep information
  * @returns {Array} Array of rep numbers
  */
 const parseReps = (repsStr) => {
   const reps = [];
+  const parts = String(repsStr || "")
+    .split(/[,\s]+/)
+    .filter((part) => part.trim());
 
-  // Handle complex patterns like "8x2, 7x1, 8x1"
-  if (repsStr.includes("x")) {
-    const parts = repsStr.split(/[,\s]+/).filter((part) => part.trim());
-    for (const part of parts) {
-      const match = part.match(/(\d+)\s*x\s*(\d+)/i);
-      if (match) {
-        const [, repsPerSet, sets] = match;
-        const repsNum = parseInt(repsPerSet);
-        const setsNum = parseInt(sets);
-        for (let i = 0; i < setsNum; i++) {
-          reps.push(repsNum);
+  for (const part of parts) {
+    // Assisted / drop-set schemes: "6:2", "10:1", "4:1:1"
+    if (part.includes(":")) {
+      const segments = part.split(":").map((seg) => Number.parseInt(seg, 10));
+      if (
+        segments.length >= 2 &&
+        segments.every((n) => Number.isFinite(n) && n >= 0)
+      ) {
+        for (const n of segments) {
+          if (n > 0) reps.push(n);
         }
+        continue;
       }
     }
-  } else {
-    // Handle simple patterns like "12 12 10 8"
-    const parts = repsStr.split(/\s+/).filter((part) => part.trim());
-    for (const part of parts) {
-      const repNum = parseInt(part);
-      if (!isNaN(repNum)) {
-        reps.push(repNum);
+
+    // Multiply notation: "8x2" → two sets of 8
+    const xMatch = part.match(/^(\d+)\s*x\s*(\d+)$/i);
+    if (xMatch) {
+      const repsNum = Number.parseInt(xMatch[1], 10);
+      const setsNum = Number.parseInt(xMatch[2], 10);
+      for (let i = 0; i < setsNum; i += 1) {
+        reps.push(repsNum);
       }
+      continue;
+    }
+
+    // Plain rep count: "12"
+    const repNum = Number.parseInt(part, 10);
+    if (!Number.isNaN(repNum)) {
+      reps.push(repNum);
     }
   }
 

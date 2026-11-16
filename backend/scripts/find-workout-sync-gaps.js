@@ -55,6 +55,8 @@ const looksLikeLiftLine = (line) => {
   if (!text) return false;
   if (/\d+(?:\.\d+)?\s*(?:lbs?|kg)\b/i.test(text)) return true;
   if (/\b\d+\s*x\s*\d+\b/i.test(text)) return true;
+  // Assisted / drop-set colon schemes: 6:2, 10:1, 4:1:1
+  if (/\b\d+(?:\s*:\s*\d+)+\b/.test(text)) return true;
   if (/\b(?:min|mins|minutes|hr|hrs|hours|incline|lvl|level)\b/i.test(text)) {
     return true;
   }
