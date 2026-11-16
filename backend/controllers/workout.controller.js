@@ -1,5 +1,6 @@
 import Workout from "../models/workout.model.js";
 import Entry from "../models/entry.model.js";
+import { User } from "../models/user.model.js";
 import {
   parseWorkoutDescription,
   parseWorkoutTitle,
@@ -15,12 +16,39 @@ const timeframeStart = (timeframe) => {
   return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 };
 
+/**
+ * Auth tokens may be firebaseUid/supabaseUid while Workout.userId is stored as
+ * the account's canonical `uid`. Resolve every linked id so Analyze reads the
+ * same rows create/edit sync writes.
+ */
+async function resolveWorkoutUserIds(authUid) {
+  if (!authUid) return [];
+  const ids = new Set([authUid]);
+  const user = await User.findOne({
+    $or: [
+      { uid: authUid },
+      { firebaseUid: authUid },
+      { supabaseUid: authUid },
+    ],
+  })
+    .select("uid firebaseUid supabaseUid")
+    .lean();
+  if (user?.uid) ids.add(user.uid);
+  if (user?.firebaseUid) ids.add(user.firebaseUid);
+  if (user?.supabaseUid) ids.add(user.supabaseUid);
+  return [...ids];
+}
+
+const workoutUserIdFilter = (userIds) =>
+  userIds.length <= 1 ? userIds[0] : { $in: userIds };
+
 /** Fill nameKey on older workout rows so chart lookups can use the index. */
-async function ensureExerciseNameKeys(userId) {
-  if (!userId) return;
+async function ensureExerciseNameKeys(userIds) {
+  const ids = (Array.isArray(userIds) ? userIds : [userIds]).filter(Boolean);
+  if (ids.length === 0) return;
   await Workout.updateMany(
     {
-      userId,
+      userId: workoutUserIdFilter(ids),
       exercises: { $elemMatch: { nameKey: { $exists: false } } },
     },
     [
@@ -133,25 +161,40 @@ export const processWorkoutEntry = async (req, res) => {
 export async function syncWorkoutFromEntry(entry, userId) {
   if (!entry?._id || !userId) return;
 
-  const exercises = parseWorkoutDescription(entry.description || "");
-  const existing = await Workout.findOne({ entryId: entry._id });
+  const plain =
+    typeof entry.toObject === "function" ? entry.toObject() : entry;
+  // Prefer the account's canonical uid so Analyze queries stay aligned even when
+  // the caller passed a secondary firebaseUid/supabaseUid.
+  const account = await User.findOne({
+    $or: [
+      { uid: userId },
+      { firebaseUid: userId },
+      { supabaseUid: userId },
+    ],
+  })
+    .select("uid")
+    .lean();
+  const ownerUserId = account?.uid || userId;
+
+  const exercises = parseWorkoutDescription(plain.description || "");
+  const existing = await Workout.findOne({ entryId: plain._id });
   if (exercises.length === 0) {
     if (existing) await Workout.deleteOne({ _id: existing._id });
     return;
   }
 
-  const { split, gym } = parseWorkoutTitle(entry.name || "");
+  const { split, gym } = parseWorkoutTitle(plain.name || "");
   const totalVolume = calculateTotalVolume(exercises);
   const fields = {
-    userId,
-    title: entry.name || "Workout",
+    userId: ownerUserId,
+    title: plain.name || "Workout",
     split: split || undefined,
     // Persist short gym tags ("Pg"); use undefined (not null) when absent so
     // Mongoose String setters are not called with a null prior/next pair oddly.
     gym: gym || undefined,
     exercises,
     totalVolume,
-    workoutDate: entry.createdAt || new Date(),
+    workoutDate: plain.createdAt || new Date(),
     updatedAt: new Date(),
   };
 
@@ -161,7 +204,7 @@ export async function syncWorkoutFromEntry(entry, userId) {
     return;
   }
 
-  await Workout.create({ entryId: entry._id, ...fields });
+  await Workout.create({ entryId: plain._id, ...fields });
 }
 
 /**
@@ -170,8 +213,14 @@ export async function syncWorkoutFromEntry(entry, userId) {
 export const getAllWorkouts = async (req, res) => {
   try {
     const { uid } = req.user;
+    const userIds = await resolveWorkoutUserIds(uid);
+    if (userIds.length === 0) {
+      return res.status(200).json([]);
+    }
 
-    const workouts = await Workout.find({ userId: uid })
+    const workouts = await Workout.find({
+      userId: workoutUserIdFilter(userIds),
+    })
       .select("entryId workoutDate title split gym totalVolume")
       .sort({ workoutDate: -1 });
 
@@ -193,11 +242,26 @@ export const getWorkoutAnalytics = async (req, res) => {
     const { timeframe = "30d", exercise } = req.query;
     const startDate = timeframeStart(timeframe);
     const nameKey = exerciseNameKey(exercise);
+    const userIds = await resolveWorkoutUserIds(uid);
+    if (userIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalWorkouts: 0,
+          totalVolume: 0,
+          averageVolumePerWorkout: 0,
+          exercises: {},
+          splits: {},
+          gyms: {},
+          recentPRs: {},
+        },
+      });
+    }
 
-    if (nameKey) await ensureExerciseNameKeys(uid);
+    if (nameKey) await ensureExerciseNameKeys(userIds);
 
     const query = {
-      userId: uid,
+      userId: workoutUserIdFilter(userIds),
       workoutDate: { $gte: startDate },
     };
 
@@ -315,13 +379,27 @@ export const getExerciseProgress = async (req, res) => {
       });
     }
 
+    const userIds = await resolveWorkoutUserIds(uid);
+    if (userIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          exercise,
+          dataPoints: [],
+          maxWeight: 0,
+          maxVolume: 0,
+          maxReps: 0,
+        },
+      });
+    }
+
     const startDate = timeframeStart(timeframe);
-    await ensureExerciseNameKeys(uid);
+    await ensureExerciseNameKeys(userIds);
 
     const rows = await Workout.aggregate([
       {
         $match: {
-          userId: uid,
+          userId: workoutUserIdFilter(userIds),
           workoutDate: { $gte: startDate },
           "exercises.nameKey": nameKey,
         },
@@ -388,9 +466,16 @@ export const getExerciseProgress = async (req, res) => {
 export const getPersonalRecords = async (req, res) => {
   try {
     const { uid } = req.user;
+    const userIds = await resolveWorkoutUserIds(uid);
+    if (userIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {},
+      });
+    }
 
     const rows = await Workout.aggregate([
-      { $match: { userId: uid } },
+      { $match: { userId: workoutUserIdFilter(userIds) } },
       { $sort: { workoutDate: -1 } },
       { $unwind: "$exercises" },
       {

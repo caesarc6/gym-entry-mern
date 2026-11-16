@@ -880,7 +880,11 @@ export const createPost = async (req, res) => {
     try {
       await syncWorkoutFromEntry(post, canonicalUid);
     } catch (syncError) {
-      console.error("syncWorkoutFromEntry failed", syncError);
+      console.error("syncWorkoutFromEntry failed", {
+        entryId: String(post._id),
+        uid: canonicalUid,
+        message: syncError?.message,
+      });
     }
 
     const data = post.toObject();
