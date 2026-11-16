@@ -298,7 +298,11 @@ export const updateEntry = async (req, res) => {
     try {
       await syncWorkoutFromEntry(entryData, canonicalUid);
     } catch (syncError) {
-      console.error("syncWorkoutFromEntry failed", syncError);
+      console.error("syncWorkoutFromEntry failed", {
+        entryId: String(entryData?._id || pid),
+        uid: canonicalUid,
+        message: syncError?.message,
+      });
     }
 
     res.status(200).json({ success: true, data: entryData });
@@ -689,7 +693,11 @@ export const updateEntryPut = async (req, res) => {
     try {
       await syncWorkoutFromEntry(entryData, canonicalUid);
     } catch (syncError) {
-      console.error("syncWorkoutFromEntry failed", syncError);
+      console.error("syncWorkoutFromEntry failed", {
+        entryId: String(entryData?._id || id),
+        uid: canonicalUid,
+        message: syncError?.message,
+      });
     }
 
     res.status(200).json({ success: true, data: entryData });

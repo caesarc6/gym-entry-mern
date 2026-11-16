@@ -451,6 +451,16 @@ const AnalyticsPage = () => {
 
   useEffect(() => {
     return useProductStore.subscribe((state, prev) => {
+      // create/edit/delete clear analyticsTabCache; refetch when that happens
+      // while this tab is mounted (rare on native, common if still open on web).
+      if (
+        prev.analyticsTabCache &&
+        !state.analyticsTabCache &&
+        activeUidRef.current
+      ) {
+        refreshFromPostsRef.current();
+      }
+
       if (state.postSnapshots === prev.postSnapshots) return;
       const previous = prev.postSnapshots || {};
       const snaps = state.postSnapshots || {};
@@ -465,12 +475,21 @@ const AnalyticsPage = () => {
           );
           continue;
         }
-        if (!snap.fields || snap.fields.description == null) continue;
+        if (
+          !snap.fields ||
+          (snap.fields.description == null && snap.fields.name == null)
+        ) {
+          continue;
+        }
         refresh = true;
-        const description = snap.fields.description;
+        const patch = {};
+        if (snap.fields.description != null) {
+          patch.description = snap.fields.description;
+        }
+        if (snap.fields.name != null) patch.name = snap.fields.name;
         setLoggedEntries((current) =>
           current.map((entry) =>
-            String(entry._id) === id ? { ...entry, description } : entry
+            String(entry._id) === id ? { ...entry, ...patch } : entry
           )
         );
       }

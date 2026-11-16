@@ -120,13 +120,6 @@ const patchAnalyticsCache = (cache, id, fields) => {
   return { ...cache, userEntries };
 };
 
-const removeAnalyticsEntry = (cache, id) => {
-  if (!cache) return cache;
-  const userEntries = withoutPost(cache.userEntries, id);
-  if (userEntries === cache.userEntries) return cache;
-  return { ...cache, userEntries };
-};
-
 const nextSnapshots = (snapshots, id, payload) => {
   const prev = snapshots?.[id];
   return {
@@ -138,6 +131,11 @@ const nextSnapshots = (snapshots, id, payload) => {
 export const applyPostPatch = (state, rawId, fields) => {
   const id = postKey(rawId);
   if (!id || !fields || Object.keys(fields).length === 0) return {};
+  // Name/description changes rewrite the Workout row server-side; drop the
+  // Analyze tab cache so the next visit refetches instead of hydrating stale
+  // analytics/PRs for up to 60s.
+  const workoutContentChanged =
+    fields.description !== undefined || fields.name !== undefined;
   return {
     postSnapshots: nextSnapshots(state.postSnapshots, id, {
       removed: false,
@@ -147,7 +145,9 @@ export const applyPostPatch = (state, rawId, fields) => {
     posts: patchList(state.posts, id, fields),
     homeFeedCache: patchFeedCache(state.homeFeedCache, id, fields),
     profileTabCache: patchFeedCache(state.profileTabCache, id, fields),
-    analyticsTabCache: patchAnalyticsCache(state.analyticsTabCache, id, fields),
+    analyticsTabCache: workoutContentChanged
+      ? null
+      : patchAnalyticsCache(state.analyticsTabCache, id, fields),
   };
 };
 
@@ -164,6 +164,7 @@ export const applyPostRemoval = (state, rawId) => {
     posts: withoutPost(state.posts, id),
     homeFeedCache: removeFeedCache(state.homeFeedCache, id),
     profileTabCache: removeProfilePost(state.profileTabCache, id, ownerUid),
-    analyticsTabCache: removeAnalyticsEntry(state.analyticsTabCache, id),
+    // Deleting a post removes its Workout row; force Analyze to refetch.
+    analyticsTabCache: null,
   };
 };

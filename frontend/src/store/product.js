@@ -377,6 +377,8 @@ export const useProductStore = create((set) => ({
         posts: [optimisticEntry, ...state.posts],
         homeFeedCache: nextHomeCache,
         profileTabCache: nextProfileCache,
+        // createPost syncs a Workout row; clear Analyze cache so remount refetches.
+        analyticsTabCache: null,
       };
     });
   },
@@ -389,6 +391,7 @@ export const useProductStore = create((set) => ({
       ),
       homeFeedCache: replaceEntryInCache(state.homeFeedCache, tempId, entry),
       profileTabCache: replaceEntryInCache(state.profileTabCache, tempId, entry),
+      analyticsTabCache: null,
     }));
   },
 
