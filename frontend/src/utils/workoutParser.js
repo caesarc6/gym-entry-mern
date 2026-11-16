@@ -32,8 +32,10 @@ export const stripGymOrLocationTagsFromLine = (text) => {
  * and extracts structured data for analytics
  */
 
-// Letters, spaces, hyphens, apostrophes in the name; weight/reps stay outside the capture.
-const EXERCISE_NAME = String.raw`[A-Za-z][A-Za-z\s\-']*`;
+// Optional leading number ("45 Degree…"), letters, spaces, hyphens, apostrophes,
+// and a trailing parenthetical ("Lat Pulldown (wide)"). Digits are not allowed to
+// run into the weight token so "35lbs" cannot be swallowed as part of the name.
+const EXERCISE_NAME = String.raw`(?:\d+\s+)?[A-Za-z](?:[A-Za-z\s\-']|\([^)]*\))*`;
 
 // More flexible exercise patterns to handle real-world variations
 const EXERCISE_PATTERNS = [
@@ -55,12 +57,24 @@ const EXERCISE_PATTERNS = [
     "i",
   ),
 
+  // Weight x reps without a dash: Exercise 185 lbs x 8 8 8
+  new RegExp(
+    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*x\\s*((?:\\d+\\s*)+)$`,
+    "i",
+  ),
+
   // Simple format: Exercise reps reps reps (assume bodyweight)
   new RegExp(`^(${EXERCISE_NAME})\\s*-\\s*((?:\\d+\\s*)+)$`, "i"),
 
   // Very flexible format: Exercise with any text Weight - reps
   new RegExp(
     `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s*-\\s*((?:\\d+\\s*)+)$`,
+    "i",
+  ),
+
+  // Missing dash between weight and reps: Exercise 135lbs 5 5 5
+  new RegExp(
+    `^(${EXERCISE_NAME})\\s+(\\d+(?:\\.\\d+)?)\\s*(lbs?|kg)\\s+((?:\\d+\\s*)+)$`,
     "i",
   ),
 ];
@@ -641,7 +655,11 @@ const parseReps = (repsStr) => {
  * @returns {Object|null} Parsed exercise data or null if can't parse
  */
 export const parseExerciseLine = (line) => {
-  const trimmedLine = stripGymOrLocationTagsFromLine(line);
+  // Normalize en/em dashes so "120 lbs — 12 12" matches the hyphen patterns.
+  const trimmedLine = stripGymOrLocationTagsFromLine(line).replace(
+    /[–—]/g,
+    "-",
+  );
 
   for (const pattern of EXERCISE_PATTERNS) {
     const match = trimmedLine.match(pattern);
@@ -649,31 +667,7 @@ export const parseExerciseLine = (line) => {
       try {
         // Handle different pattern types based on the number of capture groups
         if (match.length === 5) {
-          // Standard format: Exercise Weight - reps reps reps
-          const [, exerciseName, weight, unit, repsStr] = match;
-
-          // Parse reps using the flexible parser
-          const reps = parseReps(repsStr);
-          if (reps.length === 0) continue;
-
-          const weightNum = parseFloat(weight);
-          const unitLower = unit.toLowerCase();
-          const finalUnit = unitLower === "lb" ? "lbs" : unitLower;
-
-          return {
-            name: cleanExerciseName(exerciseName, weightNum),
-            sets: reps.map((rep) => ({
-              reps: rep,
-              weight: weightNum,
-              unit: finalUnit,
-              completed: true,
-            })),
-            totalVolume: weightNum * reps.reduce((sum, rep) => sum + rep, 0),
-            maxWeight: weightNum,
-            totalReps: reps.reduce((sum, rep) => sum + rep, 0),
-          };
-        } else if (match.length === 4) {
-          // Alternative format: Exercise - Weight x reps reps reps
+          // Weighted format: Exercise + weight + unit + reps
           const [, exerciseName, weight, unit, repsStr] = match;
 
           // Parse reps using the flexible parser

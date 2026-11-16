@@ -38,10 +38,11 @@ import { useThemeColors } from "../hooks/useThemeColors";
 import { gainsForBuckets } from "../utils/liftProgress.js";
 
 const TIMEFRAMES = [
-  { value: "7d", label: "Week", phrase: "this week" },
-  { value: "30d", label: "Month", phrase: "this month" },
-  { value: "90d", label: "3 months", phrase: "in the last 3 months" },
-  { value: "1y", label: "Year", phrase: "this year" },
+  { value: "7d", label: "Week", phrase: "in the last 7 days" },
+  // Rolling windows (not calendar months/years) — labels match the API cutoff.
+  { value: "30d", label: "Month", phrase: "in the last 30 days" },
+  { value: "90d", label: "3 months", phrase: "in the last 90 days" },
+  { value: "1y", label: "Year", phrase: "in the last year" },
 ];
 
 const BEST_LIFTS_PREVIEW = 3;
@@ -90,8 +91,10 @@ const buildSessionBuckets = (timeframe, sessions, now = new Date()) => {
       };
     });
   } else if (timeframe === "30d") {
-    buckets = Array.from({ length: 4 }, (_, index) => {
-      const start = addDays(today, (index - 3) * 7 - 6);
+    // Five week bars so the chart covers the full rolling ~30-day API window
+    // (four bars previously started at today-27 and dropped the oldest sessions).
+    buckets = Array.from({ length: 5 }, (_, index) => {
+      const start = addDays(today, (index - 4) * 7 - 6);
       return {
         label: start.toLocaleDateString("en-US", {
           month: "short",
@@ -102,8 +105,9 @@ const buildSessionBuckets = (timeframe, sessions, now = new Date()) => {
       };
     });
   } else if (timeframe === "90d") {
-    buckets = Array.from({ length: 3 }, (_, index) => {
-      const start = new Date(today.getFullYear(), today.getMonth() - (2 - index), 1);
+    // Four calendar months so early days of a rolling 90d window are not clipped.
+    buckets = Array.from({ length: 4 }, (_, index) => {
+      const start = new Date(today.getFullYear(), today.getMonth() - (3 - index), 1);
       return {
         label: start.toLocaleDateString("en-US", { month: "short" }),
         start,
@@ -755,11 +759,10 @@ const AnalyticsPage = () => {
     return <SignedOutTabPrompt variant="analytics" />;
   }
 
-  const chartCount = sessionBuckets.reduce(
-    (sum, bucket) => sum + bucket.count,
-    0,
-  );
-  const shownCount = sessions.length > 0 ? chartCount : workoutCount;
+  // Prefer the API totalWorkouts for the headline. Chart buckets are a
+  // visualization and previously undercounted sessions that fell outside the
+  // drawn week/month bars while still inside the timeframe query.
+  const shownCount = workoutCount || sessions.length;
   const sessionTitle =
     shownCount === 0
       ? `No workouts ${periodPhrase}`
