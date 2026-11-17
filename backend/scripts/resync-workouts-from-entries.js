@@ -119,7 +119,8 @@ const run = async () => {
         const liftish = preview.some(
           (line) =>
             /\d+(?:\.\d+)?\s*(?:lbs?|kg)\b/i.test(line) ||
-            /\b\d+\s*x\s*\d+\b/i.test(line),
+            /\b\d+\s*x\s*\d+\b/i.test(line) ||
+            /\b\d+(?:\s*:\s*\d+)+\b/.test(line),
         );
         if (liftish) {
           skippedEmptyLooksLikeLift += 1;

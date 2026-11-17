@@ -7,6 +7,8 @@
   "scripts": {
     "start": "node --require ./polyfills/buffer.cjs api/index.js",
     "dev": "nodemon api/index.js",
+    "test": "node --test utils/workoutParser.test.js",
+    "test:parser": "node --test utils/workoutParser.test.js",
     "fix-timezone-dates": "node scripts/fix-timezone-dates.js",
     "ensure-feed-indexes": "node scripts/ensure-feed-indexes.js",
     "set-admin": "node scripts/set-admin.js",
