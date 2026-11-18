@@ -328,7 +328,10 @@ const EXERCISE_NORMALIZATION = {
   // Other exercises
   "farmers carry": "Farmers Carry",
   "leg raises": "Leg Raises",
-  "cable side raise": "Cable Side Raise",
+  "cable side raise": "Cable Lateral Raise",
+  "cable side raises": "Cable Lateral Raise",
+  "cable lateral raise": "Cable Lateral Raise",
+  "cable lateral raises": "Cable Lateral Raise",
   "cable hammer curl": "Cable Hammer Curl",
   "db hammer curl": "Dumbbell Hammer Curl",
   "db hammer curls": "Dumbbell Hammer Curl",
@@ -345,15 +348,114 @@ const EXERCISE_NORMALIZATION = {
   "bench press": "Bench Press",
   "bb bench press": "Bench Press",
   "barbell bench press": "Bench Press",
+  "barbell bench": "Bench Press",
+  "bb bench": "Bench Press",
   "db pullover": "Dumbbell Pullover",
   "db single arm pullovers": "Dumbbell Pullover",
   "seated tri ext": "Seated Tricep Extension",
   "seated tri curl": "Seated Tricep Extension",
   "smith mch": "Smith Machine Press",
+  "smith mach press": "Smith Chest Press",
+  "smith machine press": "Smith Chest Press",
+  "smith chest press": "Smith Chest Press",
   "seated cable cp": "Cable Chest Press",
   "seat cp cable": "Cable Chest Press",
   "seatd cble chst prss": "Cable Chest Press",
   "calf raises": "Calf Raises",
+
+  // Tier A/B — Caesar audit: punctuation, typos, word-order twins (equipment-safe)
+  treadmill: "Treadmill",
+  treadmills: "Treadmill",
+  "stair master": "Stair Master",
+  stairmaster: "Stair Master",
+  stairmasters: "Stair Master",
+  "stair masters": "Stair Master",
+  "chess press": "Machine Chest Press",
+  "played lunge": "Plated Lunge",
+  "played lunges": "Plated Lunge",
+  "played squat": "Plated Squat",
+  "played squats": "Plated Squat",
+  "plated lunge": "Plated Lunge",
+  "plated lunges": "Plated Lunge",
+  "plated squat": "Plated Squat",
+  "seater row": "Seated Row",
+  "converting chest press": "Converging Chest Press",
+  "converging chest press": "Converging Chest Press",
+  "reverse per fly": "Rear Delt Fly",
+  "rev per fly": "Rear Delt Fly",
+  "overhead cable extension": "Cable Overhead Extension",
+  "overhead cable ext": "Cable Overhead Extension",
+  "overhead cable tri ext": "Cable Overhead Extension",
+  "overhead cable tricep extension": "Cable Overhead Extension",
+  "overhead tricep cable extension": "Cable Overhead Extension",
+  "overhead tri cable ext": "Cable Overhead Extension",
+  "cable overhead extension": "Cable Overhead Extension",
+  "cable overhead ext": "Cable Overhead Extension",
+  "overhead dumbbell extension": "Dumbbell Overhead Extension",
+  "overhead db extension": "Dumbbell Overhead Extension",
+  "overhead db ext": "Dumbbell Overhead Extension",
+  "overhead db tri ext": "Dumbbell Overhead Extension",
+  "overhead dumbbell tricep extension": "Dumbbell Overhead Extension",
+  "dumbbell overhead extension": "Dumbbell Overhead Extension",
+  "dumbbell overhead tricep": "Dumbbell Overhead Extension",
+  "db overhead ext": "Dumbbell Overhead Extension",
+  "db overhead extension": "Dumbbell Overhead Extension",
+  "tricep cable extension": "Cable Tricep Extension",
+  "tri cable ext": "Cable Tricep Extension",
+  "tri cable extension": "Cable Tricep Extension",
+  "cable tricep extension": "Cable Tricep Extension",
+  "cable tri ext": "Cable Tricep Extension",
+  "cable extension": "Cable Tricep Extension",
+  "cable ext": "Cable Tricep Extension",
+  "cable cable extension": "Cable Tricep Extension",
+  "cable bar extension": "Cable Tricep Extension",
+  "cable bar ext": "Cable Tricep Extension",
+  "bar cable curl": "Cable Bar Curl",
+  "cable bar curl": "Cable Bar Curl",
+  "jm press": "Jm Press",
+  "jm bench press": "Jm Press",
+  "reverse barbell": "Reverse Barbell Curl",
+  "reverse bar curl": "Reverse Barbell Curl",
+  "rev bar curl": "Reverse Barbell Curl",
+  "db row": "Dumbbell Bent-Over Row",
+  "db rows": "Dumbbell Bent-Over Row",
+  "dumbbell row": "Dumbbell Bent-Over Row",
+  "dumbbell rows": "Dumbbell Bent-Over Row",
+  "barbell bent row": "Barbell Bent-Over Row",
+  "barbell bentover row": "Barbell Bent-Over Row",
+  "bb bent row": "Barbell Bent-Over Row",
+  "bb bentover row": "Barbell Bent-Over Row",
+  "barbell row": "Barbell Bent-Over Row",
+  "bb row": "Barbell Bent-Over Row",
+  "cable sbar curl": "Cable S-Bar Curl",
+  "cable s bar curl": "Cable S-Bar Curl",
+  "cable sbar cg curl": "Cable Close-Grip S-Bar Curl",
+  "cable cgb curl": "Cable Close-Grip Bar Curl",
+  "cable close bar curl": "Cable Close-Grip Bar Curl",
+  "cable inner bar curl": "Cable Close-Grip Bar Curl",
+  "s bar curl": "S-Bar Curl",
+  "sbb curl": "S-Bar Curl",
+  "sbb cg curl": "Close-Grip S-Bar Curl",
+  "iso lat chest press": "ISO Lateral Chest Press",
+  "iso lat chest": "ISO Lateral Chest Press",
+  "chest iso lateral": "ISO Lateral Chest Press",
+  "iso lat press": "ISO Lateral Chest Press",
+  "iso lat wide chest": "ISO Lateral Wide Chest Press",
+  "iso lat wide chest press": "ISO Lateral Wide Chest Press",
+  "iso lat decline press": "ISO Lateral Decline Press",
+  "close grip pulldown": "Close-Grip Lat Pulldown",
+  "close grip pulldowns": "Close-Grip Lat Pulldown",
+  "cable close grip pulldown": "Close-Grip Lat Pulldown",
+  "cable close grip pulldowns": "Close-Grip Lat Pulldown",
+  "cable cg pulldown": "Close-Grip Lat Pulldown",
+  "db incline": "Incline Dumbbell Press",
+  "dumbbell incline": "Incline Dumbbell Press",
+  "db press's press": "Dumbbell Press",
+  "db presss press": "Dumbbell Press",
+  "dumbbell press s press": "Dumbbell Press",
+  "bb bb overhead ext incline": "Barbell Overhead Extension",
+  "barbell barbell overhead extension incline": "Barbell Overhead Extension",
+  "barbell overhead extension": "Barbell Overhead Extension",
 };
 
 const NAME_ABBREVIATIONS = {
@@ -744,6 +846,28 @@ const minutesFromUnit = (amount, unit) => {
 };
 
 /**
+ * After pulling minutes/incline/level out of a cardio line, strip leftovers so
+ * commas, speed, orphan numbers, and param labels never become the exercise id.
+ * ("Treadmill - 20mins , lvl 4.5" → "Treadmill", not "Treadmill , ,")
+ */
+const cardioNameFromLine = (cleaned, timePattern) =>
+  cleaned
+    .replace(timePattern, " ")
+    .replace(/\bincline\s*\d+(?:\.\d+)?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*incline\b/gi, " ")
+    .replace(/\b(?:lvl|level)\s*\d+(?:\.\d+)?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*(?:lvl|level)\b/gi, " ")
+    .replace(/\bspeed\s*\d+(?:\.\d+)?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*speed\b/gi, " ")
+    .replace(/\b(?:incline|speed|lvl|level)\b/gi, " ")
+    .replace(/\b\d+:\d+(?::\d+)?\b/g, " ")
+    .replace(/\b\d+(?:\.\d+)?\b/g, " ")
+    .replace(/[,:;]+/g, " ")
+    .replace(/[-–—]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
  * Lines like "Treadmill 20 min incline 5 lvl 8" are not weighted sets.
  * @returns {{ name: string, minutes: number|null, incline: number|null, level: number|null }|null}
  */
@@ -752,9 +876,24 @@ export const parseCardioLine = (line) => {
   if (!cleaned || /\d+(?:\.\d+)?\s*(?:lbs?|kg)\b/i.test(cleaned)) return null;
 
   const timePattern = /(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b/gi;
+  // "25:09mins" = 25 min + 9 sec (not "09mins" alone, which undercounts).
+  const clockTimePattern =
+    /(\d+)\s*:\s*(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b/gi;
   let minutes = 0;
   let sawTime = false;
-  for (const match of cleaned.matchAll(timePattern)) {
+  let withoutClock = cleaned;
+  for (const match of cleaned.matchAll(clockTimePattern)) {
+    sawTime = true;
+    const whole = Number(match[1]);
+    const frac = Number(match[2]);
+    if (/^h/i.test(match[3])) {
+      minutes += whole * 60 + frac;
+    } else {
+      minutes += whole + (Number.isFinite(frac) ? frac / 60 : 0);
+    }
+    withoutClock = withoutClock.replace(match[0], " ");
+  }
+  for (const match of withoutClock.matchAll(timePattern)) {
     sawTime = true;
     minutes += minutesFromUnit(match[1], match[2]);
   }
@@ -767,15 +906,7 @@ export const parseCardioLine = (line) => {
     cleaned.match(/\b(\d+(?:\.\d+)?)\s*(?:lvl|level)\b/i);
   if (!sawTime && !inclineMatch && !levelMatch) return null;
 
-  const name = cleaned
-    .replace(timePattern, " ")
-    .replace(/\bincline\s*\d+(?:\.\d+)?/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*incline\b/gi, " ")
-    .replace(/\b(?:lvl|level)\s*\d+(?:\.\d+)?/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*(?:lvl|level)\b/gi, " ")
-    .replace(/[-–—]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const name = cardioNameFromLine(withoutClock, timePattern);
   if (!name) return null;
 
   return {

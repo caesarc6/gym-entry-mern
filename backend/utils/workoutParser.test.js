@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  parseCardioLine,
   parseExerciseLine,
   parseWorkoutDescription,
+  cleanExerciseName,
 } from "./workoutParser.js";
 
 const setReps = (exercise) => (exercise?.sets || []).map((s) => s.reps);
@@ -107,5 +109,61 @@ describe("workoutParser existing formats still work", () => {
     const exercise = parseExerciseLine("Row Machine 100lbs - 8x2, 6:2");
     assert.ok(exercise);
     assert.deepEqual(setReps(exercise), [8, 8, 6, 2]);
+  });
+});
+
+describe("workoutParser cardio name cleanup (Tier A)", () => {
+  it("does not keep commas or param crumbs in treadmill names", () => {
+    const cardio = parseCardioLine(
+      "Treadmill - 20mins , lvl 4.5, incline 4.5",
+    );
+    assert.ok(cardio);
+    assert.equal(cardio.name, "Treadmill");
+    assert.equal(cardio.minutes, 20);
+    assert.equal(cardio.incline, 4.5);
+    assert.equal(cardio.level, 4.5);
+  });
+
+  it("strips speed / incline labels from treadmill names", () => {
+    const cardio = parseCardioLine(
+      "Treadmill incline - lvl 15, speed 2.7 , 11mins",
+    );
+    assert.ok(cardio);
+    assert.equal(cardio.name, "Treadmill");
+    assert.equal(cardio.minutes, 11);
+    assert.equal(cardio.level, 15);
+  });
+
+  it("normalizes stairmaster spelling and leftover lvl fragments", () => {
+    const cardio = parseCardioLine("Stairmasters - lvl2 2mins , lvl8 25min");
+    assert.ok(cardio);
+    assert.equal(cardio.name, "Stair Master");
+    assert.equal(cardio.minutes, 27);
+  });
+
+  it("parses mm:ss duration before mins (25:09mins)", () => {
+    const cardio = parseCardioLine(
+      "Stair master - lvl2 2mins, lvl8 25:09mins",
+    );
+    assert.ok(cardio);
+    assert.equal(cardio.name, "Stair Master");
+    assert.ok(Math.abs(cardio.minutes - (2 + 25 + 9 / 60)) < 0.01);
+  });
+
+  it("maps Tier A word-order twins onto canonicals", () => {
+    assert.equal(
+      cleanExerciseName("overhead cable ext", 40),
+      "Cable Overhead Extension",
+    );
+    assert.equal(
+      cleanExerciseName("db overhead ext", 80),
+      "Dumbbell Overhead Extension",
+    );
+    assert.equal(cleanExerciseName("bar cable curl", 70), "Cable Bar Curl");
+    assert.equal(cleanExerciseName("played lunges", 90), "Plated Lunge");
+    assert.equal(
+      cleanExerciseName("cable side raise", 15),
+      "Cable Lateral Raise",
+    );
   });
 });
