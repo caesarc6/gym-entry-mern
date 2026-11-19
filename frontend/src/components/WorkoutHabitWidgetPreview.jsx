@@ -164,6 +164,24 @@ export default function WorkoutHabitWidgetPreview({
 
   useEffect(() => {
     let ignore = false;
+    const idleIds = [];
+    const timeoutIds = [];
+
+    const scheduleIdle = (fn, timeoutMs) => {
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        idleIds.push(
+          window.requestIdleCallback(() => {
+            fn();
+          }, { timeout: timeoutMs }),
+        );
+        return;
+      }
+      timeoutIds.push(
+        window.setTimeout(() => {
+          fn();
+        }, Math.min(timeoutMs, 400)),
+      );
+    };
 
     const loadSummary = async () => {
       const hasSummary = Boolean(useProductStore.getState().workoutHabitSummary);
@@ -178,15 +196,19 @@ export default function WorkoutHabitWidgetPreview({
         if (!canSyncIosWidget) {
           return;
         }
-        try {
-          const summaryToSync =
-            useProductStore.getState().workoutHabitSummary || nextSummary;
-          await syncWorkoutHabitWidget(summaryToSync);
-        } catch (syncError) {
-          if (!ignore) {
-            setError(syncError?.message || "Unable to sync iOS widget");
+        // Widget write is non-critical — keep it off the first-paint path.
+        scheduleIdle(async () => {
+          if (ignore) return;
+          try {
+            const summaryToSync =
+              useProductStore.getState().workoutHabitSummary || nextSummary;
+            await syncWorkoutHabitWidget(summaryToSync);
+          } catch (syncError) {
+            if (!ignore) {
+              setError(syncError?.message || "Unable to sync iOS widget");
+            }
           }
-        }
+        }, 2500);
       } catch (err) {
         if (ignore) return;
         setError(err?.message || "Unable to load habit widget");
@@ -195,10 +217,17 @@ export default function WorkoutHabitWidgetPreview({
       }
     };
 
-    loadSummary();
+    // Defer the network call so home feed wins the first radio slot.
+    scheduleIdle(() => {
+      void loadSummary();
+    }, 1200);
 
     return () => {
       ignore = true;
+      if (typeof window !== "undefined" && "cancelIdleCallback" in window) {
+        idleIds.forEach((id) => window.cancelIdleCallback(id));
+      }
+      timeoutIds.forEach((id) => window.clearTimeout(id));
     };
   }, [canSyncIosWidget, refreshKey, setWorkoutHabitSummary]);
 

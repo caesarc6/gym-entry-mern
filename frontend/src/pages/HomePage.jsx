@@ -9,12 +9,18 @@ import {
   Flex,
 } from "@chakra-ui/react";
 import { LoadingIndicator } from "../components/loading";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "../store/product";
 import { supabase } from "../supabase/supabase";
-import { Hero } from "../components/Hero";
-import { HomeLandingSections } from "../components/HomeLandingSections";
 import axios from "axios";
 import { API_ENDPOINTS, apiClient } from "../config/api";
 import { provisionAccount } from "../utils/provisionAccount";
@@ -23,16 +29,29 @@ import { useCustomToast } from "../hooks/useCustomToast";
 import { getCurrentAuthUser } from "../utils/auth";
 import { cn } from "../lib/utils";
 import { landingDarkMainCanvas } from "../lib/homeLandingDarkTheme";
-import ProductPreviewSection from "../components/ProductPreviewSection";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { feedPageLimit } from "../utils/feedPageLimit";
 import WorkoutHabitWidgetPreview from "../components/WorkoutHabitWidgetPreview";
-import WorkoutCard from "../components/WorkoutCard";
 import FeedPullToRefresh from "../components/FeedPullToRefresh";
 import { useMirrorPostList } from "../hooks/useMirrorPostList";
 
+const WorkoutCard = lazy(() => import("../components/WorkoutCard"));
+const Hero = lazy(() =>
+  import("../components/Hero").then((m) => ({ default: m.Hero })),
+);
+const HomeLandingSections = lazy(() =>
+  import("../components/HomeLandingSections").then((m) => ({
+    default: m.HomeLandingSections,
+  })),
+);
+const ProductPreviewSection = lazy(() =>
+  import("../components/ProductPreviewSection"),
+);
+
 const isCapacitorNative = getIsCapacitorNative();
 const HOME_FEED_PAGE_SIZE = feedPageLimit();
+/** First viewport on phone is usually 1–2 cards; avoid eager-loading a whole grid. */
+const FEED_EAGER_IMAGE_COUNT = 2;
 /** Second home tap within this window reloads the feed. */
 const HOME_DOUBLE_TAP_MS = 350;
 
@@ -642,24 +661,26 @@ const HomePage = () => {
                   pointerEvents="none"
                   aria-hidden
                 >
-                  <WorkoutCard
-                    key={`habit-detail-${habitDetailEntry._id}`}
-                    entry={habitDetailEntry}
-                    isOwner={
-                      uid ===
-                      (habitDetailEntry.ownerId || habitDetailEntry.uid)
-                    }
-                    onUpdate={handleUpdateEntry}
-                    onDelete={(pid) => {
-                      handleDeleteEntry(pid);
-                      setHabitDetailEntry(null);
-                    }}
-                    profileCache={profileCache}
-                    detailOpen
-                    onDetailOpenChange={(open) => {
-                      if (!open) setHabitDetailEntry(null);
-                    }}
-                  />
+                  <Suspense fallback={null}>
+                    <WorkoutCard
+                      key={`habit-detail-${habitDetailEntry._id}`}
+                      entry={habitDetailEntry}
+                      isOwner={
+                        uid ===
+                        (habitDetailEntry.ownerId || habitDetailEntry.uid)
+                      }
+                      onUpdate={handleUpdateEntry}
+                      onDelete={(pid) => {
+                        handleDeleteEntry(pid);
+                        setHabitDetailEntry(null);
+                      }}
+                      profileCache={profileCache}
+                      detailOpen
+                      onDetailOpenChange={(open) => {
+                        if (!open) setHabitDetailEntry(null);
+                      }}
+                    />
+                  </Suspense>
                 </Box>
               ) : null}
 
@@ -685,19 +706,36 @@ const HomePage = () => {
                     alignItems="stretch"
                     justifyItems="stretch"
                   >
-                    {entries.map((entry, index) => (
-                      <WorkoutCard
-                        key={entry._id}
-                        entry={entry}
-                        priority={index < 9}
-                        isOwner={
-                          uid === (entry.ownerId || entry.uid)
-                        }
-                        onUpdate={handleUpdateEntry}
-                        onDelete={handleDeleteEntry}
-                        profileCache={profileCache}
-                      />
-                    ))}
+                    <Suspense
+                      fallback={
+                        <Box
+                          display="flex"
+                          justifyContent="center"
+                          alignItems="center"
+                          minH="200px"
+                          gridColumn="1 / -1"
+                        >
+                          <LoadingIndicator
+                            variant="hero"
+                            chakraColor={spinnerColor}
+                          />
+                        </Box>
+                      }
+                    >
+                      {entries.map((entry, index) => (
+                        <WorkoutCard
+                          key={entry._id}
+                          entry={entry}
+                          priority={index < FEED_EAGER_IMAGE_COUNT}
+                          isOwner={
+                            uid === (entry.ownerId || entry.uid)
+                          }
+                          onUpdate={handleUpdateEntry}
+                          onDelete={handleDeleteEntry}
+                          profileCache={profileCache}
+                        />
+                      ))}
+                    </Suspense>
                   </SimpleGrid>
                   {hasMore ? (
                     <Box ref={sentinelRef} w="full" py={4} aria-hidden>
@@ -739,8 +777,10 @@ const HomePage = () => {
         </>
       ) : (
         <div className="landing-no-theme-chrome-fade">
-          <Hero appGuestMarketing={isCapacitorNative} />
-          <ProductPreviewSection />
+          <Suspense fallback={null}>
+            <Hero appGuestMarketing={isCapacitorNative} />
+            <ProductPreviewSection />
+          </Suspense>
           <div
             className={cn(
               "w-full min-w-0 bg-gradient-to-br from-zinc-200/75 via-zinc-50 to-white",
@@ -748,7 +788,9 @@ const HomePage = () => {
             )}
           >
             <Container maxW="container.xl" className="text-center z-0 relative">
-              <HomeLandingSections />
+              <Suspense fallback={null}>
+                <HomeLandingSections />
+              </Suspense>
             </Container>
             <footer className="border-t border-slate-200/80 bg-white/80 py-6 dark:border-[#1e3f5c]/50 dark:bg-[#071c2c]/92">
               <Container maxW="container.xl">

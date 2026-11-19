@@ -39,13 +39,14 @@ import {
 } from "./ui/dropdown-menu-1";
 import { Flag, MoreHorizontal, Pencil, Share2, Trash2 } from "lucide-react";
 import { ButtonLoadingSpinner } from "./loading";
-import { FileUploader } from "./FileUploader";
 import {
   ENTRY_POST_IMAGE_ASPECT,
   ENTRY_POST_MEDIA_ASPECT,
 } from "../constants/imageAspectRatios";
 import { useProductStore } from "../store/product";
 import {
+  lazy,
+  Suspense,
   useState,
   useEffect,
   useMemo,
@@ -53,6 +54,10 @@ import {
   useRef,
   memo,
 } from "react";
+
+const FileUploader = lazy(() =>
+  import("./FileUploader").then((m) => ({ default: m.FileUploader })),
+);
 import PropTypes from "prop-types";
 import { supabase } from "../supabase/supabase";
 import { API_ENDPOINTS, apiClient } from "../config/api";
@@ -3027,13 +3032,15 @@ const WorkoutCard = memo(function WorkoutCard({
                     />
                   </Box>
                 ) : null}
-                <FileUploader
-                  handleFile={handleFileUpload}
-                  cropAspect={ENTRY_POST_IMAGE_ASPECT}
-                  compact
-                  variant="subtle"
-                  showSelectedPreview={false}
-                />
+                <Suspense fallback={null}>
+                  <FileUploader
+                    handleFile={handleFileUpload}
+                    cropAspect={ENTRY_POST_IMAGE_ASPECT}
+                    compact
+                    variant="subtle"
+                    showSelectedPreview={false}
+                  />
+                </Suspense>
               </Box>
               {(editAutosaveMeta.status === "saving" ||
                 editAutosaveMeta.status === "saved" ||

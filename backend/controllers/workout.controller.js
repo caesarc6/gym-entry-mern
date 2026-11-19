@@ -239,8 +239,13 @@ export const getAllWorkouts = async (req, res) => {
     })
       .select("entryId workoutDate title split gym totalVolume")
       .sort({ workoutDate: -1 })
-      .limit(500);
+      .limit(500)
+      .lean();
 
+    res.setHeader(
+      "Cache-Control",
+      "private, max-age=30, stale-while-revalidate=60",
+    );
     res.status(200).json(workouts);
   } catch (error) {
     res.status(500).json({
@@ -368,6 +373,10 @@ export const getWorkoutAnalytics = async (req, res) => {
       exercise.history.sort((a, b) => new Date(a.date) - new Date(b.date));
     });
 
+    res.setHeader(
+      "Cache-Control",
+      "private, max-age=30, stale-while-revalidate=60",
+    );
     res.status(200).json({
       success: true,
       data: analytics,
@@ -465,6 +474,10 @@ export const getExerciseProgress = async (req, res) => {
       if (point.reps > progress.maxReps) progress.maxReps = point.reps;
     });
 
+    res.setHeader(
+      "Cache-Control",
+      "private, max-age=30, stale-while-revalidate=60",
+    );
     res.status(200).json({
       success: true,
       data: progress,
@@ -566,6 +579,10 @@ export const getPersonalRecords = async (req, res) => {
       };
     });
 
+    res.setHeader(
+      "Cache-Control",
+      "private, max-age=30, stale-while-revalidate=60",
+    );
     res.status(200).json({
       success: true,
       data: prs,

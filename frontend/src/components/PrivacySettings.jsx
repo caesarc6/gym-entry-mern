@@ -63,8 +63,8 @@ const PrivacySettings = ({ isOpen, onClose, isModal = false }) => {
         if (!response.data) throw new Error("Failed to fetch user data");
         const userData = response.data.data || response.data;
         setPrivacySettings({
-          isPrivate: userData.privacy.isPrivate,
-          showEntries: userData.privacy.showEntries,
+          isPrivate: userData.privacy?.isPrivate ?? true,
+          showEntries: userData.privacy?.showEntries ?? true,
         });
 
         // Fetch trainer dashboard access status

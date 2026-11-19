@@ -5,7 +5,6 @@ import { getFirebaseAdmin, isFirebaseConfigured } from "../firebase.js";
 import multer from "multer";
 import path from "path";
 import mongoose from "mongoose";
-import { ensureMongoConnected } from "../config/db.js";
 import {
   filterEntriesForPublicView,
   filterUserDataForPublicView,
@@ -496,17 +495,12 @@ export const getCurrentMongoDBUser = async (req, res) => {
 
     const { uid } = req.user;
 
-    const dbReady = await ensureMongoConnected();
-    if (!dbReady.ok) {
-      return res.status(503).json({
-        success: false,
-        code: dbReady.code || "DB_UNAVAILABLE",
-        message: dbReady.message || "Database connection error",
-      });
-    }
+    // Global /api middleware already ensures Mongo; avoid a second await hop.
+    const user = await findUserByAnyUid(
+      uid,
+      "uid firebaseUid supabaseUid name email username picture backgroundPicture bio goal gymName privacy isAdmin createdAt updatedAt",
+    ).lean();
 
-    const user = await findUserByAnyUid(uid);
-    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -915,7 +909,10 @@ export const getPostsByUID = async (req, res) => {
 
     // Get requester's UID from Firebase token
     const requesterUid = req.user.uid; // Set by verifyIdToken middleware
-    let user = await resolveMongoUserByAuthUid(uid);
+    const [user, requesterUser] = await Promise.all([
+      resolveMongoUserByAuthUid(uid),
+      resolveMongoUserByAuthUid(requesterUid),
+    ]);
 
     if (!user) {
       return res.status(404).json({
@@ -925,7 +922,6 @@ export const getPostsByUID = async (req, res) => {
     }
 
     // Check if profile is private and requester is a follower
-    const requesterUser = await resolveMongoUserByAuthUid(requesterUid);
     const isFollower =
       requesterUser &&
       (user.followers || []).some((followerId) =>
@@ -1059,11 +1055,14 @@ export const getWorkoutHabitSummary = async (req, res) => {
       0,
     ));
 
+    // Omit likes/comments from the lookback read — widgets only need dates for
+    // streak math, and the 30-day grid uses name/description/image. Detail cards
+    // already load comment threads on open.
     const entries = await Entry.find({
       uid: { $in: uniqueTargetUids },
       createdAt: { $gte: streakLookbackStart },
     })
-      .select("name description image likes comments createdAt uid")
+      .select("name description image createdAt uid")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -1078,8 +1077,6 @@ export const getWorkoutHabitSummary = async (req, res) => {
           workoutDescription:
             typeof entry.description === "string" ? entry.description : "",
           image: entry.image || null,
-          likes: Array.isArray(entry.likes) ? entry.likes : [],
-          comments: Array.isArray(entry.comments) ? entry.comments : [],
           createdAt: entry.createdAt?.toISOString?.() || null,
           uid: entry.uid || null,
         });
@@ -1101,8 +1098,8 @@ export const getWorkoutHabitSummary = async (req, res) => {
         workoutName: workout?.workoutName || null,
         workoutDescription: workout?.workoutDescription || null,
         image: workout?.image || null,
-        likes: workout?.likes || [],
-        comments: workout?.comments || [],
+        likes: [],
+        comments: [],
         createdAt: workout?.createdAt || null,
         uid: workout?.uid || null,
       });
@@ -1118,6 +1115,10 @@ export const getWorkoutHabitSummary = async (req, res) => {
     const workoutCount30d = workoutDays.filter((d) => d.workedOut).length;
     const lastWorkout = entries[0] || null;
 
+    res.setHeader(
+      "Cache-Control",
+      "private, max-age=30, stale-while-revalidate=60",
+    );
     res.status(200).json({
       success: true,
       data: {
@@ -1148,15 +1149,7 @@ export const getCurrentUser = async (req, res) => {
   const { uid } = req.user;
 
   try {
-    const dbReady = await ensureMongoConnected();
-    if (!dbReady.ok) {
-      return res.status(503).json({
-        success: false,
-        code: dbReady.code || "DB_UNAVAILABLE",
-        message: dbReady.message || "Database connection error",
-      });
-    }
-
+    // Global /api middleware already ensures Mongo.
     const user = await findUserByAnyUid(
       uid,
       "uid firebaseUid supabaseUid name email picture username isAdmin"
@@ -1167,6 +1160,10 @@ export const getCurrentUser = async (req, res) => {
         message: "User not found",
       });
     }
+    res.setHeader(
+      "Cache-Control",
+      "private, max-age=15, stale-while-revalidate=30",
+    );
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve user" });
@@ -1401,8 +1398,10 @@ export const uploadProfilePic = [
 export const unfollowUser = async (req, res) => {
   try {
     const { uid } = req.user;
-    const userToUnfollow = await findUserByAnyUid(req.params.userId);
-    const currentUser = await findUserByAnyUid(uid);
+    const [userToUnfollow, currentUser] = await Promise.all([
+      findUserByAnyUid(req.params.userId),
+      findUserByAnyUid(uid),
+    ]);
 
     if (!userToUnfollow || !currentUser) {
       return res.status(404).json({ message: "User not found" });
@@ -1431,19 +1430,19 @@ export const getUserProfile = async (req, res) => {
     const userId = req.params.uid || req.params.userId;
     const includePosts = req.query.includePosts === "true";
 
-    let viewerUser = null;
-    if (req.user?.uid) {
-      viewerUser = await findUserByAnyUid(req.user.uid);
-      if (!viewerUser) {
-        viewerUser = await resolveMongoUserByAuthUid(req.user.uid);
-      }
-    }
+    const [viewerResolved, targetResolved] = await Promise.all([
+      req.user?.uid
+        ? findUserByAnyUid(req.user.uid).then(
+            (u) => u || resolveMongoUserByAuthUid(req.user.uid),
+          )
+        : Promise.resolve(null),
+      findUserByAnyUid(userId).then(
+        (u) => u || resolveMongoUserByAuthUid(userId),
+      ),
+    ]);
 
-    let user = await findUserByAnyUid(userId);
-
-    if (!user) {
-      user = await resolveMongoUserByAuthUid(userId);
-    }
+    const viewerUser = viewerResolved;
+    const user = targetResolved;
 
     if (!user) {
       return res
@@ -1479,17 +1478,20 @@ export const getUserProfile = async (req, res) => {
     const targetUids = [user.uid, user.firebaseUid, user.supabaseUid].filter(
       Boolean
     );
-    if (includePosts && canViewPosts && user.privacy.showEntries) {
-      posts = await Entry.find({ uid: { $in: targetUids } })
-        .select(listEntryProjection)
-        .lean();
+    const shouldLoadPosts =
+      includePosts && canViewPosts && user.privacy.showEntries;
+    const [loadedPosts, totalPostsCount] = await Promise.all([
+      shouldLoadPosts
+        ? Entry.find({ uid: { $in: targetUids } })
+            .select(listEntryProjection)
+            .lean()
+        : Promise.resolve([]),
+      Entry.countDocuments({ uid: { $in: targetUids } }),
+    ]);
+    posts = loadedPosts;
+    if (shouldLoadPosts) {
       await attachPopulatedLikesToEntries(posts);
     }
-
-    // Get total posts count (unfiltered) for display purposes
-    const totalPostsCount = await Entry.countDocuments({
-      uid: { $in: targetUids },
-    });
 
     const userData = filterUserDataForPublicView(user, viewerUser);
     const filteredPosts = filterEntriesForPublicView(posts, user, viewerUser);
@@ -2058,15 +2060,7 @@ export const checkTrainerDashboardAccess = async (req, res) => {
       });
     }
 
-    const dbReady = await ensureMongoConnected();
-    if (!dbReady.ok) {
-      return res.status(503).json({
-        success: false,
-        code: dbReady.code || "DB_UNAVAILABLE",
-        message: dbReady.message || "Database connection error",
-      });
-    }
-
+    // Global /api middleware already ensures Mongo.
     const { uid } = req.user;
     const user = await findUserByAnyUid(uid, "trainerDashboardAccess");
 
@@ -2104,15 +2098,7 @@ export const checkIsAdmin = async (req, res) => {
       });
     }
 
-    const dbReady = await ensureMongoConnected();
-    if (!dbReady.ok) {
-      return res.status(503).json({
-        success: false,
-        code: dbReady.code || "DB_UNAVAILABLE",
-        message: dbReady.message || "Database connection error",
-      });
-    }
-
+    // Global /api middleware already ensures Mongo.
     const { uid } = req.user;
     const user = await findUserByAnyUid(uid, "isAdmin");
 
