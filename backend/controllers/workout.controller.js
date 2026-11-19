@@ -177,9 +177,8 @@ export async function syncWorkoutFromEntry(entry, userId) {
   const ownerUserId = account?.uid || userId;
 
   const exercises = parseWorkoutDescription(plain.description || "");
-  const existing = await Workout.findOne({ entryId: plain._id });
   if (exercises.length === 0) {
-    if (existing) await Workout.deleteOne({ _id: existing._id });
+    await Workout.deleteOne({ entryId: plain._id });
     return;
   }
 
@@ -198,13 +197,30 @@ export async function syncWorkoutFromEntry(entry, userId) {
     updatedAt: new Date(),
   };
 
-  if (existing) {
-    Object.assign(existing, fields);
-    await existing.save();
-    return;
+  try {
+    await Workout.findOneAndUpdate(
+      { entryId: plain._id },
+      {
+        $set: fields,
+        $setOnInsert: {
+          entryId: plain._id,
+          createdAt: plain.createdAt || new Date(),
+        },
+      },
+      { upsert: true, new: true, runValidators: true },
+    );
+  } catch (error) {
+    // Concurrent upserts can still race the unique entryId index once.
+    if (error?.code === 11000) {
+      await Workout.findOneAndUpdate(
+        { entryId: plain._id },
+        { $set: fields },
+        { new: true, runValidators: true },
+      );
+      return;
+    }
+    throw error;
   }
-
-  await Workout.create({ entryId: plain._id, ...fields });
 }
 
 /**
@@ -222,7 +238,8 @@ export const getAllWorkouts = async (req, res) => {
       userId: workoutUserIdFilter(userIds),
     })
       .select("entryId workoutDate title split gym totalVolume")
-      .sort({ workoutDate: -1 });
+      .sort({ workoutDate: -1 })
+      .limit(500);
 
     res.status(200).json(workouts);
   } catch (error) {

@@ -21,6 +21,10 @@ const reportSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+reportSchema.index({ reporterUid: 1, createdAt: -1 });
+reportSchema.index({ entryId: 1, createdAt: -1 });
+reportSchema.index({ targetUid: 1, createdAt: -1 });
+
 const Report = mongoose.model("Report", reportSchema);
 
 export { Report, SUPPORT_EMAIL };

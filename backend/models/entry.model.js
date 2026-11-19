@@ -95,11 +95,12 @@ const entrySchema = new mongoose.Schema(
     },
     shareToken: {
       type: String,
-      default: null,
+      // Omit when unused — explicit nulls collide with unique token indexes.
+      select: false,
     },
     shareExpiry: {
       type: Date,
-      default: null,
+      select: false,
     },
     // Reference to original entry if this is a saved shared workout
     originalEntryId: {
@@ -150,6 +151,19 @@ const entrySchema = new mongoose.Schema(
 // Home feed queries filter by one or more owner UIDs and sort newest first.
 entrySchema.index({ uid: 1, createdAt: -1 }, { name: "uid_createdAt_desc" });
 entrySchema.index({ createdAt: -1, uid: 1 }, { name: "createdAt_desc_uid" });
+entrySchema.index(
+  { shareToken: 1 },
+  {
+    unique: true,
+    name: "shareToken_1",
+    // Explicit nulls are common; sparse alone still indexes null and collides.
+    partialFilterExpression: { shareToken: { $type: "string" } },
+  },
+);
+entrySchema.index(
+  { sharedWorkoutId: 1 },
+  { sparse: true, name: "sharedWorkoutId_1" },
+);
 
 const Entry = mongoose.model("Entry", entrySchema);
 

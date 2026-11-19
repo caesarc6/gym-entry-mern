@@ -2277,13 +2277,35 @@ export const rejectTrainerDashboardAccess = async (req, res) => {
   }
 };
 
+const assertCanViewSocialGraph = async (req, targetUser) => {
+  const viewer = await findUserByAnyUid(req.user?.uid);
+  if (!viewer || !targetUser) {
+    return { ok: false, status: 404, message: "User not found" };
+  }
+
+  const isOwner = String(viewer._id) === String(targetUser._id);
+  if (isOwner) return { ok: true, viewer };
+
+  if (hasBlocked(viewer, targetUser) || hasBlocked(targetUser, viewer)) {
+    return { ok: false, status: 403, message: "Private profile" };
+  }
+
+  const isFollower = (targetUser.followers || []).some(
+    (followerId) => String(followerId) === String(viewer._id),
+  );
+  if (targetUser.privacy?.isPrivate && !isFollower) {
+    return { ok: false, status: 403, message: "Private profile" };
+  }
+
+  return { ok: true, viewer };
+};
+
 export const getFollowers = async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await findUserByAnyUid(userId).populate({
-      path: "followers",
-      select: "uid username name picture bio",
-    });
+    const user = await findUserByAnyUid(userId).select(
+      "followers privacy blockedUids uid firebaseUid supabaseUid",
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -2291,6 +2313,19 @@ export const getFollowers = async (req, res) => {
         message: "User not found",
       });
     }
+
+    const access = await assertCanViewSocialGraph(req, user);
+    if (!access.ok) {
+      return res.status(access.status).json({
+        success: false,
+        message: access.message,
+      });
+    }
+
+    await user.populate({
+      path: "followers",
+      select: "uid username name picture bio",
+    });
 
     res.status(200).json({
       success: true,
@@ -2307,16 +2342,29 @@ export const getFollowers = async (req, res) => {
 export const getFollowing = async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await findUserByAnyUid(userId).populate({
-      path: "following",
-      select: "uid username name picture bio",
-    });
+    const user = await findUserByAnyUid(userId).select(
+      "following followers privacy blockedUids uid firebaseUid supabaseUid",
+    );
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
+
+    const access = await assertCanViewSocialGraph(req, user);
+    if (!access.ok) {
+      return res.status(access.status).json({
+        success: false,
+        message: access.message,
+      });
+    }
+
+    await user.populate({
+      path: "following",
+      select: "uid username name picture bio",
+    });
+
     res.status(200).json({
       success: true,
       data: user.following || [],

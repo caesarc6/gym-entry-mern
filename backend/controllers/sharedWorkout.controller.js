@@ -54,16 +54,26 @@ const identityForPendingLookup = async (req) => {
   return { authUid, email, name };
 };
 
+/**
+ * Prefer email match. Name-only match is limited to assignments that have no
+ * email set, so two accounts with the same display name cannot claim each
+ * other's emailed assignments.
+ */
 const pendingAssignmentQuery = (name, email) => {
   const or = [];
-  if (name) {
-    or.push({
-      assignedToName: new RegExp(`^${escapeRegex(name)}$`, "i"),
-    });
-  }
   if (email) {
     or.push({
       assignedToEmail: new RegExp(`^${escapeRegex(email)}$`, "i"),
+    });
+  }
+  if (name) {
+    or.push({
+      assignedToName: new RegExp(`^${escapeRegex(name)}$`, "i"),
+      $or: [
+        { assignedToEmail: null },
+        { assignedToEmail: { $exists: false } },
+        { assignedToEmail: "" },
+      ],
     });
   }
   if (or.length === 0) return null;
@@ -361,11 +371,25 @@ export const updateSharedWorkout = async (req, res) => {
   try {
     const { sharedWorkoutId } = req.params;
     const { uid } = req.user;
-    const updates = sanitizeObjectTextFields({ ...(req.body || {}) }, [
+    // Whitelist only editable content fields — never mass-assign creatorUid,
+    // shareToken, counters, or other privileged keys from req.body.
+    const body = req.body || {};
+    const allowed = {};
+    for (const key of [
       "workoutName",
       "description",
       "clientName",
-      "creatorName",
+      "image",
+      "exercises",
+      "tags",
+      "createdAt",
+    ]) {
+      if (body[key] !== undefined) allowed[key] = body[key];
+    }
+    const updates = sanitizeObjectTextFields(allowed, [
+      "workoutName",
+      "description",
+      "clientName",
     ]);
     if (updates.tags !== undefined) updates.tags = sanitizeTextArray(updates.tags);
     if (updates.exercises !== undefined) {
@@ -455,24 +479,24 @@ export const updateSharedWorkout = async (req, res) => {
         const refreshed = await Entry.find({ sharedWorkoutId: workoutObjectId });
         await Promise.all(refreshed.map((entry) => syncEntryWorkoutSafe(entry)));
       } else {
-        // Try to find entries by workout name as fallback (for entries created before sharedWorkoutId was added)
+        // Legacy rows without sharedWorkoutId: only touch entries this trainer
+        // already marked as theirs — never rewrite by title/name alone.
         const fallbackEntries = await Entry.find({
           name: template.workoutName,
-          description: { $regex: new RegExp(escapeRegex(template.creatorName), "i") },
-          sharedWorkoutId: null, // Only find entries that don't have sharedWorkoutId
-        });
+          trainerUid: uid,
+          sharedWorkoutId: null,
+        }).select("_id");
 
         if (fallbackEntries.length > 0) {
-
-          // Update these entries with sharedWorkoutId and new data
           const fallbackUpdate = {
             ...entryUpdates,
-            sharedWorkoutId: workoutObjectId, // Add the sharedWorkoutId for future syncing
+            sharedWorkoutId: workoutObjectId,
           };
 
           await Entry.updateMany(
             {
               _id: { $in: fallbackEntries.map((e) => e._id) },
+              trainerUid: uid,
             },
             { $set: fallbackUpdate }
           );

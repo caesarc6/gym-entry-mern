@@ -10,6 +10,10 @@ const clientShareLinkSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+clientShareLinkSchema.index({ creatorUid: 1, expiresAt: -1 });
+// Auto-remove expired claim tokens.
+clientShareLinkSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 const ClientShareLink = mongoose.model("ClientShareLink", clientShareLinkSchema);
 
 export default ClientShareLink;
