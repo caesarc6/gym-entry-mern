@@ -76,7 +76,8 @@ const sharedWorkoutSchema = new mongoose.Schema(
       type: String,
       required: false,
       unique: true,
-      sparse: true, // Allows multiple null values
+      // Prefer partial filter over sparse so explicit nulls are not indexed.
+      partialFilterExpression: { shareToken: { $type: "string" } },
     },
     shareTokenExpiresAt: {
       type: Date,

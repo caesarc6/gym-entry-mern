@@ -82,6 +82,56 @@ const getUserUidSet = (user, fallbackUid) => {
   return uids;
 };
 
+/** Strip share secrets from entry payloads returned to social clients. */
+const toClientEntry = (entry) => {
+  if (!entry) return entry;
+  const payload =
+    typeof entry.toObject === "function" ? entry.toObject() : { ...entry };
+  delete payload.shareToken;
+  delete payload.shareExpiry;
+  delete payload.editDraft;
+  return payload;
+};
+
+/**
+ * Owners and followers may interact with private posts; everyone else gets 403.
+ * Returns { ok: true, viewer } or { ok: false } after sending the response.
+ */
+const assertCanInteractWithEntry = async (res, entry, authUser, authUid) => {
+  const viewer = authUser || (await findUserByAuth({ uid: authUid }));
+  if (!viewer) {
+    res.status(404).json({ success: false, message: "User not found" });
+    return { ok: false };
+  }
+
+  const author = await User.findOne({
+    $or: [
+      { uid: entry.uid },
+      { firebaseUid: entry.uid },
+      { supabaseUid: entry.uid },
+    ],
+  })
+    .select("privacy followers")
+    .lean();
+
+  if (author?.privacy?.isPrivate) {
+    const viewerId = String(viewer._id);
+    const isOwner = getUserUidSet(viewer, authUid).has(entry.uid);
+    const isFollower = (author.followers || []).some(
+      (followerId) => String(followerId) === viewerId,
+    );
+    if (!isOwner && !isFollower) {
+      res.status(403).json({
+        success: false,
+        message: "Private profile",
+      });
+      return { ok: false };
+    }
+  }
+
+  return { ok: true, viewer };
+};
+
 const inferImageContentType = (imageData, fileName, fallback = "image/jpeg") => {
   if (typeof imageData === "string") {
     const match = imageData.match(/^data:([^;]+);base64,/);
@@ -164,6 +214,14 @@ export const updateEntry = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Entry not found" });
+    }
+
+    const uidSet = getUserUidSet(authUser, uid);
+    if (!uidSet.has(existingEntry.uid)) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to update this entry",
+      });
     }
 
     let postImageUrl = null;
@@ -283,7 +341,11 @@ export const updateEntry = async (req, res) => {
           }
         }
       } catch (syncError) {
-        // Don't fail the request if sync fails, just log it
+        console.error("sharedWorkout cascade sync failed", {
+          entryId: String(pid),
+          sharedWorkoutId: String(existingEntry.sharedWorkoutId),
+          message: syncError?.message,
+        });
       }
     }
 
@@ -305,7 +367,7 @@ export const updateEntry = async (req, res) => {
       });
     }
 
-    res.status(200).json({ success: true, data: entryData });
+    res.status(200).json({ success: true, data: toClientEntry(entryData) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
   }
@@ -678,7 +740,11 @@ export const updateEntryPut = async (req, res) => {
           }
         }
       } catch (syncError) {
-        // Don't fail the request if sync fails, just log it
+        console.error("sharedWorkout cascade sync failed", {
+          entryId: String(id),
+          sharedWorkoutId: String(existingEntry.sharedWorkoutId),
+          message: syncError?.message,
+        });
       }
     }
 
@@ -700,7 +766,7 @@ export const updateEntryPut = async (req, res) => {
       });
     }
 
-    res.status(200).json({ success: true, data: entryData });
+    res.status(200).json({ success: true, data: toClientEntry(entryData) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
   }
@@ -770,11 +836,8 @@ export const likeEntry = async (req, res) => {
 
     // Find the user by UID
     const user = await findUserByAuth(req.user);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
+    const access = await assertCanInteractWithEntry(res, entry, user, uid);
+    if (!access.ok) return;
 
     // Ensure likes is always an array
     if (!Array.isArray(entry.likes)) {
@@ -793,11 +856,11 @@ export const likeEntry = async (req, res) => {
       (likeId) =>
         likeId != null &&
         typeof likeId.equals === "function" &&
-        likeId.equals(user._id)
+        likeId.equals(access.viewer._id)
     );
 
     const sendLikeResponse = async (message, liked) => {
-      const payload = entry.toObject();
+      const payload = toClientEntry(entry);
       await attachPopulatedLikesToEntries([payload]);
       res.status(200).json({
         success: true,
@@ -813,7 +876,7 @@ export const likeEntry = async (req, res) => {
       await entry.save();
       await sendLikeResponse("Post unliked successfully", false);
     } else {
-      entry.likes.push(user._id);
+      entry.likes.push(access.viewer._id);
       await entry.save();
       await sendLikeResponse("Post liked successfully", true);
     }
@@ -905,22 +968,24 @@ export const commentEntry = async (req, res) => {
         .json({ success: false, message: "Entry not found" });
     }
 
-    // Find the user by UID
     const user = await findUserByAuth(req.user);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
+    const access = await assertCanInteractWithEntry(
+      res,
+      entry,
+      user,
+      req.user.uid,
+    );
+    if (!access.ok) return;
+    const viewer = access.viewer;
 
     const newComment = {
       _id: new mongoose.Types.ObjectId(),
       text: comment,
       createdAt: new Date(),
-      uid: user.uid,
-      username: user.username,
-      name: user.name,
-      picture: user.picture,
+      uid: viewer.uid,
+      username: viewer.username,
+      name: viewer.name,
+      picture: viewer.picture,
       likes: [],
       replies: [],
     };
@@ -932,11 +997,12 @@ export const commentEntry = async (req, res) => {
     entry.comments.push(newComment);
     await entry.save();
 
+    const payload = toClientEntry(entry);
     res.status(200).json({
       success: true,
       message: "Comment added successfully",
-      comments: entry.comments,
-      data: entry,
+      comments: payload.comments,
+      data: payload,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
@@ -966,11 +1032,9 @@ export const likeComment = async (req, res) => {
     }
 
     const user = await findUserByAuth(req.user);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
+    const access = await assertCanInteractWithEntry(res, entry, user, uid);
+    if (!access.ok) return;
+    const viewer = access.viewer;
 
     const comment = entry.comments.id(commentId);
     if (!comment) {
@@ -983,7 +1047,9 @@ export const likeComment = async (req, res) => {
       comment.likes = [];
     }
 
-    const userLikedIndex = comment.likes.findIndex((like) => like.uid === uid);
+    const userLikedIndex = comment.likes.findIndex(
+      (like) => like.uid === viewer.uid || like.uid === uid,
+    );
 
     if (userLikedIndex > -1) {
       // Unlike
@@ -991,15 +1057,15 @@ export const likeComment = async (req, res) => {
     } else {
       // Like
       comment.likes.push({
-        uid: user.uid,
-        username: user.username,
-        name: user.name,
-        picture: user.picture,
+        uid: viewer.uid,
+        username: viewer.username,
+        name: viewer.name,
+        picture: viewer.picture,
       });
     }
 
     await entry.save();
-    res.status(200).json({ success: true, data: entry });
+    res.status(200).json({ success: true, data: toClientEntry(entry) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
   }
@@ -1034,11 +1100,9 @@ export const replyToComment = async (req, res) => {
     }
 
     const user = await findUserByAuth(req.user);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
+    const access = await assertCanInteractWithEntry(res, entry, user, uid);
+    if (!access.ok) return;
+    const viewer = access.viewer;
 
     const comment = entry.comments.id(commentId);
     if (!comment) {
@@ -1055,16 +1119,16 @@ export const replyToComment = async (req, res) => {
       _id: new mongoose.Types.ObjectId(),
       text,
       createdAt: new Date(),
-      uid: user.uid,
-      username: user.username,
-      name: user.name,
-      picture: user.picture,
+      uid: viewer.uid,
+      username: viewer.username,
+      name: viewer.name,
+      picture: viewer.picture,
     };
 
     comment.replies.push(newReply);
     await entry.save();
 
-    res.status(200).json({ success: true, data: entry });
+    res.status(200).json({ success: true, data: toClientEntry(entry) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
   }
@@ -1119,7 +1183,7 @@ export const editComment = async (req, res) => {
     comment.edited = true;
     await entry.save();
 
-    res.status(200).json({ success: true, data: entry });
+    res.status(200).json({ success: true, data: toClientEntry(entry) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
   }
@@ -1180,10 +1244,11 @@ export const deleteComment = async (req, res) => {
       { new: true, runValidators: false }
     );
 
+    const payload = toClientEntry(updated);
     return res.status(200).json({
       success: true,
-      data: updated,
-      comments: updated?.comments ?? [],
+      data: payload,
+      comments: payload?.comments ?? [],
     });
   } catch (error) {
     console.error("[deleteComment]", error);

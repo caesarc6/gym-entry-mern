@@ -110,10 +110,10 @@ const workoutAssignmentSchema = new mongoose.Schema(
   }
 );
 
-// Indexes for better performance
+// Indexes for better performance (field names must match the schema above).
 workoutAssignmentSchema.index({ assignedToUid: 1, status: 1 });
-workoutAssignmentSchema.index({ assignedByUid: 1, createdAt: -1 });
-workoutAssignmentSchema.index({ templateId: 1 });
+workoutAssignmentSchema.index({ sharedByUid: 1, createdAt: -1 });
+workoutAssignmentSchema.index({ sharedWorkoutId: 1 });
 
 const WorkoutAssignment = mongoose.model(
   "WorkoutAssignment",

@@ -13,7 +13,13 @@ const userSchema = new mongoose.Schema(
     },
     name: { type: String, set: sanitizeTextInput },
     email: { type: String, required: true, unique: true },
-    username: { type: String, required: false, unique: true, set: sanitizeTextInput },
+    username: {
+      type: String,
+      required: false,
+      unique: true,
+      sparse: true,
+      set: sanitizeTextInput,
+    },
     picture: { type: String, default: "" },
     backgroundPicture: { type: String, default: "" },
     bio: { type: String, default: "", set: sanitizeTextInput },
@@ -45,6 +51,8 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.index({ followers: 1 }, { name: "followers_1" });
 
 // Follow Request Schema
 const followRequestSchema = new mongoose.Schema(
