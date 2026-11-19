@@ -9,6 +9,7 @@ import {
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { cn } from "../lib/utils";
 import { hexAlpha, useCanvasShell } from "../contexts/CanvasShellContext.jsx";
+import { useIsSignedIn } from "../hooks/useIsSignedIn";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { Home, PlusSquare, BarChart3, User } from "lucide-react";
 
@@ -174,6 +175,7 @@ function isHoverPointer(event) {
 export default function GlassNavbar({ alwaysVisible = false }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const isSignedIn = useIsSignedIn();
   const { paintHex, prefersReducedMotion, transition } = useCanvasShell();
 
   const mouseX = useMotionValue(Infinity);
@@ -480,7 +482,8 @@ export default function GlassNavbar({ alwaysVisible = false }) {
         transition,
       };
 
-  if (keyboardOpen) {
+  // Guests never see Log / Progress / Profile dock tabs (Instagram-style).
+  if (!isSignedIn || keyboardOpen) {
     return null;
   }
 

@@ -653,6 +653,24 @@ const isMissingMongoUser = (error) =>
   /user not found/i.test(error.response?.data?.message || error.message || "");
 
 const applySignedInBootstrap = async (session, generation) => {
+  const authUser = session?.user;
+  if (authUser) {
+    // Chrome (dock) can show before Mongo profile returns.
+    useProductStore.getState().setCurrentUser({
+      uid: authUser.id,
+      email: authUser.email,
+      name:
+        authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.name ||
+        authUser.email?.split("@")[0],
+      picture:
+        authUser.user_metadata?.avatar_url ||
+        authUser.user_metadata?.picture ||
+        "",
+      authProvider: "supabase",
+    });
+  }
+
   try {
     let response;
     try {
@@ -692,6 +710,7 @@ const applySignedInBootstrap = async (session, generation) => {
 };
 
 const applySignedOutBootstrap = () => {
+  useProductStore.getState().setCurrentUser(null);
   useProductStore.getState().setCurrentUserInfo(null);
   useProductStore.getState().setClaimedWorkouts([]);
   useProductStore.getState().setShowClaimedWorkoutsModal(false);

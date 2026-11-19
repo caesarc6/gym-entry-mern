@@ -48,7 +48,6 @@ const ProductPreviewSection = lazy(() =>
   import("../components/ProductPreviewSection"),
 );
 
-const isCapacitorNative = getIsCapacitorNative();
 const HOME_FEED_PAGE_SIZE = feedPageLimit();
 /** First viewport on phone is usually 1–2 cards; avoid eager-loading a whole grid. */
 const FEED_EAGER_IMAGE_COUNT = 2;
@@ -93,6 +92,7 @@ const isRequestAbortError = (err) =>
   err?.name === "AbortError";
 
 const HomePage = () => {
+  const isCapacitorNative = getIsCapacitorNative();
   const {
     clearEntrys,
     setHomeFeedCache,
@@ -775,10 +775,36 @@ const HomePage = () => {
             </VStack>
           </Container>
         </>
+      ) : isCapacitorNative ? (
+        <div className="landing-no-theme-chrome-fade">
+          {/* One composition guest preview — no dock, no marketing dump. */}
+          <Suspense fallback={null}>
+            <Hero appGuestMarketing />
+          </Suspense>
+          <footer className="border-t border-white/10 bg-[var(--hero-surface-light,#2c3d4c)] px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:bg-[var(--hero-surface-dark,#141c27)]">
+            <div className="mx-auto flex max-w-lg flex-col items-center justify-between gap-3 text-center text-xs text-zinc-300/90 sm:flex-row sm:text-left">
+              <p>© 2026 Ethereal Gains</p>
+              <div className="flex items-center gap-4">
+                <Link
+                  to="/privacy-policy"
+                  className="font-medium underline-offset-4 hover:text-white hover:underline"
+                >
+                  Privacy
+                </Link>
+                <Link
+                  to="/terms-of-service"
+                  className="font-medium underline-offset-4 hover:text-white hover:underline"
+                >
+                  Terms
+                </Link>
+              </div>
+            </div>
+          </footer>
+        </div>
       ) : (
         <div className="landing-no-theme-chrome-fade">
           <Suspense fallback={null}>
-            <Hero appGuestMarketing={isCapacitorNative} />
+            <Hero />
             <ProductPreviewSection />
           </Suspense>
           <div
