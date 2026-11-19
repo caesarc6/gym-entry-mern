@@ -59,11 +59,10 @@ connectAuth();
 
 const app = express();
 
-// Configure body parser with higher limits for image uploads
-app.use(express.json({ limit: "50mb" })); // allows to use json data in the body with 50MB limit
+// Configure body parser with higher limits for image uploads.
+// Use one JSON parser only — a second bodyParser.json would re-parse every body.
+app.use(express.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
-app.use(bodyParser.json({ limit: "50mb" }));
-// app.use(express.urlencoded({ extended: true }));
 
 // Configure CORS with environment variables
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -203,14 +202,7 @@ app.post("/api/protected", verifyIdToken, async (req, res) => {
       });
     }
 
-    const dbReady = await ensureMongoConnected();
-    if (!dbReady.ok) {
-      return res.status(503).json({
-        success: false,
-        code: dbReady.code || "DB_UNAVAILABLE",
-        message: dbReady.message || "Database connection error",
-      });
-    }
+    // Global /api middleware already ensured Mongo for this request.
 
     // Determine auth provider from req.user (set by middleware)
     const authProvider = req.user.authProvider || "firebase";

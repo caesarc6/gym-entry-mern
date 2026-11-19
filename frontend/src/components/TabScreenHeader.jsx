@@ -1,10 +1,12 @@
+import { lazy, Suspense } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiPlus, FiSettings } from "react-icons/fi";
 import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { useProductStore } from "../store/product";
-import ProfilePeopleSearch from "./ProfilePeopleSearch";
+
+const ProfilePeopleSearch = lazy(() => import("./ProfilePeopleSearch"));
 
 function screenMeta(pathname) {
   if (pathname === "/" || pathname === "") {
@@ -134,7 +136,9 @@ export function NativeTabScreenHeader() {
 
   const leading =
     meta.key === "profile" && currentUser ? (
-      <ProfilePeopleSearch iconBtnClass={iconBtnClass} />
+      <Suspense fallback={<div className="h-10 w-10" aria-hidden />}>
+        <ProfilePeopleSearch iconBtnClass={iconBtnClass} />
+      </Suspense>
     ) : meta.key === "feed" ? (
       <button
         type="button"
