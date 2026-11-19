@@ -34,6 +34,22 @@ If signing fails: Apple Developer → Identifiers → enable **App Groups** on b
 
 ## 2. Archive → Upload → TestFlight
 
+Prefer the CLI (sync + archive + App Store Connect upload):
+
+```bash
+# One-time: App Store Connect → Users and Access → Integrations → Team Keys → AuthKey_XXXXXX.p8
+export ASC_KEY_ID=XXXXXXXXXX
+export ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+export ASC_KEY_PATH="$HOME/AuthKey_${ASC_KEY_ID}.p8"   # do not commit .p8 files
+
+npm run ios:archive:upload:dry-run   # validates project/scheme/signing; prints commands
+npm run ios:archive:upload           # runs cap:sync:ios:store, archives, uploads
+```
+
+Full env + steps: see Project doc `docs/ios-archive-upload.md` (supersedes the old EG-11 checklist).
+
+### Manual Xcode fallback
+
 1. [App Store Connect](https://appstoreconnect.apple.com) → **Apps → +** (if needed):
    - Name: **Ethereal Gains**
    - Bundle ID: `com.etherealgains.gymentry`

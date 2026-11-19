@@ -21,6 +21,8 @@
     "cap:sync:ios:store": "cd frontend && npm run cap:sync:ios:store",
     "cap:sync:live": "cd frontend && npm run cap:sync:live",
     "cap:open:ios": "cd frontend && npm run cap:open:ios",
+    "ios:archive:upload": "bash ./scripts/ios-archive-upload.sh",
+    "ios:archive:upload:dry-run": "bash ./scripts/ios-archive-upload.sh --dry-run",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "module",
