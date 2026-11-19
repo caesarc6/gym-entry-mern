@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiPlus, FiSettings } from "react-icons/fi";
 import { cn } from "../lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
+import { useIsSignedIn } from "../hooks/useIsSignedIn";
 import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
 import { useProductStore } from "../store/product";
 
@@ -65,6 +66,9 @@ function headerSurfaceClass(currentTheme) {
  * Fixed wordmark bar for the native app. Web uses HeroHeader instead.
  * `fixed` (not sticky) so iOS WKWebView still shows it when tabs are keep-alive
  * behind `display: none`.
+ *
+ * Top padding uses env(safe-area-inset-top) so Dynamic Island / notch / home
+ * indicator class devices keep the title row clear and centered.
  */
 export default function TabScreenHeader({
   title,
@@ -78,19 +82,21 @@ export default function TabScreenHeader({
   const renderBar = () => (
     <div
       className={cn(
-        "w-full border-b px-4 py-[1px] pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top)] backdrop-blur-xl",
+        "w-full border-b px-4 pb-1 pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl",
         headerSurfaceClass(currentTheme),
       )}
     >
       <div className="mx-auto w-full max-w-7xl">
-        <div className="relative flex items-center justify-between py-2">
-          <div className="flex h-10 w-10 items-center justify-start">
+        <div className="relative flex min-h-11 items-center justify-between py-2">
+          <div className="relative z-[1] flex h-10 w-10 shrink-0 items-center justify-start">
             {leading}
           </div>
-          <div className="pointer-events-none absolute left-1/2 -translate-x-1/2">
-            <span className="nav-wordmark text-foreground">{title}</span>
+          <div className="pointer-events-none absolute inset-x-12 top-1/2 z-0 -translate-y-1/2 text-center">
+            <span className="nav-wordmark block truncate text-foreground">
+              {title}
+            </span>
           </div>
-          <div className="flex h-10 w-10 items-center justify-end">
+          <div className="relative z-[1] flex h-10 w-10 shrink-0 items-center justify-end">
             {trailing}
           </div>
         </div>
@@ -113,6 +119,7 @@ export function NativeTabScreenHeader() {
   const isNative = getIsCapacitorNative();
   const location = useLocation();
   const navigate = useNavigate();
+  const isSignedIn = useIsSignedIn();
   const currentUser = useProductStore((s) => s.currentUser);
   const { currentTheme } = useTheme();
   const meta = screenMeta(location.pathname);
@@ -135,11 +142,11 @@ export function NativeTabScreenHeader() {
   };
 
   const leading =
-    meta.key === "profile" && currentUser ? (
+    meta.key === "profile" && isSignedIn ? (
       <Suspense fallback={<div className="h-10 w-10" aria-hidden />}>
         <ProfilePeopleSearch iconBtnClass={iconBtnClass} />
       </Suspense>
-    ) : meta.key === "feed" ? (
+    ) : meta.key === "feed" && isSignedIn ? (
       <button
         type="button"
         onClick={() => navigate("/create")}
@@ -160,7 +167,7 @@ export function NativeTabScreenHeader() {
     ) : null;
 
   const trailing =
-    meta.key === "profile" && currentUser ? (
+    meta.key === "profile" && (currentUser || isSignedIn) ? (
       <button
         type="button"
         onClick={() => navigate("/settings")}

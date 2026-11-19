@@ -9,8 +9,10 @@ import MobileAppShell from "./components/MobileAppShell";
 import GlassNavbar from "./components/GlassNavbar";
 import { NativeTabScreenHeader } from "./components/TabScreenHeader";
 import RequireAuth from "./routes/RequireAuth";
+import { useIsSignedIn } from "./hooks/useIsSignedIn";
 import { useProductStore } from "./store/product";
 import { isCapacitorNative as getIsCapacitorNative } from "./utils/isNativePlatform";
+import { cn } from "./lib/utils";
 
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const SignUpFlow = lazy(() => import("./pages/SignUpFlow"));
@@ -177,6 +179,7 @@ function NativeTabsLayout() {
 function App() {
   const isCapacitorNative = getIsCapacitorNative();
   const location = useLocation();
+  const isSignedIn = useIsSignedIn();
   const { paintHex, prefersReducedMotion, transition } = useCanvasShell();
 
   const isHomePath =
@@ -208,7 +211,12 @@ function App() {
         </MobileAppShell>
       ) : (
         <>
-          <div className="pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:pb-0">
+          <div
+            className={cn(
+              "md:pb-0",
+              isSignedIn && "pb-[calc(7.5rem+env(safe-area-inset-bottom))]",
+            )}
+          >
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<HomePage />} />
@@ -221,8 +229,8 @@ function App() {
               </Routes>
             </Suspense>
           </div>
-          {/* Mobile-web glass dock — hidden at md+ except on /profile. */}
-          <GlassNavbar />
+          {/* Mobile-web glass dock — signed-in only; hidden at md+. */}
+          {isSignedIn ? <GlassNavbar /> : null}
         </>
       )}
     </Box>

@@ -5,16 +5,13 @@ import { provisionAccount } from "../utils/provisionAccount";
 import { maybeMigrateAccount } from "../utils/migration";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { useIosAwareGoogleOAuth } from "../hooks/useIosAwareGoogleOAuth";
+import AuthScreenLayout from "../components/AuthScreenLayout";
 import { Card } from "../components/ui/card";
 import {
   AppleSignInMark,
   authFieldClassName,
   oauthButtonClassName,
 } from "../components/AppleSignInMark";
-import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
-import { cn } from "../lib/utils";
-
-const isNative = getIsCapacitorNative();
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -102,15 +99,7 @@ const Login = () => {
   };
 
   return (
-    <div
-      className={cn(
-        "mx-auto flex w-full min-w-0 max-w-md flex-col justify-center px-5",
-        "min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))]",
-        isNative
-          ? "py-6"
-          : "pb-16 pt-[calc(5.5rem+env(safe-area-inset-top))] md:min-h-[100dvh] md:pt-28",
-      )}
-    >
+    <AuthScreenLayout>
       <div className="space-y-8 text-center text-sm">
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
@@ -225,7 +214,7 @@ const Login = () => {
           </p>
         </Card>
       </div>
-    </div>
+    </AuthScreenLayout>
   );
 };
 

@@ -3,6 +3,9 @@ import { Capacitor } from "@capacitor/core";
 export function isCapacitorNative() {
   if (typeof window === "undefined") return false;
 
+  // Screenshot / local QA only — never set in production Capacitor builds.
+  if (window.__EG_FORCE_NATIVE__ === true) return true;
+
   const fromWindow =
     window.Capacitor && typeof window.Capacitor.isNativePlatform === "function"
       ? window.Capacitor.isNativePlatform()

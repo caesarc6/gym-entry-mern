@@ -6,16 +6,13 @@ import { maybeMigrateAccount } from "../utils/migration";
 import { useCustomToast } from "../hooks/useCustomToast";
 import { setAuthRedirect } from "../utils/auth";
 import { useIosAwareGoogleOAuth } from "../hooks/useIosAwareGoogleOAuth";
+import AuthScreenLayout from "../components/AuthScreenLayout";
 import { Card } from "../components/ui/card";
 import {
   AppleSignInMark,
   authFieldClassName,
   oauthButtonClassName,
 } from "../components/AppleSignInMark";
-import { isCapacitorNative as getIsCapacitorNative } from "../utils/isNativePlatform";
-import { cn } from "../lib/utils";
-
-const isNative = getIsCapacitorNative();
 
 const SignUpFlow = () => {
   const [fullName, setFullName] = useState("");
@@ -27,10 +24,8 @@ const SignUpFlow = () => {
   const toast = useCustomToast();
   const { requestGoogleOAuth, requestAppleOAuth } = useIosAwareGoogleOAuth();
 
-  // Get the redirect path from location state, default to home
   const redirectPath = location.state?.from || "/";
 
-  // Check if user is already signed in and redirect them
   useEffect(() => {
     const checkSession = async () => {
       const {
@@ -126,19 +121,11 @@ const SignUpFlow = () => {
   };
 
   return (
-    <div
-      className={cn(
-        "mx-auto flex w-full min-w-0 max-w-md flex-col justify-center px-5",
-        "min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))]",
-        isNative
-          ? "py-6"
-          : "pb-16 pt-[calc(5.5rem+env(safe-area-inset-top))] md:min-h-[100dvh] md:pt-28",
-      )}
-    >
+    <AuthScreenLayout>
       <div className="space-y-8 text-center text-sm">
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-            Sign up
+            Create account
           </p>
           <h1 className="text-2xl font-medium tracking-tight text-foreground">
             Welcome to Ethereal Gains
@@ -158,7 +145,7 @@ const SignUpFlow = () => {
             className={`${oauthButtonClassName} bg-black text-white border border-black hover:bg-neutral-900`}
           >
             <AppleSignInMark />
-            Sign in with Apple
+            Sign up with Apple
           </button>
 
           <button
@@ -184,7 +171,7 @@ const SignUpFlow = () => {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            Continue with Google
+            Sign up with Google
           </button>
 
           <p className="my-6 text-center text-sm leading-relaxed text-muted-foreground">
@@ -223,7 +210,7 @@ const SignUpFlow = () => {
               disabled={isSubmitting}
               className="mt-2 w-full rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 active:scale-[0.99] disabled:opacity-60"
             >
-              {isSubmitting ? "Creating account..." : "Sign up"}
+              {isSubmitting ? "Creating account..." : "Create account"}
             </button>
           </form>
 
@@ -239,7 +226,7 @@ const SignUpFlow = () => {
               }
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Sign in
+              Log in
             </button>
           </p>
 
@@ -262,7 +249,7 @@ const SignUpFlow = () => {
           </p>
         </Card>
       </div>
-    </div>
+    </AuthScreenLayout>
   );
 };
 

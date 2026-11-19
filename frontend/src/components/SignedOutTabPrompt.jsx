@@ -40,7 +40,7 @@ export default function SignedOutTabPrompt({ variant }) {
   return (
     <div
       className={cn(
-        "flex min-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom,0px))] flex-col items-center justify-center px-5 py-6",
+        "flex min-h-[100dvh] flex-col items-center justify-center px-5 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
       )}
     >
       <Card
