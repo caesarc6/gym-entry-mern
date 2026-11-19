@@ -1,7 +1,10 @@
 /**
- * Signed-out home (dark): one navy-slate family aligned with hero #051a2b.
- * Use these instead of mixing zinc / slate / blue-950 ad hoc.
+ * Signed-out home / landing (dark): one navy-slate family.
+ * Keep in sync with `--hero-surface-*` in index.css and Hero.jsx blobs.
  */
+export const HERO_SURFACE_LIGHT = "#2c3d4c";
+export const HERO_SURFACE_DARK = "#071c2c";
+
 export const landingDarkMainCanvas =
   "dark:bg-gradient-to-b dark:from-[#050f18] dark:via-[#071c2c] dark:to-[#050f18]";
 

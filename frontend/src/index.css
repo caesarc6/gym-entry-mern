@@ -50,15 +50,19 @@
     --workout-modal-button-bg: 220 14% 96%;
     --workout-modal-button-text: 210 17.9% 54.1%;
     --workout-modal-button-border: 214.3 31.8% 91.4%;
+
+    /* Guest / marketing hero plane (light keeps branded slate under white type) */
+    --hero-surface-light: #2c3d4c;
+    --hero-surface-dark: #071c2c;
   }
 
   /* Page canvas is neutral black; cards/accents keep blue-slate colorway */
   .dark {
     --background: 0 0% 5%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 220 28% 9%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 220 28% 9%;
     --popover-foreground: 210 40% 98%;
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
@@ -92,6 +96,8 @@
     --workout-modal-button-bg: 220 4.9% 12%;
     --workout-modal-button-text: 0 0% 100%;
     --workout-modal-button-border: 220 3.1% 19%;
+
+    --hero-surface-dark: #071c2c;
   }
 
   /* Dark Black Theme */

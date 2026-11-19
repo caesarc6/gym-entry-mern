@@ -781,7 +781,7 @@ const HomePage = () => {
           <Suspense fallback={null}>
             <Hero appGuestMarketing />
           </Suspense>
-          <footer className="border-t border-white/10 bg-[var(--hero-surface-light,#2c3d4c)] px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:bg-[var(--hero-surface-dark,#141c27)]">
+          <footer className="border-t border-white/10 bg-[var(--hero-surface-light,#2c3d4c)] px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:bg-[var(--hero-surface-dark,#071c2c)]">
             <div className="mx-auto flex max-w-lg flex-col items-center justify-between gap-3 text-center text-xs text-zinc-300/90 sm:flex-row sm:text-left">
               <p>© 2026 Ethereal Gains</p>
               <div className="flex items-center gap-4">

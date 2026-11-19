@@ -3,21 +3,25 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { BarChart3, PlusSquare, User } from "lucide-react";
 import { Card } from "./ui/card";
 import { cn } from "../lib/utils";
+import {
+  authCardClassName,
+  authPrimaryButtonClassName,
+} from "../lib/authChrome";
 
 const COPY = {
   create: {
-    title: "Sign in to log a workout",
-    body: "Write the session, add a photo if you want, and it shows up on your progress.",
+    title: "Log a workout",
+    body: "Sign in to capture the session and see it on Progress.",
     Icon: PlusSquare,
   },
   analytics: {
-    title: "Sign in to see your progress",
-    body: "A simple look at how your training is going, once you’re signed in.",
+    title: "Your progress",
+    body: "Sign in to read training trends week to week.",
     Icon: BarChart3,
   },
   profile: {
-    title: "Sign in to view your profile",
-    body: "See your workouts, followers, and settings on your profile tab.",
+    title: "Your profile",
+    body: "Sign in for workouts, people, and settings.",
     Icon: User,
   },
 };
@@ -40,27 +44,27 @@ export default function SignedOutTabPrompt({ variant }) {
   return (
     <div
       className={cn(
-        "flex min-h-[100dvh] flex-col items-center justify-center px-5 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+        "flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10 pb-[max(2rem,env(safe-area-inset-bottom))]",
       )}
     >
       <Card
-        variant="mixed"
-        className="w-full max-w-sm border-border/80 bg-card/95 p-8 text-center shadow-md backdrop-blur-sm supports-[backdrop-filter]:bg-card/80"
+        variant="default"
+        className={cn(authCardClassName, "max-w-sm text-center")}
       >
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-foreground ring-1 ring-border/60">
+        <div className="mx-auto mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-foreground ring-1 ring-border/60 dark:bg-[#0c1b2a] dark:ring-[#1e3f5c]/40">
           <Icon className="h-7 w-7" strokeWidth={1.75} aria-hidden />
         </div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        <h1 className="font-serif text-xl font-medium tracking-tight text-foreground">
           {title}
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <p className="mx-auto mt-3 max-w-[16rem] text-sm leading-relaxed text-muted-foreground">
           {body}
         </p>
 
         <button
           type="button"
           onClick={() => navigate("/signup", { state: authState })}
-          className="mt-8 w-full rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 active:scale-[0.99]"
+          className={cn(authPrimaryButtonClassName, "mt-10")}
         >
           Create account
         </button>
@@ -68,9 +72,9 @@ export default function SignedOutTabPrompt({ variant }) {
         <button
           type="button"
           onClick={() => navigate("/login", { state: authState })}
-          className="mt-5 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          className="mt-6 text-sm font-medium text-foreground underline-offset-4 hover:underline"
         >
-          Already have an account?
+          Log in
         </button>
       </Card>
     </div>

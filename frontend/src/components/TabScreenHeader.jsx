@@ -49,7 +49,13 @@ function screenMeta(pathname) {
   return { title: "Ethereal Gains", key: "app", backTo: -1 };
 }
 
-function headerSurfaceClass(currentTheme) {
+function headerSurfaceClass(currentTheme, { isHome = false } = {}) {
+  // Guest/home hero is a branded slate plane — never paint zinc-50 over it.
+  if (isHome) {
+    return currentTheme === "light"
+      ? "border-white/10 bg-[color-mix(in_srgb,var(--hero-surface-light,#2c3d4c)_90%,transparent)]"
+      : "border-white/10 bg-[color-mix(in_srgb,var(--hero-surface-dark,#071c2c)_90%,transparent)]";
+  }
   if (currentTheme === "light") {
     return "border-zinc-200/80 bg-zinc-50/90 shadow-sm";
   }
@@ -74,6 +80,7 @@ export default function TabScreenHeader({
   title,
   leading = null,
   trailing = null,
+  isHome = false,
 }) {
   const isNative = getIsCapacitorNative();
   const { currentTheme } = useTheme();
@@ -83,7 +90,7 @@ export default function TabScreenHeader({
     <div
       className={cn(
         "w-full border-b px-4 pb-1 pt-[constant(safe-area-inset-top)] pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl",
-        headerSurfaceClass(currentTheme),
+        headerSurfaceClass(currentTheme, { isHome }),
       )}
     >
       <div className="mx-auto w-full max-w-7xl">
@@ -92,7 +99,12 @@ export default function TabScreenHeader({
             {leading}
           </div>
           <div className="pointer-events-none absolute inset-x-12 top-1/2 z-0 -translate-y-1/2 text-center">
-            <span className="nav-wordmark block truncate text-foreground">
+            <span
+              className={cn(
+                "nav-wordmark block truncate",
+                isHome ? "text-zinc-100" : "text-foreground",
+              )}
+            >
               {title}
             </span>
           </div>
@@ -178,11 +190,14 @@ export function NativeTabScreenHeader() {
       </button>
     ) : null;
 
+  const isHome = location.pathname === "/" || location.pathname === "";
+
   return (
     <TabScreenHeader
       title={meta.title}
       leading={leading}
       trailing={trailing}
+      isHome={isHome}
     />
   );
 }

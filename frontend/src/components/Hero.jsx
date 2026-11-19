@@ -5,10 +5,11 @@ import { Activity, BarChart3, ChevronRight, Rss } from "lucide-react";
 import { LiquidBlob } from "@/components/ui/liquid-blob";
 import { HERO_OUTLINE_CTA_BUTTON_CLASSNAME } from "../lib/heroCtaButtonClasses";
 import { cn } from "../lib/utils";
+import { useTheme } from "../contexts/ThemeContext";
 
-/** Tailwind palette used by the prior hero blobs: blue-950 / blue-300 */
-const HERO_BLOB_PRIMARY = "#172554";
-const HERO_BLOB_SECONDARY = "#93c5fd";
+/** Light: prior blue-950 / blue-300. Dark: muted navy-slate (no washed blue-300 glow). */
+const HERO_BLOB_LIGHT = { primary: "#172554", secondary: "#93c5fd", opacity: 0.55, blur: 88 };
+const HERO_BLOB_DARK = { primary: "#0c1b2a", secondary: "#1e3f5c", opacity: 0.28, blur: 72 };
 
 const GUEST_PREVIEW = [
   {
@@ -30,6 +31,8 @@ const GUEST_PREVIEW = [
 
 export const Hero = ({ appGuestMarketing = false }) => {
   const [blobSize, setBlobSize] = useState(420);
+  const { isDark } = useTheme();
+  const blob = isDark ? HERO_BLOB_DARK : HERO_BLOB_LIGHT;
 
   useEffect(() => {
     const update = () => {
@@ -43,21 +46,21 @@ export const Hero = ({ appGuestMarketing = false }) => {
 
   return (
     <section
-      className="relative isolate w-full min-w-0 overflow-hidden bg-[var(--hero-surface-light,#2c3d4c)] dark:bg-[var(--hero-surface-dark,#141c27)]"
+      className="relative isolate w-full min-w-0 overflow-hidden bg-[var(--hero-surface-light,#2c3d4c)] dark:bg-[var(--hero-surface-dark,#071c2c)]"
     >
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
       >
-        <div className="absolute inset-0 bg-[var(--hero-surface-light,#2c3d4c)] dark:bg-[var(--hero-surface-dark,#141c27)]">
+        <div className="absolute inset-0 bg-[var(--hero-surface-light,#2c3d4c)] dark:bg-[var(--hero-surface-dark,#071c2c)]">
           <LiquidBlob
             className="pointer-events-none"
             interactive={false}
-            color={HERO_BLOB_PRIMARY}
-            secondaryColor={HERO_BLOB_SECONDARY}
+            color={blob.primary}
+            secondaryColor={blob.secondary}
             size={blobSize}
-            blur={88}
-            opacity={0.55}
+            blur={blob.blur}
+            opacity={blob.opacity}
             speed={10}
           />
         </div>
@@ -134,7 +137,14 @@ export const Hero = ({ appGuestMarketing = false }) => {
                     appGuestMarketing && "mt-8 flex-col gap-4",
                   )}
                 >
-                  <Button asChild className="pr-1.5">
+                  <Button
+                    asChild
+                    className={cn(
+                      "pr-1.5",
+                      appGuestMarketing &&
+                        "bg-zinc-900 text-zinc-50 hover:bg-zinc-800 dark:bg-[#d5dde6] dark:text-[#071c2c] dark:hover:bg-[#e8eef4]",
+                    )}
+                  >
                     <Link to="/signup">
                       <span className="text-nowrap">
                         {appGuestMarketing

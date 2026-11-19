@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: ["class", ".dark-black", ".dark-blue"],
+  // ThemeContext always adds `.dark` for dark / dark-black / dark-blue.
+  // A custom selector of only `.dark-black` left default `dark` without Tailwind dark: utilities.
+  darkMode: "class",
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",

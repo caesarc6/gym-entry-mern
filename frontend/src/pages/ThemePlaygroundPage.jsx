@@ -543,7 +543,7 @@ export default function ThemePlaygroundPage() {
     cloneTokens(DEFAULT_DARK_TOKENS)
   );
   const [heroSurfaceLight, setHeroSurfaceLight] = useState("#2c3d4c");
-  const [heroSurfaceDark, setHeroSurfaceDark] = useState("#141c27");
+  const [heroSurfaceDark, setHeroSurfaceDark] = useState("#071c2c");
   const [editor, setEditor] = useState(/** @type {"light" | "dark"} */ ("light"));
   const [preview, setPreview] = useState(/** @type {"light" | "dark"} */ ("light"));
   const [demoFeedPage, setDemoFeedPage] = useState(1);
@@ -606,7 +606,7 @@ export default function ThemePlaygroundPage() {
       lightTokens
     )}\n  --hero-surface-light: ${heroSurfaceLight};\n  --hero-surface-dark: ${heroSurfaceDark};\n}\n\n/* Dark — merge into .dark in index.css */\n.dark {\n${lines(
       darkTokens
-    )}\n}\n`;
+    )}\n  --hero-surface-dark: ${heroSurfaceDark};\n}\n`;
 
     void navigator.clipboard.writeText(text);
   }, [lightTokens, darkTokens, heroSurfaceLight, heroSurfaceDark]);
@@ -743,7 +743,7 @@ export default function ThemePlaygroundPage() {
                     setLightTokens(cloneTokens(DEFAULT_LIGHT_TOKENS));
                     setDarkTokens(cloneTokens(DEFAULT_DARK_TOKENS));
                     setHeroSurfaceLight("#2c3d4c");
-                    setHeroSurfaceDark("#141c27");
+                    setHeroSurfaceDark("#071c2c");
                   }}
                 >
                   Reset all
