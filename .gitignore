@@ -18,6 +18,10 @@ dist-ssr
 # Firebase / GCP service account keys (never commit)
 *firebase-adminsdk*.json
 
+# App Store Connect API keys (never commit)
+AuthKey_*.p8
+*.p8
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

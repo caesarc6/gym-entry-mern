@@ -15,7 +15,9 @@
     "cap:sync": "npm run build && npx cap sync",
     "cap:sync:ios:store": "npm run build && env -u CAP_LIVE_RELOAD_URL npx cap sync ios && node ./scripts/assert-no-live-reload.js",
     "cap:open:ios": "npx cap open ios",
-    "cap:sync:live": "CAP_LIVE_RELOAD_URL=http://192.168.1.162:5173 npx cap sync ios"
+    "cap:sync:live": "CAP_LIVE_RELOAD_URL=http://192.168.1.162:5173 npx cap sync ios",
+    "ios:archive:upload": "bash ../scripts/ios-archive-upload.sh",
+    "ios:archive:upload:dry-run": "bash ../scripts/ios-archive-upload.sh --dry-run"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.0",
