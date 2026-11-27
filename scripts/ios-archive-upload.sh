@@ -13,7 +13,12 @@
 # Usage (from repo root):
 #   npm run ios:archive:upload -- --dry-run
 #   npm run ios:archive:upload
+#   npm run ios:archive:upload -- --bump-build   # explicit; bump is already the default
 #   ./scripts/ios-archive-upload.sh --skip-sync --archive-only
+#
+# Build number: by default, before archive, bumps CURRENT_PROJECT_VERSION in
+# project.pbxproj (App + WorkoutHabitWidget) to max+1. MARKETING_VERSION is
+# left unchanged. Dry-run prints the intended value without writing.
 
 set -euo pipefail
 
@@ -40,6 +45,8 @@ DRY_RUN=0
 SKIP_SYNC=0
 ARCHIVE_ONLY=0
 DO_SYNC=1
+# Default ON: ASC rejects uploads when CFBundleVersion is not higher than the last one.
+BUMP_BUILD=1
 
 usage() {
   cat <<'EOF'
@@ -49,7 +56,16 @@ Usage: ios-archive-upload.sh [options]
   --skip-sync       Do not run npm run cap:sync:ios:store (you already synced)
   --archive-only    Archive + export IPA only; skip App Store Connect upload
   --no-sync         Alias for --skip-sync
+  --bump-build      Bump CURRENT_PROJECT_VERSION (max+1) before archive (default)
+  --no-bump-build   Do not change CURRENT_PROJECT_VERSION
   -h, --help        Show this help
+
+Build number (CURRENT_PROJECT_VERSION):
+  Before archive, the script reads every CURRENT_PROJECT_VERSION in
+  frontend/ios/App/App.xcodeproj/project.pbxproj, takes the max, and sets all
+  of them to max+1 (App Debug/Release + WorkoutHabitWidget Debug/Release) so
+  they stay in sync. MARKETING_VERSION is never changed.
+  With --dry-run, the intended next build is printed and the pbxproj is not written.
 
 Environment:
   TEAM_ID           Apple Developer Team ID (default: 34M67XKNV4)
@@ -87,6 +103,8 @@ while [[ $# -gt 0 ]]; do
     --dry-run) DRY_RUN=1 ;;
     --skip-sync|--no-sync) SKIP_SYNC=1; DO_SYNC=0 ;;
     --archive-only) ARCHIVE_ONLY=1 ;;
+    --bump-build) BUMP_BUILD=1 ;;
+    --no-bump-build) BUMP_BUILD=0 ;;
     -h|--help) usage; exit 0 ;;
     *) die "Unknown option: $1 (see --help)" ;;
   esac
@@ -131,6 +149,53 @@ assert_signing() {
     die "BUNDLE_ID ${BUNDLE_ID} not found in project.pbxproj"
   fi
   log "Signing OK: TEAM_ID=${TEAM_ID} BUNDLE_ID=${BUNDLE_ID} SCHEME=${SCHEME}"
+}
+
+# --- Build number: bump CURRENT_PROJECT_VERSION (App + widget) to max+1 ---
+# MARKETING_VERSION is intentionally left alone.
+max_current_project_version() {
+  local pbxproj="$1"
+  local max="" ver
+  while IFS= read -r ver; do
+    [[ -n "$ver" ]] || continue
+    if [[ -z "$max" ]] || (( ver > max )); then
+      max=$ver
+    fi
+  done < <(grep -oE 'CURRENT_PROJECT_VERSION = [0-9]+' "$pbxproj" | grep -oE '[0-9]+$' || true)
+  [[ -n "$max" ]] || die "No CURRENT_PROJECT_VERSION entries found in $pbxproj"
+  printf '%s' "$max"
+}
+
+bump_build_number() {
+  local pbxproj="${IOS_PROJECT}/project.pbxproj"
+  [[ -f "$pbxproj" ]] || die "project.pbxproj missing: $pbxproj"
+
+  local current next
+  current="$(max_current_project_version "$pbxproj")"
+  next=$((current + 1))
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    log "Would bump CURRENT_PROJECT_VERSION: ${current} → ${next} (all targets in project.pbxproj)"
+    log "MARKETING_VERSION unchanged; pbxproj not written (dry-run)"
+    return 0
+  fi
+
+  # macOS sed needs '', GNU sed does not — detect which we have.
+  if sed --version >/dev/null 2>&1; then
+    sed -i -E "s/CURRENT_PROJECT_VERSION = [0-9]+;/CURRENT_PROJECT_VERSION = ${next};/g" "$pbxproj"
+  else
+    sed -i '' -E "s/CURRENT_PROJECT_VERSION = [0-9]+;/CURRENT_PROJECT_VERSION = ${next};/g" "$pbxproj"
+  fi
+
+  # Verify every occurrence is now the new value (keeps App + WorkoutHabitWidget in sync).
+  local after
+  after="$(max_current_project_version "$pbxproj")"
+  [[ "$after" == "$next" ]] || die "Bump failed: expected CURRENT_PROJECT_VERSION=${next}, found max=${after}"
+  if grep -E 'CURRENT_PROJECT_VERSION = [0-9]+;' "$pbxproj" | grep -qvE "CURRENT_PROJECT_VERSION = ${next};"; then
+    die "Bump left mismatched CURRENT_PROJECT_VERSION values in $pbxproj"
+  fi
+
+  log "Bumped CURRENT_PROJECT_VERSION: ${current} → ${next} (App + WorkoutHabitWidget; MARKETING_VERSION unchanged)"
 }
 
 # --- Preflight: ASC API credentials (upload) ---
@@ -184,7 +249,7 @@ fi
 log "Repo root: $ROOT_DIR"
 log "Project:   $IOS_PROJECT"
 log "Archive:   $ARCHIVE_PATH"
-log "Dry-run:   $DRY_RUN  skip-sync: $SKIP_SYNC  archive-only: $ARCHIVE_ONLY"
+log "Dry-run:   $DRY_RUN  skip-sync: $SKIP_SYNC  archive-only: $ARCHIVE_ONLY  bump-build: $BUMP_BUILD"
 
 assert_signing
 
@@ -204,6 +269,12 @@ if [[ "$DRY_RUN" -eq 1 && ! -f "$CAPACITOR_CONFIG" ]]; then
   warn "capacitor.config.json missing (expected after sync) — skip live-reload check in dry-run"
 else
   assert_no_live_reload
+fi
+
+if [[ "$BUMP_BUILD" -eq 1 ]]; then
+  bump_build_number
+else
+  log "Skipping build bump (--no-bump-build); CURRENT_PROJECT_VERSION left as-is"
 fi
 
 if [[ "$ARCHIVE_ONLY" -eq 0 ]]; then
