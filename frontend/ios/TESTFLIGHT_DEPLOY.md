@@ -42,9 +42,15 @@ export ASC_KEY_ID=XXXXXXXXXX
 export ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 export ASC_KEY_PATH="$HOME/AuthKey_${ASC_KEY_ID}.p8"   # do not commit .p8 files
 
-npm run ios:archive:upload:dry-run   # validates project/scheme/signing; prints commands
-npm run ios:archive:upload           # runs cap:sync:ios:store, archives, uploads
+npm run ios:archive:upload:dry-run   # validates; prints intended CURRENT_PROJECT_VERSION bump (no write)
+npm run ios:archive:upload           # bumps build (default), syncs, archives, uploads
+# Flags after npm’s `--` (bump is already the default; --bump-build is explicit):
+#   npm run ios:archive:upload -- --bump-build
+#   npm run ios:archive:upload -- --no-bump-build
+#   npm run ios:archive:upload -- --skip-sync
 ```
+
+The CLI bumps `CURRENT_PROJECT_VERSION` to max+1 for **App** and **WorkoutHabitWidget** in `project.pbxproj` before archive (`MARKETING_VERSION` unchanged). Dry-run prints the next value without writing. Use `--no-bump-build` only if you already set the build number yourself.
 
 Full env + steps: see Project doc `docs/ios-archive-upload.md` (supersedes the old EG-11 checklist).
 
@@ -68,7 +74,7 @@ Full env + steps: see Project doc `docs/ios-archive-upload.md` (supersedes the o
 8. **Internal Testing** → create group → add yourself → enable the build.
 9. On iPhone: install **TestFlight** → install Ethereal Gains.
 
-Bump `CURRENT_PROJECT_VERSION` in Xcode (or `project.pbxproj`) before every new upload. Keep marketing version `1.0` until you ship a user-facing version change.
+For manual Xcode uploads (not the CLI), bump `CURRENT_PROJECT_VERSION` in Xcode (or `project.pbxproj`) before every new upload. Keep marketing version `1.0` until you ship a user-facing version change.
 
 ---
 
