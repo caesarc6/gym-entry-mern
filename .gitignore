@@ -21,6 +21,8 @@ dist-ssr
 # App Store Connect API keys (never commit)
 AuthKey_*.p8
 *.p8
+ASC_KEY/
+asc_key/
 
 # Editor directories and files
 .vscode/*
